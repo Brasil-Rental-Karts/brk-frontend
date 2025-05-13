@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { ModeToggle } from "@/components/mode-toggle";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -35,8 +36,12 @@ export function Login() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex items-center justify-center min-h-screen p-4"
+      className="flex flex-col items-center justify-center min-h-screen p-4"
     >
+      <div className="absolute top-4 right-4">
+        <ModeToggle />
+      </div>
+      
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">Login</CardTitle>
