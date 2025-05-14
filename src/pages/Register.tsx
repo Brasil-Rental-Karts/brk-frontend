@@ -23,17 +23,26 @@ import {
 } from "@/components/ui/card";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Form, FormItem } from "@/components/ui/form";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
-const phoneRegex = /^\d{11}$/;
+// Verifica se o telefone tem exatamente 11 dígitos numéricos após remover caracteres não numéricos
+const phoneSchema = z.string().refine(
+  (value) => {
+    // Remove caracteres não numéricos para validação
+    const numbersOnly = value.replace(/\D/g, "");
+    return numbersOnly.length === 11;
+  },
+  {
+    message: "O celular deve ter exatamente 11 dígitos (DDD + 9 + número)",
+  }
+);
 
 const formSchema = z
   .object({
     name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres"),
     email: z.string().email("O email é inválido"),
-    phone: z
-      .string()
-      .regex(phoneRegex, "O celular deve estar no formato: DDD + 9 + número")
-      .transform((value) => value.replace(/\D/g, "")),
+    phone: phoneSchema.transform((value) => value.replace(/\D/g, "")),
     password: z
       .string()
       .min(8, "A senha deve ter pelo menos 8 caracteres")
@@ -56,7 +65,9 @@ const formSchema = z
   });
 
 export function Register() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { register, isLoading } = useAuth();
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -71,15 +82,25 @@ export function Register() {
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    setIsLoading(true);
+    setError(null);
 
     try {
-      console.log("Registro com:", values);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    } catch (error) {
+      const { name, email, password, phone } = values;
+      await register({
+        name,
+        email,
+        password,
+        phone,
+      });
+      
+      // Redirect to login page after successful registration
+      navigate("/");
+    } catch (error: any) {
       console.error("Falha no registro:", error);
-    } finally {
-      setIsLoading(false);
+      setError(
+        error.response?.data?.message || 
+        "Ocorreu um erro durante o registro. Por favor, tente novamente."
+      );
     }
   };
 
@@ -119,6 +140,11 @@ export function Register() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               <FormField
