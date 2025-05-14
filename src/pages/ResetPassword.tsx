@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
+// @ts-ignore
 import ReCAPTCHA from "react-google-recaptcha";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,7 @@ export function ResetPassword() {
       console.log("Solicitação de recuperação de senha:", values);
       await new Promise((resolve) => setTimeout(resolve, 1000));
       // Aqui você implementaria a lógica de envio do email de recuperação
+      window.location.href = "/reset-password-success";
     } catch (error) {
       console.error("Falha na solicitação:", error);
     } finally {
@@ -102,7 +104,7 @@ export function ResetPassword() {
                   <FormItem>
                     <FormControl>
                       <ReCAPTCHA
-                        sitekey="sua_chave_do_site_recaptcha"
+                        sitekey="6LdgHDorAAAAALScjWUJTQKItJDpWpNWWhQTc67Z"
                         onChange={handleRecaptchaChange}
                         key={recaptchaKey}
                       />

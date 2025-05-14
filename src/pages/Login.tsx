@@ -55,7 +55,7 @@ export function Login() {
     },
   });
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: { email: string; password: string }) => {
     setIsLoading(true);
 
     try {

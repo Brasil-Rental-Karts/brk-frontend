@@ -1,6 +1,7 @@
 import { Login } from "@/pages/Login";
 import { Register } from "@/pages/Register";
 import { ResetPassword } from "@/pages/ResetPassword";
+import { ResetPasswordSuccess } from "@/pages/ResetPasswordSuccess";
 import { ThemeProvider } from "@/components/theme-provider";
 import {
   BrowserRouter as Router,
@@ -33,6 +34,10 @@ function AppContent() {
       <Route path="/" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route
+        path="/reset-password-success"
+        element={<ResetPasswordSuccess />}
+      />
     </Routes>
   );
 }

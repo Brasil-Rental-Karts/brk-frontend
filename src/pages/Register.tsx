@@ -5,6 +5,7 @@ import { z } from "zod";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InputMask } from "@/components/ui/input-mask";
 import {
   FormControl,
   FormDescription,
@@ -24,50 +25,35 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { Form, FormItem } from "@/components/ui/form";
 
 const phoneRegex = /^\d{11}$/;
-const minAge = 18;
 
-const dateRegex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
-
-const formSchema = z.object({
-  name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres"),
-  email: z.string().email("O email é inválido"),
-  phone: z
-    .string()
-    .regex(phoneRegex, "O celular deve estar no formato: DDD + 9 + número")
-    .transform((value) => value.replace(/\D/g, "")),
-  birthDate: z
-    .string()
-    .regex(dateRegex, "A data deve estar no formato dd/mm/aaaa")
-    .refine(
-      (value) => {
-        const [day, month, year] = value.split("/").map(Number);
-        const birthDate = new Date(year, month - 1, day);
-        const today = new Date();
-        const age = today.getFullYear() - birthDate.getFullYear();
-        const monthDiff = today.getMonth() - birthDate.getMonth();
-        if (
-          monthDiff < 0 ||
-          (monthDiff === 0 && today.getDate() < birthDate.getDate())
-        ) {
-          return age - 1 >= minAge;
-        }
-        return age >= minAge;
-      },
-      { message: `Você deve ter pelo menos ${minAge} anos para se registrar` }
-    )
-    .refine(
-      (value) => {
-        const [day, month, year] = value.split("/").map(Number);
-        const date = new Date(year, month - 1, day);
-        return date >= new Date("1900-01-01") && date <= new Date();
-      },
-      { message: "Data inválida" }
-    ),
-  acceptTerms: z.boolean().refine((value) => value === true, {
-    message:
-      "Você precisa aceitar os termos de uso e política de privacidade para continuar",
-  }),
-});
+const formSchema = z
+  .object({
+    name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres"),
+    email: z.string().email("O email é inválido"),
+    phone: z
+      .string()
+      .regex(phoneRegex, "O celular deve estar no formato: DDD + 9 + número")
+      .transform((value) => value.replace(/\D/g, "")),
+    password: z
+      .string()
+      .min(8, "A senha deve ter pelo menos 8 caracteres")
+      .regex(/[A-Z]/, "A senha deve conter pelo menos uma letra maiúscula")
+      .regex(/[a-z]/, "A senha deve conter pelo menos uma letra minúscula")
+      .regex(/[0-9]/, "A senha deve conter pelo menos um número")
+      .regex(
+        /[^A-Za-z0-9]/,
+        "A senha deve conter pelo menos um caractere especial"
+      ),
+    confirmPassword: z.string(),
+    acceptTerms: z.boolean().refine((value) => value === true, {
+      message:
+        "Você precisa aceitar os termos de uso e política de privacidade para continuar",
+    }),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "As senhas não coincidem",
+    path: ["confirmPassword"],
+  });
 
 export function Register() {
   const [isLoading, setIsLoading] = useState(false);
@@ -78,7 +64,8 @@ export function Register() {
       name: "",
       email: "",
       phone: "",
-      birthDate: "",
+      password: "",
+      confirmPassword: "",
       acceptTerms: false,
     },
   });
@@ -94,17 +81,6 @@ export function Register() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const formatDate = (value: string) => {
-    const numbers = value.replace(/\D/g, "");
-    if (numbers.length <= 2) return numbers;
-    if (numbers.length <= 4)
-      return `${numbers.slice(0, 2)}/${numbers.slice(2)}`;
-    return `${numbers.slice(0, 2)}/${numbers.slice(2, 4)}/${numbers.slice(
-      4,
-      8
-    )}`;
   };
 
   const formatPhone = (value: string) => {
@@ -178,16 +154,10 @@ export function Register() {
                   <FormItem>
                     <FormLabel>Celular</FormLabel>
                     <FormControl>
-                      <Input
+                      <InputMask
+                        mask="phone"
                         placeholder="(99) 99999-9999"
                         {...field}
-                        value={formatPhone(field.value)}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, "");
-                          if (value.length <= 11) {
-                            field.onChange(value);
-                          }
-                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -196,21 +166,32 @@ export function Register() {
               />
               <FormField
                 control={form.control}
-                name="birthDate"
+                name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data de Nascimento</FormLabel>
+                    <FormLabel>Senha</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="dd/mm/aaaa"
+                        type="password"
+                        placeholder="********"
                         {...field}
-                        value={formatDate(field.value)}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, "");
-                          if (value.length <= 8) {
-                            field.onChange(value);
-                          }
-                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirmar Senha</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="********"
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
