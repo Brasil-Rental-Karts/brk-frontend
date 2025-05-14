@@ -1,9 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
-// @ts-ignore
 import ReCAPTCHA from "react-google-recaptcha";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +22,13 @@ import {
 } from "@/components/ui/card";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Form, FormItem } from "@/components/ui/form";
+import { useNavigate } from "react-router-dom";
+import { AuthService } from "@/lib/services";
+
+// Obtém a chave do site do ambiente ou usa a chave de teste
+// IMPORTANTE: Atualize o arquivo .env com sua própria chave após registrá-la no Google reCAPTCHA
+// A chave a seguir é apenas para teste de desenvolvimento
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
 
 const formSchema = z.object({
   email: z.string().email("O email é inválido"),
@@ -31,7 +37,9 @@ const formSchema = z.object({
 
 export function ResetPassword() {
   const [isLoading, setIsLoading] = useState(false);
-  const [recaptchaKey, setRecaptchaKey] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
+  const navigate = useNavigate();
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -43,17 +51,39 @@ export function ResetPassword() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
+    setError(null);
 
     try {
-      console.log("Solicitação de recuperação de senha:", values);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      // Aqui você implementaria a lógica de envio do email de recuperação
-      window.location.href = "/reset-password-success";
-    } catch (error) {
+      // Em ambiente de desenvolvimento, simular sucesso para facilitar testes
+      if (process.env.NODE_ENV === 'development') {
+        // Simular a chamada à API com um delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        navigate("/reset-password-success");
+        return;
+      }
+      
+      // Em produção, fazer a chamada real à API
+      await AuthService.resetPassword({
+        email: values.email,
+        recaptchaToken: values.recaptcha
+      });
+      
+      // Redirecionar para a página de sucesso
+      navigate("/reset-password-success");
+    } catch (error: any) {
       console.error("Falha na solicitação:", error);
+      setError(
+        error.response?.data?.message || 
+        "Não foi possível processar sua solicitação. Por favor, tente novamente mais tarde."
+      );
+      
+      // Reset reCAPTCHA when there's an error
+      if (recaptchaRef.current) {
+        recaptchaRef.current.reset();
+      }
+      form.setValue("recaptcha", "");
     } finally {
       setIsLoading(false);
-      setRecaptchaKey(""); // Reseta o reCAPTCHA após o envio
     }
   };
 
@@ -82,6 +112,11 @@ export function ResetPassword() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               <FormField
@@ -103,11 +138,14 @@ export function ResetPassword() {
                 render={() => (
                   <FormItem>
                     <FormControl>
-                      <ReCAPTCHA
-                        sitekey="6LdgHDorAAAAALScjWUJTQKItJDpWpNWWhQTc67Z"
-                        onChange={handleRecaptchaChange}
-                        key={recaptchaKey}
-                      />
+                      <div className="flex justify-center">
+                        <ReCAPTCHA
+                          ref={recaptchaRef}
+                          sitekey={RECAPTCHA_SITE_KEY}
+                          onChange={handleRecaptchaChange}
+                          hl="pt-BR"
+                        />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

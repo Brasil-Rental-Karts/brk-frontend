@@ -36,6 +36,15 @@ export interface RefreshTokenResponse {
   refreshToken: string;
 }
 
+export interface ResetPasswordRequest {
+  email: string;
+  recaptchaToken: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
+}
+
 export const AuthService = {
   register: async (data: RegisterRequest): Promise<RegisterResponse> => {
     const response = await api.post<RegisterResponse>('/auth/register', data);
@@ -49,6 +58,11 @@ export const AuthService = {
 
   refreshToken: async (refreshToken: string): Promise<RefreshTokenResponse> => {
     const response = await api.post<RefreshTokenResponse>('/auth/refresh-token', { refreshToken });
+    return response.data;
+  },
+
+  resetPassword: async (data: ResetPasswordRequest): Promise<ResetPasswordResponse> => {
+    const response = await api.post<ResetPasswordResponse>('/auth/reset-password', data);
     return response.data;
   }
 }; 
