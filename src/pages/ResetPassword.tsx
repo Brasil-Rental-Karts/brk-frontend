@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
+import ReCAPTCHA from "react-google-recaptcha";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,36 +23,20 @@ import {
 import { ModeToggle } from "@/components/mode-toggle";
 import { Form, FormItem } from "@/components/ui/form";
 
-const formSchema = {
-  email: {
-    required: "O email é obrigatório",
-    pattern: {
-      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-      message: "O email é inválido",
-    },
-  },
-  password: {
-    required: "A senha é obrigatória",
-    minLength: {
-      value: 8,
-      message: "A senha deve ter pelo menos 8 caracteres",
-    },
-  },
-};
+const formSchema = z.object({
+  email: z.string().email("O email é inválido"),
+  recaptcha: z.string().min(1, "Por favor, confirme que você não é um robô"),
+});
 
-export function Login() {
+export function ResetPassword() {
   const [isLoading, setIsLoading] = useState(false);
+  const [recaptchaKey, setRecaptchaKey] = useState("");
 
-  const formLogin = useForm({
-    resolver: zodResolver(
-      z.object({
-        email: z.string().email(formSchema.email.pattern.message),
-        password: z.string().min(8, formSchema.password.minLength.message),
-      })
-    ),
+  const form = useForm({
+    resolver: zodResolver(formSchema),
     defaultValues: {
       email: "",
-      password: "",
+      recaptcha: "",
     },
   });
 
@@ -59,19 +44,19 @@ export function Login() {
     setIsLoading(true);
 
     try {
-      // Here you would handle authentication
-      console.log("Login attempt with:", values);
-
-      // Simulating API call delay
+      console.log("Solicitação de recuperação de senha:", values);
       await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Redirect after successful login
-      // window.location.href = "/dashboard";
+      // Aqui você implementaria a lógica de envio do email de recuperação
     } catch (error) {
-      console.error("Login failed:", error);
+      console.error("Falha na solicitação:", error);
     } finally {
       setIsLoading(false);
+      setRecaptchaKey(""); // Reseta o reCAPTCHA após o envio
     }
+  };
+
+  const handleRecaptchaChange = (value: string | null) => {
+    form.setValue("recaptcha", value || "");
   };
 
   return (
@@ -88,20 +73,17 @@ export function Login() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">
-            Login
+            Recuperar Senha
           </CardTitle>
           <CardDescription className="text-center">
-            Entre com suas credenciais para acessar sua conta
+            Digite seu e-mail para receber as instruções de recuperação de senha
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...formLogin}>
-            <form
-              onSubmit={formLogin.handleSubmit(onSubmit)}
-              className="space-y-8"
-            >
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               <FormField
-                control={formLogin.control}
+                control={form.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
@@ -114,16 +96,15 @@ export function Login() {
                 )}
               />
               <FormField
-                control={formLogin.control}
-                name="password"
-                render={({ field }) => (
+                control={form.control}
+                name="recaptcha"
+                render={() => (
                   <FormItem>
-                    <FormLabel>Senha</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="********"
-                        {...field}
+                      <ReCAPTCHA
+                        sitekey="sua_chave_do_site_recaptcha"
+                        onChange={handleRecaptchaChange}
+                        key={recaptchaKey}
                       />
                     </FormControl>
                     <FormMessage />
@@ -131,22 +112,16 @@ export function Login() {
                 )}
               />
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Entrando..." : "Entrar"}
+                {isLoading ? "Enviando..." : "Enviar instruções"}
               </Button>
             </form>
           </Form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <div className="text-sm text-center text-muted-foreground">
-            Esqueceu sua senha?{" "}
-            <a href="/reset-password" className="text-primary hover:underline">
-              Recuperar senha
-            </a>
-          </div>
-          <div className="text-sm text-center text-muted-foreground">
-            Não tem uma conta?{" "}
-            <a href="/register" className="text-primary hover:underline">
-              Registre-se
+            Lembrou sua senha?{" "}
+            <a href="/" className="text-primary hover:underline">
+              Voltar para o login
             </a>
           </div>
         </CardFooter>

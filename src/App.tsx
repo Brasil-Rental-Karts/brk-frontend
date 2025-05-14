@@ -1,4 +1,6 @@
 import { Login } from "@/pages/Login";
+import { Register } from "@/pages/Register";
+import { ResetPassword } from "@/pages/ResetPassword";
 import { ThemeProvider } from "@/components/theme-provider";
 import {
   BrowserRouter as Router,
@@ -28,7 +30,9 @@ function AppContent() {
 
   return (
     <Routes>
-      <Route path="/*" element={<Login />} />
+      <Route path="/" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
     </Routes>
   );
 }
