@@ -52,7 +52,6 @@ export function ChangePassword() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Verificar se o token está presente na URL
     if (!token) {
       setError("Token inválido ou expirado. Por favor, solicite um novo link de recuperação de senha.");
     }
@@ -77,16 +76,13 @@ export function ChangePassword() {
     setSuccess(null);
 
     try {
-      // Chama o endpoint para alteração de senha
       await AuthService.resetPassword({
         token,
         password: values.password
       });
       
-      // Mostra mensagem de sucesso
       setSuccess("Senha alterada com sucesso! Você será redirecionado para a página de login.");
       
-      // Redireciona para a página de login após 3 segundos
       setTimeout(() => {
         navigate("/");
       }, 3000);

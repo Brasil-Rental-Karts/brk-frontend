@@ -68,7 +68,6 @@ export function Login() {
     } catch (error: any) {
       console.error("Login failed:", error);
       
-      // Mapear códigos de erro para mensagens amigáveis
       if (error.response) {
         const status = error.response.status;
         const message = error.response.data?.message;

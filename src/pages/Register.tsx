@@ -26,10 +26,8 @@ import { Form, FormItem } from "@/components/ui/form";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
-// Verifica se o telefone tem exatamente 11 dígitos numéricos após remover caracteres não numéricos
 const phoneSchema = z.string().refine(
   (value) => {
-    // Remove caracteres não numéricos para validação
     const numbersOnly = value.replace(/\D/g, "");
     return numbersOnly.length === 11;
   },

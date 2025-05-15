@@ -25,9 +25,6 @@ import { Form, FormItem } from "@/components/ui/form";
 import { useNavigate } from "react-router-dom";
 import { AuthService } from "@/lib/services";
 
-// Obtém a chave do site do ambiente ou usa a chave de teste
-// IMPORTANTE: Atualize o arquivo .env com sua própria chave após registrá-la no Google reCAPTCHA
-// A chave a seguir é apenas para teste de desenvolvimento
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
 
 const formSchema = z.object({
@@ -54,12 +51,10 @@ export function ResetPassword() {
     setError(null);
 
     try {
-      // Chama o endpoint de recuperação de senha
       await AuthService.forgotPassword({
         email: values.email
       });
       
-      // Redireciona para a página de sucesso após o envio bem-sucedido
       navigate("/reset-password-success");
     } catch (error: any) {
       console.error("Falha na solicitação:", error);
@@ -68,7 +63,6 @@ export function ResetPassword() {
         "Não foi possível processar sua solicitação. Por favor, tente novamente mais tarde."
       );
       
-      // Reseta o reCAPTCHA em caso de erro
       if (recaptchaRef.current) {
         recaptchaRef.current.reset();
       }

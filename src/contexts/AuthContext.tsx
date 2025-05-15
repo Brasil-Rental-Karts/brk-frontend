@@ -35,7 +35,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const LOCAL_STORAGE_ACCESS_TOKEN_KEY = '@brk:accessToken';
 const LOCAL_STORAGE_REFRESH_TOKEN_KEY = '@brk:refreshToken';
 
-// URLs que não devem passar pelo processo de refresh de token
 const AUTH_URLS = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password', '/auth/refresh-token'];
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -69,11 +68,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         async (error) => {
           const originalRequest = error.config;
           
-          // Não tente refresh de token para URLs de autenticação como login
           const isAuthRequest = AUTH_URLS.some(url => originalRequest.url?.includes(url));
           
-          // Se for erro 401 e não for retry e não for uma requisição de auth e tiver refreshToken
-          // e não estivermos já tentando refrescar o token
           if (
             error.response?.status === 401 && 
             !originalRequest._retry && 
@@ -113,13 +109,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
           
-          // Para erros 401 de autenticação, apenas rejeite a promessa sem tentar refresh
           return Promise.reject(error);
         }
       );
       
       return () => {
-        // Limpar o interceptor ao desmontar o componente
         api.interceptors.response.eject(interceptor);
       };
     };
