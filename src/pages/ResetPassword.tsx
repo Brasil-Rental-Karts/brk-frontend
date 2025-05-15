@@ -56,8 +56,7 @@ export function ResetPassword() {
     try {
       // Chama o endpoint de recuperação de senha
       await AuthService.forgotPassword({
-        email: values.email,
-        recaptchaToken: values.recaptcha
+        email: values.email
       });
       
       // Redireciona para a página de sucesso após o envio bem-sucedido
