@@ -78,7 +78,7 @@ export function ChangePassword() {
 
     try {
       // Chama o endpoint para alteração de senha
-      await AuthService.changePassword({
+      await AuthService.resetPassword({
         token,
         password: values.password
       });

@@ -36,30 +36,20 @@ export interface RefreshTokenResponse {
   refreshToken: string;
 }
 
-export interface ResetPasswordRequest {
-  email: string;
-  recaptchaToken: string;
-}
-
 export interface ForgotPasswordRequest {
   email: string;
-  recaptchaToken?: string;
 }
 
-export interface ChangePasswordRequest {
+export interface ResetPasswordRequest {
   token: string;
   password: string;
-}
-
-export interface ResetPasswordResponse {
-  message: string;
 }
 
 export interface ForgotPasswordResponse {
   message: string;
 }
 
-export interface ChangePasswordResponse {
+export interface ResetPasswordResponse {
   message: string;
 }
 
@@ -78,19 +68,14 @@ export const AuthService = {
     const response = await api.post<RefreshTokenResponse>('/auth/refresh-token', { refreshToken });
     return response.data;
   },
-
-  resetPassword: async (data: ResetPasswordRequest): Promise<ResetPasswordResponse> => {
-    const response = await api.post<ResetPasswordResponse>('/auth/reset-password', data);
-    return response.data;
-  },
   
   forgotPassword: async (data: ForgotPasswordRequest): Promise<ForgotPasswordResponse> => {
     const response = await api.post<ForgotPasswordResponse>('/auth/forgot-password', data);
     return response.data;
   },
   
-  changePassword: async (data: ChangePasswordRequest): Promise<ChangePasswordResponse> => {
-    const response = await api.post<ChangePasswordResponse>('/auth/reset-password', data);
+  resetPassword: async (data: ResetPasswordRequest): Promise<ResetPasswordResponse> => {
+    const response = await api.post<ResetPasswordResponse>('/auth/reset-password', data);
     return response.data;
   }
 }; 
