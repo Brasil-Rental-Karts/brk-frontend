@@ -1,9 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
-import ReCAPTCHA from "react-google-recaptcha";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,65 +21,84 @@ import {
 } from "@/components/ui/card";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Form, FormItem } from "@/components/ui/form";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AuthService } from "@/lib/services";
 
-// Obtém a chave do site do ambiente ou usa a chave de teste
-// IMPORTANTE: Atualize o arquivo .env com sua própria chave após registrá-la no Google reCAPTCHA
-// A chave a seguir é apenas para teste de desenvolvimento
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
+const formSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, "A senha deve ter pelo menos 8 caracteres")
+      .regex(/[A-Z]/, "A senha deve conter pelo menos uma letra maiúscula")
+      .regex(/[a-z]/, "A senha deve conter pelo menos uma letra minúscula")
+      .regex(/[0-9]/, "A senha deve conter pelo menos um número")
+      .regex(
+        /[^A-Za-z0-9]/,
+        "A senha deve conter pelo menos um caractere especial"
+      ),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "As senhas não coincidem",
+    path: ["confirmPassword"],
+  });
 
-const formSchema = z.object({
-  email: z.string().email("O email é inválido"),
-  recaptcha: z.string().min(1, "Por favor, confirme que você não é um robô"),
-});
-
-export function ResetPassword() {
+export function ChangePassword() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const recaptchaRef = useRef<ReCAPTCHA>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Verificar se o token está presente na URL
+    if (!token) {
+      setError("Token inválido ou expirado. Por favor, solicite um novo link de recuperação de senha.");
+    }
+  }, [token]);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
-      recaptcha: "",
+      password: "",
+      confirmPassword: "",
     },
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!token) {
+      setError("Token inválido ou expirado. Por favor, solicite um novo link de recuperação de senha.");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
+    setSuccess(null);
 
     try {
-      // Chama o endpoint de recuperação de senha
-      await AuthService.forgotPassword({
-        email: values.email,
-        recaptchaToken: values.recaptcha
+      // Chama o endpoint para alteração de senha
+      await AuthService.changePassword({
+        token,
+        password: values.password
       });
       
-      // Redireciona para a página de sucesso após o envio bem-sucedido
-      navigate("/reset-password-success");
+      // Mostra mensagem de sucesso
+      setSuccess("Senha alterada com sucesso! Você será redirecionado para a página de login.");
+      
+      // Redireciona para a página de login após 3 segundos
+      setTimeout(() => {
+        navigate("/");
+      }, 3000);
     } catch (error: any) {
-      console.error("Falha na solicitação:", error);
+      console.error("Falha na alteração de senha:", error);
       setError(
         error.response?.data?.message || 
-        "Não foi possível processar sua solicitação. Por favor, tente novamente mais tarde."
+        "Não foi possível alterar sua senha. Por favor, tente novamente mais tarde."
       );
-      
-      // Reseta o reCAPTCHA em caso de erro
-      if (recaptchaRef.current) {
-        recaptchaRef.current.reset();
-      }
-      form.setValue("recaptcha", "");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleRecaptchaChange = (value: string | null) => {
-    form.setValue("recaptcha", value || "");
   };
 
   return (
@@ -97,10 +115,10 @@ export function ResetPassword() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">
-            Recuperar Senha
+            Alterar Senha
           </CardTitle>
           <CardDescription className="text-center">
-            Digite seu e-mail para receber as instruções de recuperação de senha
+            Digite sua nova senha para acessar a plataforma
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -109,16 +127,25 @@ export function ResetPassword() {
               <span className="block sm:inline">{error}</span>
             </div>
           )}
+          {success && (
+            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+              <span className="block sm:inline">{success}</span>
+            </div>
+          )}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               <FormField
                 control={form.control}
-                name="email"
+                name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>E-mail</FormLabel>
+                    <FormLabel>Senha</FormLabel>
                     <FormControl>
-                      <Input placeholder="seuemail@gmail.com" {...field} />
+                      <Input
+                        type="password"
+                        placeholder="********"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -126,25 +153,23 @@ export function ResetPassword() {
               />
               <FormField
                 control={form.control}
-                name="recaptcha"
-                render={() => (
+                name="confirmPassword"
+                render={({ field }) => (
                   <FormItem>
+                    <FormLabel>Confirmar Senha</FormLabel>
                     <FormControl>
-                      <div className="flex justify-center">
-                        <ReCAPTCHA
-                          ref={recaptchaRef}
-                          sitekey={RECAPTCHA_SITE_KEY}
-                          onChange={handleRecaptchaChange}
-                          hl="pt-BR"
-                        />
-                      </div>
+                      <Input
+                        type="password"
+                        placeholder="********"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Enviando..." : "Enviar instruções"}
+              <Button type="submit" className="w-full" disabled={isLoading || !token}>
+                {isLoading ? "Alterando senha..." : "Confirmar alteração"}
               </Button>
             </form>
           </Form>
@@ -160,4 +185,4 @@ export function ResetPassword() {
       </Card>
     </motion.div>
   );
-}
+} 

@@ -41,7 +41,25 @@ export interface ResetPasswordRequest {
   recaptchaToken: string;
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+  recaptchaToken?: string;
+}
+
+export interface ChangePasswordRequest {
+  token: string;
+  password: string;
+}
+
 export interface ResetPasswordResponse {
+  message: string;
+}
+
+export interface ForgotPasswordResponse {
+  message: string;
+}
+
+export interface ChangePasswordResponse {
   message: string;
 }
 
@@ -63,6 +81,16 @@ export const AuthService = {
 
   resetPassword: async (data: ResetPasswordRequest): Promise<ResetPasswordResponse> => {
     const response = await api.post<ResetPasswordResponse>('/auth/reset-password', data);
+    return response.data;
+  },
+  
+  forgotPassword: async (data: ForgotPasswordRequest): Promise<ForgotPasswordResponse> => {
+    const response = await api.post<ForgotPasswordResponse>('/auth/forgot-password', data);
+    return response.data;
+  },
+  
+  changePassword: async (data: ChangePasswordRequest): Promise<ChangePasswordResponse> => {
+    const response = await api.post<ChangePasswordResponse>('/auth/reset-password', data);
     return response.data;
   }
 }; 

@@ -2,6 +2,7 @@ import { Login } from "@/pages/Login";
 import { Register } from "@/pages/Register";
 import { ResetPassword } from "@/pages/ResetPassword";
 import { ResetPasswordSuccess } from "@/pages/ResetPasswordSuccess";
+import { ChangePassword } from "@/pages/ChangePassword";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -37,6 +38,7 @@ function AppContent() {
       <Route path="/register" element={<Register />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/reset-password-success" element={<ResetPasswordSuccess />} />
+      <Route path="/change-password" element={<ChangePassword />} />
 
       {/* Protected routes */}
       <Route element={<ProtectedRoute />}>

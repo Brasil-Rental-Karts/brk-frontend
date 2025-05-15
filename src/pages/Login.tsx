@@ -67,10 +67,28 @@ export function Login() {
       navigate("/dashboard");
     } catch (error: any) {
       console.error("Login failed:", error);
-      setError(
-        error.response?.data?.message || 
-        "Falha na autenticação. Por favor, verifique seu email e senha."
-      );
+      
+      // Mapear códigos de erro para mensagens amigáveis
+      if (error.response) {
+        const status = error.response.status;
+        const message = error.response.data?.message;
+        
+        if (status === 401) {
+          setError("Email ou senha incorretos. Por favor, verifique suas credenciais.");
+        } else if (status === 403) {
+          setError("Sua conta não tem permissão para acessar o sistema.");
+        } else if (status === 429) {
+          setError("Muitas tentativas de login. Por favor, tente novamente mais tarde.");
+        } else if (message) {
+          setError(message);
+        } else {
+          setError("Erro ao fazer login. Por favor, tente novamente.");
+        }
+      } else if (error.request) {
+        setError("Não foi possível conectar ao servidor. Verifique sua conexão de internet.");
+      } else {
+        setError("Falha na autenticação. Por favor, verifique seu email e senha.");
+      }
     }
   };
 

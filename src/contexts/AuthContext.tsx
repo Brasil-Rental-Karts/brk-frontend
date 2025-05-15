@@ -35,11 +35,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const LOCAL_STORAGE_ACCESS_TOKEN_KEY = '@brk:accessToken';
 const LOCAL_STORAGE_REFRESH_TOKEN_KEY = '@brk:refreshToken';
 
+// URLs que não devem passar pelo processo de refresh de token
+const AUTH_URLS = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password', '/auth/refresh-token'];
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Parse user from JWT token
   const getUserFromToken = (token: string): User => {
@@ -60,16 +64,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Set up an interceptor to refresh the token when needed
   useEffect(() => {
     const setupTokenRefresh = () => {
-      api.interceptors.response.use(
+      const interceptor = api.interceptors.response.use(
         (response) => response,
         async (error) => {
           const originalRequest = error.config;
           
-          // If error is 401 and not a retry, try refreshing token
-          if (error.response?.status === 401 && !originalRequest._retry && refreshToken) {
+          // Não tente refresh de token para URLs de autenticação como login
+          const isAuthRequest = AUTH_URLS.some(url => originalRequest.url?.includes(url));
+          
+          // Se for erro 401 e não for retry e não for uma requisição de auth e tiver refreshToken
+          // e não estivermos já tentando refrescar o token
+          if (
+            error.response?.status === 401 && 
+            !originalRequest._retry && 
+            !isAuthRequest && 
+            refreshToken &&
+            !isRefreshing
+          ) {
             originalRequest._retry = true;
             
             try {
+              setIsRefreshing(true);
               // Call refresh token API
               const refreshResponse = await AuthService.refreshToken(refreshToken);
               
@@ -87,22 +102,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               // Update headers for the original request
               originalRequest.headers.Authorization = `Bearer ${refreshResponse.accessToken}`;
               
+              setIsRefreshing(false);
               // Retry original request
               return api(originalRequest);
             } catch (refreshError) {
               // If refresh fails, logout
+              setIsRefreshing(false);
               logout();
               return Promise.reject(refreshError);
             }
           }
           
+          // Para erros 401 de autenticação, apenas rejeite a promessa sem tentar refresh
           return Promise.reject(error);
         }
       );
+      
+      return () => {
+        // Limpar o interceptor ao desmontar o componente
+        api.interceptors.response.eject(interceptor);
+      };
     };
     
-    setupTokenRefresh();
-  }, [refreshToken]);
+    const cleanupInterceptor = setupTokenRefresh();
+    
+    return cleanupInterceptor;
+  }, [refreshToken, isRefreshing]);
 
   useEffect(() => {
     const loadStoredAuth = async () => {
@@ -124,6 +149,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (data: LoginRequest) => {
     setIsLoading(true);
     try {
+      // Clear any existing tokens before attempting login
+      setAccessToken(null);
+      setRefreshToken(null);
+      localStorage.removeItem(LOCAL_STORAGE_ACCESS_TOKEN_KEY);
+      localStorage.removeItem(LOCAL_STORAGE_REFRESH_TOKEN_KEY);
+      
       const response = await AuthService.login(data);
       
       setAccessToken(response.accessToken);
