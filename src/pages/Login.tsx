@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/card";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Form, FormItem } from "@/components/ui/form";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const formSchema = {
   email: {
@@ -40,7 +42,9 @@ const formSchema = {
 };
 
 export function Login() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { login, isLoading } = useAuth();
 
   const formLogin = useForm({
     resolver: zodResolver(
@@ -56,21 +60,34 @@ export function Login() {
   });
 
   const onSubmit = async (values: { email: string; password: string }) => {
-    setIsLoading(true);
+    setError(null);
 
     try {
-      // Here you would handle authentication
-      console.log("Login attempt with:", values);
-
-      // Simulating API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Redirect after successful login
-      // window.location.href = "/dashboard";
-    } catch (error) {
+      await login(values);
+      navigate("/dashboard");
+    } catch (error: any) {
       console.error("Login failed:", error);
-    } finally {
-      setIsLoading(false);
+      
+      if (error.response) {
+        const status = error.response.status;
+        const message = error.response.data?.message;
+        
+        if (status === 401) {
+          setError("Email ou senha incorretos. Por favor, verifique suas credenciais.");
+        } else if (status === 403) {
+          setError("Sua conta não tem permissão para acessar o sistema.");
+        } else if (status === 429) {
+          setError("Muitas tentativas de login. Por favor, tente novamente mais tarde.");
+        } else if (message) {
+          setError(message);
+        } else {
+          setError("Erro ao fazer login. Por favor, tente novamente.");
+        }
+      } else if (error.request) {
+        setError("Não foi possível conectar ao servidor. Verifique sua conexão de internet.");
+      } else {
+        setError("Falha na autenticação. Por favor, verifique seu email e senha.");
+      }
     }
   };
 
@@ -87,14 +104,17 @@ export function Login() {
 
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            Login
-          </CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">Login</CardTitle>
           <CardDescription className="text-center">
-            Entre com suas credenciais para acessar sua conta
+            Entre com seu email e senha para acessar a plataforma
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
           <Form {...formLogin}>
             <form
               onSubmit={formLogin.handleSubmit(onSubmit)}
