@@ -1,9 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
-import ReCAPTCHA from "react-google-recaptcha";
+import { GoogleReCaptchaProvider, useGoogleReCaptcha } from "react-google-recaptcha-v3";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,30 +29,54 @@ const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6LeIxAcTA
 
 const formSchema = z.object({
   email: z.string().email("O email é inválido"),
-  recaptcha: z.string().min(1, "Por favor, confirme que você não é um robô"),
 });
 
 export function ResetPassword() {
+  return (
+    <GoogleReCaptchaProvider
+      reCaptchaKey={RECAPTCHA_SITE_KEY}
+      scriptProps={{
+        async: true,
+        defer: true,
+        appendTo: 'head',
+      }}
+      language="pt-BR"
+    >
+      <ResetPasswordForm />
+    </GoogleReCaptchaProvider>
+  );
+}
+
+function ResetPasswordForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const recaptchaRef = useRef<ReCAPTCHA>(null);
   const navigate = useNavigate();
+  const { executeRecaptcha } = useGoogleReCaptcha();
 
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: "",
-      recaptcha: "",
     },
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!executeRecaptcha) {
+      setError("reCAPTCHA não está disponível. Por favor, recarregue a página.");
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
 
     try {
+      // Execute reCAPTCHA and get token
+      const token = await executeRecaptcha('reset_password');
+      
+      // Send request with email and reCAPTCHA token
       await AuthService.forgotPassword({
-        email: values.email
+        email: values.email,
+        recaptchaToken: token
       });
       
       navigate("/reset-password-success");
@@ -62,18 +86,9 @@ export function ResetPassword() {
         error.response?.data?.message || 
         "Não foi possível processar sua solicitação. Por favor, tente novamente mais tarde."
       );
-      
-      if (recaptchaRef.current) {
-        recaptchaRef.current.reset();
-      }
-      form.setValue("recaptcha", "");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleRecaptchaChange = (value: string | null) => {
-    form.setValue("recaptcha", value || "");
   };
 
   return (
@@ -112,25 +127,6 @@ export function ResetPassword() {
                     <FormLabel>E-mail</FormLabel>
                     <FormControl>
                       <Input placeholder="seuemail@gmail.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="recaptcha"
-                render={() => (
-                  <FormItem>
-                    <FormControl>
-                      <div className="flex justify-center">
-                        <ReCAPTCHA
-                          ref={recaptchaRef}
-                          sitekey={RECAPTCHA_SITE_KEY}
-                          onChange={handleRecaptchaChange}
-                          hl="pt-BR"
-                        />
-                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

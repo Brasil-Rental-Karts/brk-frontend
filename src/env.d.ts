@@ -1,5 +1,4 @@
 interface ImportMetaEnv {
-  readonly VITE_APP_URL: string
   readonly VITE_API_URL: string
   readonly VITE_RECAPTCHA_SITE_KEY: string
 }
