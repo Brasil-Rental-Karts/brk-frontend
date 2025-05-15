@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -70,13 +70,10 @@ function ResetPasswordForm() {
     setError(null);
 
     try {
-      // Execute reCAPTCHA and get token
-      const token = await executeRecaptcha('reset_password');
       
       // Send request with email and reCAPTCHA token
       await AuthService.forgotPassword({
         email: values.email,
-        recaptchaToken: token
       });
       
       navigate("/reset-password-success");
