@@ -53,6 +53,20 @@ export interface ResetPasswordResponse {
   message: string;
 }
 
+export interface GoogleAuthUrlResponse {
+  url: string;
+}
+
+export interface GoogleAuthResponse {
+  idToken: string;
+}
+
+// Get the frontend URL for redirects
+const getFrontendUrl = () => {
+  // Use the current origin (protocol + hostname + port) as the frontend URL
+  return window.location.origin;
+};
+
 export const AuthService = {
   register: async (data: RegisterRequest): Promise<RegisterResponse> => {
     const response = await api.post<RegisterResponse>('/auth/register', data);
@@ -77,5 +91,27 @@ export const AuthService = {
   resetPassword: async (data: ResetPasswordRequest): Promise<ResetPasswordResponse> => {
     const response = await api.post<ResetPasswordResponse>('/auth/reset-password', data);
     return response.data;
+  },
+
+  getGoogleAuthUrl: async (): Promise<GoogleAuthUrlResponse> => {
+    // Include the frontend redirect URLs as query parameters
+    const frontendRedirectUrl = `${getFrontendUrl()}/login-success`;
+    const frontendErrorRedirectUrl = `${getFrontendUrl()}/login-error`;
+    
+    const response = await api.get<GoogleAuthUrlResponse>(
+      `/auth/google/url?redirectUrl=${encodeURIComponent(frontendRedirectUrl)}&errorRedirectUrl=${encodeURIComponent(frontendErrorRedirectUrl)}`
+    );
+    return response.data;
+  },
+
+  authenticateWithGoogle: async (): Promise<LoginResponse> => {
+    const response = await api.get<LoginResponse>('/auth/google');
+    return response.data;
+  },
+
+  handleGoogleCallback: async (code: string): Promise<void> => {
+    // This function is no longer needed as the backend will handle the redirect
+    // with tokens directly to the login-success page
+    await api.get(`/auth/google/callback?code=${code}`);
   }
 }; 

@@ -1,12 +1,15 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, Outlet } from "react-router-dom";
+import { ReactNode } from "react";
 
 interface ProtectedRouteProps {
   redirectPath?: string;
+  children?: ReactNode;
 }
 
 export const ProtectedRoute = ({
-  redirectPath = "/"
+  redirectPath = "/",
+  children
 }: ProtectedRouteProps) => {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -24,6 +27,6 @@ export const ProtectedRoute = ({
     return <Navigate to={redirectPath} replace />;
   }
 
-  // If authenticated, render the child routes
-  return <Outlet />;
+  // If authenticated, render the children or outlet
+  return children ? <>{children}</> : <Outlet />;
 }; 

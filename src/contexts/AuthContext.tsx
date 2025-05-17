@@ -26,8 +26,11 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (data: LoginRequest) => Promise<void>;
+  loginWithTokens: (accessToken: string, refreshToken: string) => void;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => void;
+  loginWithGoogle: () => Promise<void>;
+  handleGoogleCallback: (code: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,7 +38,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const LOCAL_STORAGE_ACCESS_TOKEN_KEY = '@brk:accessToken';
 const LOCAL_STORAGE_REFRESH_TOKEN_KEY = '@brk:refreshToken';
 
-const AUTH_URLS = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password', '/auth/refresh-token'];
+const AUTH_URLS = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password', '/auth/refresh-token', '/auth/google', '/auth/google/url', '/auth/google/callback'];
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -165,6 +168,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const loginWithTokens = (newAccessToken: string, newRefreshToken: string) => {
+    // Clear any existing tokens
+    localStorage.removeItem(LOCAL_STORAGE_ACCESS_TOKEN_KEY);
+    localStorage.removeItem(LOCAL_STORAGE_REFRESH_TOKEN_KEY);
+    
+    // Set new tokens
+    setAccessToken(newAccessToken);
+    setRefreshToken(newRefreshToken);
+    
+    // Extract user info from access token
+    const userInfo = getUserFromToken(newAccessToken);
+    setUser(userInfo);
+    
+    // Save tokens to localStorage
+    localStorage.setItem(LOCAL_STORAGE_ACCESS_TOKEN_KEY, newAccessToken);
+    localStorage.setItem(LOCAL_STORAGE_REFRESH_TOKEN_KEY, newRefreshToken);
+  };
+
   const register = async (data: RegisterRequest) => {
     setIsLoading(true);
     try {
@@ -182,6 +203,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(LOCAL_STORAGE_REFRESH_TOKEN_KEY);
   };
 
+  const loginWithGoogle = async () => {
+    try {
+      const { url } = await AuthService.getGoogleAuthUrl();
+      window.location.href = url;
+    } catch (error) {
+      console.error('Failed to initiate Google login:', error);
+    }
+  };
+
+  const handleGoogleCallback = async () => {
+    setIsLoading(true);
+    try {
+      // The backend will handle the OAuth code exchange and redirect back with tokens
+      // We don't need to make a direct API call here as the redirect will handle it
+      
+      // Parse tokens from URL if they're in the query params
+      const urlParams = new URLSearchParams(window.location.search);
+      const accessTokenFromUrl = urlParams.get('access_token');
+      const refreshTokenFromUrl = urlParams.get('refresh_token');
+      
+      if (accessTokenFromUrl && refreshTokenFromUrl) {
+        setAccessToken(accessTokenFromUrl);
+        setRefreshToken(refreshTokenFromUrl);
+        
+        // Extract user info from access token
+        const userInfo = getUserFromToken(accessTokenFromUrl);
+        setUser(userInfo);
+        
+        localStorage.setItem(LOCAL_STORAGE_ACCESS_TOKEN_KEY, accessTokenFromUrl);
+        localStorage.setItem(LOCAL_STORAGE_REFRESH_TOKEN_KEY, refreshTokenFromUrl);
+        
+        // Clear URL params to avoid token exposure
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -191,8 +251,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: !!accessToken,
         isLoading,
         login,
+        loginWithTokens,
         register,
-        logout
+        logout,
+        loginWithGoogle,
+        handleGoogleCallback
       }}
     >
       {children}
