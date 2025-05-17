@@ -227,8 +227,6 @@ export function CompleteProfile() {
     if (isLastStep) {
       if (currentStepConfig.validate(currentStepData)) {
         try {
-          const completeData = { ...formData, ...currentStepData };
-          // await updateProfile(completeData);
           navigate("/dashboard");
         } catch (error) {
           console.error("Erro ao atualizar perfil:", error);
@@ -450,12 +448,6 @@ export function CompleteProfile() {
   // This prevents values from previous steps showing in current step
   useEffect(() => {
     if (formData) {
-      const relevantData = Object.fromEntries(
-        Object.entries(formData).filter(([key]) => 
-          currentStepConfig.fields.includes(key as keyof FormData)
-        )
-      );
-      
       form.reset({ ...defaultValues, ...formData });
     }
   }, [currentStep, formData]);
