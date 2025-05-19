@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import axios from "axios";
 import {
   Select,
   SelectContent,
@@ -30,6 +31,11 @@ import {
 } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { Stepper } from "@/components/ui/stepper";
+
+interface Cidade {
+  id: number;
+  nome: string;
+}
 
 const estados = [
   "AC",
@@ -209,12 +215,33 @@ type StepConfig = {
 export function CompleteProfile() {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<Partial<FormData>>(defaultValues);
+  const [cidades, setCidades] = useState<Cidade[]>([]);
   const navigate = useNavigate();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues,
   });
+
+  const carregarCidades = async (uf: string) => {
+    try {
+      const response = await axios.get<Cidade[]>(
+        `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`
+      );
+      setCidades(response.data);
+    } catch (error) {
+      console.error("Erro ao carregar cidades:", error);
+      setCidades([]);
+    }
+  };
+
+  useEffect(() => {
+    const estadoSelecionado = form.watch("estado");
+    if (estadoSelecionado) {
+      carregarCidades(estadoSelecionado);
+      form.setValue("cidade", "");
+    }
+  }, [form.watch("estado")]);
 
   const steps: StepConfig[] = [
     {
@@ -442,9 +469,24 @@ export function CompleteProfile() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cidade</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Sua cidade" {...field} />
-                  </FormControl>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={!form.watch("estado") || cidades.length === 0}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione sua cidade" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {cidades.map((cidade) => (
+                        <SelectItem key={cidade.id} value={cidade.nome}>
+                          {cidade.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
