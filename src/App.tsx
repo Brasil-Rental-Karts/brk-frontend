@@ -66,10 +66,11 @@ const Dashboard = () => (
 
 // ScrollToTop component to reset scroll position on navigation
 const ScrollToTop = () => {
+  const { pathname } = useLocation();
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [location]);
+  }, [pathname]);
 
   return null;
 };
@@ -93,8 +94,8 @@ function App() {
             
             {/* Protected routes */}
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/change-password"  element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
-            <Route path="/complete-profile" element={<CompleteProfile />} />
+            <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+            <Route path="/complete-profile" element={<ProtectedRoute><CompleteProfile /></ProtectedRoute>} />
           </Routes>
         </Router>
       </AuthProvider>

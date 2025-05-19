@@ -16,13 +16,19 @@ export const LoginSuccess = () => {
 
       const accessToken = searchParams.get("accessToken");
       const refreshToken = searchParams.get("refreshToken");
+      // Get firstLogin parameter from URL (if present)
+      const firstLoginParam = searchParams.get("firstLogin") === "true";
 
       if (accessToken && refreshToken) {
-        // Use the new method to set tokens and user in context
-        loginWithTokens(accessToken, refreshToken);
+        // Use the new method to set tokens and user in context, passing firstLogin parameter
+        loginWithTokens(accessToken, refreshToken, firstLoginParam);
         
-        // Navigate to dashboard
-        navigate("/dashboard", { replace: true });
+        // Navigate based on firstLogin status
+        if (firstLoginParam) {
+          navigate("/complete-profile", { replace: true });
+        } else {
+          navigate("/dashboard", { replace: true });
+        }
       } else {
         // If tokens are missing, redirect to login page
         navigate("/login", { replace: true });
@@ -36,7 +42,7 @@ export const LoginSuccess = () => {
     <div className="min-h-screen flex items-center justify-center">
       <div className="bg-card p-6 rounded-lg shadow-md text-center">
         <h1 className="text-xl font-bold mb-2">Login Successful</h1>
-        <p className="mb-4">Redirecting to your dashboard...</p>
+        <p className="mb-4">Redirecting you to the appropriate page...</p>
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
       </div>
     </div>

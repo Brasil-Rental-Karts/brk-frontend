@@ -73,8 +73,14 @@ export function Login() {
     setError(null);
 
     try {
-      await login(values);
-      navigate("/dashboard");
+      const { firstLogin } = await login(values);
+      
+      // Redirect based on firstLogin status
+      if (firstLogin) {
+        navigate("/complete-profile");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (error: any) {
       console.error("Login failed:", error);
       

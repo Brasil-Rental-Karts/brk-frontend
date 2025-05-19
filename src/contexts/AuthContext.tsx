@@ -25,8 +25,9 @@ interface AuthContextType {
   refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (data: LoginRequest) => Promise<void>;
-  loginWithTokens: (accessToken: string, refreshToken: string) => void;
+  isFirstLogin: boolean;
+  login: (data: LoginRequest) => Promise<{ firstLogin: boolean }>;
+  loginWithTokens: (accessToken: string, refreshToken: string, firstLogin?: boolean) => void;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => void;
   loginWithGoogle: () => Promise<void>;
@@ -46,6 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isFirstLogin, setIsFirstLogin] = useState(false);
 
   // Parse user from JWT token
   const getUserFromToken = (token: string): User => {
@@ -161,14 +163,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userInfo = getUserFromToken(response.accessToken);
       setUser(userInfo);
       
+      // Set firstLogin state based on response
+      const firstLogin = response.firstLogin || false;
+      setIsFirstLogin(firstLogin);
+      
       localStorage.setItem(LOCAL_STORAGE_ACCESS_TOKEN_KEY, response.accessToken);
       localStorage.setItem(LOCAL_STORAGE_REFRESH_TOKEN_KEY, response.refreshToken);
+      
+      return { firstLogin };
     } finally {
       setIsLoading(false);
     }
   };
 
-  const loginWithTokens = (newAccessToken: string, newRefreshToken: string) => {
+  const loginWithTokens = (newAccessToken: string, newRefreshToken: string, firstLogin = false) => {
     // Clear any existing tokens
     localStorage.removeItem(LOCAL_STORAGE_ACCESS_TOKEN_KEY);
     localStorage.removeItem(LOCAL_STORAGE_REFRESH_TOKEN_KEY);
@@ -180,6 +188,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Extract user info from access token
     const userInfo = getUserFromToken(newAccessToken);
     setUser(userInfo);
+    
+    // Set firstLogin state
+    setIsFirstLogin(firstLogin);
     
     // Save tokens to localStorage
     localStorage.setItem(LOCAL_STORAGE_ACCESS_TOKEN_KEY, newAccessToken);
@@ -199,6 +210,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAccessToken(null);
     setRefreshToken(null);
     setUser(null);
+    setIsFirstLogin(false);
     localStorage.removeItem(LOCAL_STORAGE_ACCESS_TOKEN_KEY);
     localStorage.removeItem(LOCAL_STORAGE_REFRESH_TOKEN_KEY);
   };
@@ -222,10 +234,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const urlParams = new URLSearchParams(window.location.search);
       const accessTokenFromUrl = urlParams.get('access_token');
       const refreshTokenFromUrl = urlParams.get('refresh_token');
+      const firstLoginFromUrl = urlParams.get('first_login') === 'true';
       
       if (accessTokenFromUrl && refreshTokenFromUrl) {
         setAccessToken(accessTokenFromUrl);
         setRefreshToken(refreshTokenFromUrl);
+        setIsFirstLogin(firstLoginFromUrl);
         
         // Extract user info from access token
         const userInfo = getUserFromToken(accessTokenFromUrl);
@@ -250,6 +264,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshToken,
         isAuthenticated: !!accessToken,
         isLoading,
+        isFirstLogin,
         login,
         loginWithTokens,
         register,
