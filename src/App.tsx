@@ -3,6 +3,7 @@ import { Register } from "@/pages/Register";
 import { ResetPassword } from "@/pages/ResetPassword";
 import { ResetPasswordSuccess } from "@/pages/ResetPasswordSuccess";
 import { ChangePassword } from "@/pages/ChangePassword";
+import { CompleteProfile } from "./pages/CompleteProfile";
 import { GoogleCallback } from "@/pages/GoogleCallback";
 import { LoginSuccess } from "@/pages/LoginSuccess";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -69,7 +70,7 @@ const ScrollToTop = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [pathname]);
+  }, [location]);
 
   return null;
 };
@@ -93,7 +94,8 @@ function App() {
             
             {/* Protected routes */}
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+            <Route path="/change-password"  element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+            <Route path="/complete-profile" element={<CompleteProfile />} />
           </Routes>
         </Router>
       </AuthProvider>

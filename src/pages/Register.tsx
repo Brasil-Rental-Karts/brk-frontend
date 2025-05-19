@@ -25,6 +25,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { Form, FormItem } from "@/components/ui/form";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const phoneSchema = z.string().refine(
   (value) => {
@@ -98,14 +99,14 @@ export function Register() {
         password,
         phone,
       });
-      
+
       // Redirect to login page after successful registration
       navigate("/");
     } catch (error: any) {
       console.error("Falha no registro:", error);
       setError(
-        error.response?.data?.message || 
-        "Ocorreu um erro durante o registro. Por favor, tente novamente."
+        error.response?.data?.message ||
+          "Ocorreu um erro durante o registro. Por favor, tente novamente."
       );
     }
   };
@@ -168,7 +169,10 @@ export function Register() {
         </CardHeader>
         <CardContent>
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <div
+              className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+              role="alert"
+            >
               <span className="block sm:inline">{error}</span>
             </div>
           )}
@@ -258,12 +262,9 @@ export function Register() {
                 render={({ field }) => (
                   <FormItem id="terms-section" className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                     <FormControl>
-                      <input
-                        id="acceptTerms"
-                        type="checkbox"
+                      <Checkbox
                         checked={field.value}
-                        onChange={field.onChange}
-                        className="h-4 w-4 mt-1"
+                        onCheckedChange={field.onChange}
                       />
                     </FormControl>
                     <div className="space-y-1 leading-none">
