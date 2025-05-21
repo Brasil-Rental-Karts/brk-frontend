@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import axios from "axios";
 import {
   Select,
   SelectContent,
@@ -31,6 +30,7 @@ import {
 } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { Stepper } from "@/components/ui/stepper";
+import { ProfileService } from "@/lib/services";
 
 interface city {
   id: number;
@@ -226,10 +226,11 @@ export function CompleteProfile() {
 
   const loadCities = async (uf: string) => {
     try {
-      const response = await axios.get<city[]>(
+      const response = await fetch(
         `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`
       );
-      setCities(response.data);
+      const data = await response.json();
+      setCities(data);
     } catch (error) {
       console.error("Erro ao carregar cidades:", error);
       setCities([]);
@@ -331,7 +332,15 @@ export function CompleteProfile() {
     const currentStepData = getCurrentStepData();
     if (currentStepConfig.validate(currentStepData)) {
       updateFormData(currentStepData);
-      setCurrentStep((prev) => Math.min(prev + 1, steps.length));
+      
+      // Save current step data to API using ProfileService
+      ProfileService.updateMemberProfile(currentStepData)
+        .then(() => {
+          setCurrentStep((prev) => Math.min(prev + 1, steps.length));
+        })
+        .catch((error) => {
+          console.error("Erro ao salvar dados do passo:", error);
+        });
     } else {
       // Validate current form fields to show errors
       form.trigger(currentStepConfig.fields as any);
@@ -364,6 +373,8 @@ export function CompleteProfile() {
     if (isLastStep) {
       if (currentStepConfig.validate(currentStepData)) {
         try {
+          // Save final step data to API using ProfileService
+          await ProfileService.updateMemberProfile(currentStepData);
           navigate("/dashboard");
         } catch (error) {
           console.error("Erro ao atualizar perfil:", error);
