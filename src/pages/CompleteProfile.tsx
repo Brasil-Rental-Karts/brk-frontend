@@ -68,10 +68,10 @@ const states = [
 ];
 
 const genders = [
-  { value: "masculino", label: "Masculino" },
-  { value: "feminino", label: "Feminino" },
-  { value: "outro", label: "Outro" },
-  { value: "prefiro_nao_dizer", label: "Prefiro não dizer" },
+  { value: "0", label: "Masculino" },
+  { value: "1", label: "Feminino" },
+  { value: "2", label: "Outro" },
+  { value: "3", label: "Prefiro não dizer" },
 ];
 
 const kartExperienceYears = [
@@ -83,40 +83,40 @@ const kartExperienceYears = [
 ];
 
 const raceFrequency = [
-  { value: "raramente", label: "Raramente (1x por mês ou menos)" },
-  { value: "regularmente", label: "Regularmente (2x ou mais por mês)" },
-  { value: "semanalmente", label: "Toda semana" },
-  { value: "diariamente", label: "Praticamente todo dia" },
+  { value: "0", label: "Raramente (1x por mês ou menos)" },
+  { value: "1", label: "Regularmente (2x ou mais por mês)" },
+  { value: "2", label: "Toda semana" },
+  { value: "3", label: "Praticamente todo dia" },
 ];
 
 const championshipParticipation = [
-  { value: "nunca", label: "Nunca participei" },
-  { value: "local", label: "Sim, locais/regionais" },
-  { value: "estadual", label: "Sim, estaduais" },
-  { value: "nacional", label: "Sim, nacionais" },
+  { value: "0", label: "Nunca participei" },
+  { value: "1", label: "Sim, locais/regionais" },
+  { value: "2", label: "Sim, estaduais" },
+  { value: "3", label: "Sim, nacionais" },
 ];
 
 const competitiveLevel = [
-  { value: "iniciante", label: "Iniciante" },
-  { value: "intermediario", label: "Intermediário" },
-  { value: "competitivo", label: "Competitivo" },
-  { value: "profissional", label: "Profissional" },
+  { value: "0", label: "Iniciante" },
+  { value: "1", label: "Intermediário" },
+  { value: "2", label: "Competitivo" },
+  { value: "3", label: "Profissional" },
 ];
 
 const attendsEvents = [
-  { value: "sim", label: "Sim" },
-  { value: "nao", label: "Não" },
-  { value: "depende_distancia", label: "Dependendo da distância" },
+  { value: "0", label: "Sim" },
+  { value: "1", label: "Não" },
+  { value: "2", label: "Dependendo da distância" },
 ];
 
 const interestCategories = [
-  { value: "rental_kart_leve", label: "Rental kart leve" },
-  { value: "rental_kart_pesado", label: "Rental kart pesado" },
-  { value: "kart_2_tempos", label: "Kart 2 tempos" },
-  { value: "endurance", label: "Endurance" },
-  { value: "equipes", label: "Equipes" },
-  { value: "campeonatos_longos", label: "Campeonatos longos" },
-  { value: "baterias_avulsas", label: "Baterias avulsas" },
+  { value: "0", label: "Rental kart leve" },
+  { value: "1", label: "Rental kart pesado" },
+  { value: "2", label: "Kart 2 tempos" },
+  { value: "3", label: "Endurance" },
+  { value: "4", label: "Equipes" },
+  { value: "5", label: "Campeonatos longos" },
+  { value: "6", label: "Baterias avulsas" },
 ];
 
 // Combined schema for the complete form
