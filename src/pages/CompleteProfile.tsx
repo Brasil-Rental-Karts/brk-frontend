@@ -32,12 +32,12 @@ import {
 import { useNavigate } from "react-router-dom";
 import { Stepper } from "@/components/ui/stepper";
 
-interface Cidade {
+interface city {
   id: number;
   nome: string;
 }
 
-const estados = [
+const states = [
   "AC",
   "AL",
   "AP",
@@ -67,7 +67,7 @@ const estados = [
   "TO",
 ];
 
-const generos = [
+const genders = [
   { value: "masculino", label: "Masculino" },
   { value: "feminino", label: "Feminino" },
   { value: "outro", label: "Outro" },
@@ -82,69 +82,34 @@ const kartExperienceYears = [
   { value: "4", label: "Mais de 5 anos" },
 ];
 
-const frequenciaCorrida = [
+const raceFrequency = [
   { value: "raramente", label: "Raramente (1x por mês ou menos)" },
   { value: "regularmente", label: "Regularmente (2x ou mais por mês)" },
   { value: "semanalmente", label: "Toda semana" },
   { value: "diariamente", label: "Praticamente todo dia" },
 ];
 
-const participaCampeonatos = [
+const championshipParticipation = [
   { value: "nunca", label: "Nunca participei" },
   { value: "local", label: "Sim, locais/regionais" },
   { value: "estadual", label: "Sim, estaduais" },
   { value: "nacional", label: "Sim, nacionais" },
 ];
 
-const nivelCompetitividade = [
+const competitiveLevel = [
   { value: "iniciante", label: "Iniciante" },
   { value: "intermediario", label: "Intermediário" },
   { value: "competitivo", label: "Competitivo" },
   { value: "profissional", label: "Profissional" },
 ];
 
-// Step schemas
-const step1Schema = z.object({
-  nickName: z.string().min(1, "O apelido ou nome de piloto é obrigatório"),
-  dataNascimento: z.string().min(1, "A data de nascimento é obrigatória"),
-  genero: z.string().min(1, "O gênero é obrigatório"),
-  cidade: z.string().min(1, "A cidade é obrigatória"),
-  estado: z.string().length(2, "Selecione um estado válido"),
-});
-
-const step2Schema = z.object({
-  tempoExperiencia: z.string().min(1, "O tempo de experiência é obrigatório"),
-  frequenciaCorrida: z.string().min(1, "A frequência de corrida é obrigatória"),
-  participaCampeonatos: z
-    .string()
-    .min(1, "A participação em campeonatos é obrigatória"),
-  nivelCompetitividade: z
-    .string()
-    .min(1, "O nível de competitividade é obrigatório"),
-});
-
-const step3Schema = z.object({
-  possuiKartProprio: z.boolean(),
-  participaEquipe: z.boolean(),
-  nomeEquipe: z.string().optional(),
-  usaTelemetria: z.boolean(),
-  tipoTelemetria: z.string().optional(),
-  participaEventos: z
-    .string()
-    .min(1, "Selecione sua disponibilidade para eventos"),
-  categoriasInteresse: z
-    .array(z.string())
-    .min(1, "Selecione pelo menos uma categoria"),
-  kartodromoPreferido: z.string().optional(),
-});
-
-const participaEventosOpcoes = [
+const attendsEvents = [
   { value: "sim", label: "Sim" },
   { value: "nao", label: "Não" },
   { value: "depende_distancia", label: "Dependendo da distância" },
 ];
 
-const categoriasInteresseOpcoes = [
+const interestCategories = [
   { value: "rental_kart_leve", label: "Rental kart leve" },
   { value: "rental_kart_pesado", label: "Rental kart pesado" },
   { value: "kart_2_tempos", label: "Kart 2 tempos" },
@@ -157,52 +122,88 @@ const categoriasInteresseOpcoes = [
 // Combined schema for the complete form
 const formSchema = z.object({
   nickName: z.string().min(1, "O apelido ou nome de piloto é obrigatório"),
-  dataNascimento: z.string().min(1, "A data de nascimento é obrigatória"),
-  genero: z.string().min(1, "O gênero é obrigatório"),
-  cidade: z.string().min(1, "A cidade é obrigatória"),
-  estado: z.string().length(2, "Selecione um estado válido"),
-  tempoExperiencia: z.string().min(1, "O tempo de experiência é obrigatório"),
-  frequenciaCorrida: z.string().min(1, "A frequência de corrida é obrigatória"),
-  participaCampeonatos: z
+  birthDate: z.string().min(1, "A data de nascimento é obrigatória"),
+  gender: z.string().min(1, "O gênero é obrigatório"),
+  city: z.string().min(1, "A cidade é obrigatória"),
+  state: z.string().length(2, "Selecione um estado válido"),
+  experienceTime: z.string().min(1, "O tempo de experiência é obrigatório"),
+  raceFrequency: z.string().min(1, "A frequência de corrida é obrigatória"),
+  championshipParticipation: z
     .string()
     .min(1, "A participação em campeonatos é obrigatória"),
-  nivelCompetitividade: z
+    competitiveLevel: z
     .string()
     .min(1, "O nível de competitividade é obrigatório"),
-  possuiKartProprio: z.boolean(),
-  participaEquipe: z.boolean(),
-  nomeEquipe: z.string().optional(),
-  usaTelemetria: z.boolean(),
-  tipoTelemetria: z.string().optional(),
-  participaEventos: z
+  hasOwnKart: z.boolean(),
+  isTeamMember: z.boolean(),
+  teamName: z.string().optional(),
+  usesTelemetry: z.boolean(),
+  telemetryType: z.string().optional(),
+  attendsEvents: z
     .string()
     .min(1, "Selecione sua disponibilidade para eventos"),
-  categoriasInteresse: z
+  interestCategories: z
     .array(z.string())
     .min(1, "Selecione pelo menos uma categoria"),
-  kartodromoPreferido: z.string().optional(),
+  preferredTrack: z.string().optional(),
+});
+
+
+// Step schemas
+const step1Schema = z.object({
+  nickName: z.string().min(1, "O apelido ou nome de piloto é obrigatório"),
+  birthDate: z.string().min(1, "A data de nascimento é obrigatória"),
+  gender: z.string().min(1, "O gênero é obrigatório"),
+  city: z.string().min(1, "A cidade é obrigatória"),
+  state: z.string().length(2, "Selecione um estado válido"),
+});
+
+const step2Schema = z.object({
+  experienceTime: z.string().min(1, "O tempo de experiência é obrigatório"),
+  raceFrequency: z.string().min(1, "A frequência de corrida é obrigatória"),
+  championshipParticipation: z
+    .string()
+    .min(1, "A participação em campeonatos é obrigatória"),
+    competitiveLevel: z
+    .string()
+    .min(1, "O nível de competitividade é obrigatório"),
+});
+
+const step3Schema = z.object({
+  hasOwnKart: z.boolean(),
+  isTeamMember: z.boolean(),
+  teamName: z.string().optional(),
+  usesTelemetry: z.boolean(),
+  telemetryType: z.string().optional(),
+  attendsEvents: z
+    .string()
+    .min(1, "Selecione sua disponibilidade para eventos"),
+  interestCategories: z
+    .array(z.string())
+    .min(1, "Selecione pelo menos uma categoria"),
+  preferredTrack: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
 const defaultValues: FormData = {
   nickName: "",
-  dataNascimento: "",
-  genero: "",
-  cidade: "",
-  estado: "",
-  tempoExperiencia: "",
-  frequenciaCorrida: "",
-  participaCampeonatos: "",
-  nivelCompetitividade: "",
-  possuiKartProprio: false,
-  participaEquipe: false,
-  nomeEquipe: "",
-  usaTelemetria: false,
-  tipoTelemetria: "",
-  participaEventos: "",
-  categoriasInteresse: [],
-  kartodromoPreferido: "",
+  birthDate: "",
+  gender: "",
+  city: "",
+  state: "",
+  experienceTime: "",
+  raceFrequency: "",
+  championshipParticipation: "",
+  competitiveLevel: "",
+  hasOwnKart: false,
+  isTeamMember: false,
+  teamName: "",
+  usesTelemetry: false,
+  telemetryType: "",
+  attendsEvents: "",
+  interestCategories: [],
+  preferredTrack: "",
 };
 
 type StepConfig = {
@@ -215,7 +216,7 @@ type StepConfig = {
 export function CompleteProfile() {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<Partial<FormData>>(defaultValues);
-  const [cidades, setCidades] = useState<Cidade[]>([]);
+  const [cities, setCities] = useState<city[]>([]);
   const navigate = useNavigate();
 
   const form = useForm<FormData>({
@@ -223,39 +224,39 @@ export function CompleteProfile() {
     defaultValues,
   });
 
-  const carregarCidades = async (uf: string) => {
+  const loadCities = async (uf: string) => {
     try {
-      const response = await axios.get<Cidade[]>(
+      const response = await axios.get<city[]>(
         `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`
       );
-      setCidades(response.data);
+      setCities(response.data);
     } catch (error) {
       console.error("Erro ao carregar cidades:", error);
-      setCidades([]);
+      setCities([]);
     }
   };
 
   useEffect(() => {
-    const estadoSelecionado = form.watch("estado");
-    if (estadoSelecionado) {
-      carregarCidades(estadoSelecionado);
-      form.setValue("cidade", "");
+    const selectedStates = form.watch("state");
+    if (selectedStates) {
+      loadCities(selectedStates);
+      form.setValue("city", "");
     }
-  }, [form.watch("estado")]);
+  }, [form.watch("state")]);
 
   const steps: StepConfig[] = [
     {
       id: 1,
       title: "Informações do Piloto",
-      fields: ["nickName", "dataNascimento", "genero", "cidade", "estado"],
+      fields: ["nickName", "birthDate", "gender", "city", "state"],
       validate: (data) => {
         try {
           step1Schema.parse({
             nickName: data.nickName || "",
-            dataNascimento: data.dataNascimento || "",
-            genero: data.genero || "",
-            cidade: data.cidade || "",
-            estado: data.estado || "",
+            birthDate: data.birthDate || "",
+            gender: data.gender || "",
+            city: data.city || "",
+            state: data.state || "",
           });
           return true;
         } catch (error) {
@@ -267,18 +268,18 @@ export function CompleteProfile() {
       id: 2,
       title: "Experiência no Kart",
       fields: [
-        "frequenciaCorrida",
-        "tempoExperiencia",
-        "participaCampeonatos",
-        "nivelCompetitividade",
+        "raceFrequency",
+        "experienceTime",
+        "championshipParticipation",
+        "competitiveLevel",
       ],
       validate: (data) => {
         try {
           step2Schema.parse({
-            frequenciaCorrida: data.frequenciaCorrida || "",
-            tempoExperiencia: data.tempoExperiencia || "",
-            participaCampeonatos: data.participaCampeonatos || false,
-            nivelCompetitividade: data.nivelCompetitividade || "",
+            raceFrequency: data.raceFrequency || "",
+            experienceTime: data.experienceTime || "",
+            championshipParticipation: data.championshipParticipation || false,
+            competitiveLevel: data.competitiveLevel || "",
           });
           return true;
         } catch (error) {
@@ -290,26 +291,26 @@ export function CompleteProfile() {
       id: 3,
       title: "Estrutura e Interesse",
       fields: [
-        "possuiKartProprio",
-        "kartodromoPreferido",
-        "participaEquipe",
-        "nomeEquipe",
-        "usaTelemetria",
-        "tipoTelemetria",
-        "participaEventos",
-        "categoriasInteresse",
+        "hasOwnKart",
+        "preferredTrack",
+        "isTeamMember",
+        "teamName",
+        "usesTelemetry",
+        "telemetryType",
+        "attendsEvents",
+        "interestCategories",
       ],
       validate: (data) => {
         try {
           step3Schema.parse({
-            possuiKartProprio: data.possuiKartProprio || false,
-            kartodromoPreferido: data.kartodromoPreferido,
-            participaEquipe: data.participaEquipe || false,
-            nomeEquipe: data.nomeEquipe,
-            usaTelemetria: data.usaTelemetria || false,
-            tipoTelemetria: data.tipoTelemetria,
-            participaEventos: data.participaEventos || "",
-            categoriasInteresse: data.categoriasInteresse || [],
+            hasOwnKart: data.hasOwnKart || false,
+            preferredTrack: data.preferredTrack,
+            isTeamMember: data.isTeamMember || false,
+            teamName: data.teamName,
+            usesTelemetry: data.usesTelemetry || false,
+            telemetryType: data.telemetryType,
+            attendsEvents: data.attendsEvents || "",
+            interestCategories: data.interestCategories || [],
           });
           return true;
         } catch (error) {
@@ -396,7 +397,7 @@ export function CompleteProfile() {
 
             <FormField
               control={form.control}
-              name="dataNascimento"
+              name="birthDate"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Data de Nascimento</FormLabel>
@@ -415,7 +416,7 @@ export function CompleteProfile() {
 
             <FormField
               control={form.control}
-              name="genero"
+              name="gender"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Gênero</FormLabel>
@@ -426,9 +427,9 @@ export function CompleteProfile() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {generos.map((genero) => (
-                        <SelectItem key={genero.value} value={genero.value}>
-                          {genero.label}
+                      {genders.map((gender) => (
+                        <SelectItem key={gender.value} value={gender.value}>
+                          {gender.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -440,7 +441,7 @@ export function CompleteProfile() {
 
             <FormField
               control={form.control}
-              name="estado"
+              name="state"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Estado</FormLabel>
@@ -451,9 +452,9 @@ export function CompleteProfile() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {estados.map((estado) => (
-                        <SelectItem key={estado} value={estado}>
-                          {estado}
+                      {states.map((state) => (
+                        <SelectItem key={state} value={state}>
+                          {state}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -465,14 +466,14 @@ export function CompleteProfile() {
 
             <FormField
               control={form.control}
-              name="cidade"
+              name="city"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cidade</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     value={field.value}
-                    disabled={!form.watch("estado") || cidades.length === 0}
+                    disabled={!form.watch("state") || cities.length === 0}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -480,9 +481,9 @@ export function CompleteProfile() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {cidades.map((cidade) => (
-                        <SelectItem key={cidade.id} value={cidade.nome}>
-                          {cidade.nome}
+                      {cities.map((city) => (
+                        <SelectItem key={city.id} value={city.nome}>
+                          {city.nome}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -498,7 +499,7 @@ export function CompleteProfile() {
           <>
             <FormField
               control={form.control}
-              name="tempoExperiencia"
+              name="experienceTime"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Há quanto tempo anda de Kart?</FormLabel>
@@ -523,7 +524,7 @@ export function CompleteProfile() {
 
             <FormField
               control={form.control}
-              name="frequenciaCorrida"
+              name="raceFrequency"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Com que frequência corre?</FormLabel>
@@ -534,9 +535,9 @@ export function CompleteProfile() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {frequenciaCorrida.map((freq) => (
-                        <SelectItem key={freq.value} value={freq.value}>
-                          {freq.label}
+                      {raceFrequency.map((frequency) => (
+                        <SelectItem key={frequency.value} value={frequency.value}>
+                          {frequency.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -548,7 +549,7 @@ export function CompleteProfile() {
 
             <FormField
               control={form.control}
-              name="participaCampeonatos"
+              name="championshipParticipation"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Já participou de campeonatos?</FormLabel>
@@ -559,9 +560,9 @@ export function CompleteProfile() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {participaCampeonatos.map((part) => (
-                        <SelectItem key={part.value} value={part.value}>
-                          {part.label}
+                      {championshipParticipation.map((participation) => (
+                        <SelectItem key={participation.value} value={participation.value}>
+                          {participation.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -573,7 +574,7 @@ export function CompleteProfile() {
 
             <FormField
               control={form.control}
-              name="nivelCompetitividade"
+              name="competitiveLevel"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
@@ -586,9 +587,9 @@ export function CompleteProfile() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {nivelCompetitividade.map((nivel) => (
-                        <SelectItem key={nivel.value} value={nivel.value}>
-                          {nivel.label}
+                      {competitiveLevel.map((level) => (
+                        <SelectItem key={level.value} value={level.value}>
+                          {level.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -604,7 +605,7 @@ export function CompleteProfile() {
           <>
             <FormField
               control={form.control}
-              name="possuiKartProprio"
+              name="hasOwnKart"
               render={({ field }) => (
                 <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                   <FormControl>
@@ -620,7 +621,7 @@ export function CompleteProfile() {
 
             <FormField
               control={form.control}
-              name="participaEquipe"
+              name="isTeamMember"
               render={({ field }) => (
                 <FormItem className="flex flex-col gap-2">
                   <div className="flex flex-row items-start space-x-3">
@@ -635,13 +636,13 @@ export function CompleteProfile() {
                   {field.value && (
                     <FormField
                       control={form.control}
-                      name="nomeEquipe"
-                      render={({ field: nomeEquipeField }) => (
+                      name="teamName"
+                      render={({ field: teamNameField }) => (
                         <FormItem className="ml-7">
                           <FormControl>
                             <Input
                               placeholder="Nome da equipe"
-                              {...nomeEquipeField}
+                              {...teamNameField}
                             />
                           </FormControl>
                           <FormMessage />
@@ -655,7 +656,7 @@ export function CompleteProfile() {
 
             <FormField
               control={form.control}
-              name="usaTelemetria"
+              name="usesTelemetry"
               render={({ field }) => (
                 <FormItem className="flex flex-col gap-2">
                   <div className="flex flex-row items-start space-x-3">
@@ -673,13 +674,13 @@ export function CompleteProfile() {
                   {field.value && (
                     <FormField
                       control={form.control}
-                      name="tipoTelemetria"
-                      render={({ field: tipoTelemetriaField }) => (
+                      name="telemetryType"
+                      render={({ field: telemetryTypeField }) => (
                         <FormItem className="ml-7">
                           <FormControl>
                             <Input
                               placeholder="Qual(is)?"
-                              {...tipoTelemetriaField}
+                              {...telemetryTypeField}
                             />
                           </FormControl>
                           <FormMessage />
@@ -693,7 +694,7 @@ export function CompleteProfile() {
 
             <FormField
               control={form.control}
-              name="participaEventos"
+              name="attendsEvents"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
@@ -706,9 +707,9 @@ export function CompleteProfile() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {participaEventosOpcoes.map((opcao) => (
-                        <SelectItem key={opcao.value} value={opcao.value}>
-                          {opcao.label}
+                      {attendsEvents.map((events) => (
+                        <SelectItem key={events.value} value={events.value}>
+                          {events.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -720,30 +721,30 @@ export function CompleteProfile() {
 
             <FormField
               control={form.control}
-              name="categoriasInteresse"
+              name="interestCategories"
               render={({ field }) => (
                 <FormItem className="space-y-3">
                   <FormLabel>Quais categorias mais te interessam?</FormLabel>
                   <FormControl>
                     <div className="flex flex-col space-y-2">
-                      {categoriasInteresseOpcoes.map((categoria) => (
+                      {interestCategories.map((categories) => (
                         <div
-                          key={categoria.value}
+                          key={categories.value}
                           className="flex items-center space-x-2"
                         >
                           <Checkbox
-                            checked={field.value?.includes(categoria.value)}
+                            checked={field.value?.includes(categories.value)}
                             onCheckedChange={(checked) => {
                               const updatedCategories = checked
-                                ? [...(field.value || []), categoria.value]
+                                ? [...(field.value || []), categories.value]
                                 : field.value?.filter(
-                                    (value) => value !== categoria.value
+                                    (value) => value !== categories.value
                                   ) || [];
                               field.onChange(updatedCategories);
                             }}
                           />
                           <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                            {categoria.label}
+                            {categories.label}
                           </label>
                         </div>
                       ))}
@@ -756,7 +757,7 @@ export function CompleteProfile() {
 
             <FormField
               control={form.control}
-              name="kartodromoPreferido"
+              name="preferredTrack"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Kartódromo Preferido</FormLabel>
