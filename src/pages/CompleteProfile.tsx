@@ -31,6 +31,22 @@ import {
 import { useNavigate } from "react-router-dom";
 import { Stepper } from "@/components/ui/stepper";
 import { ProfileService } from "@/lib/services";
+import {
+  Gender, 
+  KartExperienceYears, 
+  RaceFrequency, 
+  ChampionshipParticipation, 
+  CompetitiveLevel, 
+  AttendsEvents, 
+  InterestCategory,
+  genderOptions,
+  kartExperienceYearsOptions,
+  raceFrequencyOptions,
+  championshipParticipationOptions,
+  competitiveLevelOptions,
+  attendsEventsOptions,
+  interestCategoryOptions
+} from "@/lib/enums/profile";
 
 interface city {
   id: number;
@@ -67,106 +83,88 @@ const states = [
   "TO",
 ];
 
-const genders = [
-  { value: "0", label: "Masculino" },
-  { value: "1", label: "Feminino" },
-  { value: "2", label: "Outro" },
-  { value: "3", label: "Prefiro não dizer" },
-];
+// Remove all the enum definitions and use the imported options
+const genders = genderOptions;
+const kartExperienceYears = kartExperienceYearsOptions;
+const raceFrequency = raceFrequencyOptions;
+const championshipParticipation = championshipParticipationOptions;
+const competitiveLevel = competitiveLevelOptions;
+const attendsEvents = attendsEventsOptions;
+const interestCategories = interestCategoryOptions;
 
-const kartExperienceYears = [
-  { value: "0", label: "Nunca corri" },
-  { value: "1", label: "Menos de 1 ano" },
-  { value: "2", label: "1 a 2 anos" },
-  { value: "3", label: "3 a 5 anos" },
-  { value: "4", label: "Mais de 5 anos" },
-];
-
-const raceFrequency = [
-  { value: "0", label: "Raramente (1x por mês ou menos)" },
-  { value: "1", label: "Regularmente (2x ou mais por mês)" },
-  { value: "2", label: "Toda semana" },
-  { value: "3", label: "Praticamente todo dia" },
-];
-
-const championshipParticipation = [
-  { value: "0", label: "Nunca participei" },
-  { value: "1", label: "Sim, locais/regionais" },
-  { value: "2", label: "Sim, estaduais" },
-  { value: "3", label: "Sim, nacionais" },
-];
-
-const competitiveLevel = [
-  { value: "0", label: "Iniciante" },
-  { value: "1", label: "Intermediário" },
-  { value: "2", label: "Competitivo" },
-  { value: "3", label: "Profissional" },
-];
-
-const attendsEvents = [
-  { value: "0", label: "Sim" },
-  { value: "1", label: "Não" },
-  { value: "2", label: "Dependendo da distância" },
-];
-
-const interestCategories = [
-  { value: "0", label: "Rental kart leve" },
-  { value: "1", label: "Rental kart pesado" },
-  { value: "2", label: "Kart 2 tempos" },
-  { value: "3", label: "Endurance" },
-  { value: "4", label: "Equipes" },
-  { value: "5", label: "Campeonatos longos" },
-  { value: "6", label: "Baterias avulsas" },
-];
+// Create a custom FormData interface that allows null values for number fields
+interface CustomFormData {
+  nickName: string;
+  birthDate: string;
+  gender: Gender | null;
+  city: string;
+  state: string;
+  experienceTime: KartExperienceYears | null;
+  raceFrequency: RaceFrequency | null;
+  championshipParticipation: ChampionshipParticipation | null;
+  competitiveLevel: CompetitiveLevel | null;
+  hasOwnKart: boolean;
+  isTeamMember: boolean;
+  teamName?: string;
+  usesTelemetry: boolean;
+  telemetryType?: string;
+  attendsEvents: AttendsEvents | null;
+  interestCategories: InterestCategory[];
+  preferredTrack?: string;
+}
 
 // Combined schema for the complete form
 const formSchema = z.object({
   nickName: z.string().min(1, "O apelido ou nome de piloto é obrigatório"),
   birthDate: z.string().min(1, "A data de nascimento é obrigatória"),
-  gender: z.string().min(1, "O gênero é obrigatório"),
+  gender: z.nativeEnum(Gender).nullable().refine(val => val !== null, "O gênero é obrigatório"),
   city: z.string().min(1, "A cidade é obrigatória"),
   state: z.string().length(2, "Selecione um estado válido"),
-  experienceTime: z.string().min(1, "O tempo de experiência é obrigatório"),
-  raceFrequency: z.string().min(1, "A frequência de corrida é obrigatória"),
+  experienceTime: z.nativeEnum(KartExperienceYears).nullable().refine(val => val !== null, "O tempo de experiência é obrigatório"),
+  raceFrequency: z.nativeEnum(RaceFrequency).nullable().refine(val => val !== null, "A frequência de corrida é obrigatória"),
   championshipParticipation: z
-    .string()
-    .min(1, "A participação em campeonatos é obrigatória"),
-    competitiveLevel: z
-    .string()
-    .min(1, "O nível de competitividade é obrigatório"),
+    .nativeEnum(ChampionshipParticipation)
+    .nullable()
+    .refine(val => val !== null, "A participação em campeonatos é obrigatória"),
+  competitiveLevel: z
+    .nativeEnum(CompetitiveLevel)
+    .nullable()
+    .refine(val => val !== null, "O nível de competitividade é obrigatório"),
   hasOwnKart: z.boolean(),
   isTeamMember: z.boolean(),
   teamName: z.string().optional(),
   usesTelemetry: z.boolean(),
   telemetryType: z.string().optional(),
   attendsEvents: z
-    .string()
-    .min(1, "Selecione sua disponibilidade para eventos"),
+    .nativeEnum(AttendsEvents)
+    .nullable()
+    .refine(val => val !== null, "Selecione sua disponibilidade para eventos"),
   interestCategories: z
-    .array(z.string())
+    .array(z.nativeEnum(InterestCategory))
     .min(1, "Selecione pelo menos uma categoria"),
   preferredTrack: z.string().optional(),
 });
-
 
 // Step schemas
 const step1Schema = z.object({
   nickName: z.string().min(1, "O apelido ou nome de piloto é obrigatório"),
   birthDate: z.string().min(1, "A data de nascimento é obrigatória"),
-  gender: z.string().min(1, "O gênero é obrigatório"),
+  gender: z.nativeEnum(Gender).nullable().refine(val => val !== null, "O gênero é obrigatório"),
   city: z.string().min(1, "A cidade é obrigatória"),
   state: z.string().length(2, "Selecione um estado válido"),
 });
 
 const step2Schema = z.object({
-  experienceTime: z.string().min(1, "O tempo de experiência é obrigatório"),
-  raceFrequency: z.string().min(1, "A frequência de corrida é obrigatória"),
+  experienceTime: z.nativeEnum(KartExperienceYears).nullable().refine(val => val !== null, "O tempo de experiência é obrigatório"),
+  raceFrequency: z.nativeEnum(RaceFrequency).nullable().refine(val => val !== null, "A frequência de corrida é obrigatória"),
   championshipParticipation: z
-    .string()
-    .min(1, "A participação em campeonatos é obrigatória"),
-    competitiveLevel: z
-    .string()
-    .min(1, "O nível de competitividade é obrigatório"),
+    .nativeEnum(ChampionshipParticipation)
+    .nullable()
+    .refine(val => val !== null, "A participação em campeonatos é obrigatória"),
+  competitiveLevel: z
+    .nativeEnum(CompetitiveLevel)
+    .nullable()
+    .refine(val => val !== null, "O nível de competitividade é obrigatório"),
 });
 
 const step3Schema = z.object({
@@ -176,32 +174,33 @@ const step3Schema = z.object({
   usesTelemetry: z.boolean(),
   telemetryType: z.string().optional(),
   attendsEvents: z
-    .string()
-    .min(1, "Selecione sua disponibilidade para eventos"),
+    .nativeEnum(AttendsEvents)
+    .nullable()
+    .refine(val => val !== null, "Selecione sua disponibilidade para eventos"),
   interestCategories: z
-    .array(z.string())
+    .array(z.nativeEnum(InterestCategory))
     .min(1, "Selecione pelo menos uma categoria"),
   preferredTrack: z.string().optional(),
 });
 
-type FormData = z.infer<typeof formSchema>;
+type FormData = CustomFormData;
 
 const defaultValues: FormData = {
   nickName: "",
   birthDate: "",
-  gender: "",
+  gender: null,
   city: "",
   state: "",
-  experienceTime: "",
-  raceFrequency: "",
-  championshipParticipation: "",
-  competitiveLevel: "",
+  experienceTime: null,
+  raceFrequency: null,
+  championshipParticipation: null,
+  competitiveLevel: null,
   hasOwnKart: false,
   isTeamMember: false,
   teamName: "",
   usesTelemetry: false,
   telemetryType: "",
-  attendsEvents: "",
+  attendsEvents: null,
   interestCategories: [],
   preferredTrack: "",
 };
@@ -255,7 +254,7 @@ export function CompleteProfile() {
           step1Schema.parse({
             nickName: data.nickName || "",
             birthDate: data.birthDate || "",
-            gender: data.gender || "",
+            gender: data.gender,
             city: data.city || "",
             state: data.state || "",
           });
@@ -277,10 +276,10 @@ export function CompleteProfile() {
       validate: (data) => {
         try {
           step2Schema.parse({
-            raceFrequency: data.raceFrequency || "",
-            experienceTime: data.experienceTime || "",
-            championshipParticipation: data.championshipParticipation || false,
-            competitiveLevel: data.competitiveLevel || "",
+            raceFrequency: data.raceFrequency,
+            experienceTime: data.experienceTime,
+            championshipParticipation: data.championshipParticipation,
+            competitiveLevel: data.competitiveLevel,
           });
           return true;
         } catch (error) {
@@ -310,7 +309,7 @@ export function CompleteProfile() {
             teamName: data.teamName,
             usesTelemetry: data.usesTelemetry || false,
             telemetryType: data.telemetryType,
-            attendsEvents: data.attendsEvents || "",
+            attendsEvents: data.attendsEvents,
             interestCategories: data.interestCategories || [],
           });
           return true;
@@ -431,7 +430,10 @@ export function CompleteProfile() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Gênero</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select 
+                    onValueChange={(value) => field.onChange(value === "" ? null : Number(value) as Gender)} 
+                    value={field.value === null ? "" : field.value.toString()}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione seu gênero" />
@@ -439,7 +441,7 @@ export function CompleteProfile() {
                     </FormControl>
                     <SelectContent>
                       {genders.map((gender) => (
-                        <SelectItem key={gender.value} value={gender.value}>
+                        <SelectItem key={gender.value} value={gender.value.toString()}>
                           {gender.label}
                         </SelectItem>
                       ))}
@@ -514,7 +516,10 @@ export function CompleteProfile() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Há quanto tempo anda de Kart?</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select 
+                    onValueChange={(value) => field.onChange(value === "" ? null : Number(value) as KartExperienceYears)} 
+                    value={field.value === null ? "" : field.value.toString()}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o tempo de experiência" />
@@ -522,7 +527,7 @@ export function CompleteProfile() {
                     </FormControl>
                     <SelectContent>
                       {kartExperienceYears.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
+                        <SelectItem key={option.value} value={option.value.toString()}>
                           {option.label}
                         </SelectItem>
                       ))}
@@ -539,7 +544,10 @@ export function CompleteProfile() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Com que frequência corre?</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select 
+                    onValueChange={(value) => field.onChange(value === "" ? null : Number(value) as RaceFrequency)} 
+                    value={field.value === null ? "" : field.value.toString()}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione a frequência" />
@@ -547,7 +555,7 @@ export function CompleteProfile() {
                     </FormControl>
                     <SelectContent>
                       {raceFrequency.map((frequency) => (
-                        <SelectItem key={frequency.value} value={frequency.value}>
+                        <SelectItem key={frequency.value} value={frequency.value.toString()}>
                           {frequency.label}
                         </SelectItem>
                       ))}
@@ -564,7 +572,10 @@ export function CompleteProfile() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Já participou de campeonatos?</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select 
+                    onValueChange={(value) => field.onChange(value === "" ? null : Number(value) as ChampionshipParticipation)} 
+                    value={field.value === null ? "" : field.value.toString()}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione sua participação" />
@@ -572,7 +583,7 @@ export function CompleteProfile() {
                     </FormControl>
                     <SelectContent>
                       {championshipParticipation.map((participation) => (
-                        <SelectItem key={participation.value} value={participation.value}>
+                        <SelectItem key={participation.value} value={participation.value.toString()}>
                           {participation.label}
                         </SelectItem>
                       ))}
@@ -588,10 +599,11 @@ export function CompleteProfile() {
               name="competitiveLevel"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>
-                    Nível de competitividade que se considera:
-                  </FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <FormLabel>Como você classificaria seu nível no kart?</FormLabel>
+                  <Select 
+                    onValueChange={(value) => field.onChange(value === "" ? null : Number(value) as CompetitiveLevel)} 
+                    value={field.value === null ? "" : field.value.toString()}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione seu nível" />
@@ -599,7 +611,7 @@ export function CompleteProfile() {
                     </FormControl>
                     <SelectContent>
                       {competitiveLevel.map((level) => (
-                        <SelectItem key={level.value} value={level.value}>
+                        <SelectItem key={level.value} value={level.value.toString()}>
                           {level.label}
                         </SelectItem>
                       ))}
@@ -711,7 +723,10 @@ export function CompleteProfile() {
                   <FormLabel>
                     Disposto a participar de eventos em outras cidades?
                   </FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select 
+                    onValueChange={(value) => field.onChange(value === "" ? null : Number(value) as AttendsEvents)} 
+                    value={field.value === null ? "" : field.value.toString()}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione sua disponibilidade" />
@@ -719,7 +734,7 @@ export function CompleteProfile() {
                     </FormControl>
                     <SelectContent>
                       {attendsEvents.map((events) => (
-                        <SelectItem key={events.value} value={events.value}>
+                        <SelectItem key={events.value} value={events.value.toString()}>
                           {events.label}
                         </SelectItem>
                       ))}
@@ -744,12 +759,13 @@ export function CompleteProfile() {
                           className="flex items-center space-x-2"
                         >
                           <Checkbox
-                            checked={field.value?.includes(categories.value)}
+                            checked={field.value?.includes(categories.value as InterestCategory)}
                             onCheckedChange={(checked) => {
+                              const categoryValue = categories.value as InterestCategory;
                               const updatedCategories = checked
-                                ? [...(field.value || []), categories.value]
+                                ? [...(field.value || []), categoryValue]
                                 : field.value?.filter(
-                                    (value) => value !== categories.value
+                                    (value) => value !== categoryValue
                                   ) || [];
                               field.onChange(updatedCategories);
                             }}
