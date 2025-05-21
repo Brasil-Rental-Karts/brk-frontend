@@ -8,7 +8,11 @@ export default {
   theme: {
   	extend: {
   		fontFamily: {
-  			sans: ['Rubik', 'system-ui', 'sans-serif'],
+  			sans: [
+  				'Rubik',
+  				'system-ui',
+  				'sans-serif'
+  			]
   		},
   		colors: {
   			primary: {
@@ -73,6 +77,16 @@ export default {
   				'3': 'hsl(var(--chart-3))',
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
+  			},
+  			sidebar: {
+  				DEFAULT: 'hsl(var(--sidebar-background))',
+  				foreground: 'hsl(var(--sidebar-foreground))',
+  				primary: 'hsl(var(--sidebar-primary))',
+  				'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
+  				accent: 'hsl(var(--sidebar-accent))',
+  				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
+  				border: 'hsl(var(--sidebar-border))',
+  				ring: 'hsl(var(--sidebar-ring))'
   			}
   		},
   		borderRadius: {
@@ -82,12 +96,12 @@ export default {
   		},
   		letterSpacing: {
   			tight: '-0.025em',
-  			tighter: '-0.05em',
+  			tighter: '-0.05em'
   		},
   		transitionProperty: {
-  			'height': 'height',
-  			'spacing': 'margin, padding',
-  		},
+  			height: 'height',
+  			spacing: 'margin, padding'
+  		}
   	}
   },
   plugins: [require("tailwindcss-animate")],
