@@ -225,31 +225,36 @@ export const Dashboard = () => {
               {nextRaces.map((race) => (
                 <div
                   key={race.id}
-                  className="flex items-start space-x-4 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer"
+                  className="flex flex-col p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer"
                   onClick={() => setSelectedRace(race)}
                 >
-                  <div className="flex-shrink-0 text-center">
-                    <span className="block text-2xl font-bold">
-                      {race.date.getDate()}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      {race.date.toLocaleDateString("pt-BR", {
-                        month: "short",
-                      })}
-                    </span>
-                  </div>
-                  <div className="flex-grow">
-                    <h3 className="font-medium">{race.championship}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {race.location}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Etapa {race.stage} - {race.season}
-                    </p>
+                  <div className="flex items-start space-x-4 mb-2">
+                    <div className="flex-shrink-0 text-center">
+                      <span className="block text-2xl font-bold">
+                        {race.date.getDate()}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {race.date.toLocaleDateString("pt-BR", {
+                          month: "short",
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex-grow min-w-0">
+                      <h3 className="font-medium truncate">
+                        {race.championship}
+                      </h3>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {race.location}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Etapa {race.stage} - {race.season}
+                      </p>
+                    </div>
                   </div>
                   {race.notification && (
-                    <div className="flex-shrink-0">
+                    <div className="mt-2">
                       <Badge
+                        className="w-full justify-center"
                         variant={
                           race.notification.type as
                             | "warning"

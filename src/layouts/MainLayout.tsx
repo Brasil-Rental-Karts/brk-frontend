@@ -35,7 +35,11 @@ export const MainLayout = () => {
       <header className="bg-primary text-primary-foreground py-4 px-6 shadow-md">
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <span className="text-xl font-bold">BRK</span>
+            <img
+              src="/logo-brk-marca-horizontal-black.svg"
+              alt="BRK Logo"
+              className="h-6 w-auto"
+            />
             {/* Menu para Desktop */}
             <NavigationMenu className="hidden md:flex">
               <NavigationMenuList>
@@ -148,7 +152,21 @@ export const MainLayout = () => {
                       className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
                       onClick={() => setIsOpen(false)}
                     >
-                      Campeonatos
+                      Organizando
+                    </Link>
+                    <Link
+                      to="/campeonatos"
+                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Participando
+                    </Link>
+                    <Link
+                      to="/campeonatos"
+                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Buscar Campeonatos
                     </Link>
                     <Link
                       to="/calendario"

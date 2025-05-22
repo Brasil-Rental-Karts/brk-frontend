@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "./button";
 
 const alertVariants = cva(
-  "relative w-full rounded-lg border text-sm grid grid-cols-[auto_1fr] items-start gap-3",
+  "relative w-full rounded-lg text-sm grid grid-cols-[auto_1fr] items-start gap-3",
   {
     variants: {
       variant: {
