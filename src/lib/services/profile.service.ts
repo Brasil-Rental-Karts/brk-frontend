@@ -26,5 +26,18 @@ export const ProfileService = {
       });
       throw error;
     }
+  },
+  getMemberProfile: async (): Promise<any> => {
+    try {
+      const response = await api.get<any>('/member-profiles');
+      return response.data;
+    } catch (error: any) {
+      console.error('Profile fetch error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        headers: error.response?.headers
+      });
+      throw error;
+    }
   }
 }; 

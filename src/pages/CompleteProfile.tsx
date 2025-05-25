@@ -810,6 +810,24 @@ export function CompleteProfile() {
     }
   }, [currentStep, formData]);
 
+  useEffect(() => {
+    // Fetch member profile on mount
+    ProfileService.getMemberProfile()
+      .then(async (data) => {
+        if (data && Object.keys(data).length > 0) {
+          if (data.state) {
+            await loadCities(data.state);
+          }
+          form.reset({ ...defaultValues, ...data });
+          setFormData({ ...defaultValues, ...data });
+        }
+      })
+      .catch((error) => {
+        // Optionally handle error (e.g., show notification)
+        console.error('Erro ao buscar perfil do membro:', error);
+      });
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
