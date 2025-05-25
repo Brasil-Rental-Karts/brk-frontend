@@ -76,7 +76,7 @@ function ResetPasswordForm() {
         email: values.email,
       });
       
-      navigate("/reset-password-success");
+      navigate("/reset-password/success");
     } catch (error: any) {
       console.error("Falha na solicitação:", error);
       setError(
