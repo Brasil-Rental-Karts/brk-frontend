@@ -106,7 +106,7 @@ function App() {
 
             {/* Protected routes with MainLayout */}
             <Route element={<MainLayout />}>
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/change-password" element={<ChangePassword />} />
             </Route>
 

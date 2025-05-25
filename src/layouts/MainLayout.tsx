@@ -26,9 +26,13 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 export const MainLayout = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -109,8 +113,8 @@ export const MainLayout = () => {
                   <Link to="/ajuda">Ajuda</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/sair">Sair</Link>
+                <DropdownMenuItem onClick={async () => { await logout(); navigate('/'); }}>
+                  Sair
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -198,13 +202,13 @@ export const MainLayout = () => {
                       Ajuda
                     </Link>
                     <div className="h-px bg-border my-2" />
-                    <Link
-                      to="/sair"
-                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors text-destructive"
-                      onClick={() => setIsOpen(false)}
+                    <button
+                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors text-destructive text-left"
+                      onClick={async () => { setIsOpen(false); await logout(); navigate('/'); }}
+                      type="button"
                     >
                       Sair
-                    </Link>
+                    </button>
                   </nav>
                 </div>
               </SheetContent>
