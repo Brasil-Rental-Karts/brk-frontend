@@ -23,13 +23,25 @@ const processQueue = (error: any, tokenRefreshed: boolean) => {
   failedQueue = [];
 };
 
+const unprotectedRoutes = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/confirm-email',
+  '/auth/google',
+  '/auth/google/url',
+  '/auth/google/callback',
+];
+
 // Response interceptor for handling errors
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
     const isRefresh = originalRequest.url && originalRequest.url.includes('/auth/refresh-token');
-    if (error.response && error.response.status === 401 && !originalRequest._retry && !isRefresh) {
+    const isUnprotected = originalRequest.url && unprotectedRoutes.some(route => originalRequest.url.includes(route));
+    if (error.response && error.response.status === 401 && !originalRequest._retry && !isRefresh && !isUnprotected) {
       if (isRefreshing) {
         // Se já está tentando refresh, aguarda na fila
         return new Promise((resolve, reject) => {

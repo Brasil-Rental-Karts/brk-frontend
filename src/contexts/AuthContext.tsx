@@ -51,6 +51,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userInfo = await AuthService.me();
       setUser(userInfo);
       return { firstLogin: !!response.firstLogin };
+    } catch (error) {
+      throw error;
     } finally {
       setIsLoading(false);
     }

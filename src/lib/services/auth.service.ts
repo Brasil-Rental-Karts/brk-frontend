@@ -98,7 +98,12 @@ export const AuthService = {
 
   // Calls backend to refresh the access token using the refresh token
   refreshToken: async (): Promise<void> => {
-    await api.post('/auth/refresh-token', {});
+    try {
+      await api.post('/auth/refresh-token', {});
+    } catch (error) {
+      // Always throw a generic message for the user
+      throw new Error('Sua sessão expirou. Faça login novamente.');
+    }
   },
 
   confirmEmail: async (token: string): Promise<{ message: string }> => {

@@ -100,7 +100,7 @@ export function Login() {
         const message = error.response.data?.message;
         
         if (status === 401) {
-          setError("Email ou senha incorretos. Por favor, verifique suas credenciais.");
+          setError(message || "Email ou senha incorretos. Por favor, verifique suas credenciais.");
         } else if (status === 403) {
           setError("Sua conta não tem permissão para acessar o sistema.");
         } else if (status === 429) {
