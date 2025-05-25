@@ -112,6 +112,9 @@ export const MainLayout = () => {
                 <DropdownMenuItem asChild>
                   <Link to="/ajuda">Ajuda</Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/dashboard">Dashboard</Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={async () => { await logout(); navigate('/'); }}>
                   Sair
@@ -200,6 +203,13 @@ export const MainLayout = () => {
                       onClick={() => setIsOpen(false)}
                     >
                       Ajuda
+                    </Link>
+                    <Link
+                      to="/dashboard"
+                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Dashboard
                     </Link>
                     <div className="h-px bg-border my-2" />
                     <button
