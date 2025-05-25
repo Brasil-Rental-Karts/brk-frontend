@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 export const GoogleCallback = () => {
-  const { handleGoogleCallback, isAuthenticated, isFirstLogin } = useAuth();
+  const { isAuthenticated, isFirstLogin } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const processedRef = useRef(false);
@@ -51,15 +51,8 @@ export const GoogleCallback = () => {
       }
 
       try {
-        // Process the code
-        await handleGoogleCallback(code);
-        
-        // Check if it's the user's first login and redirect accordingly
-        if (isFirstLogin) {
-          navigate("/complete-profile", { replace: true });
-        } else {
-          navigate("/dashboard", { replace: true });
-        }
+        // TODO: Implement handleGoogleCallback in AuthContext or handle Google callback here.
+        throw new Error('handleGoogleCallback is not implemented.');
       } catch (err) {
         console.error("Error during Google authentication:", err);
         navigate("/login", { 

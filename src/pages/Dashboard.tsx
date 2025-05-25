@@ -65,7 +65,6 @@ export const Dashboard = () => {
       },
     },
   ];
-  const rankings = [];
   const userStats = {
     memberSince: "2023",
     totalRaces: 0,

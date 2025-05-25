@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 
 export const LoginSuccess = () => {
   const [searchParams] = useSearchParams();
