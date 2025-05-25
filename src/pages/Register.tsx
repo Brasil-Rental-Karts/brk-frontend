@@ -100,8 +100,8 @@ export function Register() {
         phone,
       });
 
-      // Redirect to login page after successful registration
-      navigate("/");
+      // Redirect to confirmation info page after successful registration
+      navigate("/confirm-email-info");
     } catch (error: any) {
       console.error("Falha no registro:", error);
       setError(

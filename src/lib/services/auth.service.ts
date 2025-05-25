@@ -100,4 +100,9 @@ export const AuthService = {
   refreshToken: async (): Promise<void> => {
     await api.post('/auth/refresh-token', {});
   },
+
+  confirmEmail: async (token: string): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>("/auth/confirm-email", { token });
+    return response.data;
+  },
 }; 

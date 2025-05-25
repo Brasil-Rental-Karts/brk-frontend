@@ -18,6 +18,8 @@ import {
   Navigate,
 } from "react-router-dom";
 import { useEffect } from "react";
+import { ConfirmEmailInfo } from "@/pages/ConfirmEmailInfo";
+import { ConfirmEmail } from "@/pages/ConfirmEmail";
 
 // Handle direct callback URLs with errors
 const GoogleCallbackErrorHandler = () => {
@@ -103,6 +105,8 @@ function App() {
             />
             <Route path="/login-success" element={<LoginSuccess />} />
             <Route path="/login-error" element={<LoginErrorRedirect />} />
+            <Route path="/confirm-email-info" element={<ConfirmEmailInfo />} />
+            <Route path="/confirm-email" element={<ConfirmEmail />} />
 
             {/* Protected routes with MainLayout */}
             <Route element={<MainLayout />}>
