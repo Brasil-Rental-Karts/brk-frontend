@@ -45,7 +45,18 @@ export function Login() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isLoading, loginWithGoogle } = useAuth();
+  const { login, isLoading, loginWithGoogle, isAuthenticated, isFirstLogin } = useAuth();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      if (isFirstLogin) {
+        navigate('/complete-profile', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [isAuthenticated, isFirstLogin, isLoading, navigate]);
 
   // Check for error message in the location state (from redirects)
   useEffect(() => {
