@@ -5,21 +5,8 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Always send cookies
 });
-
-// Request interceptor for adding the auth token
-api.interceptors.request.use(
-  (config) => {
-    const accessToken = localStorage.getItem('@brk:accessToken');
-    if (accessToken) {
-      config.headers.Authorization = `Bearer ${accessToken}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
 
 // Response interceptor for handling errors
 api.interceptors.response.use(
@@ -31,7 +18,6 @@ api.interceptors.response.use(
       // Handle forbidden errors
       console.error('Access forbidden:', error.response.data);
     }
-    
     return Promise.reject(error);
   }
 );

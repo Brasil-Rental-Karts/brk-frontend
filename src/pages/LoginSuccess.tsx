@@ -5,33 +5,23 @@ import { useAuth } from "@/contexts/AuthContext";
 export const LoginSuccess = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { loginWithTokens } = useAuth();
   const processedRef = useRef(false);
 
   useEffect(() => {
     const handleLoginSuccess = async () => {
-      // Prevent infinite loop by checking if we've already processed the login
       if (processedRef.current) return;
       processedRef.current = true;
 
-      const accessToken = searchParams.get("accessToken");
-      const refreshToken = searchParams.get("refreshToken");
       // Get firstLogin parameter from URL (if present)
       const firstLoginParam = searchParams.get("firstLogin") === "true";
 
-      if (accessToken && refreshToken) {
-        // Use the new method to set tokens and user in context, passing firstLogin parameter
-        loginWithTokens(accessToken, refreshToken, firstLoginParam);
-        
-        // Navigate based on firstLogin status
-        if (firstLoginParam) {
-          navigate("/complete-profile", { replace: true });
-        } else {
-          navigate("/dashboard", { replace: true });
-        }
+      // No need to call login() here! AuthContext will pick up the user from /auth/me on mount
+
+      // Navigate based on firstLogin status
+      if (firstLoginParam) {
+        navigate("/complete-profile", { replace: true });
       } else {
-        // If tokens are missing, redirect to login page
-        navigate("/login", { replace: true });
+        navigate("/dashboard", { replace: true });
       }
     };
 

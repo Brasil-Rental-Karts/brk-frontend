@@ -22,19 +22,8 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface LoginResponse {
-  accessToken: string;
-  refreshToken: string;
+export interface LoginResult {
   firstLogin?: boolean;
-}
-
-export interface RefreshTokenRequest {
-  refreshToken: string;
-}
-
-export interface RefreshTokenResponse {
-  accessToken: string;
-  refreshToken: string;
 }
 
 export interface ForgotPasswordRequest {
@@ -58,10 +47,6 @@ export interface GoogleAuthUrlResponse {
   url: string;
 }
 
-export interface GoogleAuthResponse {
-  idToken: string;
-}
-
 // Get the frontend URL for redirects
 const getFrontendUrl = () => {
   // Use the current origin (protocol + hostname + port) as the frontend URL
@@ -74,16 +59,11 @@ export const AuthService = {
     return response.data;
   },
   
-  login: async (data: LoginRequest): Promise<LoginResponse> => {
-    const response = await api.post<LoginResponse>('/auth/login', data);
+  login: async (data: LoginRequest): Promise<LoginResult> => {
+    const response = await api.post<LoginResult>('/auth/login', data);
     return response.data;
   },
 
-  refreshToken: async (refreshToken: string): Promise<RefreshTokenResponse> => {
-    const response = await api.post<RefreshTokenResponse>('/auth/refresh-token', { refreshToken });
-    return response.data;
-  },
-  
   forgotPassword: async (data: ForgotPasswordRequest): Promise<ForgotPasswordResponse> => {
     const response = await api.post<ForgotPasswordResponse>('/auth/forgot-password', data);
     return response.data;
@@ -105,14 +85,14 @@ export const AuthService = {
     return response.data;
   },
 
-  authenticateWithGoogle: async (): Promise<LoginResponse> => {
-    const response = await api.get<LoginResponse>('/auth/google');
+  // Calls /auth/me to get the current authenticated user
+  me: async (): Promise<{ id: string; email: string; role: string }> => {
+    const response = await api.get('/auth/me');
     return response.data;
   },
 
-  handleGoogleCallback: async (code: string): Promise<void> => {
-    // This function is no longer needed as the backend will handle the redirect
-    // with tokens directly to the login-success page
-    await api.get(`/auth/google/callback?code=${code}`);
-  }
+  // Calls backend to logout and clear cookies
+  logout: async (): Promise<void> => {
+    await api.post('/auth/logout');
+  },
 }; 
