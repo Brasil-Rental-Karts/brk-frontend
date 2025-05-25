@@ -104,6 +104,9 @@ export const MainLayout = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
+                  <Link to="/dashboard">Dashboard</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link to="/perfil">Perfil</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
@@ -111,9 +114,6 @@ export const MainLayout = () => {
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/ajuda">Ajuda</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/dashboard">Dashboard</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={async () => { await logout(); navigate('/'); }}>
@@ -184,6 +184,13 @@ export const MainLayout = () => {
                     </Link>
                     <div className="h-px bg-border my-2" />
                     <Link
+                      to="/dashboard"
+                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
+                    <Link
                       to="/perfil"
                       className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
                       onClick={() => setIsOpen(false)}
@@ -203,13 +210,6 @@ export const MainLayout = () => {
                       onClick={() => setIsOpen(false)}
                     >
                       Ajuda
-                    </Link>
-                    <Link
-                      to="/dashboard"
-                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Dashboard
                     </Link>
                     <div className="h-px bg-border my-2" />
                     <button
