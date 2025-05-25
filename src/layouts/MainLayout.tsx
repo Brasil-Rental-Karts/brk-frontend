@@ -31,7 +31,7 @@ import { useNavigate } from "react-router-dom";
 
 export const MainLayout = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   return (
     <div className="min-h-screen flex flex-col">
@@ -92,10 +92,10 @@ export const MainLayout = () => {
                 <div className="flex items-center gap-2">
                   <Avatar>
                     <AvatarFallback className="text-foreground">
-                      JD
+                      {user?.name ? user.name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0,2) : (user?.email ? user.email[0].toUpperCase() : 'U')}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-sm font-medium">John Doe</span>
+                  <span className="text-sm font-medium">{user?.name}</span>
                   <ChevronDown
                     className="h-4 w-4 transition duration-300 group-data-[state=open]:rotate-180"
                     aria-hidden="true"
@@ -141,10 +141,10 @@ export const MainLayout = () => {
                   <div className="flex items-center gap-2 p-2">
                     <Avatar>
                       <AvatarFallback className="text-foreground">
-                        JD
+                        {user?.name ? user.name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0,2) : (user?.email ? user.email[0].toUpperCase() : 'U')}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm font-medium">John Doe</span>
+                    <span className="text-sm font-medium">{user?.name}</span>
                   </div>
                   <nav className="flex flex-col gap-2">
                     <Link
