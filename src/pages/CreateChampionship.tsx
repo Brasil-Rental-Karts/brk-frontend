@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useBlocker } from "react-router-dom";
 import { DynamicForm, FormSectionConfig } from "@/components/ui/dynamic-form";
 import { Button } from "@/components/ui/button";
 import { validateDocument } from "@/utils/validation";
@@ -25,7 +25,37 @@ export const CreateChampionship = () => {
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const [currentState, setCurrentState] = useState<string>("");
   const [formRef, setFormRef] = useState<any>(null);
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+
+  // Block navigation when there are unsaved changes
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname
+  );
+
+  // Handle blocked navigation
+  useEffect(() => {
+    if (blocker.state === "blocked") {
+      setShowUnsavedChangesDialog(true);
+      setPendingNavigation(blocker.location?.pathname || null);
+    }
+  }, [blocker]);
+
+  // Handle beforeunload event (browser refresh/close)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = "Você tem alterações não salvas. Tem certeza que deseja sair?";
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   // Load cities based on selected state
   const loadCities = async (uf: string) => {
@@ -35,6 +65,8 @@ export const CreateChampionship = () => {
 
   // Handle form changes
   const handleFormChange = (data: any) => {
+    setHasUnsavedChanges(true);
+    
     if (data.state && data.state !== currentState) {
       setCurrentState(data.state);
       loadCities(data.state);
@@ -43,6 +75,8 @@ export const CreateChampionship = () => {
 
   // Handle specific field changes
   const handleFieldChange = async (fieldId: string, value: any) => {
+    setHasUnsavedChanges(true);
+    
     if (fieldId === "cep" && value && isValidCEPFormat(value)) {
       const addressData = await fetchAddressByCEP(value);
       if (addressData && formRef) {
@@ -74,19 +108,28 @@ export const CreateChampionship = () => {
     }, 100);
   };
 
-  // Handle cancel with confirmation
+  // Handle cancel - navigate directly to dashboard
   const handleCancelClick = useCallback(() => {
-    setShowCancelDialog(true);
-  }, []);
-
-  const handleConfirmCancel = useCallback(() => {
-    setShowCancelDialog(false);
     navigate('/dashboard');
   }, [navigate]);
 
-  const handleCancelDialog = useCallback(() => {
-    setShowCancelDialog(false);
-  }, []);
+  // Handle unsaved changes dialog
+  const handleConfirmUnsavedChanges = useCallback(() => {
+    setShowUnsavedChangesDialog(false);
+    setHasUnsavedChanges(false);
+    
+    if (pendingNavigation) {
+      blocker.proceed?.();
+    }
+    
+    setPendingNavigation(null);
+  }, [blocker, pendingNavigation]);
+
+  const handleCancelUnsavedChanges = useCallback(() => {
+    setShowUnsavedChangesDialog(false);
+    blocker.reset?.();
+    setPendingNavigation(null);
+  }, [blocker]);
 
   const handleSubmit = (_data: any) => {
     // Check if there are any validation errors
@@ -98,6 +141,8 @@ export const CreateChampionship = () => {
       }
     }
     
+    // Mark as saved before navigation
+    setHasUnsavedChanges(false);
     navigate('/dashboard');
   };
 
@@ -267,6 +312,11 @@ export const CreateChampionship = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-3xl font-bold">Criar Campeonato</h1>
+            {hasUnsavedChanges && (
+              <span className="text-sm text-orange-600 bg-orange-100 px-2 py-1 rounded">
+                Alterações não salvas
+              </span>
+            )}
           </div>
           <div className="flex gap-2">
             <Button
@@ -305,28 +355,29 @@ export const CreateChampionship = () => {
         />
       </div>
 
-      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+      {/* Unsaved Changes Dialog */}
+      <Dialog open={showUnsavedChangesDialog} onOpenChange={setShowUnsavedChangesDialog}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Confirmar Cancelamento</DialogTitle>
+            <DialogTitle>Alterações Não Salvas</DialogTitle>
             <DialogDescription>
-              Tem certeza de que deseja cancelar o processo de criação do campeonato?
+              Você tem alterações não salvas que serão perdidas se continuar.
               <br />
-              <strong>Todas as informações preenchidas serão perdidas.</strong>
+              <strong>Deseja realmente sair sem salvar?</strong>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button 
               variant="outline" 
-              onClick={handleCancelDialog}
+              onClick={handleCancelUnsavedChanges}
             >
               Continuar Editando
             </Button>
             <Button 
               variant="destructive" 
-              onClick={handleConfirmCancel}
+              onClick={handleConfirmUnsavedChanges}
             >
-              Sim, Cancelar
+              Sair Sem Salvar
             </Button>
           </DialogFooter>
         </DialogContent>
