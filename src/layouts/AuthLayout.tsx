@@ -1,9 +1,15 @@
 import { Outlet } from 'react-router-dom';
+import { ModeToggle } from '@/components/mode-toggle';
 
 export const AuthLayout = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted">
       <div className="container mx-auto px-4 py-8">
+        {/* Theme Toggle */}
+        <div className="absolute top-4 right-4">
+          <ModeToggle />
+        </div>
+        
         <div className="flex items-center justify-center min-h-screen">
           <div className="w-full max-w-md">
             {/* Logo/Brand */}
