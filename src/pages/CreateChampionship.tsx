@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useBlocker } from "react-router-dom";
 import { DynamicForm, FormSectionConfig } from "@/components/ui/dynamic-form";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { validateDocument } from "@/utils/validation";
 import { 
   fetchAddressByCEP, 
@@ -18,6 +19,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useChampionship } from "@/hooks/use-championship";
+import { ChampionshipData } from "@/lib/services/championship.service";
+import { useChampionshipContext } from "@/contexts/ChampionshipContext";
 
 export const CreateChampionship = () => {
   const navigate = useNavigate();
@@ -28,11 +32,17 @@ export const CreateChampionship = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+  const [showErrorAlert, setShowErrorAlert] = useState(false);
+  const [saveSuccessful, setSaveSuccessful] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Block navigation when there are unsaved changes
+  const { isLoading, error, createChampionship, clearError } = useChampionship();
+  const { addChampionship } = useChampionshipContext();
+
+  // Block navigation when there are unsaved changes (but not when save was successful or currently saving)
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname
+      hasUnsavedChanges && !saveSuccessful && !isSaving && currentLocation.pathname !== nextLocation.pathname
   );
 
   // Handle blocked navigation
@@ -56,6 +66,13 @@ export const CreateChampionship = () => {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
+
+  // Show error alert when error changes
+  useEffect(() => {
+    if (error) {
+      setShowErrorAlert(true);
+    }
+  }, [error]);
 
   // Load cities based on selected state
   const loadCities = async (uf: string) => {
@@ -131,7 +148,7 @@ export const CreateChampionship = () => {
     setPendingNavigation(null);
   }, [blocker]);
 
-  const handleSubmit = (_data: any) => {
+  const handleSubmit = async (data: any) => {
     // Check if there are any validation errors
     if (formRef) {
       const formState = formRef.formState;
@@ -140,10 +157,56 @@ export const CreateChampionship = () => {
         return;
       }
     }
-    
-    // Mark as saved before navigation
+
+    // Clear any previous errors and mark as saved (removes "Alterações não salvas" indicator)
+    // Also set saving state to disable blocker
+    clearError();
+    setShowErrorAlert(false);
     setHasUnsavedChanges(false);
-    navigate('/dashboard');
+    setIsSaving(true);
+
+    // Prepare championship data
+    const championshipData: ChampionshipData = {
+      name: data.name,
+      shortDescription: data.shortDescription || '',
+      fullDescription: data.fullDescription || '',
+      personType: parseInt(data.personType || '0'),
+      document: data.document,
+      socialReason: data.socialReason || '',
+      cep: data.cep,
+      state: data.state,
+      city: data.city,
+      fullAddress: data.fullAddress,
+      number: data.number,
+      complement: data.complement || '',
+      isResponsible: data.isResponsible !== false, // Default to true
+      responsibleName: data.responsibleName || '',
+      responsiblePhone: data.responsiblePhone || ''
+    };
+
+    try {
+      const championship = await createChampionship(championshipData);
+      
+      if (championship) {
+        // Success - add to context and navigate directly to dashboard
+        // Use replace to avoid history stack and ensure blocker doesn't interfere
+        addChampionship(championship);
+        setSaveSuccessful(true);
+        setHasUnsavedChanges(false);
+        navigate('/dashboard', { replace: true });
+      }
+    } catch (err) {
+      // Error occurred - restore unsaved changes indicator and stop saving
+      setHasUnsavedChanges(true);
+      setIsSaving(false);
+      scrollToFirstError();
+    }
+  };
+
+  // Handle alert close
+  const handleCloseErrorAlert = () => {
+    setShowErrorAlert(false);
+    clearError();
   };
 
   // Create form configuration
@@ -322,17 +385,29 @@ export const CreateChampionship = () => {
             <Button
               variant="outline"
               onClick={handleCancelClick}
+              disabled={isLoading}
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               form="championship-form"
+              disabled={isLoading}
             >
-              Salvar Campeonato
+              {isLoading ? "Salvando..." : "Salvar Campeonato"}
             </Button>
           </div>
         </div>
+      </div>
+
+      {/* Alerts */}
+      <div className="w-full px-6 mb-4">
+        {showErrorAlert && error && (
+          <Alert variant="destructive" hasCloseButton onClose={handleCloseErrorAlert} className="mb-4">
+            <AlertTitle>Erro ao criar campeonato</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
       </div>
 
       {/* Content */}
@@ -343,7 +418,7 @@ export const CreateChampionship = () => {
           onChange={handleFormChange}
           onFieldChange={handleFieldChange}
           onFormReady={setFormRef}
-          submitLabel="Salvar Campeonato"
+          submitLabel={isLoading ? "Salvando..." : "Salvar Campeonato"}
           cancelLabel="Cancelar"
           showButtons={true}
           className="space-y-6"
@@ -357,27 +432,19 @@ export const CreateChampionship = () => {
 
       {/* Unsaved Changes Dialog */}
       <Dialog open={showUnsavedChangesDialog} onOpenChange={setShowUnsavedChangesDialog}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Alterações Não Salvas</DialogTitle>
+            <DialogTitle>Alterações não salvas</DialogTitle>
             <DialogDescription>
-              Você tem alterações não salvas que serão perdidas se continuar.
-              <br />
-              <strong>Deseja realmente sair sem salvar?</strong>
+              Você tem alterações não salvas. Tem certeza que deseja sair sem salvar?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={handleCancelUnsavedChanges}
-            >
-              Continuar Editando
+            <Button variant="outline" onClick={handleCancelUnsavedChanges}>
+              Continuar editando
             </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleConfirmUnsavedChanges}
-            >
-              Sair Sem Salvar
+            <Button variant="destructive" onClick={handleConfirmUnsavedChanges}>
+              Sair sem salvar
             </Button>
           </DialogFooter>
         </DialogContent>

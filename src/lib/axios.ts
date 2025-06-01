@@ -32,6 +32,10 @@ const unprotectedRoutes = [
   '/auth/google',
   '/auth/google/url',
   '/auth/google/callback',
+  '/auth/login-success',
+  '/auth/login-error',
+  '/login-success',
+  '/login-error',
 ];
 
 // Response interceptor for handling errors

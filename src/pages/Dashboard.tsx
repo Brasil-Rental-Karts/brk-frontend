@@ -8,6 +8,8 @@ import {
   MapPin,
   Calendar,
   Users,
+  Settings,
+  Eye,
 } from "lucide-react";
 import { useState } from "react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -22,14 +24,23 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useNavigation } from "@/router";
+import { useDashboardChampionships } from "@/hooks/use-dashboard-championships";
+import { useChampionshipContext } from "@/contexts/ChampionshipContext";
 
 export const Dashboard = () => {
   const nav = useNavigation();
   const [showProfileAlert, setShowProfileAlert] = useState(true);
   const [selectedRace, setSelectedRace] = useState<(typeof nextRaces)[0] | null>(null);
   
+  // Use context for championships data and hook for loading/error states
+  const { championshipsOrganized } = useChampionshipContext();
+  const { 
+    loadingChampionships, 
+    championshipsError, 
+    refreshChampionships 
+  } = useDashboardChampionships();
+  
   // Dados mockados para exemplo
-  const championshipsOrganized = [];
   const championshipsParticipating = [];
   const userStats = {
     memberSince: "2023",
@@ -65,6 +76,11 @@ export const Dashboard = () => {
       },
     },
   ];
+
+  // Função para formatar data
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("pt-BR");
+  };
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -154,13 +170,29 @@ export const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Campeonatos Organizados */}
         <Card className="p-6">
-          <div>
+          <div className="mb-4">
             <h2 className="text-xl font-semibold">Organizando</h2>
             <p className="text-sm text-muted-foreground">
               Você Organiza ou Gerencia
             </p>
           </div>
-          {championshipsOrganized.length === 0 ? (
+          
+          {loadingChampionships ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-sm text-muted-foreground">Carregando campeonatos...</div>
+            </div>
+          ) : championshipsError ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-destructive mb-2">{championshipsError}</p>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={refreshChampionships}
+              >
+                Tentar novamente
+              </Button>
+            </div>
+          ) : championshipsOrganized.length === 0 ? (
             <EmptyState
               icon={Trophy}
               title="Você ainda não organizou nenhum campeonato"
@@ -170,8 +202,54 @@ export const Dashboard = () => {
               }}
             />
           ) : (
-            <div className="space-y-4">
-              {/* Lista de campeonatos organizados */}
+            <div className="space-y-3">
+              {championshipsOrganized.map((championship) => (
+                <div
+                  key={championship.id}
+                  className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-medium text-sm truncate flex-1 mr-2" title={championship.name}>
+                      {championship.name}
+                    </h3>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        title="Ver campeonato"
+                      >
+                        <Eye className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        title="Gerenciar campeonato"
+                      >
+                        <Settings className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {championship.shortDescription && (
+                    <p className="text-xs text-muted-foreground mb-2 overflow-hidden" style={{
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical'
+                    }}>
+                      {championship.shortDescription}
+                    </p>
+                  )}
+                  
+                  <div className="flex justify-between items-center text-xs text-muted-foreground">
+                    <span>Criado em {formatDate(championship.createdAt)}</span>
+                    <Badge variant="outline" className="text-xs">
+                      Organizador
+                    </Badge>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </Card>
