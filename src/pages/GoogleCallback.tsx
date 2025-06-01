@@ -87,4 +87,6 @@ export const GoogleCallback = () => {
       </div>
     </div>
   );
-}; 
+};
+
+export default GoogleCallback; 

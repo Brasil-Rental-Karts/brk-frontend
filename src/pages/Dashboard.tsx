@@ -21,57 +21,50 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { useNavigation } from "@/router";
 
 export const Dashboard = () => {
+  const nav = useNavigation();
   const [showProfileAlert, setShowProfileAlert] = useState(true);
-  const [selectedRace, setSelectedRace] = useState<
-    (typeof nextRaces)[0] | null
-  >(null);
+  const [selectedRace, setSelectedRace] = useState<(typeof nextRaces)[0] | null>(null);
+  
   // Dados mockados para exemplo
   const championshipsOrganized = [];
   const championshipsParticipating = [];
+  const userStats = {
+    memberSince: "2023",
+    totalRaces: 15,
+    totalChampionship: 3,
+    bestPosition: "2º",
+    averagePosition: "5º",
+  };
+
   const nextRaces = [
     {
       id: 1,
-      date: new Date("2024-02-15"),
+      championship: "Copa São Paulo de Kart",
       location: "Kartódromo Granja Viana",
-      championship: "Campeonato Paulista de Kart",
-      season: "2024",
+      date: new Date("2024-02-15"),
       stage: 3,
+      season: "2024",
       notification: {
-        type: "warning",
-        message: "Confirmação pendente",
+        type: "warning" as const,
+        message: "Inscrições abertas até 10/02",
       },
     },
     {
       id: 2,
-      date: new Date("2024-02-28"),
-      location: "Kartódromo Internacional Nova Odessa",
-      championship: "Copa São Paulo Light",
-      season: "2024",
-      stage: 2,
-      notification: null,
-    },
-    {
-      id: 3,
-      date: new Date("2024-03-10"),
-      location: "Kartódromo de Interlagos",
-      championship: "Super Copa SP",
-      season: "2024",
+      championship: "Campeonato Paulista",
+      location: "Kartódromo Aldeia da Serra",
+      date: new Date("2024-02-22"),
       stage: 1,
+      season: "2024",
       notification: {
-        type: "success",
-        message: "Confirmado",
+        type: "success" as const,
+        message: "Você está inscrito",
       },
     },
   ];
-  const userStats = {
-    memberSince: "2023",
-    totalRaces: 0,
-    totalChampionship: 0,
-    bestPosition: "-",
-    averagePosition: "-",
-  };
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -83,7 +76,7 @@ export const Dashboard = () => {
           action={
             <Button
               variant="outline"
-              onClick={() => (window.location.href = "/complete-profile")}
+              onClick={() => nav.goToCompleteProfile()}
             >
               Completar Perfil
             </Button>
@@ -101,7 +94,10 @@ export const Dashboard = () => {
       {/* Cabeçalho com CTA */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Dashboard</h1>
-        <Button className="bg-primary hover:bg-primary/90">
+        <Button 
+          className="bg-primary hover:bg-primary/90"
+          onClick={() => nav.goToCreateChampionship()}
+        >
           <PlusCircle className="mr-2 h-4 w-4" />
           Criar Campeonato
         </Button>
@@ -123,7 +119,7 @@ export const Dashboard = () => {
           </div>
           <Button
             variant="outline"
-            onClick={() => (window.location.href = "/complete-profile")}
+            onClick={() => nav.goToCompleteProfile()}
           >
             Editar Perfil
           </Button>
@@ -170,7 +166,7 @@ export const Dashboard = () => {
               title="Você ainda não organizou nenhum campeonato"
               action={{
                 label: "Criar Primeiro Campeonato",
-                onClick: () => {},
+                onClick: () => nav.goToCreateChampionship(),
               }}
             />
           ) : (
@@ -206,141 +202,88 @@ export const Dashboard = () => {
 
         {/* Próximas Corridas */}
         <Card className="p-6">
-          <h2 className="text-xl font-semibold">Calendário de Corridas</h2>
-          <p className="text-sm text-muted-foreground">
-            Próximas corridas que você participa
-          </p>
-          {nextRaces.length === 0 ? (
-            <EmptyState
-              icon={Flag}
-              title="Nenhuma corrida agendada"
-              action={{
-                label: "Explorar Campeonatos",
-                onClick: () => {},
-              }}
-            />
-          ) : (
-            <div className="space-y-4 mt-4">
-              {nextRaces.map((race) => (
-                <div
-                  key={race.id}
-                  className="flex flex-col p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer"
-                  onClick={() => setSelectedRace(race)}
-                >
-                  <div className="flex items-start space-x-4 mb-2">
-                    <div className="flex-shrink-0 text-center">
-                      <span className="block text-2xl font-bold">
-                        {race.date.getDate()}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        {race.date.toLocaleDateString("pt-BR", {
-                          month: "short",
-                        })}
-                      </span>
-                    </div>
-                    <div className="flex-grow min-w-0">
-                      <h3 className="font-medium truncate">
-                        {race.championship}
-                      </h3>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {race.location}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Etapa {race.stage} - {race.season}
-                      </p>
-                    </div>
-                  </div>
-                  {race.notification && (
-                    <div className="mt-2">
-                      <Badge
-                        className="w-full justify-center"
-                        variant={
-                          race.notification.type as
-                            | "warning"
-                            | "success"
-                            | "default"
-                            | "destructive"
-                            | "outline"
-                            | "secondary"
-                        }
-                      >
-                        {race.notification.message}
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-              ))}
-              <Button
-                variant="ghost"
-                className="mt-4 w-full"
-                onClick={() => (window.location.href = "/calendar")}
+          <div>
+            <h2 className="text-xl font-semibold">Próximas Corridas</h2>
+            <p className="text-sm text-muted-foreground">
+              Suas próximas corridas agendadas
+            </p>
+          </div>
+          <div className="space-y-4">
+            {nextRaces.map((race) => (
+              <div
+                key={race.id}
+                className="border rounded-lg p-4 hover:bg-muted/50 cursor-pointer transition-colors"
+                onClick={() => setSelectedRace(race)}
               >
-                Ver Calendário Completo
-              </Button>
-            </div>
-          )}
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-medium text-sm">{race.championship}</h3>
+                  <Badge variant="outline">
+                    Etapa {race.stage} - {race.season}
+                  </Badge>
+                </div>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <div className="flex items-center">
+                    <MapPin className="h-3 w-3 mr-1" />
+                    {race.location}
+                  </div>
+                  <div className="flex items-center">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    {race.date.toLocaleDateString("pt-BR")}
+                  </div>
+                </div>
+                {race.notification && (
+                  <div className="mt-2">
+                    <Badge
+                      variant={
+                        race.notification.type === "warning"
+                          ? "destructive"
+                          : "default"
+                      }
+                      className="text-xs"
+                    >
+                      {race.notification.message}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </Card>
       </div>
 
+      {/* Modal de detalhes da corrida */}
       <Dialog open={!!selectedRace} onOpenChange={() => setSelectedRace(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-2xl">
-              <h2>{selectedRace?.championship}</h2>
-              {selectedRace?.notification && (
-                <Badge
-                  variant={
-                    selectedRace.notification.type as
-                      | "warning"
-                      | "success"
-                      | "default"
-                      | "destructive"
-                      | "outline"
-                      | "secondary"
-                  }
-                  className="mt-2"
-                >
-                  {selectedRace.notification.message}
-                </Badge>
-              )}
-            </DialogTitle>
+            <DialogTitle>{selectedRace?.championship}</DialogTitle>
+            <DialogDescription>
+              Etapa {selectedRace?.stage} - {selectedRace?.season}
+            </DialogDescription>
           </DialogHeader>
-          <DialogDescription className="text-base text-foreground">
-            <div className="space-y-4 my-2">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-muted-foreground" />
-                <span>
-                  {selectedRace?.date.toLocaleDateString("pt-BR", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-muted-foreground" />
-                <span>{selectedRace?.location}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-muted-foreground" />
-                <span>
-                  Etapa {selectedRace?.stage} - Temporada {selectedRace?.season}
-                </span>
-              </div>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <MapPin className="h-4 w-4 text-muted-foreground" />
+              <span>{selectedRace?.location}</span>
             </div>
-          </DialogDescription>
+            <div className="flex items-center space-x-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span>{selectedRace?.date.toLocaleDateString("pt-BR")}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span>24 pilotos inscritos</span>
+            </div>
+          </div>
           <DialogFooter>
-            <Button
-              variant="default"
-              className="w-full"
-              onClick={() => setSelectedRace(null)}
-            >
-              Confirmar Presença
+            <Button variant="outline" onClick={() => setSelectedRace(null)}>
+              Fechar
             </Button>
+            <Button>Ver Detalhes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
 };
+
+export default Dashboard;

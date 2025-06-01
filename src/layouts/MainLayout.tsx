@@ -25,14 +25,20 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useState } from "react";
+import { useState, ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { ModeToggle } from "@/components/mode-toggle";
 
-export const MainLayout = () => {
+interface MainLayoutProps {
+  children?: ReactNode;
+}
+
+export const MainLayout = ({ children }: MainLayoutProps = {}) => {
   const [isOpen, setIsOpen] = useState(false);
   const { logout, user } = useAuth();
   const navigate = useNavigate();
+  
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -52,7 +58,14 @@ export const MainLayout = () => {
                     className="group inline-flex h-9 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent/30 hover:text-accent-foreground focus:bg-accent/30 focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50"
                     asChild
                   >
-                    <Link to="/">Início</Link>
+                    <button
+                      onClick={() => {
+                        navigate("/dashboard");
+                      }}
+                      data-navigation="/dashboard"
+                    >
+                      Início
+                    </button>
                   </NavigationMenuLink>
                 </NavigationMenuItem>
 
@@ -104,7 +117,15 @@ export const MainLayout = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
-                  <Link to="/dashboard">Dashboard</Link>
+                  <button
+                    onClick={() => {
+                      navigate("/dashboard");
+                    }}
+                    className="w-full text-left"
+                    data-navigation="/dashboard"
+                  >
+                    Dashboard
+                  </button>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/perfil">Perfil</Link>
@@ -121,6 +142,9 @@ export const MainLayout = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {/* Theme Toggle */}
+            <ModeToggle />
 
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>
@@ -183,13 +207,16 @@ export const MainLayout = () => {
                       Calendário
                     </Link>
                     <div className="h-px bg-border my-2" />
-                    <Link
-                      to="/dashboard"
-                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
-                      onClick={() => setIsOpen(false)}
+                    <button
+                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors text-left w-full"
+                      onClick={() => {
+                        setIsOpen(false);
+                        navigate("/dashboard");
+                      }}
+                      data-navigation="/dashboard"
                     >
                       Dashboard
-                    </Link>
+                    </button>
                     <Link
                       to="/perfil"
                       className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
@@ -229,7 +256,7 @@ export const MainLayout = () => {
 
       {/* Main content */}
       <main className="flex-1 container mx-auto px-6 py-8">
-        <Outlet />
+        {children || <Outlet />}
       </main>
 
       {/* Footer */}

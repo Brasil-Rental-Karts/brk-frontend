@@ -47,41 +47,7 @@ import {
   attendsEventsOptions,
   interestCategoryOptions
 } from "@/lib/enums/profile";
-
-interface city {
-  id: number;
-  nome: string;
-}
-
-const states = [
-  "AC",
-  "AL",
-  "AP",
-  "AM",
-  "BA",
-  "CE",
-  "DF",
-  "ES",
-  "GO",
-  "MA",
-  "MT",
-  "MS",
-  "MG",
-  "PA",
-  "PB",
-  "PR",
-  "PE",
-  "PI",
-  "RJ",
-  "RN",
-  "RS",
-  "RO",
-  "RR",
-  "SC",
-  "SP",
-  "SE",
-  "TO",
-];
+import { fetchCitiesByState, states, City } from "@/utils/ibge";
 
 // Remove all the enum definitions and use the imported options
 const genders = genderOptions;
@@ -215,7 +181,7 @@ type StepConfig = {
 export function CompleteProfile() {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<Partial<FormData>>(defaultValues);
-  const [cities, setCities] = useState<city[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
   const navigate = useNavigate();
 
   const form = useForm<FormData>({
@@ -224,16 +190,8 @@ export function CompleteProfile() {
   });
 
   const loadCities = async (uf: string) => {
-    try {
-      const response = await fetch(
-        `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`
-      );
-      const data = await response.json();
-      setCities(data);
-    } catch (error) {
-      console.error("Erro ao carregar cidades:", error);
-      setCities([]);
-    }
+    const citiesData = await fetchCitiesByState(uf);
+    setCities(citiesData);
   };
 
   useEffect(() => {
@@ -876,3 +834,5 @@ export function CompleteProfile() {
     </motion.div>
   );
 }
+
+export default CompleteProfile;

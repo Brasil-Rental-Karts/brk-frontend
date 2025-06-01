@@ -36,4 +36,6 @@ export const LoginSuccess = () => {
       </div>
     </div>
   );
-}; 
+};
+
+export default LoginSuccess; 
