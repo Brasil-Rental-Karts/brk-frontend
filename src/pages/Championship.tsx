@@ -62,80 +62,75 @@ export const Championship = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header do campeonato - quebra do container para usar largura completa */}
-      <div className="-mx-6 -mt-8 mb-4 flex-shrink-0">
+    <div className="min-h-screen bg-background">
+      {/* Header do campeonato - colado com as tabs */}
+      <div className="-mx-6 -mt-8">
         <ChampionshipHeader championship={championship} />
+      </div>
 
-        {/* Seção das tabs com fundo escuro */}
-        <div className="bg-dark-900 border-b border-white/10">
-          <div className="px-4">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-0">
-              {/* Lista de tabs */}
-              <TabsList className="bg-transparent border-0 h-auto p-0 space-x-0">
-                <TabsTrigger 
-                  value="temporadas" 
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Temporadas
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="etapas" 
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Etapas
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="categorias" 
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Categorias
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="classificacao" 
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Classificação
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="evento" 
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Evento
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+      {/* Sistema de tabs unificado - colado com o header */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
+        {/* Seção das tabs com fundo escuro - sem espaçamento do header */}
+        <div className="bg-dark-900 border-b border-white/10 -mx-6">
+          <div className="px-10">
+            <TabsList className="bg-transparent border-0 h-auto p-0 space-x-0">
+              <TabsTrigger 
+                value="temporadas" 
+                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+              >
+                Temporadas
+              </TabsTrigger>
+              <TabsTrigger 
+                value="etapas" 
+                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+              >
+                Etapas
+              </TabsTrigger>
+              <TabsTrigger 
+                value="categorias" 
+                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+              >
+                Categorias
+              </TabsTrigger>
+              <TabsTrigger 
+                value="classificacao" 
+                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+              >
+                Classificação
+              </TabsTrigger>
+              <TabsTrigger 
+                value="evento" 
+                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+              >
+                Evento
+              </TabsTrigger>
+            </TabsList>
           </div>
         </div>
-      </div>
 
-      {/* Conteúdo principal com altura flexível */}
-      <div className="px-4 py-2 flex-1 flex flex-col min-h-0">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-          {/* Conteúdo das tabs */}
-          <div className="flex-1 flex flex-col min-h-0">
-            <TabsContent value="temporadas" className="flex-1 flex flex-col mt-4 min-h-0">
-              <SeasonsTab championshipId={id} />
-            </TabsContent>
+        {/* Conteúdo das tabs com espaçamento fixo */}
+        <div className="px-4 pt-6">
+          <TabsContent value="temporadas" className="mt-0 ring-0 focus-visible:outline-none">
+            <SeasonsTab championshipId={id} />
+          </TabsContent>
 
-            <TabsContent value="etapas" className="flex-1 flex flex-col mt-4 min-h-0">
-              <StagesTab championshipId={id} />
-            </TabsContent>
+          <TabsContent value="etapas" className="mt-0 ring-0 focus-visible:outline-none">
+            <StagesTab championshipId={id} />
+          </TabsContent>
 
-            <TabsContent value="categorias" className="flex-1 flex flex-col mt-4 min-h-0">
-              <CategoriesTab championshipId={id} />
-            </TabsContent>
+          <TabsContent value="categorias" className="mt-0 ring-0 focus-visible:outline-none">
+            <CategoriesTab championshipId={id} />
+          </TabsContent>
 
-            <TabsContent value="classificacao" className="flex-1 flex flex-col mt-4 min-h-0">
-              <ClassificationTab championshipId={id} />
-            </TabsContent>
+          <TabsContent value="classificacao" className="mt-0 ring-0 focus-visible:outline-none">
+            <ClassificationTab championshipId={id} />
+          </TabsContent>
 
-            <TabsContent value="evento" className="flex-1 flex flex-col mt-4 min-h-0">
-              <EventTab championshipId={id} />
-            </TabsContent>
-          </div>
-        </Tabs>
-      </div>
+          <TabsContent value="evento" className="mt-0 ring-0 focus-visible:outline-none">
+            <EventTab championshipId={id} />
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   );
 }; 

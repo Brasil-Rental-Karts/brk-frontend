@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
+import { Pagination } from "@/components/ui/pagination";
+import { usePagination } from "@/hooks/usePagination";
 
 interface Stage {
   id: string;
@@ -34,13 +37,44 @@ interface StagesTabProps {
   championshipId: string;
 }
 
+// Configuração dos filtros
+const filterFields: FilterField[] = [
+  {
+    key: 'status',
+    label: 'Status',
+    type: 'combobox',
+    placeholder: 'Selecionar status',
+    options: [
+      { value: 'Agendado', label: 'Agendado' },
+      { value: 'Em andamento', label: 'Em andamento' },
+      { value: 'Concluído', label: 'Concluído' },
+      { value: 'Cancelado', label: 'Cancelado' },
+    ]
+  },
+  {
+    key: 'seasonName',
+    label: 'Temporada',
+    type: 'combobox',
+    placeholder: 'Selecionar temporada',
+    options: [
+      { value: 'Temporada 2025/1', label: 'Temporada 2025/1' },
+      { value: 'Temporada 2024/2', label: 'Temporada 2024/2' },
+      { value: 'Temporada 2024/1', label: 'Temporada 2024/1' },
+    ]
+  }
+];
+
 /**
  * Componente da aba Etapas
  * Exibe lista de etapas do campeonato com opções de gerenciamento
  */
 export const StagesTab = ({ championshipId: _championshipId }: StagesTabProps) => {
+  const [filters, setFilters] = useState<FilterValues>({});
+  const [sortBy, setSortBy] = useState<keyof Stage>("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
   // TODO: Usar _championshipId para buscar dados reais da API
-  // Mock data - substituir por dados reais da API
+  // Mock data expandido para testar paginação
   const [stages] = useState<Stage[]>([
     {
       id: "1",
@@ -72,10 +106,111 @@ export const StagesTab = ({ championshipId: _championshipId }: StagesTabProps) =
       participants: 78,
       trackLayout: "Configuração A",
     },
+    {
+      id: "4",
+      name: "4ª Etapa",
+      seasonName: "Temporada 2024/2",
+      date: "2024-11-25",
+      location: "Kartódromo Speed Park",
+      status: "Concluído",
+      participants: 82,
+      trackLayout: "Configuração C",
+    },
+    {
+      id: "5",
+      name: "5ª Etapa",
+      seasonName: "Temporada 2024/1",
+      date: "2024-10-15",
+      location: "Kartódromo Beto Carrero",
+      status: "Concluído",
+      participants: 95,
+      trackLayout: "Configuração D",
+    },
+    {
+      id: "6",
+      name: "6ª Etapa",
+      seasonName: "Temporada 2024/1",
+      date: "2024-09-18",
+      location: "Kartódromo Granja Viana",
+      status: "Concluído",
+      participants: 88,
+      trackLayout: "Configuração A",
+    },
+    {
+      id: "7",
+      name: "7ª Etapa",
+      seasonName: "Temporada 2025/1",
+      date: "2025-05-20",
+      location: "Kartódromo Interlagos",
+      status: "Agendado",
+      participants: 0,
+      trackLayout: "Configuração E",
+    },
+    {
+      id: "8",
+      name: "8ª Etapa",
+      seasonName: "Temporada 2025/1",
+      date: "2025-06-15",
+      location: "Kartódromo Ayrton Senna",
+      status: "Agendado",
+      participants: 0,
+      trackLayout: "Configuração F",
+    },
   ]);
 
-  const [sortBy, setSortBy] = useState<keyof Stage>("date");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  // Aplicar filtros e ordenação aos dados
+  const processedStages = useMemo(() => {
+    let result = [...stages];
+
+    // Aplicar filtros
+    result = result.filter(stage => {
+      // Filtro por status
+      if (filters.status && stage.status !== filters.status) {
+        return false;
+      }
+
+      // Filtro por temporada
+      if (filters.seasonName && stage.seasonName !== filters.seasonName) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // Aplicar ordenação
+    result.sort((a, b) => {
+      let aValue: any = a[sortBy];
+      let bValue: any = b[sortBy];
+
+      // Tratamento especial para diferentes tipos de dados
+      if (sortBy === 'date') {
+        aValue = new Date(aValue).getTime();
+        bValue = new Date(bValue).getTime();
+      } else if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      if (aValue < bValue) {
+        return sortOrder === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortOrder === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+
+    return result;
+  }, [stages, filters, sortBy, sortOrder]);
+
+  // Configuração da paginação
+  const pagination = usePagination(processedStages.length, 5, 1);
+  
+  // Dados da página atual
+  const currentPageStages = useMemo(() => {
+    const { startIndex, endIndex } = pagination.info;
+    return processedStages.slice(startIndex, endIndex);
+  }, [processedStages, pagination.info]);
 
   const handleSort = (column: keyof Stage) => {
     if (sortBy === column) {
@@ -120,7 +255,22 @@ export const StagesTab = ({ championshipId: _championshipId }: StagesTabProps) =
     });
   };
 
-  if (stages.length === 0) {
+  const handleFiltersChange = useCallback((newFilters: FilterValues) => {
+    setFilters(newFilters);
+    // Reset para primeira página quando filtros mudam
+    pagination.actions.goToFirstPage();
+  }, [pagination.actions.goToFirstPage]);
+
+  // Handlers diretos para paginação
+  const handlePageChange = useCallback((page: number) => {
+    pagination.actions.setCurrentPage(page);
+  }, [pagination.actions.setCurrentPage]);
+
+  const handleItemsPerPageChange = useCallback((itemsPerPage: number) => {
+    pagination.actions.setItemsPerPage(itemsPerPage);
+  }, [pagination.actions.setItemsPerPage]);
+
+  if (processedStages.length === 0 && Object.keys(filters).length === 0) {
     return (
       <EmptyState
         icon={Flag}
@@ -135,9 +285,9 @@ export const StagesTab = ({ championshipId: _championshipId }: StagesTabProps) =
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 h-full flex flex-col">
       {/* Header da seção */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 flex-shrink-0">
         <div>
           <h2 className="text-2xl font-bold">Etapas</h2>
           <p className="text-muted-foreground">
@@ -150,146 +300,163 @@ export const StagesTab = ({ championshipId: _championshipId }: StagesTabProps) =
         </Button>
       </div>
 
-      {/* Tabela de etapas */}
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort("name")}
-              >
-                Etapa
-                {sortBy === "name" && (
-                  <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                )}
-              </TableHead>
-              <TableHead>Temporada</TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort("date")}
-              >
-                Data
-                {sortBy === "date" && (
-                  <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                )}
-              </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort("location")}
-              >
-                Local
-                {sortBy === "location" && (
-                  <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                )}
-              </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort("participants")}
-              >
-                Participantes
-                {sortBy === "participants" && (
-                  <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                )}
-              </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort("status")}
-              >
-                Status
-                {sortBy === "status" && (
-                  <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                )}
-              </TableHead>
-              <TableHead className="w-10"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {stages.map((stage) => (
-              <TableRow key={stage.id} className="hover:bg-muted/50">
-                <TableCell className="font-medium">
-                  <div className="flex items-center gap-2">
-                    <Flag className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <div>{stage.name}</div>
-                      {stage.trackLayout && (
-                        <div className="text-xs text-muted-foreground">
-                          {stage.trackLayout}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">
-                    {stage.seasonName}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1 text-sm">
-                    <Calendar className="h-3 w-3 text-muted-foreground" />
-                    {formatDate(stage.date)}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3 text-muted-foreground" />
-                    {stage.location}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span className="font-medium">{stage.participants}</span>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant="secondary"
-                    className={getStatusColor(stage.status)}
-                  >
-                    {stage.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                        <span className="sr-only">Abrir menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => handleStageAction("view", stage.id)}
-                      >
-                        Ver detalhes
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleStageAction("edit", stage.id)}
-                      >
-                        Editar
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleStageAction("results", stage.id)}
-                      >
-                        Gerenciar resultados
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleStageAction("participants", stage.id)}
-                      >
-                        Ver participantes
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleStageAction("delete", stage.id)}
-                        className="text-destructive"
-                      >
-                        Excluir
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+      {/* Filtros dinâmicos */}
+      <div className="flex-shrink-0">
+        <DynamicFilter
+          fields={filterFields}
+          onFiltersChange={handleFiltersChange}
+        />
+      </div>
+
+      {/* Tabela de etapas com altura adaptável */}
+      <Card className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-auto">
+          <Table>
+            <TableHeader className="sticky top-0 bg-background z-10 border-b">
+              <TableRow>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 py-3"
+                  onClick={() => handleSort("name")}
+                >
+                  Etapa
+                  {sortBy === "name" && (
+                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </TableHead>
+                <TableHead className="py-3">Temporada</TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 py-3"
+                  onClick={() => handleSort("date")}
+                >
+                  Data
+                  {sortBy === "date" && (
+                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 py-3"
+                  onClick={() => handleSort("location")}
+                >
+                  Local
+                  {sortBy === "location" && (
+                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 py-3"
+                  onClick={() => handleSort("participants")}
+                >
+                  Participantes
+                  {sortBy === "participants" && (
+                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 py-3"
+                  onClick={() => handleSort("status")}
+                >
+                  Status
+                  {sortBy === "status" && (
+                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </TableHead>
+                <TableHead className="w-10 py-3"></TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {currentPageStages.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                    Nenhuma etapa encontrada com os filtros aplicados
+                  </TableCell>
+                </TableRow>
+              ) : (
+                currentPageStages.map((stage) => (
+                  <TableRow key={stage.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium py-2">
+                      <div className="flex items-center gap-2">
+                        <Flag className="h-4 w-4 text-muted-foreground" />
+                        {stage.name}
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2">{stage.seasonName}</TableCell>
+                    <TableCell className="py-2">
+                      <div className="flex items-center gap-1 text-sm">
+                        <Calendar className="h-3 w-3 text-muted-foreground" />
+                        {formatDate(stage.date)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <div className="flex items-center gap-1 text-sm">
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
+                        {stage.location}
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <span className="text-sm">
+                        {stage.participants} participantes
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <Badge className={getStatusColor(stage.status)}>
+                        {stage.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                            <span className="sr-only">Abrir menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => handleStageAction("view", stage.id)}
+                          >
+                            Ver detalhes
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleStageAction("edit", stage.id)}
+                          >
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleStageAction("participants", stage.id)}
+                          >
+                            Gerenciar participantes
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleStageAction("delete", stage.id)}
+                            className="text-destructive"
+                          >
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        
+        {/* Paginação sempre fixada na parte inferior */}
+        <div className="flex-shrink-0">
+          <Pagination
+            currentPage={pagination.state.currentPage}
+            totalPages={pagination.info.totalPages}
+            itemsPerPage={pagination.state.itemsPerPage}
+            totalItems={pagination.state.totalItems}
+            startIndex={pagination.info.startIndex}
+            endIndex={pagination.info.endIndex}
+            hasNextPage={pagination.info.hasNextPage}
+            hasPreviousPage={pagination.info.hasPreviousPage}
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
+        </div>
       </Card>
     </div>
   );

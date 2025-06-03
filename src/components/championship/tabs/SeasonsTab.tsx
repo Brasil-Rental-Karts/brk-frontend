@@ -270,7 +270,7 @@ export const SeasonsTab = ({ championshipId: _championshipId }: SeasonsTabProps)
   }, [seasons, filters, sortBy, sortOrder]);
 
   // Configuração da paginação
-  const pagination = usePagination(processedSeasons.length, 10, 1);
+  const pagination = usePagination(processedSeasons.length, 5, 1);
   
   // Dados da página atual
   const currentPageSeasons = useMemo(() => {

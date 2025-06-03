@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
+import { Pagination } from "@/components/ui/pagination";
+import { usePagination } from "@/hooks/usePagination";
 
 interface Event {
   id: string;
@@ -37,13 +40,52 @@ interface EventTabProps {
   championshipId: string;
 }
 
+// Configuração dos filtros
+const filterFields: FilterField[] = [
+  {
+    key: 'type',
+    label: 'Tipo',
+    type: 'combobox',
+    placeholder: 'Selecionar tipo',
+    options: [
+      { value: 'Corrida Especial', label: 'Corrida Especial' },
+      { value: 'Cerimônia', label: 'Cerimônia' },
+      { value: 'Treinamento', label: 'Treinamento' },
+      { value: 'Reunião', label: 'Reunião' },
+      { value: 'Confraternização', label: 'Confraternização' },
+    ]
+  },
+  {
+    key: 'status',
+    label: 'Status',
+    type: 'combobox',
+    placeholder: 'Selecionar status',
+    options: [
+      { value: 'Agendado', label: 'Agendado' },
+      { value: 'Em andamento', label: 'Em andamento' },
+      { value: 'Concluído', label: 'Concluído' },
+      { value: 'Cancelado', label: 'Cancelado' },
+    ]
+  },
+  {
+    key: 'title',
+    label: 'Título',
+    type: 'text',
+    placeholder: 'Buscar por título',
+  }
+];
+
 /**
  * Componente da aba Evento
  * Exibe lista de eventos especiais do campeonato com opções de gerenciamento
  */
 export const EventTab = ({ championshipId: _championshipId }: EventTabProps) => {
+  const [filters, setFilters] = useState<FilterValues>({});
+  const [sortBy, setSortBy] = useState<keyof Event>("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
   // TODO: Usar _championshipId para buscar dados reais da API
-  // Mock data - substituir por dados reais da API
+  // Mock data expandido para testar paginação
   const [events] = useState<Event[]>([
     {
       id: "1",
@@ -108,10 +150,130 @@ export const EventTab = ({ championshipId: _championshipId }: EventTabProps) => 
       status: "Concluído",
       isPublic: true,
     },
+    {
+      id: "6",
+      title: "Workshop de Mecânica",
+      description: "Workshop técnico sobre mecânica de kart",
+      type: "Treinamento",
+      date: "2025-05-15",
+      time: "10:00",
+      location: "Oficina Central",
+      maxParticipants: 30,
+      registeredParticipants: 18,
+      status: "Agendado",
+      isPublic: true,
+    },
+    {
+      id: "7",
+      title: "Corrida Noturna",
+      description: "Corrida especial com iluminação artificial",
+      type: "Corrida Especial",
+      date: "2025-06-10",
+      time: "20:00",
+      location: "Kartódromo Speed Park",
+      maxParticipants: 40,
+      registeredParticipants: 12,
+      status: "Agendado",
+      isPublic: true,
+    },
+    {
+      id: "8",
+      title: "Reunião Mensal",
+      description: "Reunião mensal da diretoria do campeonato",
+      type: "Reunião",
+      date: "2025-01-15",
+      time: "19:30",
+      location: "Sede do Clube",
+      registeredParticipants: 15,
+      status: "Concluído",
+      isPublic: false,
+    },
+    {
+      id: "9",
+      title: "Festa de Encerramento",
+      description: "Festa para celebrar o fim da temporada",
+      type: "Confraternização",
+      date: "2025-11-30",
+      time: "19:00",
+      location: "Salão de Festas",
+      maxParticipants: 200,
+      registeredParticipants: 0,
+      status: "Agendado",
+      isPublic: true,
+    },
+    {
+      id: "10",
+      title: "Cerimônia de Premiação",
+      description: "Cerimônia oficial de premiação dos campeões",
+      type: "Cerimônia",
+      date: "2025-12-05",
+      time: "18:00",
+      location: "Teatro Municipal",
+      maxParticipants: 300,
+      registeredParticipants: 0,
+      status: "Agendado",
+      isPublic: true,
+    },
   ]);
 
-  const [sortBy, setSortBy] = useState<keyof Event>("date");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  // Aplicar filtros e ordenação aos dados
+  const processedEvents = useMemo(() => {
+    let result = [...events];
+
+    // Aplicar filtros
+    result = result.filter(event => {
+      // Filtro por tipo
+      if (filters.type && event.type !== filters.type) {
+        return false;
+      }
+
+      // Filtro por status
+      if (filters.status && event.status !== filters.status) {
+        return false;
+      }
+
+      // Filtro por título
+      if (filters.title && !event.title.toLowerCase().includes(filters.title.toLowerCase())) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // Aplicar ordenação
+    result.sort((a, b) => {
+      let aValue: any = a[sortBy];
+      let bValue: any = b[sortBy];
+
+      // Tratamento especial para diferentes tipos de dados
+      if (sortBy === 'date') {
+        aValue = new Date(aValue).getTime();
+        bValue = new Date(bValue).getTime();
+      } else if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      if (aValue < bValue) {
+        return sortOrder === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortOrder === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+
+    return result;
+  }, [events, filters, sortBy, sortOrder]);
+
+  // Configuração da paginação
+  const pagination = usePagination(processedEvents.length, 5, 1);
+  
+  // Dados da página atual
+  const currentPageEvents = useMemo(() => {
+    const { startIndex, endIndex } = pagination.info;
+    return processedEvents.slice(startIndex, endIndex);
+  }, [processedEvents, pagination.info]);
 
   const handleSort = (column: keyof Event) => {
     if (sortBy === column) {
@@ -176,7 +338,32 @@ export const EventTab = ({ championshipId: _championshipId }: EventTabProps) => 
     return timeString;
   };
 
-  if (events.length === 0) {
+  const getParticipantsInfo = (registered: number, max?: number) => {
+    if (max) {
+      const percentage = (registered / max) * 100;
+      const color = percentage >= 80 ? "text-red-600" : 
+                   percentage >= 60 ? "text-yellow-600" : "text-green-600";
+      return { text: `${registered}/${max}`, color };
+    }
+    return { text: `${registered}`, color: "text-muted-foreground" };
+  };
+
+  const handleFiltersChange = useCallback((newFilters: FilterValues) => {
+    setFilters(newFilters);
+    // Reset para primeira página quando filtros mudam
+    pagination.actions.goToFirstPage();
+  }, [pagination.actions.goToFirstPage]);
+
+  // Handlers diretos para paginação
+  const handlePageChange = useCallback((page: number) => {
+    pagination.actions.setCurrentPage(page);
+  }, [pagination.actions.setCurrentPage]);
+
+  const handleItemsPerPageChange = useCallback((itemsPerPage: number) => {
+    pagination.actions.setItemsPerPage(itemsPerPage);
+  }, [pagination.actions.setItemsPerPage]);
+
+  if (processedEvents.length === 0 && Object.keys(filters).length === 0) {
     return (
       <EmptyState
         icon={Calendar}
@@ -191,9 +378,9 @@ export const EventTab = ({ championshipId: _championshipId }: EventTabProps) => 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 h-full flex flex-col">
       {/* Header da seção */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 flex-shrink-0">
         <div>
           <h2 className="text-2xl font-bold">Eventos</h2>
           <p className="text-muted-foreground">
@@ -206,154 +393,195 @@ export const EventTab = ({ championshipId: _championshipId }: EventTabProps) => 
         </Button>
       </div>
 
-      {/* Tabela de eventos */}
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort("title")}
-              >
-                Evento
-                {sortBy === "title" && (
-                  <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                )}
-              </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort("type")}
-              >
-                Tipo
-                {sortBy === "type" && (
-                  <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                )}
-              </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort("date")}
-              >
-                Data/Hora
-                {sortBy === "date" && (
-                  <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                )}
-              </TableHead>
-              <TableHead>Local</TableHead>
-              <TableHead className="text-center">Participantes</TableHead>
-              <TableHead>Visibilidade</TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort("status")}
-              >
-                Status
-                {sortBy === "status" && (
-                  <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                )}
-              </TableHead>
-              <TableHead className="w-10"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {events.map((event) => (
-              <TableRow key={event.id} className="hover:bg-muted/50">
-                <TableCell className="font-medium">
-                  <div>
-                    <div className="font-medium">{event.title}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {event.description}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant="secondary"
-                    className={getTypeColor(event.type)}
-                  >
-                    {event.type}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1 text-sm">
-                      <Calendar className="h-3 w-3 text-muted-foreground" />
-                      {formatDate(event.date)}
-                    </div>
-                    <div className="flex items-center gap-1 text-sm">
-                      <Clock className="h-3 w-3 text-muted-foreground" />
-                      {formatTime(event.time)}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-sm">{event.location}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <Users className="h-3 w-3 text-muted-foreground" />
-                    <span className="font-medium">{event.registeredParticipants}</span>
-                    {event.maxParticipants && (
-                      <span className="text-muted-foreground">/{event.maxParticipants}</span>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={event.isPublic ? "default" : "secondary"}>
-                    {event.isPublic ? "Público" : "Privado"}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant="secondary"
-                    className={getStatusColor(event.status)}
-                  >
-                    {event.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                        <span className="sr-only">Abrir menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => handleEventAction("view", event.id)}
-                      >
-                        Ver detalhes
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleEventAction("edit", event.id)}
-                      >
-                        Editar
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleEventAction("participants", event.id)}
-                      >
-                        Ver participantes
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleEventAction("duplicate", event.id)}
-                      >
-                        Duplicar evento
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleEventAction("delete", event.id)}
-                        className="text-destructive"
-                      >
-                        Excluir
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+      {/* Filtros dinâmicos */}
+      <div className="flex-shrink-0">
+        <DynamicFilter
+          fields={filterFields}
+          onFiltersChange={handleFiltersChange}
+        />
+      </div>
+
+      {/* Tabela de eventos com altura adaptável */}
+      <Card className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-auto">
+          <Table>
+            <TableHeader className="sticky top-0 bg-background z-10 border-b">
+              <TableRow>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 py-3"
+                  onClick={() => handleSort("title")}
+                >
+                  Título
+                  {sortBy === "title" && (
+                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 py-3"
+                  onClick={() => handleSort("type")}
+                >
+                  Tipo
+                  {sortBy === "type" && (
+                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 py-3"
+                  onClick={() => handleSort("date")}
+                >
+                  Data e Hora
+                  {sortBy === "date" && (
+                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 py-3"
+                  onClick={() => handleSort("location")}
+                >
+                  Local
+                  {sortBy === "location" && (
+                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 py-3"
+                  onClick={() => handleSort("registeredParticipants")}
+                >
+                  Participantes
+                  {sortBy === "registeredParticipants" && (
+                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 py-3"
+                  onClick={() => handleSort("status")}
+                >
+                  Status
+                  {sortBy === "status" && (
+                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </TableHead>
+                <TableHead className="w-10 py-3"></TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {currentPageEvents.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                    Nenhum evento encontrado com os filtros aplicados
+                  </TableCell>
+                </TableRow>
+              ) : (
+                currentPageEvents.map((event) => {
+                  const participantsInfo = getParticipantsInfo(event.registeredParticipants, event.maxParticipants);
+                  
+                  return (
+                    <TableRow key={event.id} className="hover:bg-muted/50">
+                      <TableCell className="py-2">
+                        <div>
+                          <div className="font-medium">{event.title}</div>
+                          <div className="text-xs text-muted-foreground truncate max-w-xs">
+                            {event.description}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <Badge className={getTypeColor(event.type)}>
+                          {event.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1 text-sm">
+                            <Calendar className="h-3 w-3 text-muted-foreground" />
+                            {formatDate(event.date)}
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            {formatTime(event.time)}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <div className="flex items-center gap-1 text-sm">
+                          <MapPin className="h-3 w-3 text-muted-foreground" />
+                          <span className="truncate max-w-xs">{event.location}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <div className="flex items-center gap-1">
+                          <Users className="h-3 w-3 text-muted-foreground" />
+                          <span className={`text-sm font-medium ${participantsInfo.color}`}>
+                            {participantsInfo.text}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <Badge className={getStatusColor(event.status)}>
+                          {event.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                              <span className="sr-only">Abrir menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleEventAction("view", event.id)}
+                            >
+                              Ver detalhes
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleEventAction("edit", event.id)}
+                            >
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleEventAction("participants", event.id)}
+                            >
+                              Gerenciar participantes
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleEventAction("duplicate", event.id)}
+                            >
+                              Duplicar evento
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleEventAction("delete", event.id)}
+                              className="text-destructive"
+                            >
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        
+        {/* Paginação sempre fixada na parte inferior */}
+        <div className="flex-shrink-0">
+          <Pagination
+            currentPage={pagination.state.currentPage}
+            totalPages={pagination.info.totalPages}
+            itemsPerPage={pagination.state.itemsPerPage}
+            totalItems={pagination.state.totalItems}
+            startIndex={pagination.info.startIndex}
+            endIndex={pagination.info.endIndex}
+            hasNextPage={pagination.info.hasNextPage}
+            hasPreviousPage={pagination.info.hasPreviousPage}
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
+        </div>
       </Card>
     </div>
   );
