@@ -44,23 +44,50 @@ export const EditProfile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profileData, setProfileData] = useState<any>(null);
-  const [shouldBlock, setShouldBlock] = useState(false);
+  const [initialFormData, setInitialFormData] = useState<any>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [formInitialized, setFormInitialized] = useState(false);
 
   // Block navigation when there are unsaved changes (but not when save was successful or currently saving)
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      shouldBlock && !saveSuccessful && !isSaving && currentLocation.pathname !== nextLocation.pathname
+      hasUnsavedChanges && !saveSuccessful && !isSaving && currentLocation.pathname !== nextLocation.pathname
   );
 
-  // Update shouldBlock based on conditions
-  useEffect(() => {
-    setShouldBlock(!saveSuccessful && !isSaving);
-  }, [saveSuccessful, isSaving]);
+  // Helper function to check if form has changes
+  const checkForChanges = useCallback((currentData: any) => {
+    if (!initialFormData || !currentData || !formInitialized) {
+      setHasUnsavedChanges(false);
+      return;
+    }
+
+    // Compare current data with initial data
+    const hasChanges = Object.keys(initialFormData).some(key => {
+      const initialValue = initialFormData[key];
+      const currentValue = currentData[key];
+      
+      // Handle arrays (like interestCategories)
+      if (Array.isArray(initialValue) && Array.isArray(currentValue)) {
+        return JSON.stringify(initialValue.sort()) !== JSON.stringify(currentValue.sort());
+      }
+      
+      // Handle empty strings vs null/undefined
+      const normalizeValue = (val: any) => {
+        if (val === null || val === undefined || val === '') return '';
+        return val.toString();
+      };
+      
+      return normalizeValue(initialValue) !== normalizeValue(currentValue);
+    });
+
+    setHasUnsavedChanges(hasChanges);
+  }, [initialFormData, formInitialized]);
 
   // Cleanup blocker on unmount
   useEffect(() => {
     return () => {
-      setShouldBlock(false);
+      setHasUnsavedChanges(false);
+      setFormInitialized(false);
     };
   }, []);
 
@@ -75,21 +102,21 @@ export const EditProfile = () => {
   // Handle beforeunload event (browser refresh/close)
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (shouldBlock) {
+      if (hasUnsavedChanges && !saveSuccessful && !isSaving) {
         e.preventDefault();
         e.returnValue = "Você tem alterações não salvas. Tem certeza que deseja sair?";
         return e.returnValue;
       }
     };
 
-    if (shouldBlock) {
+    if (hasUnsavedChanges && !saveSuccessful && !isSaving) {
       window.addEventListener("beforeunload", handleBeforeUnload);
     }
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [shouldBlock]);
+  }, [hasUnsavedChanges, saveSuccessful, isSaving]);
 
   // Show error alert when error changes
   useEffect(() => {
@@ -108,11 +135,47 @@ export const EditProfile = () => {
         console.log('Dados do perfil carregados com sucesso:', data);
         setProfileData(data);
         
+        // Prepare initial form data exactly as it will be used in the form
+        const initialData = {
+          ...data,
+          email: user?.email || data?.email || "",
+          // Convert numeric values to strings for the form
+          gender: data?.gender !== null ? data?.gender?.toString() : "",
+          experienceTime: data?.experienceTime !== null ? data?.experienceTime?.toString() : "",
+          raceFrequency: data?.raceFrequency !== null ? data?.raceFrequency?.toString() : "",
+          championshipParticipation: data?.championshipParticipation !== null ? data?.championshipParticipation?.toString() : "",
+          competitiveLevel: data?.competitiveLevel !== null ? data?.competitiveLevel?.toString() : "",
+          attendsEvents: data?.attendsEvents !== null ? data?.attendsEvents?.toString() : "",
+          // Handle multiple interest categories as array
+          interestCategories: Array.isArray(data?.interestCategories) 
+            ? data.interestCategories.map((cat: number) => cat.toString())
+            : [],
+          // Format birth date for display (DD/MM/YYYY) - same as initialValues
+          birthDate: data?.birthDate ? (() => {
+            const date = new Date(data.birthDate);
+            if (!isNaN(date.getTime())) {
+              const day = date.getDate().toString().padStart(2, '0');
+              const month = (date.getMonth() + 1).toString().padStart(2, '0');
+              const year = date.getFullYear();
+              return `${day}/${month}/${year}`;
+            }
+            return "";
+          })() : "",
+        };
+        
+        setInitialFormData(initialData);
+        setHasUnsavedChanges(false); // Reset unsaved changes after loading
+        
         // Load cities if state is available
         if (data.state) {
           setCurrentState(data.state);
           await loadCities(data.state);
         }
+        
+        // Mark form as initialized after loading data
+        setTimeout(() => {
+          setFormInitialized(true);
+        }, 500);
       } catch (err: any) {
         console.error('Erro ao carregar perfil:', err);
         console.error('Status do erro:', err.response?.status);
@@ -151,6 +214,9 @@ export const EditProfile = () => {
       setCurrentState(data.state);
       loadCities(data.state);
     }
+    
+    // Check for changes whenever form data changes
+    checkForChanges(data);
   };
 
   // Handle specific field changes
@@ -180,14 +246,14 @@ export const EditProfile = () => {
 
   // Handle cancel - navigate directly to dashboard
   const handleCancelClick = useCallback(() => {
-    setShouldBlock(false);
+    setHasUnsavedChanges(false);
     navigate('/dashboard');
   }, [navigate]);
 
   // Handle unsaved changes dialog
   const handleConfirmUnsavedChanges = useCallback(() => {
     setShowUnsavedChangesDialog(false);
-    setShouldBlock(false);
+    setHasUnsavedChanges(false);
     
     if (pendingNavigation) {
       blocker.proceed?.();
@@ -263,19 +329,18 @@ export const EditProfile = () => {
         delete processedData.birthDate;
       }
 
+      console.log('Processando dados para submissão:', processedData);
+
+      console.log('Salvando perfil com dados:', processedData);
+      
       await ProfileService.updateMemberProfile(processedData);
-      
-      // Success - stay on the page and show success message
       setSaveSuccessful(true);
-      setShouldBlock(false);
+      setHasUnsavedChanges(false); // Reset unsaved changes after successful save
       
-      // Show success message temporarily
-      setTimeout(() => {
-        setSaveSuccessful(false);
-      }, 3000);
-      
+      // Navigate to dashboard after successful save
+      navigate('/dashboard', { replace: true });
     } catch (err: any) {
-      // Error occurred - restore unsaved changes indicator and stop saving
+      console.error('Erro ao salvar perfil:', err);
       setError(err.message || 'Erro ao salvar perfil. Tente novamente.');
       setIsSaving(false);
       scrollToFirstError();

@@ -35,14 +35,40 @@ export const CreateChampionship = () => {
   const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [saveSuccessful, setSaveSuccessful] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [initialFormData, setInitialFormData] = useState<any>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const { isLoading, error, createChampionship, clearError } = useChampionship();
   const { addChampionship } = useChampionshipContext();
 
+  // Helper function to check if form has changes
+  const checkForChanges = useCallback((currentData: any) => {
+    if (!initialFormData || !currentData) {
+      setHasUnsavedChanges(false);
+      return;
+    }
+
+    // Compare current data with initial data
+    const hasChanges = Object.keys(currentData).some(key => {
+      const initialValue = initialFormData[key];
+      const currentValue = currentData[key];
+      
+      // Handle empty strings vs null/undefined
+      const normalizeValue = (val: any) => {
+        if (val === null || val === undefined || val === '') return '';
+        return val.toString();
+      };
+      
+      return normalizeValue(initialValue) !== normalizeValue(currentValue);
+    });
+
+    setHasUnsavedChanges(hasChanges);
+  }, [initialFormData]);
+
   // Block navigation when there are unsaved changes (but not when save was successful or currently saving)
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      !saveSuccessful && !isSaving && currentLocation.pathname !== nextLocation.pathname
+      hasUnsavedChanges && !saveSuccessful && !isSaving && currentLocation.pathname !== nextLocation.pathname
   );
 
   // Handle blocked navigation
@@ -56,16 +82,21 @@ export const CreateChampionship = () => {
   // Handle beforeunload event (browser refresh/close)
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!saveSuccessful && !isSaving) {
+      if (hasUnsavedChanges && !saveSuccessful && !isSaving) {
         e.preventDefault();
         e.returnValue = "Você tem alterações não salvas. Tem certeza que deseja sair?";
         return e.returnValue;
       }
     };
 
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [saveSuccessful, isSaving]);
+    if (hasUnsavedChanges && !saveSuccessful && !isSaving) {
+      window.addEventListener("beforeunload", handleBeforeUnload);
+    }
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges, saveSuccessful, isSaving]);
 
   // Show error alert when error changes
   useEffect(() => {
@@ -73,6 +104,29 @@ export const CreateChampionship = () => {
       setShowErrorAlert(true);
     }
   }, [error]);
+
+  // Initialize empty form data as "saved state"
+  useEffect(() => {
+    const emptyFormData = {
+      name: "",
+      shortDescription: "",
+      fullDescription: "",
+      personType: "0",
+      document: "",
+      socialReason: "",
+      cep: "",
+      state: "",
+      city: "",
+      fullAddress: "",
+      number: "",
+      complement: "",
+      isResponsible: true,
+      responsibleName: "",
+      responsiblePhone: ""
+    };
+    setInitialFormData(emptyFormData);
+    setHasUnsavedChanges(false);
+  }, []);
 
   // Load cities based on selected state
   const loadCities = async (uf: string) => {
@@ -86,6 +140,9 @@ export const CreateChampionship = () => {
       setCurrentState(data.state);
       loadCities(data.state);
     }
+    
+    // Check for changes whenever form data changes
+    checkForChanges(data);
   };
 
   // Handle specific field changes
@@ -123,12 +180,14 @@ export const CreateChampionship = () => {
 
   // Handle cancel - navigate directly to dashboard
   const handleCancelClick = useCallback(() => {
+    setHasUnsavedChanges(false);
     navigate('/dashboard');
   }, [navigate]);
 
   // Handle unsaved changes dialog
   const handleConfirmUnsavedChanges = useCallback(() => {
     setShowUnsavedChangesDialog(false);
+    setHasUnsavedChanges(false);
     
     if (pendingNavigation) {
       blocker.proceed?.();
@@ -186,6 +245,7 @@ export const CreateChampionship = () => {
         // Use replace to avoid history stack and ensure blocker doesn't interfere
         addChampionship(championship);
         setSaveSuccessful(true);
+        setHasUnsavedChanges(false); // Reset unsaved changes after successful save
         navigate('/dashboard', { replace: true });
       }
     } catch (err) {
