@@ -22,6 +22,7 @@ import {
 import { useChampionship } from "@/hooks/use-championship";
 import { ChampionshipData } from "@/lib/services/championship.service";
 import { useChampionshipContext } from "@/contexts/ChampionshipContext";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const CreateChampionship = () => {
   const navigate = useNavigate();
@@ -29,7 +30,6 @@ export const CreateChampionship = () => {
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const [currentState, setCurrentState] = useState<string>("");
   const [formRef, setFormRef] = useState<any>(null);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
@@ -42,7 +42,7 @@ export const CreateChampionship = () => {
   // Block navigation when there are unsaved changes (but not when save was successful or currently saving)
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      hasUnsavedChanges && !saveSuccessful && !isSaving && currentLocation.pathname !== nextLocation.pathname
+      !saveSuccessful && !isSaving && currentLocation.pathname !== nextLocation.pathname
   );
 
   // Handle blocked navigation
@@ -56,7 +56,7 @@ export const CreateChampionship = () => {
   // Handle beforeunload event (browser refresh/close)
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
+      if (!saveSuccessful && !isSaving) {
         e.preventDefault();
         e.returnValue = "Você tem alterações não salvas. Tem certeza que deseja sair?";
         return e.returnValue;
@@ -65,7 +65,7 @@ export const CreateChampionship = () => {
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [hasUnsavedChanges]);
+  }, [saveSuccessful, isSaving]);
 
   // Show error alert when error changes
   useEffect(() => {
@@ -82,8 +82,6 @@ export const CreateChampionship = () => {
 
   // Handle form changes
   const handleFormChange = (data: any) => {
-    setHasUnsavedChanges(true);
-    
     if (data.state && data.state !== currentState) {
       setCurrentState(data.state);
       loadCities(data.state);
@@ -92,8 +90,6 @@ export const CreateChampionship = () => {
 
   // Handle specific field changes
   const handleFieldChange = async (fieldId: string, value: any) => {
-    setHasUnsavedChanges(true);
-    
     if (fieldId === "cep" && value && isValidCEPFormat(value)) {
       const addressData = await fetchAddressByCEP(value);
       if (addressData && formRef) {
@@ -133,7 +129,6 @@ export const CreateChampionship = () => {
   // Handle unsaved changes dialog
   const handleConfirmUnsavedChanges = useCallback(() => {
     setShowUnsavedChangesDialog(false);
-    setHasUnsavedChanges(false);
     
     if (pendingNavigation) {
       blocker.proceed?.();
@@ -162,7 +157,6 @@ export const CreateChampionship = () => {
     // Also set saving state to disable blocker
     clearError();
     setShowErrorAlert(false);
-    setHasUnsavedChanges(false);
     setIsSaving(true);
 
     // Prepare championship data
@@ -192,12 +186,10 @@ export const CreateChampionship = () => {
         // Use replace to avoid history stack and ensure blocker doesn't interfere
         addChampionship(championship);
         setSaveSuccessful(true);
-        setHasUnsavedChanges(false);
         navigate('/dashboard', { replace: true });
       }
     } catch (err) {
       // Error occurred - restore unsaved changes indicator and stop saving
-      setHasUnsavedChanges(true);
       setIsSaving(false);
       scrollToFirstError();
     }
@@ -371,34 +363,29 @@ export const CreateChampionship = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="w-full py-6 px-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-bold">Criar Campeonato</h1>
-            {hasUnsavedChanges && (
-              <span className="text-sm text-orange-600 bg-orange-100 px-2 py-1 rounded">
-                Alterações não salvas
-              </span>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={handleCancelClick}
-              disabled={isLoading}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              form="championship-form"
-              disabled={isLoading}
-            >
-              {isLoading ? "Salvando..." : "Salvar Campeonato"}
-            </Button>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Criar Campeonato"
+        actions={[
+          {
+            label: "Cancelar",
+            onClick: handleCancelClick,
+            variant: "outline",
+            disabled: isLoading
+          },
+          {
+            label: isLoading ? "Salvando..." : "Salvar Campeonato",
+            onClick: () => {
+              // Trigger form submission
+              const form = document.getElementById('championship-form') as HTMLFormElement;
+              if (form) {
+                form.requestSubmit();
+              }
+            },
+            variant: "default",
+            disabled: isLoading
+          }
+        ]}
+      />
 
       {/* Alerts */}
       <div className="w-full px-6 mb-4">

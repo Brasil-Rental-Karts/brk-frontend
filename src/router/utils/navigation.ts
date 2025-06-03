@@ -18,6 +18,7 @@ export const ROUTES = {
   // App routes (without /app prefix)
   DASHBOARD: '/dashboard',
   CREATE_CHAMPIONSHIP: '/create-championship',
+  EDIT_PROFILE: '/edit-profile',
   CHANGE_PASSWORD: '/change-password',
   COMPLETE_PROFILE: '/complete-profile',
   
@@ -62,6 +63,10 @@ export class NavigationHelper {
   // Profile navigation
   goToCompleteProfile(state?: any) {
     this.navigate(ROUTES.COMPLETE_PROFILE, { state });
+  }
+
+  goToEditProfile(state?: any) {
+    this.navigate(ROUTES.EDIT_PROFILE, { state });
   }
 
   // Generic navigation

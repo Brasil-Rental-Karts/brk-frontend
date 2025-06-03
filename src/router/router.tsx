@@ -17,6 +17,7 @@ const ResetPasswordSuccess = lazy(() => import('@/pages/ResetPasswordSuccess').t
 const ChangePassword = lazy(() => import('@/pages/ChangePassword').then(module => ({ default: module.ChangePassword })));
 const CompleteProfile = lazy(() => import('@/pages/CompleteProfile'));
 const CreateChampionship = lazy(() => import('@/pages/CreateChampionship'));
+const EditProfile = lazy(() => import('@/pages/EditProfile'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const GoogleCallback = lazy(() => import('@/pages/GoogleCallback'));
 const LoginSuccess = lazy(() => import('@/pages/LoginSuccess'));
@@ -208,6 +209,18 @@ export const router = createBrowserRouter([
             <MainLayout>
               <LazyWrapper>
                 <CreateChampionship />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "edit-profile",
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <LazyWrapper>
+                <EditProfile />
               </LazyWrapper>
             </MainLayout>
           </ProtectedRoute>

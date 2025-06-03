@@ -108,10 +108,10 @@ export const Dashboard = () => {
         </Alert>
       )}
       {/* Cabeçalho com CTA */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <Button 
-          className="bg-primary hover:bg-primary/90"
+          className="bg-primary hover:bg-primary/90 w-full sm:w-auto"
           onClick={() => nav.goToCreateChampionship()}
         >
           <PlusCircle className="mr-2 h-4 w-4" />
@@ -121,7 +121,7 @@ export const Dashboard = () => {
 
       {/* Perfil e Estatísticas */}
       <Card className="p-6 mb-6">
-        <div className="flex justify-between items-start mb-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start mb-6">
           <div className="flex items-center space-x-4">
             <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
               <User className="h-8 w-8 text-muted-foreground" />
@@ -135,12 +135,13 @@ export const Dashboard = () => {
           </div>
           <Button
             variant="outline"
-            onClick={() => nav.goToCompleteProfile()}
+            onClick={() => nav.goToEditProfile()}
+            className="w-full sm:w-auto"
           >
             Editar Perfil
           </Button>
         </div>
-        <div className="grid grid-cols-5 gap-4 text-center">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 text-center">
           <div>
             <p className="text-2xl font-bold">{userStats.memberSince}</p>
             <p className="text-sm text-muted-foreground">Membro desde</p>

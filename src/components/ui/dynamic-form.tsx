@@ -39,9 +39,11 @@ export interface FormFieldOption {
 export interface FormFieldConfig {
   name: string;
   id: string;
-  type: "input" | "textarea" | "select" | "checkbox" | "inputMask";
+  type: "input" | "textarea" | "select" | "checkbox" | "inputMask" | "checkbox-group";
   max_char?: number;
   mandatory?: boolean;
+  readonly?: boolean;
+  disabled?: boolean;
   options?: FormFieldOption[];
   mask?: MaskType;
   placeholder?: string;
@@ -109,11 +111,14 @@ const createZodSchema = (config: FormSectionConfig[]) => {
         case "checkbox":
           fieldSchema = z.boolean();
           break;
+        case "checkbox-group":
+          fieldSchema = z.array(z.union([z.string(), z.number()]));
+          break;
         default:
           fieldSchema = z.string();
       }
 
-      if (field.mandatory && field.type !== "checkbox") {
+      if (field.mandatory && field.type !== "checkbox" && field.type !== "checkbox-group") {
         if (fieldSchema instanceof z.ZodString) {
           fieldSchema = fieldSchema.min(1, `${field.name} é obrigatório`);
         } else {
@@ -124,6 +129,8 @@ const createZodSchema = (config: FormSectionConfig[]) => {
       // Make all fields optional initially, we'll handle validation in the submit
       if (field.type === "checkbox") {
         schemaFields[field.id] = z.boolean().optional();
+      } else if (field.type === "checkbox-group") {
+        schemaFields[field.id] = z.array(z.union([z.string(), z.number()])).optional();
       } else {
         schemaFields[field.id] = z.string().optional();
       }
@@ -143,10 +150,19 @@ const validateVisibleFields = (data: any, config: FormSectionConfig[]) => {
       const shouldShow = !field.conditionalField || 
         data[field.conditionalField.dependsOn] === field.conditionalField.showWhen;
 
-      if (shouldShow && field.mandatory && field.type !== "checkbox") {
+      if (shouldShow && field.mandatory) {
         const value = data[field.id];
-        if (!value || (typeof value === "string" && value.trim() === "")) {
-          errors[field.id] = `${field.name} é obrigatório`;
+        
+        if (field.type === "checkbox-group") {
+          // For checkbox-group, check if array is empty
+          if (!value || !Array.isArray(value) || value.length === 0) {
+            errors[field.id] = `${field.name} é obrigatório`;
+          }
+        } else if (field.type !== "checkbox") {
+          // For other fields except checkbox, check if empty
+          if (!value || (typeof value === "string" && value.trim() === "")) {
+            errors[field.id] = `${field.name} é obrigatório`;
+          }
         }
       }
 
@@ -195,6 +211,8 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
       section.fields.forEach((field) => {
         if (field.type === "checkbox") {
           defaults[field.id] = false;
+        } else if (field.type === "checkbox-group") {
+          defaults[field.id] = [];
         } else {
           defaults[field.id] = "";
         }
@@ -315,6 +333,8 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                 const commonProps = {
                   'aria-invalid': hasError,
                   'data-invalid': hasError,
+                  readonly: field.readonly,
+                  disabled: field.disabled,
                 };
 
                 switch (field.type) {
@@ -355,6 +375,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                       <Select
                         onValueChange={formField.onChange}
                         value={formField.value}
+                        disabled={field.disabled}
                       >
                         <SelectTrigger {...commonProps}>
                           <SelectValue placeholder="Selecione..." />
@@ -378,9 +399,42 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                         <Checkbox
                           checked={formField.value}
                           onCheckedChange={formField.onChange}
-                          {...commonProps}
+                          disabled={field.disabled}
+                          aria-invalid={hasError}
+                          data-invalid={hasError}
                         />
                         <span className="text-sm">{field.name}</span>
+                      </div>
+                    );
+                  
+                  case "checkbox-group":
+                    return (
+                      <div className="space-y-3">
+                        <div className="flex flex-col space-y-2">
+                          {field.options?.map((option) => (
+                            <div
+                              key={option.value}
+                              className="flex items-center space-x-2"
+                            >
+                              <Checkbox
+                                checked={Array.isArray(formField.value) && formField.value.includes(option.value)}
+                                onCheckedChange={(checked) => {
+                                  const currentValue = Array.isArray(formField.value) ? formField.value : [];
+                                  const newValue = checked
+                                    ? [...currentValue, option.value]
+                                    : currentValue.filter((val) => val !== option.value);
+                                  formField.onChange(newValue);
+                                }}
+                                disabled={field.disabled}
+                                aria-invalid={hasError}
+                                data-invalid={hasError}
+                              />
+                              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                {option.description}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     );
                   
@@ -467,7 +521,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
           ))}
           
           {showButtons && (
-            <div className="flex justify-end space-x-4 pt-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-4 pt-6">
               {onCancel && (
                 <Button type="button" variant="outline" onClick={onCancel}>
                   {cancelLabel}
