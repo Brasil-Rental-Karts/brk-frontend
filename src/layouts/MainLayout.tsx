@@ -43,7 +43,7 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
     <div className="min-h-screen flex flex-col">
       {/* Header */}
       <header className="bg-primary text-primary-foreground py-4 px-6 shadow-md">
-        <div className="container mx-auto flex justify-between items-center">
+        <div className="w-full flex justify-between items-center">
           <div className="flex items-center gap-4">
             <img
               src="/logo-brk-marca-horizontal-black.svg"
@@ -255,13 +255,13 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
       </header>
 
       {/* Main content */}
-      <main className="flex-1 container mx-auto px-6 py-8">
+      <main className="flex-1 w-full px-6 py-8">
         {children || <Outlet />}
       </main>
 
       {/* Footer */}
       <footer className="bg-muted py-4 px-6">
-        <div className="container mx-auto text-center text-muted-foreground">
+        <div className="w-full text-center text-muted-foreground">
           <p>
             &copy; {new Date().getFullYear()} BRK. Todos os direitos reservados.
           </p>

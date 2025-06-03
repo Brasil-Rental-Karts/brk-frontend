@@ -1,41 +1,56 @@
-import { useState } from 'react';
-import { ChampionshipService, ChampionshipData, Championship } from '@/lib/services/championship.service';
+import { useState, useEffect } from 'react';
+import { Championship, ChampionshipService } from '@/lib/services/championship.service';
 
 export interface UseChampionshipReturn {
-  isLoading: boolean;
+  championship: Championship | null;
+  loading: boolean;
   error: string | null;
-  createChampionship: (data: ChampionshipData) => Promise<Championship | null>;
-  clearError: () => void;
+  refresh: () => Promise<void>;
 }
 
-export const useChampionship = (): UseChampionshipReturn => {
-  const [isLoading, setIsLoading] = useState(false);
+/**
+ * Hook para gerenciar dados de um campeonato específico
+ * @param championshipId ID do campeonato
+ * @returns Dados do campeonato, estado de loading, erro e função de refresh
+ */
+export const useChampionship = (championshipId: string | undefined): UseChampionshipReturn => {
+  const [championship, setChampionship] = useState<Championship | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const createChampionship = async (data: ChampionshipData): Promise<Championship | null> => {
-    setIsLoading(true);
-    setError(null);
+  const fetchChampionship = async () => {
+    if (!championshipId) {
+      setError("ID do campeonato não fornecido");
+      setLoading(false);
+      return;
+    }
 
     try {
-      const championship = await ChampionshipService.create(data);
-      return championship;
+      setLoading(true);
+      setError(null);
+      
+      const data = await ChampionshipService.getById(championshipId);
+      setChampionship(data);
     } catch (err: any) {
-      const errorMessage = err.message || 'Erro ao criar campeonato. Tente novamente.';
-      setError(errorMessage);
-      return null;
+      setError(err.message || "Erro ao carregar campeonato");
+      setChampionship(null);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const clearError = () => {
-    setError(null);
+  const refresh = async () => {
+    await fetchChampionship();
   };
 
+  useEffect(() => {
+    fetchChampionship();
+  }, [championshipId]);
+
   return {
-    isLoading,
+    championship,
+    loading,
     error,
-    createChampionship,
-    clearError,
+    refresh,
   };
 }; 

@@ -207,7 +207,8 @@ export const Dashboard = () => {
               {championshipsOrganized.map((championship) => (
                 <div
                   key={championship.id}
-                  className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+                  className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                  onClick={() => nav.goToChampionship(championship.id)}
                 >
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-medium text-sm truncate flex-1 mr-2" title={championship.name}>
@@ -219,6 +220,10 @@ export const Dashboard = () => {
                         size="sm"
                         className="h-6 w-6 p-0"
                         title="Ver campeonato"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          nav.goToChampionship(championship.id);
+                        }}
                       >
                         <Eye className="h-3 w-3" />
                       </Button>
@@ -227,6 +232,10 @@ export const Dashboard = () => {
                         size="sm"
                         className="h-6 w-6 p-0"
                         title="Gerenciar campeonato"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          nav.goToChampionship(championship.id);
+                        }}
                       >
                         <Settings className="h-3 w-3" />
                       </Button>

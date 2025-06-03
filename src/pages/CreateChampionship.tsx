@@ -19,10 +19,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useChampionship } from "@/hooks/use-championship";
 import { ChampionshipData } from "@/lib/services/championship.service";
 import { useChampionshipContext } from "@/contexts/ChampionshipContext";
 import { PageHeader } from "@/components/ui/page-header";
+import { useCreateChampionship } from "@/hooks/use-create-championship";
 
 export const CreateChampionship = () => {
   const navigate = useNavigate();
@@ -38,7 +38,7 @@ export const CreateChampionship = () => {
   const [initialFormData, setInitialFormData] = useState<any>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  const { isLoading, error, createChampionship, clearError } = useChampionship();
+  const { isLoading, error, createChampionship, clearError } = useCreateChampionship();
   const { addChampionship } = useChampionshipContext();
 
   // Helper function to check if form has changes
@@ -241,12 +241,12 @@ export const CreateChampionship = () => {
       const championship = await createChampionship(championshipData);
       
       if (championship) {
-        // Success - add to context and navigate directly to dashboard
+        // Success - add to context and navigate to the new championship page
         // Use replace to avoid history stack and ensure blocker doesn't interfere
         addChampionship(championship);
         setSaveSuccessful(true);
         setHasUnsavedChanges(false); // Reset unsaved changes after successful save
-        navigate('/dashboard', { replace: true });
+        navigate(`/championship/${championship.id}`, { replace: true });
       }
     } catch (err) {
       // Error occurred - restore unsaved changes indicator and stop saving

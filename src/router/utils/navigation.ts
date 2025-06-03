@@ -18,6 +18,7 @@ export const ROUTES = {
   // App routes (without /app prefix)
   DASHBOARD: '/dashboard',
   CREATE_CHAMPIONSHIP: '/create-championship',
+  CHAMPIONSHIP: '/championship',
   EDIT_PROFILE: '/edit-profile',
   CHANGE_PASSWORD: '/change-password',
   COMPLETE_PROFILE: '/complete-profile',
@@ -54,6 +55,10 @@ export class NavigationHelper {
 
   goToCreateChampionship(state?: any) {
     this.navigate(ROUTES.CREATE_CHAMPIONSHIP, { state });
+  }
+
+  goToChampionship(championshipId: string, state?: any) {
+    this.navigate(`${ROUTES.CHAMPIONSHIP}/${championshipId}`, { state });
   }
 
   goToChangePassword(state?: any) {
