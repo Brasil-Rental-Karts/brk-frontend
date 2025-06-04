@@ -30,7 +30,6 @@ export const CreateSeason = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [initialFormData, setInitialFormData] = useState<any>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [sponsors, setSponsors] = useState<any[]>([]);
 
   // Estados para modo de edição
   const [isEditMode, setIsEditMode] = useState(false);
@@ -56,7 +55,6 @@ export const CreateSeason = () => {
       try {
         const season = await SeasonService.getById(seasonId);
         setExistingSeasonData(season);
-        setSponsors(season.sponsors || []);
 
         // Preparar dados iniciais do formulário usando as funções utilitárias
         const initialData = {
@@ -123,11 +121,8 @@ export const CreateSeason = () => {
     checkForChanges(data);
   }, [checkForChanges]);
 
-  const handleFieldChange = useCallback((fieldId: string, value: any) => {
-    // Handle sponsors field specially
-    if (fieldId === 'sponsors') {
-      setSponsors(value || []);
-    }
+  const handleFieldChange = useCallback(() => {
+    // Field change handling can be kept for other fields if needed
   }, []);
 
   const handleCancelClick = () => {
@@ -189,7 +184,6 @@ export const CreateSeason = () => {
       inscriptionValue: parseFloat(data.inscriptionValue.replace(/[^\d,]/g, '').replace(',', '.')),
       inscriptionType: data.inscriptionType,
       paymentMethods: data.paymentMethods || [],
-      sponsors: sponsors,
       championshipId: championshipId!
     };
 

@@ -1,5 +1,12 @@
 import api from '../axios';
 
+export interface Sponsor {
+  id?: string;
+  name: string;
+  logoImage: string;
+  website?: string;
+}
+
 export interface ChampionshipData {
   name: string;
   shortDescription?: string;
@@ -16,6 +23,7 @@ export interface ChampionshipData {
   isResponsible: boolean;
   responsibleName?: string;
   responsiblePhone?: string;
+  sponsors?: Sponsor[];
 }
 
 export interface Championship extends ChampionshipData {

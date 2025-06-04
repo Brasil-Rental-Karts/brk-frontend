@@ -10,15 +10,7 @@ export interface SeasonData {
   inscriptionValue: number;
   inscriptionType: 'mensal' | 'anual' | 'semestral' | 'trimestral';
   paymentMethods: ('pix' | 'cartao_debito' | 'cartao_credito' | 'boleto')[];
-  sponsors: Sponsor[];
   championshipId: string;
-}
-
-export interface Sponsor {
-  id: string;
-  name: string;
-  logoImage: string;
-  website?: string;
 }
 
 export interface Season extends SeasonData {

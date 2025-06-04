@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InputMask } from "@/components/ui/input-mask";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SponsorListField } from "@/components/ui/sponsor-list-field";
 import {
   Select,
   SelectContent,
@@ -39,7 +40,7 @@ export interface FormFieldOption {
 export interface FormFieldConfig {
   name: string;
   id: string;
-  type: "input" | "textarea" | "select" | "checkbox" | "inputMask" | "checkbox-group";
+  type: "input" | "textarea" | "select" | "checkbox" | "inputMask" | "checkbox-group" | "sponsor-list";
   max_char?: number;
   mandatory?: boolean;
   readonly?: boolean;
@@ -114,6 +115,14 @@ const createZodSchema = (config: FormSectionConfig[]) => {
         case "checkbox-group":
           fieldSchema = z.array(z.union([z.string(), z.number()]));
           break;
+        case "sponsor-list":
+          fieldSchema = z.array(z.object({
+            id: z.string().optional(),
+            name: z.string(),
+            logoImage: z.string(),
+            website: z.string().optional()
+          }));
+          break;
         default:
           fieldSchema = z.string();
       }
@@ -131,6 +140,13 @@ const createZodSchema = (config: FormSectionConfig[]) => {
         schemaFields[field.id] = z.boolean().optional();
       } else if (field.type === "checkbox-group") {
         schemaFields[field.id] = z.array(z.union([z.string(), z.number()])).optional();
+      } else if (field.type === "sponsor-list") {
+        schemaFields[field.id] = z.array(z.object({
+          id: z.string().optional(),
+          name: z.string(),
+          logoImage: z.string(),
+          website: z.string().optional()
+        })).optional();
       } else {
         schemaFields[field.id] = z.string().optional();
       }
@@ -212,6 +228,8 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
         if (field.type === "checkbox") {
           defaults[field.id] = false;
         } else if (field.type === "checkbox-group") {
+          defaults[field.id] = [];
+        } else if (field.type === "sponsor-list") {
           defaults[field.id] = [];
         } else {
           defaults[field.id] = "";
@@ -436,6 +454,15 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                           ))}
                         </div>
                       </div>
+                    );
+                  
+                  case "sponsor-list":
+                    return (
+                      <SponsorListField
+                        {...commonProps}
+                        value={formField.value || []}
+                        onChange={formField.onChange}
+                      />
                     );
                   
                   default:

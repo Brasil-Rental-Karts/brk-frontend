@@ -122,7 +122,8 @@ export const CreateChampionship = () => {
       complement: "",
       isResponsible: true,
       responsibleName: "",
-      responsiblePhone: ""
+      responsiblePhone: "",
+      sponsors: []
     };
     setInitialFormData(emptyFormData);
     setHasUnsavedChanges(false);
@@ -234,7 +235,8 @@ export const CreateChampionship = () => {
       complement: data.complement || '',
       isResponsible: data.isResponsible !== false, // Default to true
       responsibleName: data.responsibleName || '',
-      responsiblePhone: data.responsiblePhone || ''
+      responsiblePhone: data.responsiblePhone || '',
+      sponsors: data.sponsors || []
     };
 
     try {
@@ -414,6 +416,19 @@ export const CreateChampionship = () => {
             }
           }
         ]
+      },
+      {
+        section: "Patrocinadores",
+        detail: "Gerenciar patrocinadores do campeonato",
+        fields: [
+          {
+            id: "sponsors",
+            name: "Lista de patrocinadores",
+            type: "sponsor-list",
+            mandatory: false,
+            placeholder: "Adicione patrocinadores ao seu campeonato"
+          }
+        ]
       }
     ];
 
@@ -472,7 +487,8 @@ export const CreateChampionship = () => {
           formId="championship-form"
           initialValues={{
             personType: "0", // Pessoa Física por padrão
-            isResponsible: true // Sou responsável pelo campeonato marcado por padrão
+            isResponsible: true, // Sou responsável pelo campeonato marcado por padrão
+            sponsors: [] // Array vazio de sponsors
           }}
         />
       </div>
