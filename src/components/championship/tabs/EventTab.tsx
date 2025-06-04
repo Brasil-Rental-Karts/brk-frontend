@@ -21,6 +21,7 @@ import {
 import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
 import { Pagination } from "@/components/ui/pagination";
 import { usePagination } from "@/hooks/usePagination";
+import { formatDateToBrazilian, compareDates } from "@/utils/date";
 
 interface Event {
   id: string;
@@ -247,8 +248,9 @@ export const EventTab = ({ championshipId: _championshipId }: EventTabProps) => 
 
       // Tratamento especial para diferentes tipos de dados
       if (sortBy === 'date') {
-        aValue = new Date(aValue).getTime();
-        bValue = new Date(bValue).getTime();
+        // Usar função utilitária para comparar datas
+        const comparison = compareDates(aValue, bValue);
+        return sortOrder === 'asc' ? comparison : -comparison;
       } else if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
@@ -294,21 +296,6 @@ export const EventTab = ({ championshipId: _championshipId }: EventTabProps) => 
     // TODO: Implementar ações específicas
   };
 
-  const getStatusColor = (status: Event["status"]) => {
-    switch (status) {
-      case "Agendado":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
-      case "Em andamento":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
-      case "Concluído":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
-      case "Cancelado":
-        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
-    }
-  };
-
   const getTypeColor = (type: Event["type"]) => {
     switch (type) {
       case "Corrida Especial":
@@ -324,14 +311,6 @@ export const EventTab = ({ championshipId: _championshipId }: EventTabProps) => 
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
   };
 
   const formatTime = (timeString: string) => {
@@ -362,6 +341,23 @@ export const EventTab = ({ championshipId: _championshipId }: EventTabProps) => 
   const handleItemsPerPageChange = useCallback((itemsPerPage: number) => {
     pagination.actions.setItemsPerPage(itemsPerPage);
   }, [pagination.actions.setItemsPerPage]);
+
+  const getStatusBadge = (status: string) => {
+    const statusMap = {
+      'agendado': { color: 'bg-blue-100 text-blue-800', label: 'Agendado' },
+      'em_andamento': { color: 'bg-green-100 text-green-800', label: 'Em andamento' },
+      'cancelado': { color: 'bg-red-100 text-red-800', label: 'Cancelado' },
+      'finalizado': { color: 'bg-gray-100 text-gray-800', label: 'Finalizado' }
+    };
+    
+    const statusInfo = statusMap[status as keyof typeof statusMap] || { color: 'bg-gray-100 text-gray-800', label: status };
+    
+    return (
+      <Badge className={statusInfo.color}>
+        {statusInfo.label}
+      </Badge>
+    );
+  };
 
   if (processedEvents.length === 0 && Object.keys(filters).length === 0) {
     return (
@@ -494,7 +490,7 @@ export const EventTab = ({ championshipId: _championshipId }: EventTabProps) => 
                         <div className="space-y-1">
                           <div className="flex items-center gap-1 text-sm">
                             <Calendar className="h-3 w-3 text-muted-foreground" />
-                            {formatDate(event.date)}
+                            {formatDateToBrazilian(event.date)}
                           </div>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Clock className="h-3 w-3" />
@@ -517,9 +513,7 @@ export const EventTab = ({ championshipId: _championshipId }: EventTabProps) => 
                         </div>
                       </TableCell>
                       <TableCell className="py-2">
-                        <Badge className={getStatusColor(event.status)}>
-                          {event.status}
-                        </Badge>
+                        {getStatusBadge(event.status.toLowerCase())}
                       </TableCell>
                       <TableCell className="py-2">
                         <DropdownMenu>

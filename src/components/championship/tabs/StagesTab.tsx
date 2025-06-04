@@ -21,6 +21,7 @@ import {
 import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
 import { Pagination } from "@/components/ui/pagination";
 import { usePagination } from "@/hooks/usePagination";
+import { formatDateToBrazilian, compareDates } from "@/utils/date";
 
 interface Stage {
   id: string;
@@ -184,8 +185,9 @@ export const StagesTab = ({ championshipId: _championshipId }: StagesTabProps) =
 
       // Tratamento especial para diferentes tipos de dados
       if (sortBy === 'date') {
-        aValue = new Date(aValue).getTime();
-        bValue = new Date(bValue).getTime();
+        // Usar função utilitária para comparar datas
+        const comparison = compareDates(aValue, bValue);
+        return sortOrder === 'asc' ? comparison : -comparison;
       } else if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
@@ -244,15 +246,6 @@ export const StagesTab = ({ championshipId: _championshipId }: StagesTabProps) =
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit", 
-      year: "numeric",
-      weekday: "short",
-    });
   };
 
   const handleFiltersChange = useCallback((newFilters: FilterValues) => {
@@ -383,7 +376,7 @@ export const StagesTab = ({ championshipId: _championshipId }: StagesTabProps) =
                     <TableCell className="py-2">
                       <div className="flex items-center gap-1 text-sm">
                         <Calendar className="h-3 w-3 text-muted-foreground" />
-                        {formatDate(stage.date)}
+                        {formatDateToBrazilian(stage.date)}
                       </div>
                     </TableCell>
                     <TableCell className="py-2">

@@ -17,6 +17,7 @@ const ResetPasswordSuccess = lazy(() => import('@/pages/ResetPasswordSuccess').t
 const ChangePassword = lazy(() => import('@/pages/ChangePassword').then(module => ({ default: module.ChangePassword })));
 const CompleteProfile = lazy(() => import('@/pages/CompleteProfile'));
 const CreateChampionship = lazy(() => import('@/pages/CreateChampionship'));
+const CreateSeason = lazy(() => import('@/pages/CreateSeason'));
 const Championship = lazy(() => import('@/pages/Championship').then(module => ({ default: module.Championship })));
 const EditProfile = lazy(() => import('@/pages/EditProfile'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
@@ -47,59 +48,37 @@ const RootLayout = () => {
   );
 };
 
-// Wrapper component for lazy loaded routes
+// Wrapper component for lazy loading with suspense
 const LazyWrapper = ({ children }: { children: React.ReactNode }) => (
   <Suspense fallback={<RouteLoader />}>
     {children}
   </Suspense>
 );
 
-// Google Callback Error Handler
-const GoogleCallbackErrorHandler = () => {
-  const searchParams = new URLSearchParams(window.location.search);
-  const error = searchParams.get("error");
+// Google callback error handler
+const GoogleCallbackErrorHandler = () => (
+  <LazyWrapper>
+    <GoogleCallback />
+  </LazyWrapper>
+);
 
-  if (error === "access_denied") {
-    return (
-      <Navigate
-        to="/auth/login"
-        replace
-        state={{
-          error: "Você não permitiu o acesso à sua conta do Google. Por favor, tente novamente.",
-        }}
-      />
-    );
-  }
-
-  if (error) {
-    return (
-      <Navigate
-        to="/auth/login"
-        replace
-        state={{
-          error: `Falha na autenticação com Google: ${error}. Por favor, tente novamente.`,
-        }}
-      />
-    );
-  }
-
-  return (
-    <LazyWrapper>
-      <GoogleCallback />
-    </LazyWrapper>
-  );
-};
-
-// Login Error Redirect Handler
+// Login error redirect handler
 const LoginErrorRedirect = () => {
-  const searchParams = new URLSearchParams(window.location.search);
-  const error = searchParams.get("error");
-
-  const errorMessage = error
-    ? `Falha na autenticação: ${error}. Por favor, tente novamente.`
-    : "Falha na autenticação. Por favor, tente novamente.";
-
-  return <Navigate to="/auth/login" replace state={{ error: errorMessage }} />;
+  const urlParams = new URLSearchParams(window.location.search);
+  const error = urlParams.get('error');
+  const errorDescription = urlParams.get('error_description');
+  
+  // Redirect to login with error state
+  return (
+    <Navigate 
+      to="/auth/login" 
+      state={{ 
+        error: error || 'Erro de autenticação',
+        errorDescription: errorDescription || 'Ocorreu um erro durante o login'
+      }} 
+      replace 
+    />
+  );
 };
 
 export const router = createBrowserRouter([
@@ -210,6 +189,30 @@ export const router = createBrowserRouter([
             <MainLayout>
               <LazyWrapper>
                 <Championship />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "championship/:championshipId/create-season",
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <LazyWrapper>
+                <CreateSeason />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "championship/:championshipId/season/:seasonId/edit",
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <LazyWrapper>
+                <CreateSeason />
               </LazyWrapper>
             </MainLayout>
           </ProtectedRoute>

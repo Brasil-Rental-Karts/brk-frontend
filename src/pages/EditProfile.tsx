@@ -28,6 +28,7 @@ import {
   interestCategoryOptions
 } from "@/lib/enums/profile";
 import { PageHeader } from "@/components/ui/page-header";
+import { formatDateForDisplay, formatDateToISO } from "@/utils/date";
 
 export const EditProfile = () => {
   const navigate = useNavigate();
@@ -150,17 +151,8 @@ export const EditProfile = () => {
           interestCategories: Array.isArray(data?.interestCategories) 
             ? data.interestCategories.map((cat: number) => cat.toString())
             : [],
-          // Format birth date for display (DD/MM/YYYY) - same as initialValues
-          birthDate: data?.birthDate ? (() => {
-            const date = new Date(data.birthDate);
-            if (!isNaN(date.getTime())) {
-              const day = date.getDate().toString().padStart(2, '0');
-              const month = (date.getMonth() + 1).toString().padStart(2, '0');
-              const year = date.getFullYear();
-              return `${day}/${month}/${year}`;
-            }
-            return "";
-          })() : "",
+          // Format birth date for display using utility function
+          birthDate: formatDateForDisplay(data?.birthDate || ""),
         };
         
         setInitialFormData(initialData);
@@ -284,34 +276,16 @@ export const EditProfile = () => {
     setIsSaving(true);
 
     try {
-      // Helper function to validate and format date
-      const formatDateForSubmission = (dateStr: string) => {
-        if (!dateStr || dateStr.trim() === "") return null;
-        
-        // Check if it's in DD/MM/YYYY format
-        const ddmmyyyyPattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-        const match = dateStr.match(ddmmyyyyPattern);
-        
-        if (match) {
-          const [, day, month, year] = match;
-          const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-          
-          // Validate if the date is valid
-          if (date.getDate() == parseInt(day) && 
-              date.getMonth() == parseInt(month) - 1 && 
-              date.getFullYear() == parseInt(year)) {
-            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-          }
-        }
-        
-        return null; // Invalid date
+      // Helper function to validate and format date - using utility function
+      const formatBirthDateForSubmission = (dateStr: string) => {
+        return formatDateToISO(dateStr);
       };
 
       // Convert string values back to numbers for numeric enums and handle special cases
       const processedData = {
         ...data,
         // Handle date field - only include if valid
-        birthDate: formatDateForSubmission(data.birthDate),
+        birthDate: formatBirthDateForSubmission(data.birthDate),
         gender: data.gender !== "" ? parseInt(data.gender) : null,
         experienceTime: data.experienceTime !== "" ? parseInt(data.experienceTime) : null,
         raceFrequency: data.raceFrequency !== "" ? parseInt(data.raceFrequency) : null,
@@ -664,17 +638,8 @@ export const EditProfile = () => {
             interestCategories: Array.isArray(profileData?.interestCategories) 
               ? profileData.interestCategories.map((cat: number) => cat.toString())
               : [],
-            // Format birth date for display (DD/MM/YYYY)
-            birthDate: profileData?.birthDate ? (() => {
-              const date = new Date(profileData.birthDate);
-              if (!isNaN(date.getTime())) {
-                const day = date.getDate().toString().padStart(2, '0');
-                const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                const year = date.getFullYear();
-                return `${day}/${month}/${year}`;
-              }
-              return "";
-            })() : "",
+            // Format birth date for display using utility function
+            birthDate: formatDateForDisplay(profileData?.birthDate || ""),
           }}
         />
       </div>

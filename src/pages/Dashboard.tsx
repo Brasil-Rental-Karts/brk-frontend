@@ -26,6 +26,7 @@ import {
 import { useNavigation } from "@/router";
 import { useDashboardChampionships } from "@/hooks/use-dashboard-championships";
 import { useChampionshipContext } from "@/contexts/ChampionshipContext";
+import { formatDateToBrazilian } from "@/utils/date";
 
 export const Dashboard = () => {
   const nav = useNavigation();
@@ -76,11 +77,6 @@ export const Dashboard = () => {
       },
     },
   ];
-
-  // Função para formatar data
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("pt-BR");
-  };
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -253,7 +249,7 @@ export const Dashboard = () => {
                   )}
                   
                   <div className="flex justify-between items-center text-xs text-muted-foreground">
-                    <span>Criado em {formatDate(championship.createdAt)}</span>
+                    <span>Criado em {formatDateToBrazilian(championship.createdAt)}</span>
                     <Badge variant="outline" className="text-xs">
                       Organizador
                     </Badge>
@@ -316,7 +312,7 @@ export const Dashboard = () => {
                   </div>
                   <div className="flex items-center">
                     <Calendar className="h-3 w-3 mr-1" />
-                    {race.date.toLocaleDateString("pt-BR")}
+                    {formatDateToBrazilian(race.date.toISOString())}
                   </div>
                 </div>
                 {race.notification && (
@@ -353,9 +349,11 @@ export const Dashboard = () => {
               <MapPin className="h-4 w-4 text-muted-foreground" />
               <span>{selectedRace?.location}</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span>{selectedRace?.date.toLocaleDateString("pt-BR")}</span>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                <span>{formatDateToBrazilian(selectedRace?.date.toISOString() || "")}</span>
+              </div>
             </div>
             <div className="flex items-center space-x-2">
               <Users className="h-4 w-4 text-muted-foreground" />

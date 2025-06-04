@@ -1,8 +1,9 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Calendar, Users, Trophy, MoreVertical, DollarSign } from "lucide-react";
+import { PlusCircle, Calendar, Trophy, MoreVertical, DollarSign } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   DropdownMenu,
@@ -18,23 +19,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
 import { Pagination } from "@/components/ui/pagination";
 import { usePagination } from "@/hooks/usePagination";
-
-interface Season {
-  id: string;
-  name: string;
-  year: number;
-  status: string;
-  startDate: string;
-  endDate: string;
-  participants: number;
-  inscriptionFee: number;
-  location: string;
-  rounds: number;
-  description?: string;
-}
+import { SeasonService, Season, PaginatedSeasons } from "@/lib/services/season.service";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { formatDateToBrazilian, getYearFromDate, compareDates, formatCurrency } from "@/utils/date";
 
 interface SeasonsTabProps {
   championshipId: string;
@@ -60,171 +59,52 @@ const filterFields: FilterField[] = [
  * Tab de temporadas do campeonato
  * Exibe e gerencia as temporadas de um campeonato específico
  */
-export const SeasonsTab = ({ championshipId: _championshipId }: SeasonsTabProps) => {
+export const SeasonsTab = ({ championshipId }: SeasonsTabProps) => {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortBy, setSortBy] = useState<keyof Season>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalSeasons, setTotalSeasons] = useState(0);
 
-  // TODO: Usar championshipId para buscar dados reais da API
-  // Mock data - substituir por dados reais da API
-  const [seasons] = useState<Season[]>([
-    {
-      id: "1",
-      name: "Temporada Recanto Divisa 2025/1",
-      year: 2025,
-      status: "Ativa",
-      startDate: "2025-02-22",
-      endDate: "2025-06-29",
-      participants: 100,
-      inscriptionFee: 400.00,
-      location: "São Paulo",
-      rounds: 12,
-      description: "Temporada principal do campeonato"
-    },
-    {
-      id: "2", 
-      name: "Temporada Recanto Divisa 2025/2",
-      year: 2025,
-      status: "Inscrito",
-      startDate: "2025-02-22",
-      endDate: "2025-06-29",
-      participants: 33,
-      inscriptionFee: 400.00,
-      location: "Rio de Janeiro",
-      rounds: 10,
-      description: "Temporada de estreia"
-    },
-    {
-      id: "3",
-      name: "Temporada Recanto Divisa 2024/2",
-      year: 2024,
-      status: "Concluído",
-      startDate: "2024-02-22",
-      endDate: "2024-06-29",
-      participants: 100,
-      inscriptionFee: 400.00,
-      location: "Brasília", 
-      rounds: 14,
-      description: "Expansão para nova região"
-    },
-    {
-      id: "4",
-      name: "Temporada Recanto Divisa 2024/1",
-      year: 2024,
-      status: "Concluído",
-      startDate: "2024-02-22",
-      endDate: "2024-06-29",
-      participants: 100,
-      inscriptionFee: 400.00,
-      location: "São Paulo",
-      rounds: 12,
-      description: "Temporada principal do campeonato"
-    },
-    {
-      id: "5",
-      name: "Temporada Recanto Divisa 2024/3",
-      year: 2024,
-      status: "Planejada",
-      startDate: "2024-08-15",
-      endDate: "2024-12-22",
-      participants: 85,
-      inscriptionFee: 450.00,
-      location: "Belo Horizonte",
-      rounds: 16,
-      description: "Temporada de expansão"
-    },
-    {
-      id: "6",
-      name: "Temporada Recanto Divisa 2023/1",
-      year: 2023,
-      status: "Finalizada",
-      startDate: "2023-01-10",
-      endDate: "2023-05-20",
-      participants: 75,
-      inscriptionFee: 350.00,
-      location: "Salvador",
-      rounds: 12,
-      description: "Temporada inaugural"
-    },
-    {
-      id: "7",
-      name: "Temporada Recanto Divisa 2023/2",
-      year: 2023,
-      status: "Finalizada",
-      startDate: "2023-06-01",
-      endDate: "2023-10-15",
-      participants: 90,
-      inscriptionFee: 350.00,
-      location: "Porto Alegre",
-      rounds: 14,
-      description: "Segunda temporada"
-    },
-    {
-      id: "8",
-      name: "Temporada Recanto Divisa 2025/3",
-      year: 2025,
-      status: "Planejada",
-      startDate: "2025-07-01",
-      endDate: "2025-11-30",
-      participants: 120,
-      inscriptionFee: 500.00,
-      location: "Curitiba",
-      rounds: 18,
-      description: "Temporada especial"
-    },
-    {
-      id: "9",
-      name: "Temporada Recanto Divisa 2022/1",
-      year: 2022,
-      status: "Finalizada",
-      startDate: "2022-03-01",
-      endDate: "2022-07-30",
-      participants: 60,
-      inscriptionFee: 300.00,
-      location: "Fortaleza",
-      rounds: 10,
-      description: "Temporada piloto"
-    },
-    {
-      id: "10",
-      name: "Temporada Recanto Divisa 2022/2",
-      year: 2022,
-      status: "Finalizada",
-      startDate: "2022-08-15",
-      endDate: "2022-12-20",
-      participants: 65,
-      inscriptionFee: 320.00,
-      location: "Recife",
-      rounds: 12,
-      description: "Segunda temporada do ano"
-    },
-    {
-      id: "11",
-      name: "Temporada Recanto Divisa 2023/3",
-      year: 2023,
-      status: "Finalizada",
-      startDate: "2023-11-01",
-      endDate: "2023-12-31",
-      participants: 45,
-      inscriptionFee: 380.00,
-      location: "Manaus",
-      rounds: 8,
-      description: "Temporada de fim de ano"
-    },
-    {
-      id: "12",
-      name: "Temporada Recanto Divisa 2025/4",
-      year: 2025,
-      status: "Planejada",
-      startDate: "2025-12-01",
-      endDate: "2026-03-31",
-      participants: 80,
-      inscriptionFee: 600.00,
-      location: "Goiânia",
-      rounds: 15,
-      description: "Temporada de verão"
-    },
-  ]);
+  // Estados para o modal de exclusão
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [seasonToDelete, setSeasonToDelete] = useState<Season | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Configuração da paginação
+  const pagination = usePagination(totalSeasons, 5, 1);
+
+  // Buscar temporadas do backend
+  const fetchSeasons = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const result: PaginatedSeasons = await SeasonService.getByChampionshipId(
+        championshipId,
+        pagination.state.currentPage,
+        pagination.state.itemsPerPage
+      );
+      
+      setSeasons(result.data);
+      setTotalSeasons(result.total);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao carregar temporadas');
+      setSeasons([]);
+      setTotalSeasons(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [championshipId, pagination.state.currentPage, pagination.state.itemsPerPage]);
+
+  // Carregar temporadas quando a página ou filtros mudarem
+  useEffect(() => {
+    fetchSeasons();
+  }, [fetchSeasons]);
 
   // Aplicar filtros e ordenação aos dados
   const processedSeasons = useMemo(() => {
@@ -232,9 +112,9 @@ export const SeasonsTab = ({ championshipId: _championshipId }: SeasonsTabProps)
 
     // Aplicar filtros
     result = result.filter(season => {
-      // Filtro por ano baseado no período (startDate)
+      // Filtro por ano baseado no período (startDate) usando função utilitária
       if (filters.year) {
-        const seasonYear = new Date(season.startDate).getFullYear();
+        const seasonYear = getYearFromDate(season.startDate);
         if (seasonYear.toString() !== filters.year.toString()) {
           return false;
         }
@@ -250,8 +130,9 @@ export const SeasonsTab = ({ championshipId: _championshipId }: SeasonsTabProps)
 
       // Tratamento especial para diferentes tipos de dados
       if (sortBy === 'startDate' || sortBy === 'endDate') {
-        aValue = new Date(aValue).getTime();
-        bValue = new Date(bValue).getTime();
+        // Usar função utilitária para comparar datas
+        const comparison = compareDates(aValue, bValue);
+        return sortOrder === 'asc' ? comparison : -comparison;
       } else if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
@@ -269,15 +150,6 @@ export const SeasonsTab = ({ championshipId: _championshipId }: SeasonsTabProps)
     return result;
   }, [seasons, filters, sortBy, sortOrder]);
 
-  // Configuração da paginação
-  const pagination = usePagination(processedSeasons.length, 5, 1);
-  
-  // Dados da página atual
-  const currentPageSeasons = useMemo(() => {
-    const { startIndex, endIndex } = pagination.info;
-    return processedSeasons.slice(startIndex, endIndex);
-  }, [processedSeasons, pagination.info]);
-
   const handleSort = (column: keyof Season) => {
     if (sortBy === column) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -288,37 +160,86 @@ export const SeasonsTab = ({ championshipId: _championshipId }: SeasonsTabProps)
   };
 
   const handleAddSeason = () => {
-    console.log("Adicionar nova temporada");
-    // TODO: Implementar modal ou navegação para criação de temporada
+    navigate(`/championship/${championshipId}/create-season`);
   };
 
-  const handleSeasonAction = (action: string, seasonId: string) => {
-    console.log(`Ação: ${action} para temporada: ${seasonId}`);
-    // TODO: Implementar ações específicas
+  const handleEditSeason = (seasonId: string) => {
+    navigate(`/championship/${championshipId}/season/${seasonId}/edit`);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "Ativa":
-        return <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">Ativa</Badge>;
-      case "Finalizada":
-        return <Badge variant="secondary">Finalizada</Badge>;
-      case "Planejada":
-        return <Badge variant="outline" className="border-blue-200 text-blue-800">Planejada</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
+  const handleDeleteSeason = (season: Season) => {
+    setSeasonToDelete(season);
+    setDeleteError(null);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDeleteSeason = async () => {
+    if (!seasonToDelete) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      await SeasonService.delete(seasonToDelete.id);
+      
+      // Atualizar a lista de temporadas
+      await fetchSeasons();
+      
+      // Fechar o modal
+      setShowDeleteDialog(false);
+      setSeasonToDelete(null);
+    } catch (err: any) {
+      setDeleteError(err.message || 'Erro ao excluir temporada');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
+  const cancelDeleteSeason = () => {
+    setShowDeleteDialog(false);
+    setSeasonToDelete(null);
+    setDeleteError(null);
   };
 
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('pt-BR');
+  const handleSeasonAction = (action: string, seasonId: string) => {
+    const season = seasons.find(s => s.id === seasonId);
+    if (!season) return;
+
+    switch (action) {
+      case "view":
+        // TODO: Implementar visualização de detalhes da temporada
+        console.log(`Ver detalhes da temporada: ${seasonId}`);
+        break;
+      case "edit":
+        handleEditSeason(seasonId);
+        break;
+      case "delete":
+        handleDeleteSeason(season);
+        break;
+      default:
+        console.log(`Ação desconhecida: ${action} para temporada: ${seasonId}`);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusMap = {
+      'agendado': { color: 'bg-blue-100 text-blue-800', label: 'Agendado' },
+      'em_andamento': { color: 'bg-green-100 text-green-800', label: 'Em andamento' },
+      'cancelado': { color: 'bg-red-100 text-red-800', label: 'Cancelado' },
+      'finalizado': { color: 'bg-gray-100 text-gray-800', label: 'Finalizado' }
+    };
+    
+    const statusInfo = statusMap[status as keyof typeof statusMap] || { color: 'bg-gray-100 text-gray-800', label: status };
+    
+    return (
+      <Badge className={statusInfo.color}>
+        {statusInfo.label}
+      </Badge>
+    );
+  };
+
+  const formatPeriod = (startDate: string, endDate: string) => {
+    return `${formatDateToBrazilian(startDate)} - ${formatDateToBrazilian(endDate)}`;
   };
 
   const handleFiltersChange = useCallback((newFilters: FilterValues) => {
@@ -336,162 +257,186 @@ export const SeasonsTab = ({ championshipId: _championshipId }: SeasonsTabProps)
     pagination.actions.setItemsPerPage(itemsPerPage);
   }, [pagination.actions.setItemsPerPage]);
 
+  if (loading) {
+    return (
+      <Card className="w-full">
+        <div className="p-6 space-y-4">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="w-full">
+        <div className="p-6">
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <div className="mt-4">
+            <Button onClick={fetchSeasons} variant="outline">
+              Tentar novamente
+            </Button>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
   if (processedSeasons.length === 0 && Object.keys(filters).length === 0) {
     return (
       <EmptyState
         icon={Trophy}
         title="Nenhuma temporada criada"
-        description="Crie sua primeira temporada para começar a organizar o campeonato"
+        description="Crie sua primeira temporada para começar a organizar as competições"
         action={{
-          label: "Adicionar Temporada",
-          onClick: handleAddSeason,
+          label: "Criar Temporada",
+          onClick: handleAddSeason
         }}
       />
     );
   }
 
   return (
-    <div className="space-y-6 h-full flex flex-col">
-      {/* Header da seção */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 flex-shrink-0">
-        <div>
-          <h2 className="text-2xl font-bold">Temporadas</h2>
-          <p className="text-muted-foreground">
-            Gerencie as temporadas do seu campeonato
-          </p>
+    <div className="space-y-6">
+      {/* Header com filtros e ação */}
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+        <div className="flex-1 w-full sm:w-auto">
+          <DynamicFilter
+            fields={filterFields}
+            onFiltersChange={handleFiltersChange}
+            className="w-full"
+          />
         </div>
-        <Button onClick={handleAddSeason} className="sm:w-auto">
+        <Button onClick={handleAddSeason} className="w-full sm:w-auto">
           <PlusCircle className="mr-2 h-4 w-4" />
-          Adicionar Temporada
+          Nova Temporada
         </Button>
       </div>
 
-      {/* Filtros dinâmicos */}
-      <div className="flex-shrink-0">
-        <DynamicFilter
-          fields={filterFields}
-          onFiltersChange={handleFiltersChange}
-        />
-      </div>
-
-      {/* Tabela de temporadas com altura adaptável */}
-      <Card className="flex flex-col flex-1 min-h-0">
+      {/* Tabela de temporadas */}
+      <Card className="w-full flex flex-col min-h-[600px]">
         <div className="flex-1 overflow-auto">
           <Table>
-            <TableHeader className="sticky top-0 bg-background z-10 border-b">
+            <TableHeader>
               <TableRow>
                 <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 py-3"
+                  className="cursor-pointer hover:bg-muted/50 min-w-[200px]"
                   onClick={() => handleSort("name")}
                 >
-                  Nome da Temporada
-                  {sortBy === "name" && (
-                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    Nome da Temporada
+                    {sortBy === "name" && (
+                      <span className="text-xs">
+                        {sortOrder === "asc" ? "↑" : "↓"}
+                      </span>
+                    )}
+                  </div>
                 </TableHead>
                 <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 py-3"
-                  onClick={() => handleSort("startDate")}
-                >
-                  Período
-                  {sortBy === "startDate" && (
-                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                  )}
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 py-3"
-                  onClick={() => handleSort("participants")}
-                >
-                  Participantes
-                  {sortBy === "participants" && (
-                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                  )}
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 py-3"
-                  onClick={() => handleSort("inscriptionFee")}
-                >
-                  Inscrição
-                  {sortBy === "inscriptionFee" && (
-                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                  )}
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 py-3"
+                  className="cursor-pointer hover:bg-muted/50 text-center"
                   onClick={() => handleSort("status")}
                 >
-                  Status
-                  {sortBy === "status" && (
-                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                  )}
+                  <div className="flex items-center justify-center gap-2">
+                    Status
+                    {sortBy === "status" && (
+                      <span className="text-xs">
+                        {sortOrder === "asc" ? "↑" : "↓"}
+                      </span>
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead className="w-10 py-3"></TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 text-center"
+                  onClick={() => handleSort("startDate")}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Período
+                    {sortBy === "startDate" && (
+                      <span className="text-xs">
+                        {sortOrder === "asc" ? "↑" : "↓"}
+                      </span>
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 text-center"
+                  onClick={() => handleSort("inscriptionValue")}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    Inscrição
+                    {sortBy === "inscriptionValue" && (
+                      <span className="text-xs">
+                        {sortOrder === "asc" ? "↑" : "↓"}
+                      </span>
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead className="text-center">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentPageSeasons.length === 0 ? (
+              {processedSeasons.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     Nenhuma temporada encontrada com os filtros aplicados
                   </TableCell>
                 </TableRow>
               ) : (
-                currentPageSeasons.map((season) => (
+                processedSeasons.map((season) => (
                   <TableRow key={season.id} className="hover:bg-muted/50">
-                    <TableCell className="font-medium py-2">
-                      <div className="flex items-center gap-2">
-                        <Trophy className="h-4 w-4 text-muted-foreground" />
-                        {season.name}
+                    <TableCell className="py-4">
+                      <div>
+                        <div className="font-medium">{season.name}</div>
+                        {season.description && (
+                          <div className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                            {season.description}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
-                    <TableCell className="py-2">
-                      <div className="flex items-center gap-1 text-sm">
-                        <Calendar className="h-3 w-3 text-muted-foreground" />
-                        {formatDate(season.startDate)} a {formatDate(season.endDate)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">
-                          {season.participants} participantes
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
-                        <span>{formatCurrency(season.inscriptionFee)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-2">
+                    <TableCell className="text-center py-4">
                       {getStatusBadge(season.status)}
                     </TableCell>
-                    <TableCell className="py-2">
+                    <TableCell className="text-center py-4">
+                      <div className="text-sm">
+                        {formatPeriod(season.startDate, season.endDate)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center py-4">
+                      <div className="text-sm font-medium">
+                        {formatCurrency(season.inscriptionValue)}
+                      </div>
+                      <div className="text-xs text-muted-foreground capitalize">
+                        {season.inscriptionType}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center py-4">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
                             <MoreVertical className="h-4 w-4" />
-                            <span className="sr-only">Abrir menu</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => handleSeasonAction("view", season.id)}
-                          >
+                          <DropdownMenuItem onClick={() => handleSeasonAction("view", season.id)}>
                             Ver detalhes
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleSeasonAction("edit", season.id)}
-                          >
+                          <DropdownMenuItem onClick={() => handleSeasonAction("edit", season.id)}>
                             Editar
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleSeasonAction("participants", season.id)}
-                          >
-                            Gerenciar participantes
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
+                          <DropdownMenuItem 
                             onClick={() => handleSeasonAction("delete", season.id)}
                             className="text-destructive"
                           >
@@ -523,6 +468,44 @@ export const SeasonsTab = ({ championshipId: _championshipId }: SeasonsTabProps)
           />
         </div>
       </Card>
+
+      {/* Modal de confirmação de exclusão */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir a temporada <strong>"{seasonToDelete?.name}"</strong>?
+              <br />
+              Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {deleteError && (
+            <Alert variant="destructive">
+              <AlertTitle>Erro ao excluir</AlertTitle>
+              <AlertDescription>{deleteError}</AlertDescription>
+            </Alert>
+          )}
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={cancelDeleteSeason}
+              disabled={isDeleting}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={confirmDeleteSeason}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Excluindo..." : "Excluir Temporada"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }; 
