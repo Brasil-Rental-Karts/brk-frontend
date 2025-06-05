@@ -296,6 +296,10 @@ export const EditProfile = () => {
         interestCategories: Array.isArray(data.interestCategories) 
           ? data.interestCategories.map((cat: string) => parseInt(cat))
           : [],
+        // Ensure optional string fields are strings, not null
+        teamName: data.teamName || "",
+        telemetryType: data.telemetryType || "",
+        preferredTrack: data.preferredTrack || "",
       };
 
       // Remove null birthDate from submission if invalid
