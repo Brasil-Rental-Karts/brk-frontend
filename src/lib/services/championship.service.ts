@@ -9,6 +9,7 @@ export interface Sponsor {
 
 export interface ChampionshipData {
   name: string;
+  championshipImage?: string;
   shortDescription?: string;
   fullDescription?: string;
   personType: number;

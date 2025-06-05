@@ -1,12 +1,18 @@
 import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Button } from "@/components/ui/button";
+import * as z from "zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { InputMask } from "@/components/ui/input-mask";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { SponsorListField } from "@/components/ui/sponsor-list-field";
 import {
   Select,
   SelectContent,
@@ -15,21 +21,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Form,
-  FormItem,
-  FormControl,
-  FormField,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { InputMask } from "@/components/ui/input-mask";
 import { MaskType } from "@/utils/masks";
+import { SponsorListField } from "@/components/ui/sponsor-list-field";
+import { FileUpload } from "@/components/ui/file-upload";
 
 // Types for form configuration
 export interface FormFieldOption {
@@ -40,7 +41,7 @@ export interface FormFieldOption {
 export interface FormFieldConfig {
   name: string;
   id: string;
-  type: "input" | "textarea" | "select" | "checkbox" | "inputMask" | "checkbox-group" | "sponsor-list";
+  type: "input" | "textarea" | "select" | "checkbox" | "inputMask" | "checkbox-group" | "sponsor-list" | "file";
   max_char?: number;
   mandatory?: boolean;
   readonly?: boolean;
@@ -58,6 +59,10 @@ export interface FormFieldConfig {
     validate: (value: string, formData: any) => boolean;
     errorMessage: string;
   };
+  // File upload specific options
+  accept?: string;
+  maxSize?: number;
+  showPreview?: boolean;
 }
 
 export interface FormSectionConfig {
@@ -122,6 +127,9 @@ const createZodSchema = (config: FormSectionConfig[]) => {
             logoImage: z.string(),
             website: z.string().optional()
           }));
+          break;
+        case "file":
+          fieldSchema = z.string();
           break;
         default:
           fieldSchema = z.string();
@@ -231,6 +239,8 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
           defaults[field.id] = [];
         } else if (field.type === "sponsor-list") {
           defaults[field.id] = [];
+        } else if (field.type === "file") {
+          defaults[field.id] = "";
         } else {
           defaults[field.id] = "";
         }
@@ -462,6 +472,18 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                         {...commonProps}
                         value={formField.value || []}
                         onChange={formField.onChange}
+                      />
+                    );
+                  
+                  case "file":
+                    return (
+                      <FileUpload
+                        {...commonProps}
+                        value={formField.value}
+                        onChange={formField.onChange}
+                        accept={field.accept}
+                        maxSize={field.maxSize}
+                        showPreview={field.showPreview}
                       />
                     );
                   

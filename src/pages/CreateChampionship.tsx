@@ -222,6 +222,7 @@ export const CreateChampionship = () => {
     // Prepare championship data
     const championshipData: ChampionshipData = {
       name: data.name,
+      championshipImage: data.championshipImage || '',
       shortDescription: data.shortDescription || '',
       fullDescription: data.fullDescription || '',
       personType: parseInt(data.personType || '0'),
@@ -277,6 +278,16 @@ export const CreateChampionship = () => {
             mandatory: true,
             max_char: 90,
             placeholder: "Ex: Copa de Kart São Paulo 2024"
+          },
+          {
+            id: "championshipImage",
+            name: "Imagem do campeonato",
+            type: "file",
+            mandatory: false,
+            placeholder: "Faça upload da imagem ou insira uma URL",
+            accept: "image/*",
+            maxSize: 5,
+            showPreview: true
           },
           {
             id: "shortDescription",

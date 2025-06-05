@@ -235,9 +235,12 @@ export const CreateSeason = () => {
           {
             id: "seasonImage",
             name: "Imagem da temporada",
-            type: "input",
+            type: "file",
             mandatory: true,
-            placeholder: "URL da imagem (sugerimos usar Cloudinary ou Cloudimage)"
+            placeholder: "Faça upload da imagem ou insira uma URL",
+            accept: "image/*",
+            maxSize: 5,
+            showPreview: true
           },
           {
             id: "description",

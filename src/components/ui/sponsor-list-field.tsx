@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, Plus, Globe, Building2 } from 'lucide-react';
 import { Sponsor } from '@/lib/services/championship.service';
+import { FileUpload } from '@/components/ui/file-upload';
 
 interface SponsorListFieldProps {
   value?: Sponsor[];
@@ -188,15 +189,15 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
             </div>
 
             <div>
-              <label className="text-sm font-medium">
-                URL da Logo <span className="text-red-500">*</span>
-              </label>
-              <Input
+              <FileUpload
                 value={formData.logoImage}
-                onChange={(e) => setFormData(prev => ({ ...prev, logoImage: e.target.value }))}
-                placeholder="https://exemplo.com/logo.png"
-                type="url"
+                onChange={(url) => setFormData(prev => ({ ...prev, logoImage: url }))}
                 disabled={disabled}
+                placeholder="Faça upload da logo ou insira uma URL"
+                accept="image/*"
+                maxSize={5}
+                label="Logo do Patrocinador *"
+                showPreview={true}
               />
             </div>
 
