@@ -339,7 +339,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
         dynamicName = "CPF";
       } else if (personType === "1") {
         dynamicMask = "cnpj";
-        dynamicPlaceholder = "00.000.000/0001-00";
+        dynamicPlaceholder = "00.000.000/0000-00";
         dynamicName = "CNPJ";
       }
     }

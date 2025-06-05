@@ -11,6 +11,13 @@ import {
   states,
   City 
 } from "@/utils/ibge";
+import { 
+  fetchCompanyByCNPJ, 
+  isValidCNPJFormat, 
+  extractMainPhone, 
+  formatFullAddress 
+} from "@/utils/cnpj";
+import { masks } from "@/utils/masks";
 import {
   Dialog,
   DialogContent,
@@ -165,6 +172,47 @@ export const CreateChampionship = () => {
         setTimeout(() => {
           formRef.setValue("city", addressData.localidade);
         }, 500);
+      }
+    }
+    
+    if (fieldId === "document" && value && formRef) {
+      // Verifica se é pessoa jurídica e se o documento é um CNPJ válido
+      const currentFormData = formRef.getValues();
+      const personType = currentFormData.personType;
+      
+      if (personType === "1" && isValidCNPJFormat(value)) {
+        const companyData = await fetchCompanyByCNPJ(value);
+        if (companyData && formRef) {
+          // Preenche automaticamente os campos com os dados da empresa
+          formRef.setValue("socialReason", companyData.company.name);
+          
+          // Preenche dados de endereço
+          formRef.setValue("cep", masks.cep(companyData.address.zip));
+          formRef.setValue("state", companyData.address.state);
+          formRef.setValue("city", companyData.address.city);
+          formRef.setValue("fullAddress", formatFullAddress(companyData.address));
+          formRef.setValue("number", companyData.address.number);
+          
+          // Preenche telefone se não for responsável
+          const mainPhone = extractMainPhone(companyData.phones);
+          if (mainPhone && !currentFormData.isResponsible) {
+            formRef.setValue("responsiblePhone", mainPhone);
+          }
+          
+          // Remove erros dos campos que foram preenchidos automaticamente
+          formRef.clearErrors([
+            "socialReason", 
+            "cep", 
+            "state", 
+            "city", 
+            "fullAddress", 
+            "number",
+            "responsiblePhone"
+          ]);
+          
+          // Carrega as cidades do estado encontrado
+          await loadCities(companyData.address.state);
+        }
       }
     }
   };
@@ -355,7 +403,7 @@ export const CreateChampionship = () => {
             type: "inputMask",
             mandatory: true,
             mask: "cep",
-            placeholder: "00000-000 (preencherá endereço automaticamente)"
+            placeholder: "00000-000"
           },
           {
             id: "state",
