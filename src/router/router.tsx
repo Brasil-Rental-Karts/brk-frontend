@@ -14,7 +14,7 @@ const Login = lazy(() => import('@/pages/Login').then(module => ({ default: modu
 const Register = lazy(() => import('@/pages/Register').then(module => ({ default: module.Register })));
 const ResetPassword = lazy(() => import('@/pages/ResetPassword').then(module => ({ default: module.ResetPassword })));
 const ResetPasswordSuccess = lazy(() => import('@/pages/ResetPasswordSuccess').then(module => ({ default: module.ResetPasswordSuccess })));
-const ChangePassword = lazy(() => import('@/pages/ChangePassword').then(module => ({ default: module.ChangePassword })));
+const ChangePassword = lazy(() => import('@/pages/ChangePassword'));
 const CompleteProfile = lazy(() => import('@/pages/CompleteProfile'));
 const CreateChampionship = lazy(() => import('@/pages/CreateChampionship'));
 const CreateSeason = lazy(() => import('@/pages/CreateSeason'));
@@ -245,13 +245,9 @@ export const router = createBrowserRouter([
       {
         path: "change-password",
         element: (
-          <ProtectedRoute>
-            <MainLayout>
-              <LazyWrapper>
-                <ChangePassword />
-              </LazyWrapper>
-            </MainLayout>
-          </ProtectedRoute>
+          <LazyWrapper>
+            <ChangePassword />
+          </LazyWrapper>
         ),
       },
 

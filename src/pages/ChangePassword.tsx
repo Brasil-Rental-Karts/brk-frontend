@@ -43,7 +43,7 @@ const formSchema = z
     path: ["confirmPassword"],
   });
 
-export function ChangePassword() {
+function ChangePassword() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -181,4 +181,6 @@ export function ChangePassword() {
       </Card>
     </motion.div>
   );
-} 
+}
+
+export default ChangePassword; 

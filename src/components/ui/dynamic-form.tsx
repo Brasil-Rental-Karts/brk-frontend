@@ -361,7 +361,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                 const commonProps = {
                   'aria-invalid': hasError,
                   'data-invalid': hasError,
-                  readonly: field.readonly,
+                  readOnly: field.readonly,
                   disabled: field.disabled,
                 };
 
@@ -371,6 +371,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                       <Input
                         {...formField}
                         {...commonProps}
+                        value={formField.value || ""}
                         placeholder={dynamicPlaceholder}
                         maxLength={field.max_char}
                       />
@@ -392,6 +393,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                       <textarea
                         {...formField}
                         {...commonProps}
+                        value={formField.value || ""}
                         placeholder={dynamicPlaceholder}
                         maxLength={field.max_char}
                         className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -402,7 +404,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                     return (
                       <Select
                         onValueChange={formField.onChange}
-                        value={formField.value}
+                        value={formField.value || ""}
                         disabled={field.disabled}
                       >
                         <SelectTrigger {...commonProps}>
@@ -425,7 +427,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                     return (
                       <div className="flex items-center space-x-2">
                         <Checkbox
-                          checked={formField.value}
+                          checked={!!formField.value}
                           onCheckedChange={formField.onChange}
                           disabled={field.disabled}
                           aria-invalid={hasError}
@@ -488,7 +490,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                     );
                   
                   default:
-                    return <Input {...formField} {...commonProps} />;
+                    return <Input {...formField} {...commonProps} value={formField.value || ""} />;
                 }
               })()}
             </FormControl>

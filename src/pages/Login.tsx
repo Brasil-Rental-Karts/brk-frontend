@@ -53,9 +53,9 @@ export function Login() {
     if (location.state?.error) {
       setError(location.state.error);
       // Clear the error from location state to avoid showing it again on refresh
-      navigate(location.pathname, { replace: true, state: {} });
+      window.history.replaceState({}, '', location.pathname);
     }
-  }, [location, navigate]);
+  }, [location.state, location.pathname]);
 
   const formLogin = useForm({
     resolver: zodResolver(
@@ -84,13 +84,21 @@ export function Login() {
       }
     } catch (error: any) {
       console.error("Login failed:", error);
+      console.log("Error details:", {
+        response: error.response,
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.response?.data?.message
+      });
       
       if (error.response) {
         const status = error.response.status;
         const message = error.response.data?.message;
         
         if (status === 401) {
-          setError(message || "Email ou senha incorretos. Por favor, verifique suas credenciais.");
+          const errorMessage = message || "Email ou senha incorretos. Por favor, verifique suas credenciais.";
+          console.log("Setting error message:", errorMessage);
+          setError(errorMessage);
         } else if (status === 403) {
           setError("Sua conta não tem permissão para acessar o sistema.");
         } else if (status === 429) {
@@ -119,6 +127,8 @@ export function Login() {
     }
   };
 
+  console.log("Rendering Login, error state:", error);
+
   return (
     <div>
       <div className="text-center mb-6">
@@ -131,6 +141,13 @@ export function Login() {
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
           <span className="block sm:inline">{error}</span>
+          <button 
+            className="absolute top-0 bottom-0 right-0 px-4 py-3"
+            onClick={() => setError(null)}
+          >
+            <span className="sr-only">Fechar</span>
+            ×
+          </button>
         </div>
       )}
 

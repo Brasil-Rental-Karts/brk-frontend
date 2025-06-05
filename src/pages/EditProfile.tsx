@@ -354,7 +354,7 @@ export const EditProfile = () => {
             id: "nickName",
             name: "Apelido",
             type: "input",
-            mandatory: true,
+            mandatory: false,
             max_char: 100,
             placeholder: "Digite seu apelido ou nome de piloto"
           },
@@ -644,6 +644,19 @@ export const EditProfile = () => {
               : [],
             // Format birth date for display using utility function
             birthDate: formatDateForDisplay(profileData?.birthDate || ""),
+            // Ensure optional string fields are never null
+            name: profileData?.name || "",
+            nickName: profileData?.nickName || "",
+            phone: profileData?.phone || "",
+            city: profileData?.city || "",
+            state: profileData?.state || "",
+            teamName: profileData?.teamName || "",
+            telemetryType: profileData?.telemetryType || "",
+            preferredTrack: profileData?.preferredTrack || "",
+            // Ensure boolean fields have proper default values
+            hasOwnKart: !!profileData?.hasOwnKart,
+            isTeamMember: !!profileData?.isTeamMember,
+            usesTelemetry: !!profileData?.usesTelemetry,
           }}
         />
       </div>
