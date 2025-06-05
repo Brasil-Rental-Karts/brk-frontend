@@ -287,12 +287,12 @@ export const EventTab = ({ championshipId: _championshipId }: EventTabProps) => 
   };
 
   const handleAddEvent = () => {
-    console.log("Adicionar novo evento");
+    
     // TODO: Implementar modal ou navegação para criação de evento
   };
 
-  const handleEventAction = (action: string, eventId: string) => {
-    console.log(`Ação: ${action} para evento: ${eventId}`);
+  const handleEventAction = (_action: string, _eventId: string) => {
+    
     // TODO: Implementar ações específicas
   };
 

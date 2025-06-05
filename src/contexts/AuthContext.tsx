@@ -78,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { url } = await AuthService.getGoogleAuthUrl();
       window.location.href = url;
     } catch (error) {
-      console.error('Failed to initiate Google login:', error);
+      throw error;
     }
   };
 

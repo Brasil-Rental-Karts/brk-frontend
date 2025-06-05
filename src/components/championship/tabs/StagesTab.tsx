@@ -224,12 +224,12 @@ export const StagesTab = ({ championshipId: _championshipId }: StagesTabProps) =
   };
 
   const handleAddStage = () => {
-    console.log("Adicionar nova etapa");
+    
     // TODO: Implementar modal ou navegação para criação de etapa
   };
 
-  const handleStageAction = (action: string, stageId: string) => {
-    console.log(`Ação: ${action} para etapa: ${stageId}`);
+  const handleStageAction = (_action: string, _stageId: string) => {
+    
     // TODO: Implementar ações específicas
   };
 

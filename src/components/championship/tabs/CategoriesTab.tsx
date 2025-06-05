@@ -212,12 +212,12 @@ export const CategoriesTab = ({ championshipId: _championshipId }: CategoriesTab
   };
 
   const handleAddCategory = () => {
-    console.log("Adicionar nova categoria");
+    
     // TODO: Implementar modal ou navegação para criação de categoria
   };
 
-  const handleCategoryAction = (action: string, categoryId: string) => {
-    console.log(`Ação: ${action} para categoria: ${categoryId}`);
+  const handleCategoryAction = (_action: string, _categoryId: string) => {
+    
     // TODO: Implementar ações específicas
   };
 

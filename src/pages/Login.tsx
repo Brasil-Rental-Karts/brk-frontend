@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,7 +33,6 @@ const formSchema = {
 };
 
 export function Login() {
-  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { login, isLoading, loginWithGoogle, isAuthenticated, isFirstLogin } = useAuth();
@@ -51,7 +51,7 @@ export function Login() {
   // Check for error message in the location state (from redirects)
   useEffect(() => {
     if (location.state?.error) {
-      setError(location.state.error);
+      toast.error(location.state.error);
       // Clear the error from location state to avoid showing it again on refresh
       window.history.replaceState({}, '', location.pathname);
     }
@@ -71,10 +71,11 @@ export function Login() {
   });
 
   const onSubmit = async (values: { email: string; password: string }) => {
-    setError(null);
-
     try {
       const { firstLogin } = await login(values);
+      
+      // Show success message
+      toast.success("Login realizado com sucesso!");
       
       // Redirect based on firstLogin status
       if (firstLogin) {
@@ -83,51 +84,51 @@ export function Login() {
         navigate("/dashboard");
       }
     } catch (error: any) {
-      console.error("Login failed:", error);
-      console.log("Error details:", {
-        response: error.response,
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.response?.data?.message
-      });
-      
       if (error.response) {
         const status = error.response.status;
         const message = error.response.data?.message;
         
         if (status === 401) {
+          // Use the specific message from backend
           const errorMessage = message || "Email ou senha incorretos. Por favor, verifique suas credenciais.";
-          console.log("Setting error message:", errorMessage);
-          setError(errorMessage);
+          toast.error(errorMessage);
         } else if (status === 403) {
-          setError("Sua conta não tem permissão para acessar o sistema.");
+          const errorMessage = message || "Sua conta não tem permissão para acessar o sistema.";
+          toast.error(errorMessage);
         } else if (status === 429) {
-          setError("Muitas tentativas de login. Por favor, tente novamente mais tarde.");
+          const errorMessage = message || "Muitas tentativas de login. Por favor, tente novamente mais tarde.";
+          toast.error(errorMessage);
+        } else if (status >= 400 && status < 500) {
+          // Client errors
+          const errorMessage = message || "Erro na solicitação. Por favor, verifique os dados informados.";
+          toast.error(errorMessage);
+        } else if (status >= 500) {
+          // Server errors
+          const errorMessage = message || "Erro interno do servidor. Por favor, tente novamente mais tarde.";
+          toast.error(errorMessage);
         } else if (message) {
-          setError(message);
+          toast.error(message);
         } else {
-          setError("Erro ao fazer login. Por favor, tente novamente.");
+          toast.error("Erro ao fazer login. Por favor, tente novamente.");
         }
       } else if (error.request) {
-        setError("Não foi possível conectar ao servidor. Verifique sua conexão de internet.");
+        toast.error("Não foi possível conectar ao servidor. Verifique sua conexão de internet.");
+      } else if (error.message) {
+        toast.error(error.message);
       } else {
-        setError("Falha na autenticação. Por favor, verifique seu email e senha.");
+        toast.error("Falha na autenticação. Por favor, verifique seu email e senha.");
       }
     }
   };
 
   const handleGoogleLogin = async () => {
-    setError(null);
     try {
       await loginWithGoogle();
       // No navigation needed here as the page will redirect to Google
     } catch (error: any) {
-      console.error("Google login failed:", error);
-      setError("Erro ao iniciar login com Google. Por favor, tente novamente.");
+      toast.error("Erro ao iniciar login com Google. Por favor, tente novamente.");
     }
   };
-
-  console.log("Rendering Login, error state:", error);
 
   return (
     <div>
@@ -137,19 +138,6 @@ export function Login() {
           Entre com seu email e senha para acessar a plataforma
         </p>
       </div>
-
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-          <span className="block sm:inline">{error}</span>
-          <button 
-            className="absolute top-0 bottom-0 right-0 px-4 py-3"
-            onClick={() => setError(null)}
-          >
-            <span className="sr-only">Fechar</span>
-            ×
-          </button>
-        </div>
-      )}
 
       <Form {...formLogin}>
         <form

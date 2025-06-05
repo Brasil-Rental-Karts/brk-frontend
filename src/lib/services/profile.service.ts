@@ -13,17 +13,11 @@ export const ProfileService = {
       };
       
       // Log the request payload for debugging
-      console.log('Member profile update request payload:', requestPayload);
+    
       
       const response = await api.put<any>('/member-profiles', requestPayload);
       return response.data;
     } catch (error: any) {
-      // Log detailed error information
-      console.error('Profile update error details:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        headers: error.response?.headers
-      });
       throw error;
     }
   },
@@ -32,11 +26,6 @@ export const ProfileService = {
       const response = await api.get<any>('/member-profiles');
       return response.data;
     } catch (error: any) {
-      console.error('Profile fetch error details:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        headers: error.response?.headers
-      });
       throw error;
     }
   }

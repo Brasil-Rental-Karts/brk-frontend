@@ -19,7 +19,7 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
 
   const handleSettings = () => {
     // TODO: Implementar navegação para configurações
-    console.log('Abrir configurações do campeonato:', championship.id);
+
   };
 
   // Gerar iniciais do nome do campeonato para o avatar

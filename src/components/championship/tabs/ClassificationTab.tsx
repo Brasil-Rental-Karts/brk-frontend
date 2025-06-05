@@ -264,7 +264,7 @@ export const ClassificationTab = ({ championshipId: _championshipId }: Classific
   };
 
   const handleExportClassification = () => {
-    console.log("Exportar classificação");
+    
     // TODO: Implementar exportação da classificação
   };
 

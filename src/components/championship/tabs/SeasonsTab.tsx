@@ -208,7 +208,7 @@ export const SeasonsTab = ({ championshipId }: SeasonsTabProps) => {
     switch (action) {
       case "view":
         // TODO: Implementar visualização de detalhes da temporada
-        console.log(`Ver detalhes da temporada: ${seasonId}`);
+
         break;
       case "edit":
         handleEditSeason(seasonId);
@@ -217,7 +217,7 @@ export const SeasonsTab = ({ championshipId }: SeasonsTabProps) => {
         handleDeleteSeason(season);
         break;
       default:
-        console.log(`Ação desconhecida: ${action} para temporada: ${seasonId}`);
+
     }
   };
 

@@ -131,9 +131,7 @@ export const EditProfile = () => {
     const loadProfileData = async () => {
       setIsLoading(true);
       try {
-        console.log('Tentando carregar perfil do usuário...', { user });
         const data = await ProfileService.getMemberProfile();
-        console.log('Dados do perfil carregados com sucesso:', data);
         setProfileData(data);
         
         // Prepare initial form data exactly as it will be used in the form
@@ -169,9 +167,7 @@ export const EditProfile = () => {
           setFormInitialized(true);
         }, 500);
       } catch (err: any) {
-        console.error('Erro ao carregar perfil:', err);
-        console.error('Status do erro:', err.response?.status);
-        console.error('Dados do erro:', err.response?.data);
+
         
         if (err.response?.status === 401) {
           setError('Você precisa estar logado para acessar esta página. Redirecionando para o login...');
@@ -189,7 +185,6 @@ export const EditProfile = () => {
     if (user) {
       loadProfileData();
     } else {
-      console.log('Usuário não encontrado, redirecionando para login...');
       navigate('/auth/login');
     }
   }, [user, navigate]);
@@ -307,9 +302,7 @@ export const EditProfile = () => {
         delete processedData.birthDate;
       }
 
-      console.log('Processando dados para submissão:', processedData);
 
-      console.log('Salvando perfil com dados:', processedData);
       
       await ProfileService.updateMemberProfile(processedData);
       setSaveSuccessful(true);
@@ -318,7 +311,6 @@ export const EditProfile = () => {
       // Navigate to dashboard after successful save
       navigate('/dashboard', { replace: true });
     } catch (err: any) {
-      console.error('Erro ao salvar perfil:', err);
       setError(err.message || 'Erro ao salvar perfil. Tente novamente.');
       setIsSaving(false);
       scrollToFirstError();

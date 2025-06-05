@@ -45,6 +45,8 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     const isRefresh = originalRequest.url && originalRequest.url.includes('/auth/refresh-token');
     const isUnprotected = originalRequest.url && unprotectedRoutes.some(route => originalRequest.url.includes(route));
+    
+    // For 401 errors, only attempt token refresh if it's not a login attempt or other unprotected route
     if (error.response && error.response.status === 401 && !originalRequest._retry && !isRefresh && !isUnprotected) {
       if (isRefreshing) {
         // Se já está tentando refresh, aguarda na fila
@@ -67,10 +69,8 @@ api.interceptors.response.use(
         isRefreshing = false;
       }
     }
-    if (error.response && error.response.status === 403) {
-      // Handle forbidden errors
-      console.error('Access forbidden:', error.response.data);
-    }
+    
+    // For all other errors (including 401 on login attempts), just pass them through
     return Promise.reject(error);
   }
 );
