@@ -155,6 +155,9 @@ export const CreateChampionship = () => {
         formRef.setValue("state", addressData.uf);
         formRef.setValue("fullAddress", addressData.logradouro);
         
+        // Remove erros dos campos que serão preenchidos automaticamente
+        formRef.clearErrors(["state", "city", "fullAddress"]);
+        
         // Carrega as cidades do estado encontrado
         await loadCities(addressData.uf);
         
