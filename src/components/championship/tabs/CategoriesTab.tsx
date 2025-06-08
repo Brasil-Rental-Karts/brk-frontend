@@ -1,8 +1,9 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Tag, Users, MoreVertical } from "lucide-react";
+import { PlusCircle, Tag, Users, MoreVertical, Calendar, Hash } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   DropdownMenu,
@@ -18,20 +19,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
 import { Pagination } from "@/components/ui/pagination";
 import { usePagination } from "@/hooks/usePagination";
-
-interface Category {
-  id: string;
-  name: string;
-  description: string;
-  minAge: number;
-  maxAge: number;
-  participants: number;
-  maxParticipants: number;
-  status: "Ativo" | "Inativo";
-}
+import { CategoryService, Category } from "@/lib/services/category.service";
+import { SeasonService } from "@/lib/services/season.service";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface CategoriesTabProps {
   championshipId: string;
@@ -40,142 +42,99 @@ interface CategoriesTabProps {
 // Configuração dos filtros
 const filterFields: FilterField[] = [
   {
-    key: 'status',
-    label: 'Status',
+    key: 'seasonId',
+    label: 'Temporada',
     type: 'combobox',
-    placeholder: 'Selecionar status',
-    options: [
-      { value: 'Ativo', label: 'Ativo' },
-      { value: 'Inativo', label: 'Inativo' },
-    ]
-  },
-  {
-    key: 'name',
-    label: 'Nome',
-    type: 'text',
-    placeholder: 'Buscar por nome',
+    placeholder: 'Todas as temporadas',
+    options: [] // Will be populated dynamically
   }
 ];
 
 /**
- * Componente da aba Categorias
- * Exibe lista de categorias do campeonato com opções de gerenciamento
+ * Tab de categorias do campeonato
+ * Exibe e gerencia as categorias de um campeonato específico
  */
-export const CategoriesTab = ({ championshipId: _championshipId }: CategoriesTabProps) => {
+export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortBy, setSortBy] = useState<keyof Category>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalCategories, setTotalCategories] = useState(0);
 
-  // TODO: Usar _championshipId para buscar dados reais da API
-  // Mock data expandido para testar paginação
-  const [categories] = useState<Category[]>([
-    {
-      id: "1",
-      name: "Mirim",
-      description: "Categoria para pilotos iniciantes",
-      minAge: 8,
-      maxAge: 12,
-      participants: 25,
-      maxParticipants: 30,
-      status: "Ativo",
-    },
-    {
-      id: "2",
-      name: "Cadete",
-      description: "Categoria intermediária",
-      minAge: 13,
-      maxAge: 17,
-      participants: 35,
-      maxParticipants: 40,
-      status: "Ativo",
-    },
-    {
-      id: "3",
-      name: "Júnior",
-      description: "Categoria para jovens pilotos",
-      minAge: 18,
-      maxAge: 25,
-      participants: 28,
-      maxParticipants: 35,
-      status: "Ativo",
-    },
-    {
-      id: "4",
-      name: "Sênior",
-      description: "Categoria principal",
-      minAge: 26,
-      maxAge: 45,
-      participants: 42,
-      maxParticipants: 50,
-      status: "Ativo",
-    },
-    {
-      id: "5",
-      name: "Master",
-      description: "Categoria para pilotos experientes",
-      minAge: 46,
-      maxAge: 99,
-      participants: 18,
-      maxParticipants: 25,
-      status: "Ativo",
-    },
-    {
-      id: "6",
-      name: "Super Master",
-      description: "Categoria para veteranos experientes",
-      minAge: 56,
-      maxAge: 99,
-      participants: 12,
-      maxParticipants: 20,
-      status: "Ativo",
-    },
-    {
-      id: "7",
-      name: "Graduados",
-      description: "Categoria para pilotos formados",
-      minAge: 16,
-      maxAge: 99,
-      participants: 22,
-      maxParticipants: 25,
-      status: "Ativo",
-    },
-    {
-      id: "8",
-      name: "Especial",
-      description: "Categoria para eventos especiais",
-      minAge: 18,
-      maxAge: 99,
-      participants: 0,
-      maxParticipants: 15,
-      status: "Inativo",
-    },
-  ]);
+  // Estados para o modal de exclusão
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Configuração da paginação
+  const pagination = usePagination(totalCategories, 5, 1);
+
+  // Buscar categorias do backend
+  const fetchCategories = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Buscar todas as temporadas do campeonato
+      const seasonsData = await SeasonService.getByChampionshipId(championshipId, 1, 100);
+      
+      // Atualizar opções do filtro
+      const seasonOptions = [
+        { value: '', label: 'Todas as temporadas' },
+        ...seasonsData.data.map((season: any) => ({
+          value: season.id,
+          label: season.name
+        }))
+      ];
+      filterFields[0].options = seasonOptions;
+
+      // Buscar categorias
+      let allCategories: Category[] = [];
+      
+      if (filters.seasonId) {
+        // Se filtro por temporada específica
+        allCategories = await CategoryService.getBySeasonId(filters.seasonId as string);
+      } else {
+        // Buscar de todas as temporadas
+        for (const season of seasonsData.data) {
+          try {
+            const seasonCategories = await CategoryService.getBySeasonId(season.id);
+            allCategories.push(...seasonCategories);
+          } catch (err) {
+            console.warn(`Error loading categories for season ${season.id}:`, err);
+          }
+        }
+      }
+
+      setCategories(allCategories);
+      setTotalCategories(allCategories.length);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao carregar categorias');
+      setCategories([]);
+      setTotalCategories(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [championshipId, filters.seasonId]);
+
+  // Carregar categorias quando a página ou filtros mudarem
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   // Aplicar filtros e ordenação aos dados
   const processedCategories = useMemo(() => {
     let result = [...categories];
-
-    // Aplicar filtros
-    result = result.filter(category => {
-      // Filtro por status
-      if (filters.status && category.status !== filters.status) {
-        return false;
-      }
-
-      // Filtro por nome
-      if (filters.name && !category.name.toLowerCase().includes(filters.name.toLowerCase())) {
-        return false;
-      }
-
-      return true;
-    });
 
     // Aplicar ordenação
     result.sort((a, b) => {
       let aValue: any = a[sortBy];
       let bValue: any = b[sortBy];
 
-      // Tratamento especial para diferentes tipos de dados
       if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
@@ -191,16 +150,7 @@ export const CategoriesTab = ({ championshipId: _championshipId }: CategoriesTab
     });
 
     return result;
-  }, [categories, filters, sortBy, sortOrder]);
-
-  // Configuração da paginação
-  const pagination = usePagination(processedCategories.length, 5, 1);
-  
-  // Dados da página atual
-  const currentPageCategories = useMemo(() => {
-    const { startIndex, endIndex } = pagination.info;
-    return processedCategories.slice(startIndex, endIndex);
-  }, [processedCategories, pagination.info]);
+  }, [categories, sortBy, sortOrder]);
 
   const handleSort = (column: keyof Category) => {
     if (sortBy === column) {
@@ -212,31 +162,69 @@ export const CategoriesTab = ({ championshipId: _championshipId }: CategoriesTab
   };
 
   const handleAddCategory = () => {
-    
-    // TODO: Implementar modal ou navegação para criação de categoria
+    navigate(`/championship/${championshipId}/create-category`);
   };
 
-  const handleCategoryAction = (_action: string, _categoryId: string) => {
-    
-    // TODO: Implementar ações específicas
+  const handleEditCategory = (categoryId: string) => {
+    navigate(`/championship/${championshipId}/category/${categoryId}/edit`);
   };
 
-  const getStatusColor = (status: Category["status"]) => {
-    switch (status) {
-      case "Ativo":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
-      case "Inativo":
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
+  const handleDeleteCategory = (category: Category) => {
+    setCategoryToDelete(category);
+    setDeleteError(null);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      await CategoryService.delete(categoryToDelete.id);
+      
+      // Atualizar a lista de categorias
+      await fetchCategories();
+      
+      // Fechar o modal
+      setShowDeleteDialog(false);
+      setCategoryToDelete(null);
+    } catch (err: any) {
+      setDeleteError(err.message || 'Erro ao excluir categoria');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  const getOccupancyColor = (current: number, max: number) => {
-    const percentage = (current / max) * 100;
-    if (percentage >= 90) return "text-red-600";
-    if (percentage >= 70) return "text-yellow-600";
-    return "text-green-600";
+  const cancelDeleteCategory = () => {
+    setShowDeleteDialog(false);
+    setCategoryToDelete(null);
+    setDeleteError(null);
+  };
+
+  const handleCategoryAction = (action: string, categoryId: string) => {
+    const category = categories.find(c => c.id === categoryId);
+    if (!category) return;
+
+    switch (action) {
+      case "view":
+        // TODO: Implementar visualização de detalhes da categoria
+        break;
+      case "edit":
+        handleEditCategory(categoryId);
+        break;
+      case "delete":
+        handleDeleteCategory(category);
+        break;
+      default:
+    }
+  };
+
+  const getSeasonName = (seasonId: string) => {
+    // Buscar nome da temporada do cache
+    const seasonOption = filterFields[0].options?.find((opt: any) => opt.value === seasonId);
+    return seasonOption ? seasonOption.label : 'Temporada não encontrada';
   };
 
   const handleFiltersChange = useCallback((newFilters: FilterValues) => {
@@ -254,154 +242,184 @@ export const CategoriesTab = ({ championshipId: _championshipId }: CategoriesTab
     pagination.actions.setItemsPerPage(itemsPerPage);
   }, [pagination.actions.setItemsPerPage]);
 
+  if (loading) {
+    return (
+      <Card className="w-full">
+        <div className="p-6 space-y-4">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="w-full">
+        <div className="p-6">
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <div className="mt-4">
+            <Button onClick={fetchCategories} variant="outline">
+              Tentar novamente
+            </Button>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
   if (processedCategories.length === 0 && Object.keys(filters).length === 0) {
     return (
       <EmptyState
         icon={Tag}
         title="Nenhuma categoria criada"
-        description="Crie suas primeiras categorias para organizar os participantes"
+        description="Crie sua primeira categoria para começar a organizar os participantes"
         action={{
-          label: "Adicionar Categoria",
-          onClick: handleAddCategory,
+          label: "Criar Categoria",
+          onClick: handleAddCategory
         }}
       />
     );
   }
 
   return (
-    <div className="space-y-6 h-full flex flex-col">
-      {/* Header da seção */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 flex-shrink-0">
-        <div>
-          <h2 className="text-2xl font-bold">Categorias</h2>
-          <p className="text-muted-foreground">
-            Gerencie as categorias de participação do campeonato
-          </p>
+    <div className="space-y-6">
+      {/* Header com filtros e ação */}
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+        <div className="flex-1 w-full sm:w-auto">
+          <DynamicFilter
+            fields={filterFields}
+            onFiltersChange={handleFiltersChange}
+            className="w-full"
+          />
         </div>
-        <Button onClick={handleAddCategory} className="sm:w-auto">
+        <Button onClick={handleAddCategory} className="w-full sm:w-auto">
           <PlusCircle className="mr-2 h-4 w-4" />
-          Adicionar Categoria
+          Nova Categoria
         </Button>
       </div>
 
-      {/* Filtros dinâmicos */}
-      <div className="flex-shrink-0">
-        <DynamicFilter
-          fields={filterFields}
-          onFiltersChange={handleFiltersChange}
-        />
-      </div>
-
-      {/* Tabela de categorias com altura adaptável */}
-      <Card className="flex flex-col flex-1 min-h-0">
+      {/* Tabela de categorias */}
+      <Card className="w-full flex flex-col min-h-[600px]">
         <div className="flex-1 overflow-auto">
           <Table>
-            <TableHeader className="sticky top-0 bg-background z-10 border-b">
+            <TableHeader>
               <TableRow>
                 <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 py-3"
+                  className="cursor-pointer hover:bg-muted/50 min-w-[200px]"
                   onClick={() => handleSort("name")}
                 >
-                  Nome da Categoria
-                  {sortBy === "name" && (
-                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    Nome da Categoria
+                    {sortBy === "name" && (
+                      <span className="text-xs">
+                        {sortOrder === "asc" ? "↑" : "↓"}
+                      </span>
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead className="py-3">Descrição</TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 py-3"
-                  onClick={() => handleSort("minAge")}
-                >
-                  Faixa Etária
-                  {sortBy === "minAge" && (
-                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                  )}
+                <TableHead className="text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Temporada
+                  </div>
                 </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 py-3"
-                  onClick={() => handleSort("participants")}
-                >
-                  Participantes
-                  {sortBy === "participants" && (
-                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                  )}
+                <TableHead className="text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    Lastro
+                  </div>
                 </TableHead>
                 <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 py-3"
-                  onClick={() => handleSort("status")}
+                  className="cursor-pointer hover:bg-muted/50 text-center"
+                  onClick={() => handleSort("maxPilots")}
                 >
-                  Status
-                  {sortBy === "status" && (
-                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
-                  )}
+                  <div className="flex items-center justify-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Máx. Pilotos
+                    {sortBy === "maxPilots" && (
+                      <span className="text-xs">
+                        {sortOrder === "asc" ? "↑" : "↓"}
+                      </span>
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead className="w-10 py-3"></TableHead>
+                <TableHead className="text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <Hash className="h-4 w-4" />
+                    Baterias
+                  </div>
+                </TableHead>
+                <TableHead className="text-center">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentPageCategories.length === 0 ? (
+              {processedCategories.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     Nenhuma categoria encontrada com os filtros aplicados
                   </TableCell>
                 </TableRow>
               ) : (
-                currentPageCategories.map((category) => (
+                processedCategories.map((category) => (
                   <TableRow key={category.id} className="hover:bg-muted/50">
-                    <TableCell className="font-medium py-2">
-                      <div className="flex items-center gap-2">
-                        <Tag className="h-4 w-4 text-muted-foreground" />
-                        {category.name}
+                    <TableCell className="py-4">
+                      <div>
+                        <div className="font-medium">{category.name}</div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          Idade mín: {category.minimumAge} anos
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell className="py-2 max-w-xs truncate">
-                      {category.description}
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <span className="text-sm">
-                        {category.minAge} - {category.maxAge} anos
-                      </span>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-3 w-3 text-muted-foreground" />
-                        <span 
-                          className={`text-sm font-medium ${getOccupancyColor(category.participants, category.maxParticipants)}`}
-                        >
-                          {category.participants}/{category.maxParticipants}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <Badge className={getStatusColor(category.status)}>
-                        {category.status}
+                    <TableCell className="text-center py-4">
+                      <Badge variant="outline">
+                        {getSeasonName(category.seasonId)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="py-2">
+                    <TableCell className="text-center py-4">
+                      <div className="text-sm font-medium">
+                        {category.ballast}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center py-4">
+                      <div className="text-sm font-medium">
+                        {category.maxPilots}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        pilotos
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center py-4">
+                      <div className="text-sm font-medium">
+                        {category.batteryQuantity}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {category.startingGridFormat}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center py-4">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
                             <MoreVertical className="h-4 w-4" />
-                            <span className="sr-only">Abrir menu</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => handleCategoryAction("view", category.id)}
-                          >
+                          <DropdownMenuItem onClick={() => handleCategoryAction("view", category.id)}>
                             Ver detalhes
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleCategoryAction("edit", category.id)}
-                          >
+                          <DropdownMenuItem onClick={() => handleCategoryAction("edit", category.id)}>
                             Editar
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleCategoryAction("participants", category.id)}
-                          >
-                            Gerenciar participantes
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
+                          <DropdownMenuItem 
                             onClick={() => handleCategoryAction("delete", category.id)}
                             className="text-destructive"
                           >
@@ -433,6 +451,44 @@ export const CategoriesTab = ({ championshipId: _championshipId }: CategoriesTab
           />
         </div>
       </Card>
+
+      {/* Modal de confirmação de exclusão */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir a categoria <strong>"{categoryToDelete?.name}"</strong>?
+              <br />
+              Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {deleteError && (
+            <Alert variant="destructive">
+              <AlertTitle>Erro ao excluir</AlertTitle>
+              <AlertDescription>{deleteError}</AlertDescription>
+            </Alert>
+          )}
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={cancelDeleteCategory}
+              disabled={isDeleting}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={confirmDeleteCategory}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Excluindo..." : "Excluir Categoria"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }; 

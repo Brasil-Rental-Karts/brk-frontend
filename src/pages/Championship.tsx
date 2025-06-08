@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChampionshipHeader } from "@/components/championship/ChampionshipHeader";
@@ -20,7 +20,41 @@ import { AlertTriangle } from "lucide-react";
  */
 export const Championship = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("temporadas");
+
+  // Mapeamento de tabs (aceita inglês e português)
+  const tabMapping: { [key: string]: string } = {
+    'seasons': 'temporadas',
+    'temporadas': 'temporadas',
+    'stages': 'etapas', 
+    'etapas': 'etapas',
+    'categories': 'categorias',
+    'categorias': 'categorias',
+    'classification': 'classificacao',
+    'classificacao': 'classificacao',
+    'event': 'evento',
+    'evento': 'evento'
+  };
+
+  // Ler o parâmetro tab da URL ao montar o componente
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab");
+    console.log('=== Championship Tab Debug ===');
+    console.log('tabFromUrl:', tabFromUrl);
+    
+    if (tabFromUrl) {
+      const mappedTab = tabMapping[tabFromUrl.toLowerCase()];
+      console.log('mappedTab:', mappedTab);
+      
+      if (mappedTab) {
+        console.log('Setting activeTab to:', mappedTab);
+        setActiveTab(mappedTab);
+      } else {
+        console.log('Invalid tab, using default: temporadas');
+      }
+    }
+  }, [searchParams]);
   
   const {
     championship,
@@ -69,7 +103,10 @@ export const Championship = () => {
       </div>
 
       {/* Sistema de tabs unificado - colado com o header */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
+      <Tabs value={activeTab} onValueChange={(value) => {
+        setActiveTab(value);
+        setSearchParams({ tab: value });
+      }} className="h-full">
         {/* Seção das tabs com fundo escuro - sem espaçamento do header */}
         <div className="bg-dark-900 border-b border-white/10 -mx-6">
           <div className="px-10">

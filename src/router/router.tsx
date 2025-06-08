@@ -18,6 +18,7 @@ const ChangePassword = lazy(() => import('@/pages/ChangePassword'));
 const CompleteProfile = lazy(() => import('@/pages/CompleteProfile'));
 const CreateChampionship = lazy(() => import('@/pages/CreateChampionship'));
 const CreateSeason = lazy(() => import('@/pages/CreateSeason'));
+const CreateCategory = lazy(() => import('@/pages/CreateCategory'));
 const Championship = lazy(() => import('@/pages/Championship').then(module => ({ default: module.Championship })));
 const EditProfile = lazy(() => import('@/pages/EditProfile'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
@@ -213,6 +214,42 @@ export const router = createBrowserRouter([
             <MainLayout>
               <LazyWrapper>
                 <CreateSeason />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "championship/:championshipId/create-category",
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <LazyWrapper>
+                <CreateCategory />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "championship/:championshipId/season/:seasonId/create-category",
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <LazyWrapper>
+                <CreateCategory />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "championship/:championshipId/category/:categoryId/edit",
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <LazyWrapper>
+                <CreateCategory />
               </LazyWrapper>
             </MainLayout>
           </ProtectedRoute>
