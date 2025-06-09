@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { GridType, GridTypeEnum } from "@/lib/types/grid-type";
 import { GridTypeService } from "@/lib/services/grid-type.service";
 import { GridTypeForm } from "./GridTypeForm";
+import { GridTypeIcon } from "@/lib/icons/grid-type-icons";
 
 interface GridTypesTabProps {
   championshipId: string;
@@ -163,16 +164,7 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
 
   // Função para obter o ícone do tipo de grid
   const getGridTypeIcon = (type: GridTypeEnum) => {
-    switch (type) {
-      case GridTypeEnum.SUPER_POLE:
-        return "⚡";
-      case GridTypeEnum.INVERTED:
-        return "🔄";
-      case GridTypeEnum.INVERTED_PARTIAL:
-        return "🔃";
-      default:
-        return "📊";
-    }
+    return <GridTypeIcon type={type} size={24} withColor={true} />;
   };
 
   // Verificar se pode desativar um tipo de grid
@@ -259,7 +251,7 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-3">
-                  <div className="text-2xl">{getGridTypeIcon(gridType.type)}</div>
+                  <div className="mt-1">{getGridTypeIcon(gridType.type)}</div>
                   <div>
                     <div className="flex items-center gap-2">
                       <CardTitle className="text-base">{gridType.name}</CardTitle>
@@ -277,6 +269,13 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
                       <div className="mt-2">
                         <Badge variant="outline" className="text-xs">
                           {gridType.invertedPositions} posições invertidas
+                        </Badge>
+                      </div>
+                    )}
+                    {gridType.type === GridTypeEnum.QUALIFYING_SESSION && gridType.qualifyingDuration && (
+                      <div className="mt-2">
+                        <Badge variant="outline" className="text-xs">
+                          {gridType.qualifyingDuration} minutos
                         </Badge>
                       </div>
                     )}

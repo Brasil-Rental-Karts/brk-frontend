@@ -4,7 +4,8 @@
 export enum GridTypeEnum {
   SUPER_POLE = 'super_pole',
   INVERTED = 'inverted',
-  INVERTED_PARTIAL = 'inverted_partial'
+  INVERTED_PARTIAL = 'inverted_partial',
+  QUALIFYING_SESSION = 'qualifying_session'
 }
 
 /**
@@ -19,6 +20,8 @@ export interface GridType {
   isDefault: boolean;
   // Para tipo invertido parcial, número de posições a serem invertidas
   invertedPositions?: number;
+  // Para tipo sessão de classificação, duração em minutos
+  qualifyingDuration?: number;
   championshipId: string;
   createdAt: string;
   updatedAt: string;
@@ -34,6 +37,7 @@ export interface GridTypeFormData {
   isActive: boolean;
   isDefault: boolean;
   invertedPositions?: number;
+  qualifyingDuration?: number;
 }
 
 /**
@@ -55,5 +59,11 @@ export const PREDEFINED_GRID_TYPES: Omit<GridTypeFormData, 'isActive' | 'isDefau
     description: 'Somente os 10 primeiros colocados da bateria anterior invertem suas posições',
     type: GridTypeEnum.INVERTED_PARTIAL,
     invertedPositions: 10
+  },
+  {
+    name: 'Classificação 5min',
+    description: 'Sessão de classificação por tempo determinado. Posições definidas pela volta mais rápida durante a sessão',
+    type: GridTypeEnum.QUALIFYING_SESSION,
+    qualifyingDuration: 5
   }
 ]; 

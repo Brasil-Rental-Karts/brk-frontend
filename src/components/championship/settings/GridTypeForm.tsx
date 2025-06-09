@@ -23,6 +23,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { GridType, GridTypeEnum, GridTypeFormData, PREDEFINED_GRID_TYPES } from "@/lib/types/grid-type";
 import { GridTypeService } from "@/lib/services/grid-type.service";
+import { GridTypeIcon } from "@/lib/icons/grid-type-icons";
 
 interface GridTypeFormProps {
   championshipId: string;
@@ -48,7 +49,8 @@ export const GridTypeForm = ({
     type: GridTypeEnum.SUPER_POLE,
     isActive: true,
     isDefault: false,
-    invertedPositions: 10
+    invertedPositions: 10,
+    qualifyingDuration: 5
   });
   
   const [loading, setLoading] = useState(false);
@@ -66,7 +68,8 @@ export const GridTypeForm = ({
         type: gridType.type,
         isActive: gridType.isActive,
         isDefault: gridType.isDefault,
-        invertedPositions: gridType.invertedPositions || 10
+        invertedPositions: gridType.invertedPositions || 10,
+        qualifyingDuration: gridType.qualifyingDuration || 5
       });
     } else {
       setFormData({
@@ -75,7 +78,8 @@ export const GridTypeForm = ({
         type: GridTypeEnum.SUPER_POLE,
         isActive: true,
         isDefault: false,
-        invertedPositions: 10
+        invertedPositions: 10,
+        qualifyingDuration: 5
       });
     }
     setError(null);
@@ -95,7 +99,8 @@ export const GridTypeForm = ({
       type: template.type,
       isActive: true,
       isDefault: false,
-      invertedPositions: template.invertedPositions || 10
+      invertedPositions: template.invertedPositions || 10,
+      qualifyingDuration: template.qualifyingDuration || 5
     });
     setShowTemplates(false);
   };
@@ -116,11 +121,17 @@ export const GridTypeForm = ({
       if (formData.type === GridTypeEnum.INVERTED_PARTIAL && (!formData.invertedPositions || formData.invertedPositions < 1)) {
         throw new Error("Número de posições invertidas deve ser maior que 0");
       }
+      if (formData.type === GridTypeEnum.QUALIFYING_SESSION && (!formData.qualifyingDuration || formData.qualifyingDuration < 1)) {
+        throw new Error("Duração da classificação deve ser maior que 0");
+      }
 
       // Preparar dados
       const dataToSubmit = { ...formData };
       if (formData.type !== GridTypeEnum.INVERTED_PARTIAL) {
         delete dataToSubmit.invertedPositions;
+      }
+      if (formData.type !== GridTypeEnum.QUALIFYING_SESSION) {
+        delete dataToSubmit.qualifyingDuration;
       }
 
       if (isEditing) {
@@ -145,6 +156,8 @@ export const GridTypeForm = ({
         return "Posições de largada são definidas pelo resultado da bateria anterior de forma invertida";
       case GridTypeEnum.INVERTED_PARTIAL:
         return "Inverte apenas as primeiras N posições da bateria anterior (personalizável)";
+      case GridTypeEnum.QUALIFYING_SESSION:
+        return "Sessão de classificação por tempo determinado. Posições definidas pela volta mais rápida durante a sessão";
       default:
         return "";
     }
@@ -194,15 +207,20 @@ export const GridTypeForm = ({
                   >
                     <div>
                       <div className="flex items-center gap-2 font-medium">
-                        <span className="text-lg">
-                          {template.type === GridTypeEnum.SUPER_POLE && "⚡"}
-                          {template.type === GridTypeEnum.INVERTED && "🔄"}
-                          {template.type === GridTypeEnum.INVERTED_PARTIAL && "🔃"}
-                        </span>
+                        <GridTypeIcon 
+                          type={template.type} 
+                          size={18} 
+                          withColor={true}
+                        />
                         {template.name}
                         {template.invertedPositions && (
                           <Badge variant="outline" className="text-xs">
                             {template.invertedPositions} posições
+                          </Badge>
+                        )}
+                        {template.qualifyingDuration && (
+                          <Badge variant="outline" className="text-xs">
+                            {template.qualifyingDuration} min
                           </Badge>
                         )}
                       </div>
@@ -249,13 +267,28 @@ export const GridTypeForm = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={GridTypeEnum.SUPER_POLE}>
-                  Super Pole ⚡
+                  <div className="flex items-center gap-2">
+                    <GridTypeIcon type={GridTypeEnum.SUPER_POLE} size={16} />
+                    Super Pole
+                  </div>
                 </SelectItem>
                 <SelectItem value={GridTypeEnum.INVERTED}>
-                  Invertido 🔄
+                  <div className="flex items-center gap-2">
+                    <GridTypeIcon type={GridTypeEnum.INVERTED} size={16} />
+                    Invertido
+                  </div>
                 </SelectItem>
                 <SelectItem value={GridTypeEnum.INVERTED_PARTIAL}>
-                  Invertido Parcial 🔃
+                  <div className="flex items-center gap-2">
+                    <GridTypeIcon type={GridTypeEnum.INVERTED_PARTIAL} size={16} />
+                    Invertido Parcial
+                  </div>
+                </SelectItem>
+                <SelectItem value={GridTypeEnum.QUALIFYING_SESSION}>
+                  <div className="flex items-center gap-2">
+                    <GridTypeIcon type={GridTypeEnum.QUALIFYING_SESSION} size={16} />
+                    Classificação por Tempo
+                  </div>
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -298,6 +331,44 @@ export const GridTypeForm = ({
               </div>
               <p className="text-xs text-muted-foreground">
                 Quantas posições a partir do primeiro colocado serão invertidas (ex: 10 = inverte do 1º ao 10º lugar)
+              </p>
+            </div>
+          )}
+
+          {/* Duração da classificação (apenas para tipo qualifying_session) */}
+          {formData.type === GridTypeEnum.QUALIFYING_SESSION && (
+            <div className="space-y-2">
+              <Label htmlFor="qualifyingDuration">Duração da classificação (minutos) *</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="qualifyingDuration"
+                  type="number"
+                  min="1"
+                  max="60"
+                  value={formData.qualifyingDuration || ""}
+                  onChange={(e) => handleInputChange("qualifyingDuration", parseInt(e.target.value) || 1)}
+                  placeholder="5"
+                  disabled={loading}
+                  className="flex-1"
+                />
+                <div className="flex gap-1">
+                  {[3, 5, 10, 15, 20, 30].map((num) => (
+                    <Button
+                      key={num}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleInputChange("qualifyingDuration", num)}
+                      disabled={loading}
+                      className="px-2 py-1 text-xs"
+                    >
+                      {num}min
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Tempo total da sessão de classificação. Posições definidas pela volta mais rápida durante este período
               </p>
             </div>
           )}

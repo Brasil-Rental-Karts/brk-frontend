@@ -24,7 +24,8 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, Trash2, GripVertical, Settings2 } from "lucide-react";
 import { BatteryConfig, BatteriesConfig, BATTERY_TEMPLATES, validateBatteriesConfig } from "@/lib/types/battery.types";
-import { GridType, GridTypeEnum } from "@/lib/types/grid-type";
+import { GridType } from "@/lib/types/grid-type";
+import { GridTypeIcon } from "@/lib/icons/grid-type-icons";
 
 interface BatteriesConfigFormProps {
   value: BatteriesConfig;
@@ -124,14 +125,9 @@ export const BatteriesConfigForm = ({
 
   const getGridTypeIcon = (gridTypeId: string) => {
     const gridType = gridTypes.find(gt => gt.id === gridTypeId);
-    if (!gridType) return "❓";
+    if (!gridType) return <span className="text-lg">❓</span>;
     
-    switch (gridType.type) {
-      case GridTypeEnum.SUPER_POLE: return "⚡";
-      case GridTypeEnum.INVERTED: return "🔄";
-      case GridTypeEnum.INVERTED_PARTIAL: return "🔃";
-      default: return "🏁";
-    }
+    return <GridTypeIcon type={gridType.type} size={20} withColor={true} />;
   };
 
   return (
@@ -216,7 +212,7 @@ export const BatteriesConfigForm = ({
                     <div className="flex items-start gap-3">
                       <div className="flex items-center gap-2">
                         <GripVertical className="h-4 w-4 text-muted-foreground" />
-                        <div className="text-lg">
+                        <div>
                           {getGridTypeIcon(battery.gridType)}
                         </div>
                       </div>
@@ -434,11 +430,7 @@ const BatteryFormDialog = ({
                 {gridTypes.map((gridType) => (
                   <SelectItem key={gridType.id} value={gridType.id}>
                     <div className="flex items-center gap-2">
-                                           <span>
-                         {gridType.type === GridTypeEnum.SUPER_POLE && "⚡"}
-                         {gridType.type === GridTypeEnum.INVERTED && "🔄"}
-                         {gridType.type === GridTypeEnum.INVERTED_PARTIAL && "🔃"}
-                       </span>
+                      <GridTypeIcon type={gridType.type} size={16} />
                       {gridType.name}
                       {gridType.isDefault && (
                         <Badge variant="secondary" className="text-xs ml-2">
