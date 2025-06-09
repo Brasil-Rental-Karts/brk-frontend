@@ -1,9 +1,8 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Settings } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Championship } from "@/lib/services/championship.service";
-import { ChampionshipSettings } from "./ChampionshipSettings";
 
 interface ChampionshipHeaderProps {
   championship: Championship;
@@ -14,7 +13,7 @@ interface ChampionshipHeaderProps {
  * Exibe avatar, nome, link para página pública e botão de configurações
  */
 export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) => {
-  const [showSettings, setShowSettings] = useState(false);
+  const navigate = useNavigate();
 
   const handleViewPublicPage = () => {
     // TODO: Implementar navegação para página pública
@@ -22,7 +21,7 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
   };
 
   const handleSettings = () => {
-    setShowSettings(true);
+    navigate(`/championship/${championship.id}/settings`);
   };
 
   // Gerar iniciais do nome do campeonato para o avatar
@@ -39,7 +38,8 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
   return (
     <div className="bg-dark-900 text-white w-full">
       <div className="w-full px-4 py-4">
-        <div className="flex items-center justify-between">
+        {/* Layout Desktop */}
+        <div className="hidden md:flex items-center justify-between">
           {/* Avatar e nome */}
           <div className="flex items-center gap-4">
             <Avatar className="h-12 w-12 border-2 border-white/20">
@@ -52,7 +52,7 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
               </AvatarFallback>
             </Avatar>
             
-            <h1 className="text-xl md:text-2xl font-bold">
+            <h1 className="text-2xl font-bold">
               {championship.name}
             </h1>
           </div>
@@ -79,14 +79,49 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
             </Button>
           </div>
         </div>
-      </div>
 
-      {/* Modal de Configurações */}
-      <ChampionshipSettings
-        championship={championship}
-        open={showSettings}
-        onOpenChange={setShowSettings}
-      />
+        {/* Layout Mobile */}
+        <div className="md:hidden space-y-4">
+          {/* Linha 1: Avatar e nome */}
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10 border-2 border-white/20">
+              <AvatarImage 
+                src={`/api/championships/${championship.id}/avatar`} 
+                alt={`Avatar ${championship.name}`}
+              />
+              <AvatarFallback className="text-xs font-bold text-black bg-white">
+                {getInitials(championship.name)}
+              </AvatarFallback>
+            </Avatar>
+            
+            <h1 className="text-lg font-bold flex-1 min-w-0">
+              <span className="truncate block">{championship.name}</span>
+            </h1>
+          </div>
+
+          {/* Linha 2: Botões */}
+          <div className="flex items-center gap-2 w-full">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleViewPublicPage}
+              className="flex-1 border-white/30 text-white hover:bg-white/10 hover:text-white hover:border-white/50 bg-transparent text-xs"
+            >
+              Visitar Página
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSettings}
+              className="flex-1 border-white/30 text-white hover:bg-white/10 hover:text-white hover:border-white/50 bg-transparent text-xs"
+            >
+              <Settings className="mr-1 h-3 w-3" />
+              Configurações
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }; 

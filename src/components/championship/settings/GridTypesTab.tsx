@@ -232,13 +232,13 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
+        <div className="flex-1">
           <h3 className="text-lg font-semibold">Tipos de Grid</h3>
           <p className="text-sm text-muted-foreground">
             Configure como as posições de largada serão determinadas
           </p>
         </div>
-        <Button onClick={handleCreateNew} size="sm">
+        <Button onClick={handleCreateNew} size="sm" className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Novo Tipo
         </Button>
@@ -249,7 +249,8 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
         {gridTypes.map((gridType) => (
           <Card key={gridType.id} className={!gridType.isActive ? "opacity-60" : ""}>
             <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
+              {/* Layout Desktop */}
+              <div className="hidden md:flex items-start justify-between">
                 <div className="flex items-start gap-3">
                   <div className="mt-1">{getGridTypeIcon(gridType.type)}</div>
                   <div>
@@ -350,6 +351,119 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
                   </TooltipProvider>
                 </div>
               </div>
+
+              {/* Layout Mobile */}
+              <div className="md:hidden space-y-3">
+                {/* Linha 1: Título, badge padrão e ações */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="flex-shrink-0">{getGridTypeIcon(gridType.type)}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <CardTitle className="text-sm truncate">{gridType.name}</CardTitle>
+                        {gridType.isDefault && (
+                          <Badge variant="secondary" className="text-xs flex-shrink-0">
+                            <Star className="mr-1 h-3 w-3" />
+                            Padrão
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEdit(gridType)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Settings2 className="h-3 w-3" />
+                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                if (canDelete(gridType)) {
+                                  handleDeleteClick(gridType);
+                                }
+                              }}
+                              disabled={!canDelete(gridType)}
+                              className={`text-destructive hover:text-destructive h-8 w-8 p-0 ${
+                                !canDelete(gridType) ? "opacity-50 cursor-not-allowed" : ""
+                              }`}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TooltipTrigger>
+                        {!canDelete(gridType) && (
+                          <TooltipContent>
+                            <p>
+                              {gridTypes.length <= 1 
+                                ? "Não é possível excluir o único tipo de grid"
+                                : "Não é possível excluir o último tipo de grid ativo"
+                              }
+                            </p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </div>
+
+                {/* Linha 2: Descrição */}
+                <div>
+                  <CardDescription className="text-xs">
+                    {gridType.description}
+                  </CardDescription>
+                </div>
+
+                {/* Linha 3: Badges e checkbox ativo */}
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap gap-1">
+                    {gridType.type === GridTypeEnum.INVERTED_PARTIAL && gridType.invertedPositions && (
+                      <Badge variant="outline" className="text-xs">
+                        {gridType.invertedPositions} posições invertidas
+                      </Badge>
+                    )}
+                    {gridType.type === GridTypeEnum.QUALIFYING_SESSION && gridType.qualifyingDuration && (
+                      <Badge variant="outline" className="text-xs">
+                        {gridType.qualifyingDuration} minutos
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Ativo</span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div>
+                            <Checkbox
+                              checked={gridType.isActive}
+                              onCheckedChange={() => {
+                                if (canDeactivate(gridType)) {
+                                  toggleActive(gridType);
+                                }
+                              }}
+                              disabled={!canDeactivate(gridType)}
+                              className={!canDeactivate(gridType) ? "opacity-50 cursor-not-allowed" : ""}
+                            />
+                          </div>
+                        </TooltipTrigger>
+                        {!canDeactivate(gridType) && (
+                          <TooltipContent>
+                            <p>Não é possível desativar o último tipo de grid ativo</p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </div>
+              </div>
             </CardHeader>
             {!gridType.isDefault && gridType.isActive && (
               <CardContent className="pt-0">
@@ -357,7 +471,7 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
                   variant="outline"
                   size="sm"
                   onClick={() => setAsDefault(gridType)}
-                  className="text-xs"
+                  className="text-xs w-full md:w-auto"
                 >
                   <Star className="mr-1 h-3 w-3" />
                   Definir como Padrão

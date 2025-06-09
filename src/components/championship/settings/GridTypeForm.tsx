@@ -165,12 +165,12 @@ export const GridTypeForm = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="text-lg">
             {isEditing ? "Editar Tipo de Grid" : "Novo Tipo de Grid"}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm">
             Configure como as posições de largada serão determinadas
           </DialogDescription>
         </DialogHeader>
@@ -178,7 +178,7 @@ export const GridTypeForm = ({
         {/* Templates rápidos - apenas no modo de criação */}
         {!isEditing && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <Label className="text-sm font-medium">Templates Rápidos</Label>
                 <p className="text-xs text-muted-foreground">
@@ -190,6 +190,7 @@ export const GridTypeForm = ({
                 variant="outline"
                 size="sm"
                 onClick={() => setShowTemplates(!showTemplates)}
+                className="text-xs"
               >
                 {showTemplates ? "Ocultar" : "Mostrar"} Templates
               </Button>
@@ -301,7 +302,7 @@ export const GridTypeForm = ({
           {formData.type === GridTypeEnum.INVERTED_PARTIAL && (
             <div className="space-y-2">
               <Label htmlFor="invertedPositions">Número de posições invertidas *</Label>
-              <div className="flex gap-2">
+              <div className="space-y-2">
                 <Input
                   id="invertedPositions"
                   type="number"
@@ -311,9 +312,9 @@ export const GridTypeForm = ({
                   onChange={(e) => handleInputChange("invertedPositions", parseInt(e.target.value) || 1)}
                   placeholder="10"
                   disabled={loading}
-                  className="flex-1"
+                  className="w-full"
                 />
-                <div className="flex gap-1">
+                <div className="grid grid-cols-3 sm:flex gap-1">
                   {[3, 5, 8, 10, 12, 15].map((num) => (
                     <Button
                       key={num}
@@ -322,7 +323,7 @@ export const GridTypeForm = ({
                       size="sm"
                       onClick={() => handleInputChange("invertedPositions", num)}
                       disabled={loading}
-                      className="px-2 py-1 text-xs"
+                      className="px-2 py-1 text-xs flex-1"
                     >
                       {num}
                     </Button>
@@ -339,7 +340,7 @@ export const GridTypeForm = ({
           {formData.type === GridTypeEnum.QUALIFYING_SESSION && (
             <div className="space-y-2">
               <Label htmlFor="qualifyingDuration">Duração da classificação (minutos) *</Label>
-              <div className="flex gap-2">
+              <div className="space-y-2">
                 <Input
                   id="qualifyingDuration"
                   type="number"
@@ -349,9 +350,9 @@ export const GridTypeForm = ({
                   onChange={(e) => handleInputChange("qualifyingDuration", parseInt(e.target.value) || 1)}
                   placeholder="5"
                   disabled={loading}
-                  className="flex-1"
+                  className="w-full"
                 />
-                <div className="flex gap-1">
+                <div className="grid grid-cols-3 sm:flex gap-1">
                   {[3, 5, 10, 15, 20, 30].map((num) => (
                     <Button
                       key={num}
@@ -360,7 +361,7 @@ export const GridTypeForm = ({
                       size="sm"
                       onClick={() => handleInputChange("qualifyingDuration", num)}
                       disabled={loading}
-                      className="px-2 py-1 text-xs"
+                      className="px-2 py-1 text-xs flex-1"
                     >
                       {num}min
                     </Button>

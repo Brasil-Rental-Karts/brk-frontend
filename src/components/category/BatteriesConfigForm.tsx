@@ -133,22 +133,23 @@ export const BatteriesConfigForm = ({
   return (
     <div className="space-y-4">
       {/* Header com templates */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <Label className="text-base font-medium">Configuração de Baterias</Label>
           <p className="text-sm text-muted-foreground">
             Configure as baterias e seus tipos de grid
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={() => setShowTemplateDialog(true)}
             disabled={disabled}
+            className="flex-1 sm:flex-none text-xs sm:text-sm"
           >
-            <Settings2 className="mr-2 h-4 w-4" />
+            <Settings2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
             Templates
           </Button>
           <Button
@@ -160,8 +161,9 @@ export const BatteriesConfigForm = ({
               setShowBatteryForm(true);
             }}
             disabled={disabled}
+            className="flex-1 sm:flex-none text-xs sm:text-sm"
           >
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
             Adicionar
           </Button>
         </div>
@@ -208,7 +210,8 @@ export const BatteriesConfigForm = ({
             .map((battery, index) => (
               <Card key={index} className={!battery.isRequired ? "border-dashed opacity-75" : ""}>
                 <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
+                  {/* Layout Desktop */}
+                  <div className="hidden sm:flex items-start justify-between">
                     <div className="flex items-start gap-3">
                       <div className="flex items-center gap-2">
                         <GripVertical className="h-4 w-4 text-muted-foreground" />
@@ -267,6 +270,69 @@ export const BatteriesConfigForm = ({
                       </Button>
                     </div>
                   </div>
+
+                  {/* Layout Mobile */}
+                  <div className="sm:hidden space-y-3">
+                    {/* Linha 1: Título e badges */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
+                          <GripVertical className="h-3 w-3 text-muted-foreground" />
+                          {getGridTypeIcon(battery.gridType)}
+                        </div>
+                        <CardTitle className="text-sm">{battery.name}</CardTitle>
+                        <Badge variant="outline" className="text-xs">
+                          #{battery.order}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditBattery(battery, index)}
+                          disabled={disabled}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Settings2 className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeBattery(index)}
+                          disabled={disabled || batteries.length <= 1}
+                          className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Linha 2: Informações e badges */}
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        Grid: {getGridTypeName(battery.gridType)}
+                      </p>
+                      {battery.description && (
+                        <p className="text-xs text-muted-foreground">
+                          {battery.description}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-1">
+                        {!battery.isRequired && (
+                          <Badge variant="secondary" className="text-xs">
+                            Opcional
+                          </Badge>
+                        )}
+                        {battery.duration && (
+                          <Badge variant="outline" className="text-xs">
+                            {battery.duration} min
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </CardHeader>
               </Card>
             ))
@@ -275,10 +341,10 @@ export const BatteriesConfigForm = ({
 
       {/* Dialog de templates */}
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
-            <DialogTitle>Escolher Template</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg">Escolher Template</DialogTitle>
+            <DialogDescription className="text-sm">
               Selecione um template pré-configurado para as baterias
             </DialogDescription>
           </DialogHeader>
