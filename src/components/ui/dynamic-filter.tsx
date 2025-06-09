@@ -91,7 +91,7 @@ export const DynamicFilter = ({
   // Disparar onFiltersChange apenas quando o valor debounced mudar
   useEffect(() => {
     onFiltersChange(debouncedFilters);
-  }, [debouncedFilters, onFiltersChange]);
+  }, [debouncedFilters]);
 
   // Atualizar filtro específico
   const updateFilter = useCallback((key: string, value: any) => {

@@ -39,14 +39,14 @@ interface CategoriesTabProps {
   championshipId: string;
 }
 
-// Configuração dos filtros
-const filterFields: FilterField[] = [
+// Configuração inicial dos filtros
+const createFilterFields = (seasonOptions: { value: string; label: string }[] = []): FilterField[] => [
   {
     key: 'seasonId',
     label: 'Temporada',
     type: 'combobox',
     placeholder: 'Todas as temporadas',
-    options: [] // Will be populated dynamically
+    options: seasonOptions
   }
 ];
 
@@ -62,7 +62,7 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [totalCategories, setTotalCategories] = useState(0);
+  const [seasonOptions, setSeasonOptions] = useState<{ value: string; label: string }[]>([]);
 
   // Estados para o modal de exclusão
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -70,27 +70,35 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Configuração da paginação
-  const pagination = usePagination(totalCategories, 5, 1);
+  // Memoizar a configuração dos filtros para evitar re-renders
+  const filterFields = useMemo(() => createFilterFields(seasonOptions), [seasonOptions]);
 
-  // Buscar categorias do backend
-  const fetchCategories = useCallback(async () => {
+  // Buscar temporadas do campeonato (apenas uma vez)
+  const fetchSeasons = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-      
-      // Buscar todas as temporadas do campeonato
       const seasonsData = await SeasonService.getByChampionshipId(championshipId, 1, 100);
       
       // Atualizar opções do filtro
-      const seasonOptions = [
+      const newSeasonOptions = [
         { value: '', label: 'Todas as temporadas' },
         ...seasonsData.data.map((season: any) => ({
           value: season.id,
           label: season.name
         }))
       ];
-      filterFields[0].options = seasonOptions;
+      setSeasonOptions(newSeasonOptions);
+      return seasonsData.data;
+    } catch (err: any) {
+      console.error('Error loading seasons:', err);
+      return [];
+    }
+  }, [championshipId]);
+
+  // Buscar categorias do backend
+  const fetchCategories = useCallback(async (seasons: any[] = []) => {
+    try {
+      setLoading(true);
+      setError(null);
 
       // Buscar categorias
       let allCategories: Category[] = [];
@@ -100,7 +108,7 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
         allCategories = await CategoryService.getBySeasonId(filters.seasonId as string);
       } else {
         // Buscar de todas as temporadas
-        for (const season of seasonsData.data) {
+        for (const season of seasons) {
           try {
             const seasonCategories = await CategoryService.getBySeasonId(season.id);
             allCategories.push(...seasonCategories);
@@ -111,24 +119,48 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
       }
 
       setCategories(allCategories);
-      setTotalCategories(allCategories.length);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar categorias');
       setCategories([]);
-      setTotalCategories(0);
     } finally {
       setLoading(false);
     }
-  }, [championshipId, filters.seasonId]);
+  }, [filters.seasonId]);
 
-  // Carregar categorias quando a página ou filtros mudarem
+
+
+  // Carregar dados iniciais apenas uma vez
   useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+    let mounted = true;
+    
+    const initializeData = async () => {
+      try {
+        const seasons = await fetchSeasons();
+        if (mounted) {
+          await fetchCategories(seasons);
+        }
+      } catch (error) {
+        console.error('Error initializing data:', error);
+      }
+    };
+    
+    initializeData();
+    
+    return () => {
+      mounted = false;
+    };
+  }, [championshipId]);
 
   // Aplicar filtros e ordenação aos dados
   const processedCategories = useMemo(() => {
+    if (categories.length === 0) return [];
+    
     let result = [...categories];
+
+    // Aplicar filtros
+    if (filters.seasonId) {
+      result = result.filter(category => category.seasonId === filters.seasonId);
+    }
 
     // Aplicar ordenação
     result.sort((a, b) => {
@@ -150,7 +182,17 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
     });
 
     return result;
-  }, [categories, sortBy, sortOrder]);
+  }, [categories, filters, sortBy, sortOrder]);
+
+  // Configuração da paginação (baseada nas categorias filtradas)
+  const pagination = usePagination(processedCategories.length, 5, 1);
+
+  // Aplicar paginação aos dados processados
+  const paginatedCategories = useMemo(() => {
+    const startIndex = (pagination.state.currentPage - 1) * pagination.state.itemsPerPage;
+    const endIndex = startIndex + pagination.state.itemsPerPage;
+    return processedCategories.slice(startIndex, endIndex);
+  }, [processedCategories, pagination.state.currentPage, pagination.state.itemsPerPage]);
 
   const handleSort = (column: keyof Category) => {
     if (sortBy === column) {
@@ -185,7 +227,10 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
       await CategoryService.delete(categoryToDelete.id);
       
       // Atualizar a lista de categorias
-      await fetchCategories();
+      const seasons = seasonOptions
+        .filter(option => option.value !== '')
+        .map(option => ({ id: option.value, name: option.label }));
+      await fetchCategories(seasons);
       
       // Fechar o modal
       setShowDeleteDialog(false);
@@ -223,7 +268,7 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
 
   const getSeasonName = (seasonId: string) => {
     // Buscar nome da temporada do cache
-    const seasonOption = filterFields[0].options?.find((opt: any) => opt.value === seasonId);
+    const seasonOption = seasonOptions.find((opt: any) => opt.value === seasonId);
     return seasonOption ? seasonOption.label : 'Temporada não encontrada';
   };
 
@@ -268,7 +313,7 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
           <div className="mt-4">
-            <Button onClick={fetchCategories} variant="outline">
+            <Button onClick={() => window.location.reload()} variant="outline">
               Tentar novamente
             </Button>
           </div>
@@ -369,7 +414,7 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
                   </TableCell>
                 </TableRow>
               ) : (
-                processedCategories.map((category) => (
+                paginatedCategories.map((category) => (
                   <TableRow key={category.id} className="hover:bg-muted/50">
                     <TableCell className="py-4">
                       <div>
