@@ -1,12 +1,12 @@
 import api from '../axios';
+import { BatteriesConfig } from '../types/battery.types';
 
 export interface Category {
   id: string;
   name: string;
   ballast: string;
   maxPilots: number;
-  batteryQuantity: number;
-  startingGridFormat: string;
+  batteriesConfig: BatteriesConfig;
   minimumAge: number;
   seasonId: string;
   createdAt: string;
@@ -17,8 +17,7 @@ export interface CategoryData {
   name: string;
   ballast: string;
   maxPilots: number;
-  batteryQuantity: number;
-  startingGridFormat: string;
+  batteriesConfig: BatteriesConfig;
   minimumAge: number;
   seasonId: string;
 }

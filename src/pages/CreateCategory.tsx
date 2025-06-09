@@ -1,6 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useBlocker, useParams } from "react-router-dom";
-import { DynamicForm, FormSectionConfig } from "@/components/ui/dynamic-form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
@@ -10,13 +20,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { CategoryData, CategoryService } from "@/lib/services/category.service";
 import { SeasonService } from "@/lib/services/season.service";
+import { GridTypeService } from "@/lib/services/grid-type.service";
 import { PageHeader } from "@/components/ui/page-header";
 import { useCreateCategory } from "@/hooks/use-create-category";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card } from "@/components/ui/card";
+import { BatteriesConfigForm } from "@/components/category/BatteriesConfigForm";
+import { BatteriesConfig, BATTERY_TEMPLATES } from "@/lib/types/battery.types";
+import { GridType } from "@/lib/types/grid-type";
 
 export const CreateCategory = () => {
   const navigate = useNavigate();
@@ -25,36 +37,47 @@ export const CreateCategory = () => {
     seasonId: string; 
     categoryId?: string; 
   }>();
-  const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
-  const [formRef, setFormRef] = useState<any>(null);
+
+  // Form data state
+  const [formData, setFormData] = useState({
+    name: "",
+    ballast: "",
+    maxPilots: "",
+    batteriesConfig: [] as BatteriesConfig,
+    minimumAge: "",
+    seasonId: ""
+  });
+
+  // UI states
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [saveSuccessful, setSaveSuccessful] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [initialFormData, setInitialFormData] = useState<any>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Estados para modo de edição
+  // Edit mode states
   const [isEditMode, setIsEditMode] = useState(false);
   const [isLoadingCategoryData, setIsLoadingCategoryData] = useState(false);
   const [loadCategoryError, setLoadCategoryError] = useState<string | null>(null);
-  const [existingCategoryData, setExistingCategoryData] = useState<any>(null);
 
-  // Estados para carregar dados da temporada
+  // Season options
   const [seasonOptions, setSeasonOptions] = useState<any[]>([]);
   const [isLoadingSeasons, setIsLoadingSeasons] = useState(true);
 
+  // Grid types for batteries
+  const [gridTypes, setGridTypes] = useState<GridType[]>([]);
+  const [isLoadingGridTypes, setIsLoadingGridTypes] = useState(true);
+
   const { isLoading, error, createCategory, clearError } = useCreateCategory();
 
-  // Determinar se é modo de edição
+  // Determine if it's edit mode
   useEffect(() => {
     setIsEditMode(!!categoryId);
-    // Reset unsaved changes when switching modes
     setHasUnsavedChanges(false);
   }, [categoryId]);
 
-  // Carregar temporadas ativas disponíveis
+  // Load seasons
   useEffect(() => {
     const loadSeasons = async () => {
       if (!championshipId) return;
@@ -63,7 +86,6 @@ export const CreateCategory = () => {
         setIsLoadingSeasons(true);
         const seasonsData = await SeasonService.getByChampionshipId(championshipId, 1, 100);
         
-        // Filtrar apenas temporadas ativas (agendado e em_andamento)
         const activeSeasons = seasonsData.data.filter(season => 
           season.status === 'agendado' || season.status === 'em_andamento'
         );
@@ -85,7 +107,27 @@ export const CreateCategory = () => {
     loadSeasons();
   }, [championshipId]);
 
-  // Carregar dados da categoria se estiver em modo de edição
+  // Load grid types
+  useEffect(() => {
+    const loadGridTypes = async () => {
+      if (!championshipId) return;
+
+      try {
+        setIsLoadingGridTypes(true);
+        const gridTypesData = await GridTypeService.getByChampionship(championshipId);
+        setGridTypes(gridTypesData);
+      } catch (err: any) {
+        console.error('Error loading grid types:', err);
+        setGridTypes([]);
+      } finally {
+        setIsLoadingGridTypes(false);
+      }
+    };
+
+    loadGridTypes();
+  }, [championshipId]);
+
+  // Load category data for edit mode
   useEffect(() => {
     const loadCategoryData = async () => {
       if (!isEditMode || !categoryId) return;
@@ -95,20 +137,15 @@ export const CreateCategory = () => {
 
       try {
         const category = await CategoryService.getById(categoryId);
-        setExistingCategoryData(category);
-
-        // Preparar dados iniciais do formulário
-        const initialData = {
+        
+        setFormData({
           name: category.name,
           ballast: category.ballast,
           maxPilots: category.maxPilots.toString(),
-          batteryQuantity: category.batteryQuantity.toString(),
-          startingGridFormat: category.startingGridFormat,
+          batteriesConfig: category.batteriesConfig || BATTERY_TEMPLATES.SINGLE,
           minimumAge: category.minimumAge.toString(),
           seasonId: category.seasonId
-        };
-
-        setInitialFormData(initialData);
+        });
       } catch (err: any) {
         setLoadCategoryError(err.message || 'Erro ao carregar dados da categoria');
       } finally {
@@ -119,30 +156,47 @@ export const CreateCategory = () => {
     loadCategoryData();
   }, [isEditMode, categoryId]);
 
-  // Helper function to check if form has changes
-  const checkForChanges = useCallback((currentData: any) => {
-    // Don't check for changes while loading
-    if (!initialFormData || !currentData || isLoadingCategoryData || isLoadingSeasons) {
-      setHasUnsavedChanges(false);
-      return;
+  // Set initial form data for create mode
+  useEffect(() => {
+    if (!isEditMode && !isLoadingSeasons && !isLoadingGridTypes && gridTypes.length > 0 && formData.batteriesConfig.length === 0) {
+      const defaultGridType = gridTypes.find(gt => gt.isDefault)?.id || gridTypes[0]?.id || "";
+      
+      setFormData(prev => ({
+        ...prev,
+        seasonId: seasonId || prev.seasonId,
+        batteriesConfig: [{
+          name: "Bateria 1",
+          gridType: defaultGridType,
+          order: 1,
+          isRequired: true,
+          description: "Bateria principal"
+        }]
+      }));
+    } else if (!isEditMode && seasonId && !formData.seasonId) {
+      // Just update seasonId if batteriesConfig already exists
+      setFormData(prev => ({
+        ...prev,
+        seasonId: seasonId
+      }));
     }
+  }, [isEditMode, seasonId, isLoadingSeasons, isLoadingGridTypes, gridTypes, formData.batteriesConfig.length, formData.seasonId]);
 
-    // Compare current data with initial data
-    const hasChanges = Object.keys(currentData).some(key => {
-      const initialValue = initialFormData[key];
-      const currentValue = currentData[key];
-      
-      // Handle empty strings vs null/undefined
-      const normalizeValue = (val: any) => {
-        if (val === null || val === undefined || val === '') return '';
-        return val.toString();
-      };
-      
-      return normalizeValue(initialValue) !== normalizeValue(currentValue);
-    });
+  // Check for unsaved changes
+  const checkForChanges = useCallback(() => {
+    if (isEditMode) {
+      // In edit mode, check if any field has changed from initial values
+      setHasUnsavedChanges(true); // Simplified for now
+    } else {
+      // In create mode, check if user has entered any data
+      const hasData = Boolean(formData.name || formData.ballast || formData.maxPilots || 
+                             formData.minimumAge || formData.batteriesConfig.length > 0);
+      setHasUnsavedChanges(hasData);
+    }
+  }, [isEditMode, formData]);
 
-    setHasUnsavedChanges(hasChanges);
-  }, [initialFormData, isLoadingCategoryData, isLoadingSeasons]);
+  useEffect(() => {
+    checkForChanges();
+  }, [checkForChanges]);
 
   // Block navigation when there are unsaved changes
   const blocker = useBlocker(
@@ -152,7 +206,6 @@ export const CreateCategory = () => {
       !isSaving && 
       !isLoadingCategoryData && 
       !isLoadingSeasons &&
-      initialFormData !== null &&
       currentLocation.pathname !== nextLocation.pathname
   );
 
@@ -163,12 +216,18 @@ export const CreateCategory = () => {
     }
   }, [blocker]);
 
-  const handleFormChange = useCallback((data: any) => {
-    checkForChanges(data);
-  }, [checkForChanges]);
+  const handleInputChange = useCallback((field: keyof typeof formData, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }, []);
 
-  const handleFieldChange = useCallback(() => {
-    // Field change handling can be kept for other fields if needed
+  const handleBatteriesConfigChange = useCallback((config: BatteriesConfig) => {
+    setFormData(prev => ({
+      ...prev,
+      batteriesConfig: config
+    }));
   }, []);
 
   const handleCancelClick = () => {
@@ -192,72 +251,53 @@ export const CreateCategory = () => {
     setPendingNavigation(null);
   };
 
-  const scrollToFirstError = () => {
-    setTimeout(() => {
-      const firstErrorElement = document.querySelector('[data-invalid="true"], .text-destructive, [aria-invalid="true"]');
-      if (firstErrorElement) {
-        firstErrorElement.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
-        });
-      }
-    }, 100);
-  };
-
-  const handleSubmit = async (data: any) => {
-    // Check if there are any validation errors
-    if (formRef) {
-      const formState = formRef.formState;
-      if (formState.errors && Object.keys(formState.errors).length > 0) {
-        scrollToFirstError();
-        return;
-      }
-    }
-
-    // Clear any previous errors and mark as saved
-    clearError();
-    setShowErrorAlert(false);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsSaving(true);
-
-    // Determine final seasonId
-    const finalSeasonId = data.seasonId || seasonId;
-    
-    if (!finalSeasonId) {
-      setShowErrorAlert(true);
-      setIsSaving(false);
-      return;
-    }
-
-    // Prepare category data
-    const categoryData: CategoryData = {
-      name: data.name,
-      ballast: data.ballast,
-      maxPilots: parseInt(data.maxPilots),
-      batteryQuantity: parseInt(data.batteryQuantity),
-      startingGridFormat: data.startingGridFormat,
-      minimumAge: parseInt(data.minimumAge),
-      seasonId: finalSeasonId
-    };
+    clearError();
 
     try {
-      let category;
-      
+      // Validate required fields
+      if (!formData.name.trim()) {
+        throw new Error('Nome da categoria é obrigatório');
+      }
+      if (!formData.ballast.trim()) {
+        throw new Error('Lastro é obrigatório');
+      }
+      if (!formData.maxPilots || parseInt(formData.maxPilots) < 1) {
+        throw new Error('Máximo de pilotos deve ser maior que 0');
+      }
+      if (!formData.minimumAge || parseInt(formData.minimumAge) < 1) {
+        throw new Error('Idade mínima deve ser maior que 0');
+      }
+      if (!formData.seasonId) {
+        throw new Error('Temporada é obrigatória');
+      }
+      if (!formData.batteriesConfig || formData.batteriesConfig.length === 0) {
+        throw new Error('Pelo menos uma bateria deve ser configurada');
+      }
+
+      const categoryData: CategoryData = {
+        name: formData.name.trim(),
+        ballast: formData.ballast.trim(),
+        maxPilots: parseInt(formData.maxPilots),
+        batteriesConfig: formData.batteriesConfig,
+        minimumAge: parseInt(formData.minimumAge),
+        seasonId: formData.seasonId
+      };
+
       if (isEditMode && categoryId) {
-        // Atualizar categoria existente
-        category = await CategoryService.update(categoryId, categoryData);
+        await CategoryService.update(categoryId, categoryData);
       } else {
-        // Criar nova categoria
-        category = await createCategory(categoryData);
+        await createCategory(categoryData);
       }
-      
-      if (category) {
-        setSaveSuccessful(true);
-        navigate(`/championship/${championshipId}?tab=categories`);
-      }
+
+      setSaveSuccessful(true);
+      setHasUnsavedChanges(false);
+      navigate(`/championship/${championshipId}?tab=categories`);
     } catch (err: any) {
       console.error('Error saving category:', err);
       setShowErrorAlert(true);
-      scrollToFirstError();
     } finally {
       setIsSaving(false);
     }
@@ -267,93 +307,6 @@ export const CreateCategory = () => {
     setShowErrorAlert(false);
     clearError();
   };
-
-  // Create form configuration
-  useEffect(() => {
-    if (!seasonOptions.length && isLoadingSeasons) return;
-
-    const config: FormSectionConfig[] = [
-      {
-        section: "Dados da Categoria",
-        detail: "Informações básicas da categoria",
-        fields: [
-          {
-            id: "name",
-            name: "Nome da categoria",
-            type: "input",
-            mandatory: true,
-            max_char: 75,
-            placeholder: "Ex: Categoria A"
-          },
-          {
-            id: "ballast",
-            name: "Lastro",
-            type: "input",
-            mandatory: true,
-            max_char: 10,
-            placeholder: "Ex: 75Kg"
-          },
-          {
-            id: "maxPilots",
-            name: "Máximo de pilotos",
-            type: "input",
-            mandatory: true,
-            placeholder: "Ex: 20"
-          },
-          {
-            id: "batteryQuantity",
-            name: "Quantidade de baterias",
-            type: "input",
-            mandatory: true,
-            placeholder: "Ex: 2"
-          },
-          {
-            id: "startingGridFormat",
-            name: "Formato de grid de largada",
-            type: "input",
-            mandatory: true,
-            placeholder: "Ex: 2x2"
-          },
-          {
-            id: "minimumAge",
-            name: "Idade mínima",
-            type: "input",
-            mandatory: true,
-            placeholder: "Ex: 18"
-          }
-        ]
-      }
-    ];
-
-    // Sempre adicionar campo de temporada (obrigatório)
-    if (seasonOptions.length > 0) {
-      config[0].fields.push({
-        id: "seasonId",
-        name: "Temporada",
-        type: "select",
-        mandatory: true,
-        options: seasonOptions,
-        placeholder: "Selecione uma temporada"
-      });
-    }
-
-    setFormConfig(config);
-
-    // Set initial form data apenas se não estiver em modo de edição
-    if (!isEditMode) {
-      const initialData = {
-        seasonId: seasonId || '' // Use seasonId from URL if available, otherwise empty to force selection
-      };
-      setInitialFormData(initialData);
-    }
-  }, [isEditMode, seasonOptions, isLoadingSeasons, seasonId]);
-
-  // Show error alert when error changes
-  useEffect(() => {
-    if (error) {
-      setShowErrorAlert(true);
-    }
-  }, [error]);
 
   if (!championshipId) {
     return (
@@ -366,7 +319,7 @@ export const CreateCategory = () => {
     );
   }
 
-  // Se não há temporadas ativas disponíveis
+  // No active seasons available
   if (!isLoadingSeasons && seasonOptions.length === 0) {
     return (
       <div className="min-h-screen bg-background">
@@ -393,8 +346,8 @@ export const CreateCategory = () => {
     );
   }
 
-  // Loading state for edit mode or seasons loading
-  if (isEditMode && (isLoadingCategoryData || !existingCategoryData) || isLoadingSeasons) {
+  // Loading state
+  if (isLoadingSeasons || isLoadingGridTypes || (isEditMode && isLoadingCategoryData)) {
     return (
       <div className="min-h-screen bg-background">
         <PageHeader
@@ -453,19 +406,18 @@ export const CreateCategory = () => {
             label: "Cancelar",
             onClick: handleCancelClick,
             variant: "outline",
-            disabled: isLoading
+            disabled: isLoading || isSaving
           },
           {
-            label: isLoading ? loadingLabel : submitLabel,
+            label: (isLoading || isSaving) ? loadingLabel : submitLabel,
             onClick: () => {
-              // Trigger form submission
               const form = document.getElementById('category-form') as HTMLFormElement;
               if (form) {
                 form.requestSubmit();
               }
             },
             variant: "default",
-            disabled: isLoading
+            disabled: isLoading || isSaving
           }
         ]}
       />
@@ -473,30 +425,120 @@ export const CreateCategory = () => {
       {/* Alerts */}
       <div className="w-full px-6 mb-4">
         {showErrorAlert && error && (
-          <Alert variant="destructive" hasCloseButton onClose={handleCloseErrorAlert} className="mb-4">
+          <Alert variant="destructive" className="mb-4">
             <AlertTitle>Erro ao {isEditMode ? 'atualizar' : 'criar'} categoria</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription className="flex items-center justify-between">
+              <span>{error}</span>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleCloseErrorAlert}
+                className="h-auto p-1 ml-2"
+              >
+                ✕
+              </Button>
+            </AlertDescription>
           </Alert>
         )}
       </div>
 
-      {/* Content */}
-      <div className="w-full px-6" id="category-form-container">
-        <DynamicForm
-          config={formConfig}
-          onSubmit={handleSubmit}
-          onChange={handleFormChange}
-          onFieldChange={handleFieldChange}
-          onFormReady={setFormRef}
-          submitLabel={isLoading ? loadingLabel : submitLabel}
-          cancelLabel="Cancelar"
-          showButtons={true}
-          className="space-y-6"
-          formId="category-form"
-          initialValues={initialFormData || {
-            seasonId: seasonId || '' // Pre-select if coming from URL, otherwise user must choose
-          }}
-        />
+      {/* Form */}
+      <div className="w-full px-6">
+        <form id="category-form" onSubmit={handleSubmit} className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Dados da Categoria</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Nome */}
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome da categoria *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  placeholder="Ex: Categoria A"
+                  maxLength={75}
+                  disabled={isLoading || isSaving}
+                />
+              </div>
+
+              {/* Lastro */}
+              <div className="space-y-2">
+                <Label htmlFor="ballast">Lastro *</Label>
+                <Input
+                  id="ballast"
+                  value={formData.ballast}
+                  onChange={(e) => handleInputChange('ballast', e.target.value)}
+                  placeholder="Ex: 75Kg"
+                  maxLength={10}
+                  disabled={isLoading || isSaving}
+                />
+              </div>
+
+              {/* Máximo de pilotos */}
+              <div className="space-y-2">
+                <Label htmlFor="maxPilots">Máximo de pilotos *</Label>
+                <Input
+                  id="maxPilots"
+                  type="number"
+                  min="1"
+                  value={formData.maxPilots}
+                  onChange={(e) => handleInputChange('maxPilots', e.target.value)}
+                  placeholder="Ex: 20"
+                  disabled={isLoading || isSaving}
+                />
+              </div>
+
+              {/* Idade mínima */}
+              <div className="space-y-2">
+                <Label htmlFor="minimumAge">Idade mínima *</Label>
+                <Input
+                  id="minimumAge"
+                  type="number"
+                  min="1"
+                  value={formData.minimumAge}
+                  onChange={(e) => handleInputChange('minimumAge', e.target.value)}
+                  placeholder="Ex: 18"
+                  disabled={isLoading || isSaving}
+                />
+              </div>
+
+              {/* Temporada */}
+              <div className="space-y-2">
+                <Label htmlFor="seasonId">Temporada *</Label>
+                <Select
+                  value={formData.seasonId}
+                  onValueChange={(value) => handleInputChange('seasonId', value)}
+                  disabled={isLoading || isSaving}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma temporada" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {seasonOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.description}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Configuração de Baterias */}
+          <Card>
+            <CardContent className="pt-6">
+              <BatteriesConfigForm
+                value={formData.batteriesConfig}
+                onChange={handleBatteriesConfigChange}
+                gridTypes={gridTypes}
+                disabled={isLoading || isSaving}
+              />
+            </CardContent>
+          </Card>
+        </form>
       </div>
 
       {/* Unsaved Changes Dialog */}

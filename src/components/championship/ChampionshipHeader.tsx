@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Settings } from "lucide-react";
 import { Championship } from "@/lib/services/championship.service";
+import { ChampionshipSettings } from "./ChampionshipSettings";
 
 interface ChampionshipHeaderProps {
   championship: Championship;
@@ -12,14 +14,15 @@ interface ChampionshipHeaderProps {
  * Exibe avatar, nome, link para página pública e botão de configurações
  */
 export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) => {
+  const [showSettings, setShowSettings] = useState(false);
+
   const handleViewPublicPage = () => {
     // TODO: Implementar navegação para página pública
     window.open(`/public/championship/${championship.id}`, '_blank');
   };
 
   const handleSettings = () => {
-    // TODO: Implementar navegação para configurações
-
+    setShowSettings(true);
   };
 
   // Gerar iniciais do nome do campeonato para o avatar
@@ -77,6 +80,13 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
           </div>
         </div>
       </div>
+
+      {/* Modal de Configurações */}
+      <ChampionshipSettings
+        championship={championship}
+        open={showSettings}
+        onOpenChange={setShowSettings}
+      />
     </div>
   );
 }; 

@@ -399,10 +399,10 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
                     </TableCell>
                     <TableCell className="text-center py-4">
                       <div className="text-sm font-medium">
-                        {category.batteryQuantity}
+                        {category.batteriesConfig?.length || 0}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {category.startingGridFormat}
+                        {category.batteriesConfig?.length === 1 ? 'bateria' : 'baterias'}
                       </div>
                     </TableCell>
                     <TableCell className="text-center py-4">
