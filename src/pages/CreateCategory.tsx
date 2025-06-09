@@ -55,6 +55,8 @@ export const CreateCategory = () => {
   const [saveSuccessful, setSaveSuccessful] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [initialFormData, setInitialFormData] = useState<any>(null);
+  const [shouldBlockNavigation, setShouldBlockNavigation] = useState(true);
 
   // Edit mode states
   const [isEditMode, setIsEditMode] = useState(false);
@@ -138,14 +140,17 @@ export const CreateCategory = () => {
       try {
         const category = await CategoryService.getById(categoryId);
         
-        setFormData({
+        const categoryData = {
           name: category.name,
           ballast: category.ballast,
           maxPilots: category.maxPilots.toString(),
           batteriesConfig: category.batteriesConfig || BATTERY_TEMPLATES.SINGLE,
           minimumAge: category.minimumAge.toString(),
           seasonId: category.seasonId
-        });
+        };
+        
+        setInitialFormData(categoryData);
+        setFormData(categoryData);
       } catch (err: any) {
         setLoadCategoryError(err.message || 'Erro ao carregar dados da categoria');
       } finally {
@@ -156,51 +161,65 @@ export const CreateCategory = () => {
     loadCategoryData();
   }, [isEditMode, categoryId]);
 
+  // Helper function to check if form has changes
+  const checkForChanges = useCallback((currentData: any) => {
+    if (!initialFormData || !currentData) {
+      setHasUnsavedChanges(false);
+      return;
+    }
+
+    // Compare current data with initial data
+    const hasChanges = Object.keys(currentData).some(key => {
+      const initialValue = initialFormData[key];
+      const currentValue = currentData[key];
+      
+      // Handle empty strings vs null/undefined
+      const normalizeValue = (val: any) => {
+        if (val === null || val === undefined || val === '') return '';
+        if (Array.isArray(val)) return JSON.stringify(val);
+        return val.toString();
+      };
+      
+      return normalizeValue(initialValue) !== normalizeValue(currentValue);
+    });
+
+    setHasUnsavedChanges(hasChanges);
+  }, [initialFormData]);
+
   // Set initial form data for create mode
   useEffect(() => {
-    if (!isEditMode && !isLoadingSeasons && !isLoadingGridTypes && gridTypes.length > 0 && formData.batteriesConfig.length === 0) {
+    if (!isEditMode && !isLoadingSeasons && !isLoadingGridTypes && gridTypes.length > 0 && !initialFormData) {
       const defaultGridType = gridTypes.find(gt => gt.isDefault)?.id || gridTypes[0]?.id || "";
       
-      setFormData(prev => ({
-        ...prev,
-        seasonId: seasonId || prev.seasonId,
+      const initialData = {
+        name: "",
+        ballast: "",
+        maxPilots: "",
         batteriesConfig: [{
           name: "Bateria 1",
           gridType: defaultGridType,
           order: 1,
           isRequired: true,
           description: "Bateria principal"
-        }]
-      }));
-    } else if (!isEditMode && seasonId && !formData.seasonId) {
-      // Just update seasonId if batteriesConfig already exists
-      setFormData(prev => ({
-        ...prev,
-        seasonId: seasonId
-      }));
+        }],
+        minimumAge: "",
+        seasonId: seasonId || ""
+      };
+      
+      setInitialFormData(initialData);
+      setFormData(initialData);
     }
-  }, [isEditMode, seasonId, isLoadingSeasons, isLoadingGridTypes, gridTypes, formData.batteriesConfig.length, formData.seasonId]);
+  }, [isEditMode, seasonId, isLoadingSeasons, isLoadingGridTypes, gridTypes, initialFormData]);
 
-  // Check for unsaved changes
-  const checkForChanges = useCallback(() => {
-    if (isEditMode) {
-      // In edit mode, check if any field has changed from initial values
-      setHasUnsavedChanges(true); // Simplified for now
-    } else {
-      // In create mode, check if user has entered any data
-      const hasData = Boolean(formData.name || formData.ballast || formData.maxPilots || 
-                             formData.minimumAge || formData.batteriesConfig.length > 0);
-      setHasUnsavedChanges(hasData);
-    }
-  }, [isEditMode, formData]);
-
+  // Monitor form changes
   useEffect(() => {
-    checkForChanges();
-  }, [checkForChanges]);
+    checkForChanges(formData);
+  }, [formData, checkForChanges]);
 
   // Block navigation when there are unsaved changes
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
+      shouldBlockNavigation &&
       hasUnsavedChanges && 
       !saveSuccessful && 
       !isSaving && 
@@ -210,11 +229,11 @@ export const CreateCategory = () => {
   );
 
   useEffect(() => {
-    if (blocker.state === "blocked") {
+    if (blocker.state === "blocked" && !showUnsavedChangesDialog) {
       setPendingNavigation(blocker.location.pathname);
       setShowUnsavedChangesDialog(true);
     }
-  }, [blocker]);
+  }, [blocker.state, showUnsavedChangesDialog]);
 
   const handleInputChange = useCallback((field: keyof typeof formData, value: any) => {
     setFormData(prev => ({
@@ -240,10 +259,17 @@ export const CreateCategory = () => {
   };
 
   const handleConfirmNavigation = () => {
+    const targetPath = pendingNavigation;
     setShowUnsavedChangesDialog(false);
-    if (pendingNavigation) {
-      navigate(pendingNavigation);
-    }
+    setPendingNavigation(null);
+    setShouldBlockNavigation(false); // Disable blocking temporarily
+    
+    // Use setTimeout to ensure state updates are processed before navigation
+    setTimeout(() => {
+      if (targetPath) {
+        navigate(targetPath);
+      }
+    }, 0);
   };
 
   const handleCancelNavigation = () => {
@@ -294,6 +320,7 @@ export const CreateCategory = () => {
 
       setSaveSuccessful(true);
       setHasUnsavedChanges(false);
+      setShouldBlockNavigation(false); // Disable blocking for successful save
       navigate(`/championship/${championshipId}?tab=categories`);
     } catch (err: any) {
       console.error('Error saving category:', err);

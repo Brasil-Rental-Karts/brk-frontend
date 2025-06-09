@@ -30,6 +30,7 @@ export const CreateSeason = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [initialFormData, setInitialFormData] = useState<any>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [shouldBlockNavigation, setShouldBlockNavigation] = useState(true);
 
   // Estados para modo de edição
   const [isEditMode, setIsEditMode] = useState(false);
@@ -107,15 +108,16 @@ export const CreateSeason = () => {
   // Block navigation when there are unsaved changes
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
+      shouldBlockNavigation &&
       hasUnsavedChanges && !saveSuccessful && !isSaving && currentLocation.pathname !== nextLocation.pathname
   );
 
   useEffect(() => {
-    if (blocker.state === "blocked") {
+    if (blocker.state === "blocked" && !showUnsavedChangesDialog) {
       setPendingNavigation(blocker.location.pathname);
       setShowUnsavedChangesDialog(true);
     }
-  }, [blocker]);
+  }, [blocker.state, showUnsavedChangesDialog]);
 
   const handleFormChange = useCallback((data: any) => {
     checkForChanges(data);
@@ -135,10 +137,17 @@ export const CreateSeason = () => {
   };
 
   const handleConfirmNavigation = () => {
+    const targetPath = pendingNavigation;
     setShowUnsavedChangesDialog(false);
-    if (pendingNavigation) {
-      navigate(pendingNavigation);
-    }
+    setPendingNavigation(null);
+    setShouldBlockNavigation(false); // Disable blocking temporarily
+    
+    // Use setTimeout to ensure state updates are processed before navigation
+    setTimeout(() => {
+      if (targetPath) {
+        navigate(targetPath);
+      }
+    }, 0);
   };
 
   const handleCancelNavigation = () => {
@@ -202,6 +211,7 @@ export const CreateSeason = () => {
         // Success - navigate back to championship page
         setSaveSuccessful(true);
         setHasUnsavedChanges(false);
+        setShouldBlockNavigation(false); // Disable blocking for successful save
         navigate(`/championship/${championshipId}`, { replace: true });
       }
     } catch (err) {
