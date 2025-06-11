@@ -20,7 +20,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Button } from "brk-design-system";
 
-// Local type definition since ComboboxOption is not exported from brk-design-system
+// Type definition compatible with brk-design-system ComboboxOption
 interface ComboboxOption {
   value: string;
   label: string;
