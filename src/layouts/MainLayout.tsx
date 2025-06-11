@@ -16,6 +16,7 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
   NavigationMenuIndicator,
+  ListItem,
 } from "brk-design-system";
 import { Button } from "brk-design-system";
 import {
@@ -42,7 +43,7 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="bg-primary text-primary-foreground py-4 px-6 shadow-md relative z-50">
+      <header className="bg-primary text-primary-foreground py-4 px-6 shadow-md">
         <div className="w-full flex justify-between items-center">
           <div className="flex items-center gap-4">
             <img
@@ -72,43 +73,17 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                 <NavigationMenuItem>
                   <NavigationMenuTrigger>Campeonatos</NavigationMenuTrigger>
                   <NavigationMenuContent>
-                    <div className="w-[400px] p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg rounded-md">
-                      <div className="grid grid-cols-1 gap-4">
-                        <NavigationMenuLink asChild>
-                          <Link 
-                            to="/campeonatos" 
-                            className="block p-3 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                          >
-                            <div className="font-medium text-gray-900 dark:text-gray-100">Organizando</div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                              Você Organiza ou Gerencia
-                            </p>
-                          </Link>
-                        </NavigationMenuLink>
-                        <NavigationMenuLink asChild>
-                          <Link 
-                            to="/campeonatos" 
-                            className="block p-3 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                          >
-                            <div className="font-medium text-gray-900 dark:text-gray-100">Participando</div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                              Você está Inscrito como Piloto
-                            </p>
-                          </Link>
-                        </NavigationMenuLink>
-                        <NavigationMenuLink asChild>
-                          <Link 
-                            to="/campeonatos" 
-                            className="block p-3 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                          >
-                            <div className="font-medium text-gray-900 dark:text-gray-100">Buscar Campeonatos</div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                              Procure e Participe de Campeonatos
-                            </p>
-                          </Link>
-                        </NavigationMenuLink>
-                      </div>
-                    </div>
+                    <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
+                      <ListItem href="/campeonatos" title="Organizando">
+                        Você Organiza ou Gerencia
+                      </ListItem>
+                      <ListItem href="/campeonatos" title="Participando">
+                        Você está Inscrito como Piloto
+                      </ListItem>
+                      <ListItem href="/campeonatos" title="Buscar Campeonatos">
+                        Procure e Participe de Campeonatos
+                      </ListItem>
+                    </ul>
                   </NavigationMenuContent>
                 </NavigationMenuItem>
 
