@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "brk-design-system";
 import { AuthService } from "@/lib/services/auth.service";
 
 export function ConfirmEmail() {

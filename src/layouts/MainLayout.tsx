@@ -1,5 +1,5 @@
 import { Link, Outlet } from "react-router-dom";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "brk-design-system";
 import { ChevronDown, Menu } from "lucide-react";
 import {
   DropdownMenu,
@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "brk-design-system";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -16,15 +16,15 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
-import { ListItem } from "@/components/ui/list-item";
-import { Button } from "@/components/ui/button";
+import { ListItem } from "brk-design-system";
+import { Button } from "brk-design-system";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet";
+} from "brk-design-system";
 import { useState, ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";

@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "brk-design-system";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "brk-design-system";
+import { Badge } from "brk-design-system";
 import { Plus, Settings2, Star, X, Trash2 } from "lucide-react";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Checkbox } from "@/components/ui/checkbox";
+import { EmptyState } from "brk-design-system";
+import { Alert, AlertDescription } from "brk-design-system";
+import { Checkbox } from "brk-design-system";
 import { 
   Dialog, 
   DialogContent, 
@@ -13,8 +13,8 @@ import {
   DialogFooter, 
   DialogHeader, 
   DialogTitle 
-} from "@/components/ui/dialog";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+} from "brk-design-system";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "brk-design-system";
 import { GridType, GridTypeEnum } from "@/lib/types/grid-type";
 import { GridTypeService } from "@/lib/services/grid-type.service";
 import { GridTypeForm } from "./GridTypeForm";

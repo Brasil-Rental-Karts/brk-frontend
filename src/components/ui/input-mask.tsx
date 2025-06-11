@@ -1,5 +1,5 @@
-import * as React from "react";
-import { Input } from "./input";
+import React from "react";
+import { Input } from "brk-design-system";
 import { MaskType } from "@/utils/masks";
 import { useMask } from "@/utils/hooks/useMask";
 

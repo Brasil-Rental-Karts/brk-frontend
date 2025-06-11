@@ -1,16 +1,16 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "brk-design-system";
+import { Card } from "brk-design-system";
+import { Badge } from "brk-design-system";
 import { PlusCircle, Tag, Users, MoreVertical, Calendar, Hash } from "lucide-react";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState } from "brk-design-system";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "brk-design-system";
 import {
   Table,
   TableBody,
@@ -18,7 +18,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "brk-design-system";
 import {
   Dialog,
   DialogContent,
@@ -26,14 +26,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "brk-design-system";
 import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
-import { Pagination } from "@/components/ui/pagination";
+import { Pagination } from "brk-design-system";
 import { usePagination } from "@/hooks/usePagination";
 import { CategoryService, Category } from "@/lib/services/category.service";
 import { SeasonService } from "@/lib/services/season.service";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "brk-design-system";
+import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 
 interface CategoriesTabProps {
   championshipId: string;

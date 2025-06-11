@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "brk-design-system";
 
 export function ConfirmEmailInfo() {
   return (

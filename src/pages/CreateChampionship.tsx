@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useBlocker } from "react-router-dom";
 import { DynamicForm, FormSectionConfig } from "@/components/ui/dynamic-form";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Button } from "brk-design-system";
+import { Alert, AlertTitle, AlertDescription } from "brk-design-system";
 import { validateDocument } from "@/utils/validation";
 import { 
   fetchAddressByCEP, 
@@ -25,7 +25,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "brk-design-system";
 import { ChampionshipData } from "@/lib/services/championship.service";
 import { useChampionshipContext } from "@/contexts/ChampionshipContext";
 import { PageHeader } from "@/components/ui/page-header";

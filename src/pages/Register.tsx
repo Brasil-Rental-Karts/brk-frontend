@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "brk-design-system";
+import { Input } from "brk-design-system";
 import { InputMask } from "@/components/ui/input-mask";
 import {
   FormControl,
@@ -11,11 +11,11 @@ import {
   FormField,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Form, FormItem } from "@/components/ui/form";
+} from "brk-design-system";
+import { Form, FormItem } from "brk-design-system";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "brk-design-system";
 
 const phoneSchema = z.string().refine(
   (value) => {

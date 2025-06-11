@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useBlocker, useParams } from "react-router-dom";
 import { DynamicForm, FormSectionConfig } from "@/components/ui/dynamic-form";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertTitle, AlertDescription } from "brk-design-system";
 import {
   Dialog,
   DialogContent,
@@ -9,13 +9,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+} from "brk-design-system";
+import { Button } from "brk-design-system";
 import { SeasonData, SeasonService } from "@/lib/services/season.service";
 import { PageHeader } from "@/components/ui/page-header";
 import { useCreateSeason } from "@/hooks/use-create-season";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card } from "@/components/ui/card";
+import { Skeleton } from "brk-design-system";
+import { Card } from "brk-design-system";
 import { formatDateForDisplay, formatDateToISO, formatCurrency } from "@/utils/date";
 
 export const CreateSeason = () => {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "brk-design-system";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
 import { ChampionshipHeader } from "@/components/championship/ChampionshipHeader";
 import { SeasonsTab } from "@/components/championship/tabs/SeasonsTab";
 import { StagesTab } from "@/components/championship/tabs/StagesTab";
@@ -9,8 +9,8 @@ import { CategoriesTab } from "@/components/championship/tabs/CategoriesTab";
 import { ClassificationTab } from "@/components/championship/tabs/ClassificationTab";
 import { EventTab } from "@/components/championship/tabs/EventTab";
 import { useChampionship } from "@/hooks/use-championship";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "brk-design-system";
+import { Alert, AlertDescription } from "brk-design-system";
 import { AlertTriangle } from "lucide-react";
 
 /**

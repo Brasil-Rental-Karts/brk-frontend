@@ -1,9 +1,9 @@
 import { useState, useMemo, useCallback } from "react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "brk-design-system";
+import { Card } from "brk-design-system";
+import { Badge } from "brk-design-system";
 import { Trophy, Medal, Award, Download } from "lucide-react";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState } from "brk-design-system";
 import {
   Table,
   TableBody,
@@ -11,10 +11,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+} from "brk-design-system";
+import { Avatar, AvatarFallback, AvatarImage } from "brk-design-system";
 import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
-import { Pagination } from "@/components/ui/pagination";
+import { Pagination } from "brk-design-system";
 import { usePagination } from "@/hooks/usePagination";
 
 interface ClassificationEntry {

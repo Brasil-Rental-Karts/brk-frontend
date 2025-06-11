@@ -3,16 +3,16 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "brk-design-system";
+import { Input } from "brk-design-system";
+import { Checkbox } from "brk-design-system";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "brk-design-system";
 import {
   Form,
   FormItem,
@@ -20,14 +20,14 @@ import {
   FormField,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
+} from "brk-design-system";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "brk-design-system";
 import { useNavigate } from "react-router-dom";
 import { Stepper } from "@/components/ui/stepper";
 import { ProfileService } from "@/lib/services";

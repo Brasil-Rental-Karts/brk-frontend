@@ -9,24 +9,24 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+} from "brk-design-system";
+import { Input } from "brk-design-system";
+import { Button } from "brk-design-system";
+import { Checkbox } from "brk-design-system";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "brk-design-system";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "brk-design-system";
 import { InputMask } from "@/components/ui/input-mask";
 import { MaskType } from "@/utils/masks";
 import { SponsorListField } from "@/components/ui/sponsor-list-field";

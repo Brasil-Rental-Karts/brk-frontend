@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "brk-design-system";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "brk-design-system";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
 import { ArrowLeft, Settings } from "lucide-react";
 import { GridTypesTab } from "@/components/championship/settings/GridTypesTab";
 import { Championship, ChampionshipService } from "@/lib/services/championship.service";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "brk-design-system";
+import { Alert, AlertDescription } from "brk-design-system";
 
 /**
  * Página de configurações do campeonato

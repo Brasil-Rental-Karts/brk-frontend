@@ -1,24 +1,30 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Input } from "@/components/ui/input";
-import { Combobox, ComboboxOption } from "@/components/ui/combobox";
+import { Input } from "brk-design-system";
+import { Combobox } from "brk-design-system";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
+} from "brk-design-system";
+import { Calendar } from "brk-design-system";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "brk-design-system";
 import { CalendarIcon, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "brk-design-system";
+
+// Local type definition since ComboboxOption is not exported from brk-design-system
+interface ComboboxOption {
+  value: string;
+  label: string;
+}
 
 // Hook customizado para debounce
 function useDebounce<T>(value: T, delay: number): T {

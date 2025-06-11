@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "brk-design-system";
 
 export const LoginError = () => {
   const [searchParams] = useSearchParams();

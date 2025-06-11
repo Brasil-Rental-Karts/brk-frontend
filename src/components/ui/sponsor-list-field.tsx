@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Button } from 'brk-design-system';
+import { Input } from 'brk-design-system';
+import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
+import { Badge } from 'brk-design-system';
 import { Trash2, Plus, Globe, Building2 } from 'lucide-react';
 import { Sponsor } from '@/lib/services/championship.service';
 import { FileUpload } from '@/components/ui/file-upload';

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import { Button } from 'brk-design-system';
+import { Input } from 'brk-design-system';
+import { Card, CardContent } from 'brk-design-system';
 import { Upload, File, X, ExternalLink, Loader2 } from 'lucide-react';
 
 interface FileUploadProps {

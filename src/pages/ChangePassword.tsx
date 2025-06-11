@@ -3,14 +3,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "brk-design-system";
+import { Input } from "brk-design-system";
 import {
   FormControl,
   FormField,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
+} from "brk-design-system";
 import {
   Card,
   CardContent,
@@ -18,9 +18,9 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "brk-design-system";
 import { ModeToggle } from "@/components/mode-toggle";
-import { Form, FormItem } from "@/components/ui/form";
+import { Form, FormItem } from "brk-design-system";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AuthService } from "@/lib/services";
 

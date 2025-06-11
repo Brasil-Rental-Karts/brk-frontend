@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "brk-design-system";
+import { Avatar, AvatarFallback, AvatarImage } from "brk-design-system";
 import { Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Championship } from "@/lib/services/championship.service";

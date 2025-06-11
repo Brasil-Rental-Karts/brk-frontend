@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "brk-design-system";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
 import { GridTypesTab } from "./settings/GridTypesTab";
 import { Championship } from "@/lib/services/championship.service";
 

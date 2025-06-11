@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Button } from "brk-design-system";
+import { Card } from "brk-design-system";
 import {
   PlusCircle,
   Trophy,
@@ -12,9 +12,9 @@ import {
   Eye,
 } from "lucide-react";
 import { useState } from "react";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Badge } from "@/components/ui/badge";
+import { Alert, AlertTitle, AlertDescription } from "brk-design-system";
+import { EmptyState } from "brk-design-system";
+import { Badge } from "brk-design-system";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +22,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/components/ui/dialog";
+} from "brk-design-system";
 import { useNavigation } from "@/router";
 import { useDashboardChampionships } from "@/hooks/use-dashboard-championships";
 import { useChampionshipContext } from "@/contexts/ChampionshipContext";

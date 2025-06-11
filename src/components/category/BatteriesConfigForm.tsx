@@ -1,18 +1,18 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "brk-design-system";
+import { Input } from "brk-design-system";
+import { Label } from "brk-design-system";
+import { Textarea } from "brk-design-system";
+import { Badge } from "brk-design-system";
+import { Card, CardContent, CardHeader, CardTitle } from "brk-design-system";
 import { 
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+} from "brk-design-system";
+import { Checkbox } from "brk-design-system";
 import { 
   Dialog, 
   DialogContent, 
@@ -20,8 +20,8 @@ import {
   DialogFooter, 
   DialogHeader, 
   DialogTitle 
-} from "@/components/ui/dialog";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+} from "brk-design-system";
+import { Alert, AlertDescription } from "brk-design-system";
 import { Plus, Trash2, GripVertical, Settings2 } from "lucide-react";
 import { BatteryConfig, BatteriesConfig, BATTERY_TEMPLATES, validateBatteriesConfig } from "@/lib/types/battery.types";
 import { GridType } from "@/lib/types/grid-type";
