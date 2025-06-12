@@ -71,12 +71,12 @@ interface CustomFormData {
   competitiveLevel: CompetitiveLevel | null;
   hasOwnKart: boolean;
   isTeamMember: boolean;
-  teamName?: string;
+  teamName?: string | null;
   usesTelemetry: boolean;
-  telemetryType?: string;
+  telemetryType?: string | null;
   attendsEvents: AttendsEvents | null;
-  interestCategories: InterestCategory[];
-  preferredTrack?: string;
+  interestCategories: InterestCategory[] | null;
+  preferredTrack?: string | null;
 }
 
 // Combined schema for the complete form
@@ -98,17 +98,19 @@ const formSchema = z.object({
     .refine(val => val !== null, "O nível de competitividade é obrigatório"),
   hasOwnKart: z.boolean(),
   isTeamMember: z.boolean(),
-  teamName: z.string().optional(),
+  teamName: z.string().nullable().optional(),
   usesTelemetry: z.boolean(),
-  telemetryType: z.string().optional(),
+  telemetryType: z.string().nullable().optional(),
   attendsEvents: z
     .nativeEnum(AttendsEvents)
     .nullable()
     .refine(val => val !== null, "Selecione sua disponibilidade para eventos"),
   interestCategories: z
     .array(z.nativeEnum(InterestCategory))
-    .min(1, "Selecione pelo menos uma categoria"),
-  preferredTrack: z.string().optional(),
+    .nullable()
+    .transform((val) => val || [])
+    .refine((val) => val.length > 0, "Selecione pelo menos uma categoria"),
+  preferredTrack: z.string().nullable().optional(),
 });
 
 // Step schemas
@@ -136,17 +138,19 @@ const step2Schema = z.object({
 const step3Schema = z.object({
   hasOwnKart: z.boolean(),
   isTeamMember: z.boolean(),
-  teamName: z.string().optional(),
+  teamName: z.string().nullable().optional(),
   usesTelemetry: z.boolean(),
-  telemetryType: z.string().optional(),
+  telemetryType: z.string().nullable().optional(),
   attendsEvents: z
     .nativeEnum(AttendsEvents)
     .nullable()
     .refine(val => val !== null, "Selecione sua disponibilidade para eventos"),
   interestCategories: z
     .array(z.nativeEnum(InterestCategory))
-    .min(1, "Selecione pelo menos uma categoria"),
-  preferredTrack: z.string().optional(),
+    .nullable()
+    .transform((val) => val || [])
+    .refine((val) => val.length > 0, "Selecione pelo menos uma categoria"),
+  preferredTrack: z.string().nullable().optional(),
 });
 
 type FormData = CustomFormData;
@@ -163,12 +167,12 @@ const defaultValues: FormData = {
   competitiveLevel: null,
   hasOwnKart: false,
   isTeamMember: false,
-  teamName: "",
+  teamName: null,
   usesTelemetry: false,
-  telemetryType: "",
+  telemetryType: null,
   attendsEvents: null,
-  interestCategories: [],
-  preferredTrack: "",
+  interestCategories: null,
+  preferredTrack: null,
 };
 
 type StepConfig = {
@@ -624,6 +628,7 @@ export function CompleteProfile() {
                             <Input
                               placeholder="Nome da equipe"
                               {...teamNameField}
+                              value={teamNameField.value || ""}
                             />
                           </FormControl>
                           <FormMessage />
@@ -662,6 +667,7 @@ export function CompleteProfile() {
                             <Input
                               placeholder="Qual(is)?"
                               {...telemetryTypeField}
+                              value={telemetryTypeField.value || ""}
                             />
                           </FormControl>
                           <FormMessage />
@@ -747,7 +753,7 @@ export function CompleteProfile() {
                 <FormItem>
                   <FormLabel>Kartódromo Preferido</FormLabel>
                   <FormControl>
-                    <Input placeholder="Nome do kartódromo" {...field} />
+                    <Input placeholder="Nome do kartódromo" {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

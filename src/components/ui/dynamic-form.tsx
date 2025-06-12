@@ -156,7 +156,7 @@ const createZodSchema = (config: FormSectionConfig[]) => {
           website: z.string().optional()
         })).optional();
       } else {
-        schemaFields[field.id] = z.string().optional();
+        schemaFields[field.id] = z.string().nullable().optional();
       }
     });
   });
