@@ -28,7 +28,7 @@ export function getAsaasRequiredFields(personType: number): AsaasRequiredFields 
     name: true, // Nome/Razão Social sempre obrigatório
     email: true, // E-mail sempre obrigatório
     cpfCnpj: true, // CPF/CNPJ sempre obrigatório
-    birthDate: !isCompany, // Data de nascimento obrigatória apenas para pessoa física
+    birthDate: !isCompany, // Data de nascimento obrigatória apenas para pessoa física (responsibleBirthDate)
     companyType: isCompany, // Tipo de empresa obrigatório apenas para pessoa jurídica
     phone: true, // Telefone sempre obrigatório
     mobilePhone: true, // Celular sempre obrigatório
@@ -51,4 +51,14 @@ export function getAsaasRequiredFields(personType: number): AsaasRequiredFields 
  */
 export function formatFieldName(fieldName: string, isRequired: boolean): string {
   return isRequired ? `${fieldName} *` : fieldName;
+}
+
+/**
+ * Verifica se o campo responsibleBirthDate é obrigatório
+ * @param personType Tipo de pessoa (0 = física, 1 = jurídica)
+ * @param isResponsible Se a pessoa é responsável pelo campeonato
+ * @returns Se o campo é obrigatório
+ */
+export function isResponsibleBirthDateRequired(personType: number, isResponsible: boolean): boolean {
+  return personType === 0 && !isResponsible; // Obrigatório apenas para pessoa física quando não é responsável
 } 

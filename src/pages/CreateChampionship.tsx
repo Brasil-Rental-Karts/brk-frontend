@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useBlocker } from "react-router-dom";
 import { DynamicForm, FormSectionConfig } from "@/components/ui/dynamic-form";
 import { Button } from "brk-design-system";
-import { Alert, AlertTitle, AlertDescription } from "brk-design-system";
+
 import { validateDocument } from "@/utils/validation";
 import { 
   fetchAddressByCEP, 
@@ -31,6 +31,24 @@ import { ChampionshipData } from "@/lib/services/championship.service";
 import { useChampionshipContext } from "@/contexts/ChampionshipContext";
 import { PageHeader } from "@/components/ui/page-header";
 import { useCreateChampionship } from "@/hooks/use-create-championship";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
+
+// Função auxiliar para converter data DD/MM/AAAA para formato ISO
+const convertDateToISO = (dateString: string): string | undefined => {
+  if (!dateString || dateString.length < 10) return undefined;
+  
+  const [day, month, year] = dateString.split('/');
+  if (!day || !month || !year) return undefined;
+  
+  // Criar data no formato ISO (AAAA-MM-DD)
+  const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  
+  // Validar se a data é válida
+  const date = new Date(isoDate);
+  if (isNaN(date.getTime())) return undefined;
+  
+  return isoDate;
+};
 
 export const CreateChampionship = () => {
   const navigate = useNavigate();
@@ -301,9 +319,9 @@ export const CreateChampionship = () => {
       responsibleName: data.responsibleName || '',
       responsiblePhone: data.responsiblePhone || '',
       responsibleEmail: data.responsibleEmail || '', // E-mail do responsável
-      responsibleBirthDate: data.responsibleBirthDate || '', // Data de nascimento do responsável
-      companyType: data.companyType || '', // Tipo de empresa (pessoa jurídica)
-      incomeValue: data.incomeValue ? parseFloat(data.incomeValue) : undefined, // Faturamento/Renda mensal
+      responsibleBirthDate: data.responsibleBirthDate ? convertDateToISO(data.responsibleBirthDate) : undefined, // Data de nascimento do responsável
+      companyType: data.companyType || undefined, // Tipo de empresa (pessoa jurídica)
+      incomeValue: data.incomeValue ? parseFloat(data.incomeValue.replace(/[^\d]/g, '')) / 100 : undefined, // Faturamento/Renda mensal
       sponsors: data.sponsors || []
     };
 
@@ -493,10 +511,11 @@ export const CreateChampionship = () => {
           },
           {
             id: "incomeValue",
-            name: "Faturamento/Renda mensal (R$)",
-            type: "input",
+            name: "Faturamento/Renda mensal",
+            type: "inputMask",
             mandatory: true,
-            placeholder: "Ex: 25000"
+            mask: "currency",
+            placeholder: "R$ 0,00"
           },
           {
             id: "isResponsible",
@@ -540,10 +559,11 @@ export const CreateChampionship = () => {
           },
           {
             id: "responsibleBirthDate",
-            name: "Data de nascimento do responsável*",
-            type: "input",
-            mandatory: false, // Obrigatório apenas para pessoa física
-            placeholder: "DD/MM/AAAA (obrigatório para pessoa física)",
+            name: "Data de nascimento do responsável",
+            type: "inputMask",
+            mandatory: true,
+            mask: "date",
+            placeholder: "DD/MM/AAAA",
             conditionalField: {
               dependsOn: "isResponsible",
               showWhen: false
@@ -599,10 +619,17 @@ export const CreateChampionship = () => {
       {/* Alerts */}
       <div className="w-full px-6 mb-4">
         {showErrorAlert && error && (
-          <Alert variant="destructive" hasCloseButton onClose={handleCloseErrorAlert} className="mb-4">
-            <AlertTitle>Erro ao criar campeonato</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+          <div className="relative">
+            <ErrorDisplay error={error} className="mb-4" />
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleCloseErrorAlert}
+              className="absolute top-2 right-2 h-auto p-1"
+            >
+              ✕
+            </Button>
+          </div>
         )}
       </div>
 

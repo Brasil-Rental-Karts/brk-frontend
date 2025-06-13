@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Championship, ChampionshipService } from "@/lib/services/championship.service";
 import { getAsaasRequiredFields, formatFieldName } from "@/utils/asaas-fields";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
 
 interface AsaasAccountTabProps {
   championshipId: string;
@@ -41,7 +42,7 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
   const [asaasStatus, setAsaasStatus] = useState<AsaasStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<any>(null);
 
   // Carregar dados do campeonato e status Asaas
   useEffect(() => {
@@ -81,7 +82,13 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
       // Mostrar sucesso (você pode adicionar um toast aqui)
       console.log('Conta Asaas criada com sucesso:', result);
     } catch (err: any) {
-      setError(err.message || 'Erro ao criar conta Asaas');
+      // Se for erro estruturado do Asaas, usa diretamente
+      if (err.response?.data?.type === 'asaas_error') {
+        setError(err.response.data);
+      } else {
+        // Para outros erros, usa formato simples
+        setError(err.message || 'Erro ao criar conta Asaas');
+      }
     } finally {
       setCreating(false);
     }
@@ -97,12 +104,7 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
   }
 
   if (error && !asaasStatus) {
-    return (
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
+    return <ErrorDisplay error={error} />;
   }
 
   const isConfigured = asaasStatus?.configured || false;
@@ -364,12 +366,7 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+          {error && <ErrorDisplay error={error} />}
 
           {!asaasStatus?.splitEnabled && (
             <Alert>

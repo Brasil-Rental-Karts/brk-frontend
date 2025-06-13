@@ -186,6 +186,13 @@ export class ChampionshipService {
       return response.data;
     } catch (error: any) {
       console.error('Error fetching Asaas status:', error);
+      
+      // Se for um erro do Asaas com formato estruturado, relança preservando a estrutura
+      if (error.response?.data?.type === 'asaas_error') {
+        throw error;
+      }
+      
+      // Para outros erros, cria estrutura padrão
       throw new Error(
         error.response?.data?.message || 
         'Erro ao verificar status da conta Asaas. Tente novamente.'
@@ -202,6 +209,13 @@ export class ChampionshipService {
       return response.data;
     } catch (error: any) {
       console.error('Error creating Asaas account:', error);
+      
+      // Se for um erro do Asaas com formato estruturado, relança preservando a estrutura
+      if (error.response?.data?.type === 'asaas_error') {
+        throw error;
+      }
+      
+      // Para outros erros, cria estrutura padrão
       throw new Error(
         error.response?.data?.message || 
         'Erro ao criar conta Asaas. Tente novamente.'
