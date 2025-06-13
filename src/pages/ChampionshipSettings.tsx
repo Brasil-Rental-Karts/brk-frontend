@@ -3,8 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "brk-design-system";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "brk-design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
-import { ArrowLeft, Settings } from "lucide-react";
+import { ArrowLeft, Settings, CreditCard } from "lucide-react";
 import { GridTypesTab } from "@/components/championship/settings/GridTypesTab";
+import { AsaasAccountTab } from "@/components/championship/settings/AsaasAccountTab";
 import { Championship, ChampionshipService } from "@/lib/services/championship.service";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription } from "brk-design-system";
@@ -16,7 +17,7 @@ import { Alert, AlertDescription } from "brk-design-system";
 export const ChampionshipSettings = () => {
   const { id: championshipId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("grid-types");
+  const [activeTab, setActiveTab] = useState("asaas-account");
   const [championship, setChampionship] = useState<Championship | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -117,12 +118,19 @@ export const ChampionshipSettings = () => {
                 <Settings className="h-4 w-4" />
                 Tipos de Grid
               </TabsTrigger>
+              <TabsTrigger value="asaas-account" className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                Conta Asaas
+              </TabsTrigger>
               {/* Futuras abas podem ser adicionadas aqui */}
             </TabsList>
 
             <div className="mt-6">
               <TabsContent value="grid-types" className="mt-0">
                 <GridTypesTab championshipId={championship.id} />
+              </TabsContent>
+              <TabsContent value="asaas-account" className="mt-0">
+                <AsaasAccountTab championshipId={championship.id} />
               </TabsContent>
               {/* Futuras abas de conteúdo podem ser adicionadas aqui */}
             </div>

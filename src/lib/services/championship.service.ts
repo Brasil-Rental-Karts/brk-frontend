@@ -21,9 +21,14 @@ export interface ChampionshipData {
   fullAddress: string;
   number: string;
   complement?: string;
+  province?: string; // Bairro
   isResponsible: boolean;
   responsibleName?: string;
   responsiblePhone?: string;
+  responsibleEmail?: string; // E-mail do responsável (quando não é responsável)
+  responsibleBirthDate?: string; // Data de nascimento do responsável (quando não é responsável) - obrigatório para pessoa física
+  companyType?: string; // Tipo de empresa para pessoa jurídica
+  incomeValue?: number; // Faturamento/Renda mensal
   sponsors?: Sponsor[];
 }
 
@@ -39,6 +44,23 @@ export interface ChampionshipBasicInfo {
   name: string;
   shortDescription: string;
   fullDescription: string;
+}
+
+export interface AsaasStatus {
+  championshipId: string;
+  splitEnabled: boolean;
+  asaasCustomerId: string | null;
+  asaasWalletId: string | null;
+  configured: boolean;
+  canRetry: boolean;
+  document: string;
+  personType: number;
+}
+
+export interface CreateAsaasAccountResponse {
+  message: string;
+  asaasCustomerId: string;
+  asaasWalletId: string;
 }
 
 export class ChampionshipService {
@@ -151,6 +173,38 @@ export class ChampionshipService {
       throw new Error(
         error.response?.data?.message || 
         'Erro ao deletar campeonato. Tente novamente.'
+      );
+    }
+  }
+
+  /**
+   * Verificar status da configuração Asaas
+   */
+  static async getAsaasStatus(id: string): Promise<AsaasStatus> {
+    try {
+      const response = await api.get<AsaasStatus>(`${this.BASE_URL}/${id}/asaas-status`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching Asaas status:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao verificar status da conta Asaas. Tente novamente.'
+      );
+    }
+  }
+
+  /**
+   * Criar subconta Asaas manualmente
+   */
+  static async createAsaasAccount(id: string): Promise<CreateAsaasAccountResponse> {
+    try {
+      const response = await api.post<CreateAsaasAccountResponse>(`${this.BASE_URL}/${id}/create-asaas-account`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error creating Asaas account:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao criar conta Asaas. Tente novamente.'
       );
     }
   }
