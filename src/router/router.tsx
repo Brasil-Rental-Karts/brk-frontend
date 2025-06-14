@@ -83,6 +83,17 @@ const LoginErrorRedirect = () => {
   );
 };
 
+// Confirm email redirect handler that preserves query parameters
+const ConfirmEmailRedirect = () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const queryString = urlParams.toString();
+  const redirectUrl = queryString 
+    ? `/auth/confirm-email?${queryString}`
+    : '/auth/confirm-email';
+  
+  return <Navigate to={redirectUrl} replace />;
+};
+
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -329,6 +340,10 @@ export const router = createBrowserRouter([
       {
         path: "login-error",
         element: <Navigate to="/auth/login-error" replace />,
+      },
+      {
+        path: "confirm-email",
+        element: <ConfirmEmailRedirect />,
       },
       {
         path: "app/dashboard",
