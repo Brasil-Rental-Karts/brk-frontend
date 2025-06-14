@@ -81,19 +81,7 @@ export const Dashboard = () => {
   return (
     <div className="container mx-auto p-4 space-y-6">
       {showProfileAlert && (
-        <Alert
-          hasCloseButton
-          onClose={() => setShowProfileAlert(false)}
-          variant="withAction"
-          action={
-            <Button
-              variant="outline"
-              onClick={() => nav.goToCompleteProfile()}
-            >
-              Completar Perfil
-            </Button>
-          }
-        >
+        <Alert variant="info" dismissible onClose={() => setShowProfileAlert(false)}>
           <AlertTitle>
             Complete seu perfil para liberar todas as funcionalidades da
             plataforma!
@@ -179,15 +167,20 @@ export const Dashboard = () => {
               <div className="text-sm text-muted-foreground">Carregando campeonatos...</div>
             </div>
           ) : championshipsError ? (
-            <div className="text-center py-8">
-              <p className="text-sm text-destructive mb-2">{championshipsError}</p>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={refreshChampionships}
-              >
-                Tentar novamente
-              </Button>
+            <div className="py-4">
+              <Alert variant="destructive">
+                <AlertTitle>Erro ao carregar campeonatos</AlertTitle>
+                <AlertDescription>{championshipsError}</AlertDescription>
+              </Alert>
+              <div className="mt-4 text-center">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={refreshChampionships}
+                >
+                  Tentar novamente
+                </Button>
+              </div>
             </div>
           ) : championshipsOrganized.length === 0 ? (
             <EmptyState

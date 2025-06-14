@@ -618,7 +618,7 @@ export const CreateChampionship = () => {
       {/* Alerts */}
       <div className="w-full px-6 mb-4">
         {showErrorAlert && error && (
-          <Alert variant="destructive" hasCloseButton onClose={handleCloseErrorAlert} className="mb-4">
+          <Alert variant="destructive" dismissible onClose={handleCloseErrorAlert} className="mb-4">
             <AlertTitle>Erro ao criar campeonato</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>

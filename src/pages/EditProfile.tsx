@@ -594,13 +594,13 @@ export const EditProfile = () => {
       {/* Alerts */}
       <div className="w-full px-6 mb-4">
         {saveSuccessful && (
-          <Alert variant="default" className="mb-4 border-green-200 bg-green-50 text-green-800">
+          <Alert variant="success" className="mb-4">
             <AlertTitle>Perfil salvo com sucesso!</AlertTitle>
             <AlertDescription>Suas alterações foram salvas e estão atualizadas.</AlertDescription>
           </Alert>
         )}
         {showErrorAlert && error && (
-          <Alert variant="destructive" hasCloseButton onClose={handleCloseErrorAlert} className="mb-4">
+          <Alert variant="destructive" dismissible onClose={handleCloseErrorAlert} className="mb-4">
             <AlertTitle>Erro ao salvar perfil</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>

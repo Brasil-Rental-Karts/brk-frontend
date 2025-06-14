@@ -440,7 +440,7 @@ export const CreateSeason = () => {
       {/* Alerts */}
       <div className="w-full px-6 mb-4">
         {showErrorAlert && error && (
-          <Alert variant="destructive" hasCloseButton onClose={handleCloseErrorAlert} className="mb-4">
+          <Alert variant="destructive" dismissible onClose={handleCloseErrorAlert} className="mb-4">
             <AlertTitle>Erro ao {isEditMode ? 'atualizar' : 'criar'} temporada</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>

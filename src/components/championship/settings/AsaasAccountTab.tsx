@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
 import { Button } from "brk-design-system";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "brk-design-system";
-import { Alert, AlertDescription } from "brk-design-system";
+import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { Badge } from "brk-design-system";
 import { Skeleton } from "brk-design-system";
 import { 
   CreditCard, 
   CheckCircle, 
   XCircle, 
-  AlertTriangle, 
   ExternalLink,
   User,
   Building,
@@ -99,7 +98,7 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
   if (error && !asaasStatus) {
     return (
       <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Erro ao Carregar Dados</AlertTitle>
         <AlertDescription>{error}</AlertDescription>
       </Alert>
     );
@@ -366,14 +365,14 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
         <CardContent className="space-y-4">
           {error && (
             <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Erro</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
           {!asaasStatus?.splitEnabled && (
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
+            <Alert variant="warning">
+              <AlertTitle>Split Payment Desabilitado</AlertTitle>
               <AlertDescription>
                 O Split Payment não está habilitado para este campeonato. 
                 Habilite o Split Payment nas configurações básicas do campeonato para poder criar a conta Asaas.
@@ -382,8 +381,8 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
           )}
 
           {!asaasStatus?.document && (
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
+            <Alert variant="warning">
+              <AlertTitle>Documento Não Informado</AlertTitle>
               <AlertDescription>
                 O documento (CPF/CNPJ) não foi informado. 
                 Adicione o documento nas informações básicas do campeonato.
@@ -416,8 +415,8 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
           </div>
 
           {isConfigured && (
-            <Alert>
-              <CheckCircle className="h-4 w-4" />
+            <Alert variant="success">
+              <AlertTitle>Conta Configurada</AlertTitle>
               <AlertDescription>
                 Conta Asaas configurada com sucesso! Agora você pode receber pagamentos com split automático.
               </AlertDescription>

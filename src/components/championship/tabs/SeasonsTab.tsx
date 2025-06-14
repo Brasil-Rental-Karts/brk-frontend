@@ -280,6 +280,7 @@ export const SeasonsTab = ({ championshipId }: SeasonsTabProps) => {
       <Card className="w-full">
         <div className="p-6">
           <Alert variant="destructive">
+            <AlertTitle>Erro ao carregar temporadas</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
           <div className="mt-4">
