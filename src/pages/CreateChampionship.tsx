@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useBlocker } from "react-router-dom";
 import { DynamicForm, FormSectionConfig } from "@/components/ui/dynamic-form";
 import { Button } from "brk-design-system";
-
+import { Alert, AlertTitle, AlertDescription } from "brk-design-system";
 import { validateDocument } from "@/utils/validation";
 import { 
   fetchAddressByCEP, 
@@ -31,7 +31,6 @@ import { ChampionshipData } from "@/lib/services/championship.service";
 import { useChampionshipContext } from "@/contexts/ChampionshipContext";
 import { PageHeader } from "@/components/ui/page-header";
 import { useCreateChampionship } from "@/hooks/use-create-championship";
-import { ErrorDisplay } from "@/components/ErrorDisplay";
 
 // Função auxiliar para converter data DD/MM/AAAA para formato ISO
 const convertDateToISO = (dateString: string): string | undefined => {
@@ -619,17 +618,10 @@ export const CreateChampionship = () => {
       {/* Alerts */}
       <div className="w-full px-6 mb-4">
         {showErrorAlert && error && (
-          <div className="relative">
-            <ErrorDisplay error={error} className="mb-4" />
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleCloseErrorAlert}
-              className="absolute top-2 right-2 h-auto p-1"
-            >
-              ✕
-            </Button>
-          </div>
+          <Alert variant="destructive" hasCloseButton onClose={handleCloseErrorAlert} className="mb-4">
+            <AlertTitle>Erro ao criar campeonato</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
       </div>
 

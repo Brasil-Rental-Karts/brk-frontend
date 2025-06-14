@@ -3,14 +3,14 @@ import { ChampionshipService, ChampionshipData, Championship } from '@/lib/servi
 
 export interface UseCreateChampionshipReturn {
   isLoading: boolean;
-  error: any;
+  error: string | null;
   createChampionship: (data: ChampionshipData) => Promise<Championship | null>;
   clearError: () => void;
 }
 
 export const useCreateChampionship = (): UseCreateChampionshipReturn => {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const createChampionship = async (data: ChampionshipData): Promise<Championship | null> => {
     setIsLoading(true);
@@ -20,14 +20,8 @@ export const useCreateChampionship = (): UseCreateChampionshipReturn => {
       const championship = await ChampionshipService.create(data);
       return championship;
     } catch (err: any) {
-      // Se for erro estruturado do Asaas, usa diretamente
-      if (err.response?.data?.type === 'asaas_error') {
-        setError(err.response.data);
-      } else {
-        // Para outros erros, usa formato simples
-        const errorMessage = err.message || 'Erro ao criar campeonato. Tente novamente.';
-        setError(errorMessage);
-      }
+      const errorMessage = err.message || 'Erro ao criar campeonato. Tente novamente.';
+      setError(errorMessage);
       return null;
     } finally {
       setIsLoading(false);
