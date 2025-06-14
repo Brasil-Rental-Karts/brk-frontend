@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "brk-design-system";
 import { Card } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { Users, Mail, Phone, Calendar, DollarSign, MoreVertical, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Users, Mail, Phone, Calendar, MoreVertical, CheckCircle, XCircle, Clock } from "lucide-react";
 import { EmptyState } from "brk-design-system";
 import {
   DropdownMenu,
@@ -26,7 +26,6 @@ import { SeasonService } from "@/lib/services/season.service";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { formatDateToBrazilian } from "@/utils/date";
-import { formatCurrency } from "@/utils/currency";
 
 interface PilotsTabProps {
   championshipId: string;
@@ -114,7 +113,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
   }, [championshipId]);
 
   // Buscar registrações de todas as temporadas ou de uma específica
-  const fetchRegistrations = useCallback(async () => {
+  const fetchRegistrations = useCallback(async (seasons: any[] = []) => {
     try {
       setLoading(true);
       setError(null);
@@ -144,9 +143,9 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     
     const initializeData = async () => {
       try {
-        await fetchSeasons();
+        const seasons = await fetchSeasons();
         if (mounted) {
-          await fetchRegistrations();
+          await fetchRegistrations(seasons);
         }
       } catch (error) {
         console.error('Error initializing data:', error);
@@ -160,12 +159,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     };
   }, [championshipId]);
 
-  // Recarregar quando filtros mudarem
-  useEffect(() => {
-    if (seasons.length > 0) {
-      fetchRegistrations();
-    }
-  }, [fetchRegistrations, seasons]);
+
 
   // Aplicar filtros e ordenação aos dados
   const processedRegistrations = useMemo(() => {
@@ -173,6 +167,11 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
 
     // Aplicar filtros
     result = result.filter(registration => {
+      // Filtro por temporada
+      if (filters.seasonId && registration.season.id !== filters.seasonId) {
+        return false;
+      }
+
       // Filtro por status
       if (filters.status && registration.status !== filters.status) {
         return false;
@@ -423,7 +422,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
       </div>
 
       {/* Estatísticas rápidas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-green-100 text-green-600 rounded-lg">
@@ -471,26 +470,6 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
             </div>
           </div>
         </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 text-green-600 rounded-lg">
-              <DollarSign className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold">
-                {formatCurrency(
-                  registrations
-                    .filter(r => r.paymentStatus === 'paid')
-                    .reduce((sum, r) => sum + r.amount, 0)
-                )}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Arrecadado
-              </div>
-            </div>
-          </div>
-        </Card>
       </div>
 
       {/* Tabela de pilotos */}
@@ -523,20 +502,6 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                 <TableHead className="text-center">Pagamento</TableHead>
                 <TableHead 
                   className="cursor-pointer hover:bg-muted/50 text-center"
-                  onClick={() => handleSort("amount")}
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <DollarSign className="h-4 w-4" />
-                    Valor
-                    {sortBy === "amount" && (
-                      <span className="text-xs">
-                        {sortOrder === "asc" ? "↑" : "↓"}
-                      </span>
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 text-center"
                   onClick={() => handleSort("createdAt")}
                 >
                   <div className="flex items-center justify-center gap-2">
@@ -555,7 +520,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
             <TableBody>
               {paginatedRegistrations.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Nenhum piloto encontrado com os filtros aplicados
                   </TableCell>
                 </TableRow>
@@ -600,11 +565,6 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                     </TableCell>
                     <TableCell className="text-center py-4">
                       {getPaymentStatusBadge(registration.paymentStatus)}
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <div className="text-sm font-medium">
-                        {formatCurrency(registration.amount)}
-                      </div>
                     </TableCell>
                     <TableCell className="text-center py-4">
                       <div className="text-sm">
