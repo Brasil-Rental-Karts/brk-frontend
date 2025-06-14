@@ -83,7 +83,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [seasonOptions, setSeasonOptions] = useState<{ value: string; label: string }[]>([]);
-  const [seasons, setSeasons] = useState<any[]>([]);
+  const [, setSeasons] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -113,7 +113,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
   }, [championshipId]);
 
   // Buscar registrações de todas as temporadas ou de uma específica
-  const fetchRegistrations = useCallback(async (seasons: any[] = []) => {
+  const fetchRegistrations = useCallback(async (_seasons: any[] = []) => {
     try {
       setLoading(true);
       setError(null);

@@ -9,6 +9,8 @@ import { CategoriesTab } from "@/components/championship/tabs/CategoriesTab";
 import { ClassificationTab } from "@/components/championship/tabs/ClassificationTab";
 import { EventTab } from "@/components/championship/tabs/EventTab";
 import { PilotsTab } from "@/components/championship/tabs/PilotsTab";
+import { GridTypesTab } from "@/components/championship/settings/GridTypesTab";
+import { AsaasAccountTab } from "@/components/championship/settings/AsaasAccountTab";
 import { useChampionship } from "@/hooks/use-championship";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription } from "brk-design-system";
@@ -17,7 +19,7 @@ import { AlertTriangle } from "lucide-react";
 /**
  * Página principal do campeonato
  * Exibe as informações detalhadas de um campeonato específico
- * com tabs para temporadas, etapas, categorias, classificação e eventos
+ * com tabs para temporadas, etapas, categorias, classificação, eventos e configurações
  */
 export const Championship = () => {
   const { id } = useParams<{ id: string }>();
@@ -37,7 +39,11 @@ export const Championship = () => {
     'event': 'evento',
     'evento': 'evento',
     'pilots': 'pilotos',
-    'pilotos': 'pilotos'
+    'pilotos': 'pilotos',
+    'grid-types': 'config-grid',
+    'config-grid': 'config-grid',
+    'asaas-account': 'config-asaas',
+    'config-asaas': 'config-asaas'
   };
 
   // Ler o parâmetro tab da URL ao montar o componente
@@ -178,6 +184,14 @@ export const Championship = () => {
 
           <TabsContent value="pilotos" className="mt-0 ring-0 focus-visible:outline-none">
             <PilotsTab championshipId={id} />
+          </TabsContent>
+
+          <TabsContent value="config-grid" className="mt-0 ring-0 focus-visible:outline-none">
+            <GridTypesTab championshipId={id} />
+          </TabsContent>
+
+          <TabsContent value="config-asaas" className="mt-0 ring-0 focus-visible:outline-none">
+            <AsaasAccountTab championshipId={id} />
           </TabsContent>
         </div>
       </Tabs>

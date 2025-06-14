@@ -1,6 +1,12 @@
 import { Button } from "brk-design-system";
 import { Avatar, AvatarFallback, AvatarImage } from "brk-design-system";
-import { Settings } from "lucide-react";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "brk-design-system";
+import { Settings, CreditCard, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Championship } from "@/lib/services/championship.service";
 
@@ -10,7 +16,7 @@ interface ChampionshipHeaderProps {
 
 /**
  * Header da página do campeonato
- * Exibe avatar, nome, link para página pública e botão de configurações
+ * Exibe avatar, nome, link para página pública e botão de configurações com dropdown
  */
 export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) => {
   const navigate = useNavigate();
@@ -20,8 +26,8 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
     window.open(`/public/championship/${championship.id}`, '_blank');
   };
 
-  const handleSettings = () => {
-    navigate(`/championship/${championship.id}/settings`);
+  const handleConfigurationOption = (option: 'grid-types' | 'asaas-account') => {
+    navigate(`/championship/${championship.id}?tab=${option}`);
   };
 
   // Gerar iniciais do nome do campeonato para o avatar
@@ -68,15 +74,35 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
               Visitar Página
             </Button>
             
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSettings}
-              className="border-white/30 text-white hover:bg-white/10 hover:text-white hover:border-white/50 bg-transparent"
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              Configurações
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-white/30 text-white hover:bg-white/10 hover:text-white hover:border-white/50 bg-transparent"
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  Configurações
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem 
+                  onClick={() => handleConfigurationOption('grid-types')}
+                  className="flex items-center gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  Tipos de Grid
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => handleConfigurationOption('asaas-account')}
+                  className="flex items-center gap-2"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  Conta Asaas
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -110,15 +136,35 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
               Visitar Página
             </Button>
             
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSettings}
-              className="flex-1 border-white/30 text-white hover:bg-white/10 hover:text-white hover:border-white/50 bg-transparent text-xs"
-            >
-              <Settings className="mr-1 h-3 w-3" />
-              Configurações
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 border-white/30 text-white hover:bg-white/10 hover:text-white hover:border-white/50 bg-transparent text-xs"
+                >
+                  <Settings className="mr-1 h-3 w-3" />
+                  Configurações
+                  <ChevronDown className="ml-1 h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem 
+                  onClick={() => handleConfigurationOption('grid-types')}
+                  className="flex items-center gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  Tipos de Grid
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => handleConfigurationOption('asaas-account')}
+                  className="flex items-center gap-2"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  Conta Asaas
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

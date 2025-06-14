@@ -22,7 +22,6 @@ const CreateCategory = lazy(() => import('@/pages/CreateCategory'));
 const SeasonRegistration = lazy(() => import('@/pages/SeasonRegistration').then(module => ({ default: module.SeasonRegistration })));
 const RegistrationPayment = lazy(() => import('@/pages/RegistrationPayment').then(module => ({ default: module.RegistrationPayment })));
 const Championship = lazy(() => import('@/pages/Championship').then(module => ({ default: module.Championship })));
-const ChampionshipSettings = lazy(() => import('@/pages/ChampionshipSettings').then(module => ({ default: module.ChampionshipSettings })));
 const EditProfile = lazy(() => import('@/pages/EditProfile'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const GoogleCallback = lazy(() => import('@/pages/GoogleCallback'));
@@ -204,18 +203,6 @@ export const router = createBrowserRouter([
             <MainLayout>
               <LazyWrapper>
                 <Championship />
-              </LazyWrapper>
-            </MainLayout>
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: "championship/:id/settings",
-        element: (
-          <ProtectedRoute>
-            <MainLayout>
-              <LazyWrapper>
-                <ChampionshipSettings />
               </LazyWrapper>
             </MainLayout>
           </ProtectedRoute>
