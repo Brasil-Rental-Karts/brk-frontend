@@ -8,6 +8,7 @@ import { StagesTab } from "@/components/championship/tabs/StagesTab";
 import { CategoriesTab } from "@/components/championship/tabs/CategoriesTab";
 import { ClassificationTab } from "@/components/championship/tabs/ClassificationTab";
 import { EventTab } from "@/components/championship/tabs/EventTab";
+import { PilotsTab } from "@/components/championship/tabs/PilotsTab";
 import { useChampionship } from "@/hooks/use-championship";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription } from "brk-design-system";
@@ -34,7 +35,9 @@ export const Championship = () => {
     'classification': 'classificacao',
     'classificacao': 'classificacao',
     'event': 'evento',
-    'evento': 'evento'
+    'evento': 'evento',
+    'pilots': 'pilotos',
+    'pilotos': 'pilotos'
   };
 
   // Ler o parâmetro tab da URL ao montar o componente
@@ -141,6 +144,12 @@ export const Championship = () => {
               >
                 Evento
               </TabsTrigger>
+              <TabsTrigger 
+                value="pilotos" 
+                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+              >
+                Pilotos
+              </TabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -165,6 +174,10 @@ export const Championship = () => {
 
           <TabsContent value="evento" className="mt-0 ring-0 focus-visible:outline-none">
             <EventTab championshipId={id} />
+          </TabsContent>
+
+          <TabsContent value="pilotos" className="mt-0 ring-0 focus-visible:outline-none">
+            <PilotsTab championshipId={id} />
           </TabsContent>
         </div>
       </Tabs>

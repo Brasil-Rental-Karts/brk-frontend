@@ -417,7 +417,7 @@ export const SeasonsTab = ({ championshipId }: SeasonsTabProps) => {
                     </TableCell>
                     <TableCell className="text-center py-4">
                       <div className="text-sm font-medium">
-                        {formatCurrency(season.inscriptionValue)}
+                        {formatCurrency(parseFloat(season.inscriptionValue?.toString() || '0'))}
                       </div>
                       <div className="text-xs text-muted-foreground capitalize">
                         {season.inscriptionType}

@@ -7,9 +7,9 @@ export interface SeasonData {
   startDate: string;
   endDate: string;
   status: 'agendado' | 'em_andamento' | 'cancelado' | 'finalizado';
-  inscriptionValue: number;
+  inscriptionValue: number | string; // Decimal vem como string do backend
   inscriptionType: 'mensal' | 'anual' | 'semestral' | 'trimestral';
-  paymentMethods: ('pix' | 'cartao_debito' | 'cartao_credito' | 'boleto')[];
+  paymentMethods: ('pix' | 'cartao_credito' | 'boleto')[];
   championshipId: string;
 }
 

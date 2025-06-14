@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "brk-design-system": "github:Brasil-Rental-Karts/brk-design-system",
     "@fontsource/inter": "^5.2.5",
     "@fontsource/rubik": "^5.2.5",
     "@hookform/resolvers": "^5.0.1",
@@ -29,7 +28,9 @@
     "@radix-ui/react-tabs": "^1.1.9",
     "@radix-ui/react-tooltip": "^1.2.7",
     "@shadcn/ui": "^0.0.4",
+    "@types/qrcode.react": "^1.0.5",
     "axios": "^1.9.0",
+    "brk-design-system": "github:Brasil-Rental-Karts/brk-design-system",
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.6.1",
     "clsx": "^2.1.1",
@@ -37,6 +38,7 @@
     "framer-motion": "^12.7.3",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.284.0",
+    "qrcode.react": "^4.2.0",
     "react": "^18.2.0",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
