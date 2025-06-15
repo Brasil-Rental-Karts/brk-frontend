@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "brk-design-system";
 import { Card } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { PlusCircle, Tag, Users, MoreVertical, Calendar, Hash } from "lucide-react";
+import { PlusCircle, MapPin, Clock, Users, MoreVertical, Calendar, Flag, Link as LinkIcon } from "lucide-react";
 import { EmptyState } from "brk-design-system";
 import {
   DropdownMenu,
@@ -30,12 +30,13 @@ import {
 import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
 import { Pagination } from "brk-design-system";
 import { usePagination } from "@/hooks/usePagination";
-import { CategoryService, Category } from "@/lib/services/category.service";
+import { StageService } from "@/lib/services/stage.service";
 import { SeasonService } from "@/lib/services/season.service";
+import { Stage } from "@/lib/types/stage";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 
-interface CategoriesTabProps {
+interface StagesTabProps {
   championshipId: string;
 }
 
@@ -47,26 +48,40 @@ const createFilterFields = (seasonOptions: { value: string; label: string }[] = 
     type: 'combobox',
     placeholder: 'Todas as temporadas',
     options: seasonOptions
+  },
+  {
+    key: 'status',
+    label: 'Status',
+    type: 'select',
+    placeholder: 'Todos os status',
+    options: [
+      { value: 'all', label: 'Todos' },
+      { value: 'past', label: 'Realizadas' },
+      { value: 'today', label: 'Hoje' },
+      { value: 'soon', label: 'Em breve' },
+      { value: 'future', label: 'Futuras' }
+    ]
   }
 ];
 
 /**
- * Tab de categorias do campeonato
- * Exibe e gerencia as categorias de um campeonato específico
+ * Tab de etapas do campeonato
+ * Exibe e gerencia as etapas de um campeonato específico
  */
-export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
+export const StagesTab = ({ championshipId }: StagesTabProps) => {
   const navigate = useNavigate();
   const [filters, setFilters] = useState<FilterValues>({});
-  const [sortBy, setSortBy] = useState<keyof Category>("name");
+  const [sortBy, setSortBy] = useState<keyof Stage>("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [stages, setStages] = useState<Stage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [seasonOptions, setSeasonOptions] = useState<{ value: string; label: string }[]>([]);
+  const [seasonMap, setSeasonMap] = useState<{ [key: string]: any }>({});
 
   // Estados para o modal de exclusão
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [stageToDelete, setStageToDelete] = useState<Stage | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -77,6 +92,13 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
   const fetchSeasons = useCallback(async () => {
     try {
       const seasonsData = await SeasonService.getByChampionshipId(championshipId, 1, 100);
+      
+      // Criar mapa de temporadas
+      const newSeasonMap: { [key: string]: any } = {};
+      seasonsData.data.forEach((season: any) => {
+        newSeasonMap[season.id] = season;
+      });
+      setSeasonMap(newSeasonMap);
       
       // Atualizar opções do filtro
       const newSeasonOptions = [
@@ -94,34 +116,34 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
     }
   }, [championshipId]);
 
-  // Buscar categorias do backend
-  const fetchCategories = useCallback(async (seasons: any[] = []) => {
+  // Buscar etapas do backend
+  const fetchStages = useCallback(async (seasons: any[] = []) => {
     try {
       setLoading(true);
       setError(null);
 
-      // Buscar categorias
-      let allCategories: Category[] = [];
+      // Buscar etapas
+      let allStages: Stage[] = [];
       
       if (filters.seasonId && filters.seasonId !== 'all') {
         // Se filtro por temporada específica
-        allCategories = await CategoryService.getBySeasonId(filters.seasonId as string);
+        allStages = await StageService.getBySeasonId(filters.seasonId as string);
       } else {
         // Buscar de todas as temporadas
         for (const season of seasons) {
           try {
-            const seasonCategories = await CategoryService.getBySeasonId(season.id);
-            allCategories.push(...seasonCategories);
+            const seasonStages = await StageService.getBySeasonId(season.id);
+            allStages.push(...seasonStages);
           } catch (err) {
-            console.warn(`Error loading categories for season ${season.id}:`, err);
+            console.warn(`Error loading stages for season ${season.id}:`, err);
           }
         }
       }
 
-      setCategories(allCategories);
+      setStages(allStages);
     } catch (err: any) {
-      setError(err.message || 'Erro ao carregar categorias');
-      setCategories([]);
+      setError(err.message || 'Erro ao carregar etapas');
+      setStages([]);
     } finally {
       setLoading(false);
     }
@@ -137,7 +159,7 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
       try {
         const seasons = await fetchSeasons();
         if (mounted) {
-          await fetchCategories(seasons);
+          await fetchStages(seasons);
         }
       } catch (error) {
         console.error('Error initializing data:', error);
@@ -152,14 +174,21 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
   }, [championshipId]);
 
   // Aplicar filtros e ordenação aos dados
-  const processedCategories = useMemo(() => {
-    if (categories.length === 0) return [];
+  const processedStages = useMemo(() => {
+    if (stages.length === 0) return [];
     
-    let result = [...categories];
+    let result = [...stages];
 
     // Aplicar filtros
     if (filters.seasonId && filters.seasonId !== 'all') {
-      result = result.filter(category => category.seasonId === filters.seasonId);
+      result = result.filter(stage => stage.seasonId === filters.seasonId);
+    }
+
+    if (filters.status && filters.status !== 'all') {
+      result = result.filter(stage => {
+        const status = StageService.getStageStatus(stage.date, stage.time);
+        return status === filters.status;
+      });
     }
 
     // Aplicar ordenação
@@ -167,7 +196,11 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
       let aValue: any = a[sortBy];
       let bValue: any = b[sortBy];
 
-      if (typeof aValue === 'string') {
+      // Tratamento especial para data
+      if (sortBy === 'date') {
+        aValue = new Date(aValue);
+        bValue = new Date(bValue);
+      } else if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
@@ -182,19 +215,19 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
     });
 
     return result;
-  }, [categories, filters, sortBy, sortOrder]);
+  }, [stages, filters, sortBy, sortOrder]);
 
-  // Configuração da paginação (baseada nas categorias filtradas)
-  const pagination = usePagination(processedCategories.length, 5, 1);
+  // Configuração da paginação (baseada nas etapas filtradas)
+  const pagination = usePagination(processedStages.length, 5, 1);
 
   // Aplicar paginação aos dados processados
-  const paginatedCategories = useMemo(() => {
+  const paginatedStages = useMemo(() => {
     const startIndex = (pagination.state.currentPage - 1) * pagination.state.itemsPerPage;
     const endIndex = startIndex + pagination.state.itemsPerPage;
-    return processedCategories.slice(startIndex, endIndex);
-  }, [processedCategories, pagination.state.currentPage, pagination.state.itemsPerPage]);
+    return processedStages.slice(startIndex, endIndex);
+  }, [processedStages, pagination.state.currentPage, pagination.state.itemsPerPage]);
 
-  const handleSort = (column: keyof Category) => {
+  const handleSort = (column: keyof Stage) => {
     if (sortBy === column) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
@@ -203,80 +236,65 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
     }
   };
 
-  const handleAddCategory = () => {
-    navigate(`/championship/${championshipId}/create-category`);
+  const handleAddStage = () => {
+    navigate(`/championship/${championshipId}/create-stage`);
   };
 
-  const handleEditCategory = (categoryId: string) => {
-    navigate(`/championship/${championshipId}/category/${categoryId}/edit`);
+  const handleEditStage = (stageId: string) => {
+    navigate(`/championship/${championshipId}/stage/${stageId}/edit`);
   };
 
-  const handleDeleteCategory = (category: Category) => {
-    setCategoryToDelete(category);
+  const handleDeleteStage = (stage: Stage) => {
+    setStageToDelete(stage);
     setDeleteError(null);
     setShowDeleteDialog(true);
   };
 
-  const confirmDeleteCategory = async () => {
-    if (!categoryToDelete) return;
+  const confirmDeleteStage = async () => {
+    if (!stageToDelete) return;
 
     setIsDeleting(true);
     setDeleteError(null);
 
     try {
-      await CategoryService.delete(categoryToDelete.id);
+      await StageService.delete(stageToDelete.id);
       
-      // Atualizar a lista de categorias
-      const seasons = seasonOptions
-        .filter(option => option.value !== 'all')
-        .map(option => ({ id: option.value, name: option.label }));
-      await fetchCategories(seasons);
+      // Remover da lista local
+      setStages(prev => prev.filter(s => s.id !== stageToDelete.id));
       
-      // Fechar o modal
       setShowDeleteDialog(false);
-      setCategoryToDelete(null);
+      setStageToDelete(null);
     } catch (err: any) {
-      setDeleteError(err.message || 'Erro ao excluir categoria');
+      setDeleteError(err.message || 'Erro ao deletar etapa');
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const cancelDeleteCategory = () => {
+  const cancelDeleteStage = () => {
     setShowDeleteDialog(false);
-    setCategoryToDelete(null);
+    setStageToDelete(null);
     setDeleteError(null);
   };
 
-  const handleCategoryAction = (action: string, categoryId: string) => {
-    const category = categories.find(c => c.id === categoryId);
-    if (!category) return;
+  const handleStageAction = (action: string, stageId: string) => {
+    const stage = stages.find(s => s.id === stageId);
+    if (!stage) return;
 
     switch (action) {
       case "view":
-        // TODO: Implementar visualização de detalhes da categoria
+        // TODO: Implementar visualização de detalhes da etapa
         break;
       case "edit":
-        handleEditCategory(categoryId);
+        handleEditStage(stageId);
         break;
       case "delete":
-        handleDeleteCategory(category);
+        handleDeleteStage(stage);
         break;
       default:
+        console.warn(`Unknown action: ${action}`);
     }
   };
-
-  const getSeasonName = (seasonId: string) => {
-    // Buscar nome da temporada do cache
-    const seasonOption = seasonOptions.find((opt: any) => opt.value === seasonId);
-    return seasonOption ? seasonOption.label : 'Temporada não encontrada';
-  };
-
-  const handleFiltersChange = useCallback((newFilters: FilterValues) => {
-    setFilters(newFilters);
-    // Reset para primeira página quando filtros mudam
-    pagination.actions.goToFirstPage();
-  }, [pagination.actions.goToFirstPage]);
 
   // Handlers diretos para paginação
   const handlePageChange = useCallback((page: number) => {
@@ -286,6 +304,38 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
   const handleItemsPerPageChange = useCallback((itemsPerPage: number) => {
     pagination.actions.setItemsPerPage(itemsPerPage);
   }, [pagination.actions.setItemsPerPage]);
+
+  const handleFiltersChange = useCallback((newFilters: FilterValues) => {
+    setFilters(newFilters);
+    // Reset para primeira página quando filtros mudam
+    pagination.actions.goToFirstPage();
+  }, [pagination.actions.goToFirstPage]);
+
+  const getSeasonName = (seasonId: string) => {
+    return seasonMap[seasonId]?.name || 'Temporada não encontrada';
+  };
+
+  const getStageStatusBadge = (stage: Stage) => {
+    const status = StageService.getStageStatus(stage.date, stage.time);
+    
+    switch (status) {
+      case 'past':
+        return <Badge variant="secondary">Realizada</Badge>;
+      case 'today':
+        return <Badge variant="default" className="bg-green-500">Hoje</Badge>;
+      case 'soon':
+        return <Badge variant="outline" className="border-orange-500 text-orange-600">Em breve</Badge>;
+      case 'future':
+        return <Badge variant="outline">Futura</Badge>;
+      default:
+        return <Badge variant="outline">Não definido</Badge>;
+    }
+  };
+
+  const refreshStages = async () => {
+    const seasons = Object.values(seasonMap);
+    await fetchStages(seasons);
+  };
 
   if (loading) {
     return (
@@ -310,11 +360,11 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
       <Card className="w-full">
         <div className="p-6">
           <Alert variant="destructive">
-            <AlertTitle>Erro ao carregar categorias</AlertTitle>
+            <AlertTitle>Erro ao carregar etapas</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
           <div className="mt-4">
-            <Button onClick={() => window.location.reload()} variant="outline">
+            <Button onClick={refreshStages} variant="outline">
               Tentar novamente
             </Button>
           </div>
@@ -323,15 +373,15 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
     );
   }
 
-  if (processedCategories.length === 0 && Object.keys(filters).length === 0) {
+  if (processedStages.length === 0 && Object.keys(filters).length === 0) {
     return (
       <EmptyState
-        icon={Tag}
-        title="Nenhuma categoria criada"
-        description="Crie sua primeira categoria para começar a organizar os participantes"
+        icon={Flag}
+        title="Nenhuma etapa criada"
+        description="Crie sua primeira etapa para começar a organizar as corridas"
         action={{
-          label: "Criar Categoria",
-          onClick: handleAddCategory
+          label: "Criar Etapa",
+          onClick: handleAddStage
         }}
       />
     );
@@ -348,13 +398,13 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
             className="w-full"
           />
         </div>
-        <Button onClick={handleAddCategory} className="w-full sm:w-auto">
+        <Button onClick={handleAddStage} className="w-full sm:w-auto">
           <PlusCircle className="mr-2 h-4 w-4" />
-          Nova Categoria
+          Nova Etapa
         </Button>
       </div>
 
-      {/* Tabela de categorias */}
+      {/* Tabela de etapas */}
       <Card className="w-full flex flex-col">
         <div className="flex-1 overflow-auto">
           <Table>
@@ -365,12 +415,33 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
                   onClick={() => handleSort("name")}
                 >
                   <div className="flex items-center gap-2">
-                    Nome da Categoria
+                    <Flag className="h-4 w-4" />
+                    Nome da Etapa
                     {sortBy === "name" && (
                       <span className="text-xs">
                         {sortOrder === "asc" ? "↑" : "↓"}
                       </span>
                     )}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 text-center"
+                  onClick={() => handleSort("date")}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Data e Hora
+                    {sortBy === "date" && (
+                      <span className="text-xs">
+                        {sortOrder === "asc" ? "↑" : "↓"}
+                      </span>
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead className="text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Kartódromo
                   </div>
                 </TableHead>
                 <TableHead className="text-center">
@@ -379,76 +450,72 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
                     Temporada
                   </div>
                 </TableHead>
+                <TableHead className="text-center">Status</TableHead>
                 <TableHead className="text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    Lastro
-                  </div>
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 text-center"
-                  onClick={() => handleSort("maxPilots")}
-                >
                   <div className="flex items-center justify-center gap-2">
                     <Users className="h-4 w-4" />
-                    Máx. Pilotos
-                    {sortBy === "maxPilots" && (
-                      <span className="text-xs">
-                        {sortOrder === "asc" ? "↑" : "↓"}
-                      </span>
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead className="text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <Hash className="h-4 w-4" />
-                    Baterias
+                    Categorias
                   </div>
                 </TableHead>
                 <TableHead className="text-center">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {processedCategories.length === 0 ? (
+              {processedStages.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    Nenhuma categoria encontrada com os filtros aplicados
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    Nenhuma etapa encontrada com os filtros aplicados
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedCategories.map((category) => (
-                  <TableRow key={category.id} className="hover:bg-muted/50">
+                paginatedStages.map((stage) => (
+                  <TableRow key={stage.id} className="hover:bg-muted/50">
                     <TableCell className="py-4">
                       <div>
-                        <div className="font-medium">{category.name}</div>
+                        <div className="font-medium">{stage.name}</div>
+                        {stage.doublePoints && (
+                          <Badge variant="outline" className="w-fit text-xs mt-1">
+                            Pontos em dobro
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center py-4">
+                      <div>
+                        <div className="font-medium">
+                          {StageService.formatDate(stage.date)}
+                        </div>
+                        <div className="text-sm text-muted-foreground flex items-center justify-center gap-1 mt-1">
+                          <Clock className="h-3 w-3" />
+                          {StageService.formatTime(stage.time)}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center py-4">
+                      <div>
+                        <div className="font-medium">{stage.kartodrome}</div>
                         <div className="text-sm text-muted-foreground mt-1">
-                          Idade mín: {category.minimumAge} anos
+                          {stage.kartodromeAddress}
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-center py-4">
                       <Badge variant="outline">
-                        {getSeasonName(category.seasonId)}
+                        {getSeasonName(stage.seasonId)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center py-4">
-                      <div className="text-sm font-medium">
-                        {category.ballast}
-                      </div>
+                      {getStageStatusBadge(stage)}
                     </TableCell>
                     <TableCell className="text-center py-4">
-                      <div className="text-sm font-medium">
-                        {category.maxPilots}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        pilotos
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <div className="text-sm font-medium">
-                        {category.batteriesConfig?.length || 0}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {category.batteriesConfig?.length === 1 ? 'bateria' : 'baterias'}
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-sm font-medium">{stage.categoryIds.length}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {stage.categoryIds.length === 1 ? 'categoria' : 'categorias'}
+                        </span>
+                        {stage.streamLink && (
+                          <LinkIcon className="h-3 w-3 ml-2 text-muted-foreground" />
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-center py-4">
@@ -459,14 +526,14 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleCategoryAction("view", category.id)}>
+                          <DropdownMenuItem onClick={() => handleStageAction("view", stage.id)}>
                             Ver detalhes
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleCategoryAction("edit", category.id)}>
+                          <DropdownMenuItem onClick={() => handleStageAction("edit", stage.id)}>
                             Editar
                           </DropdownMenuItem>
                           <DropdownMenuItem 
-                            onClick={() => handleCategoryAction("delete", category.id)}
+                            onClick={() => handleStageAction("delete", stage.id)}
                             className="text-destructive"
                           >
                             Excluir
@@ -504,7 +571,7 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
           <DialogHeader>
             <DialogTitle>Confirmar exclusão</DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja excluir a categoria <strong>"{categoryToDelete?.name}"</strong>?
+              Tem certeza que deseja excluir a etapa <strong>"{stageToDelete?.name}"</strong>?
               <br />
               Esta ação não pode ser desfeita.
             </DialogDescription>
@@ -520,17 +587,17 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
           <DialogFooter>
             <Button 
               variant="outline" 
-              onClick={cancelDeleteCategory}
+              onClick={cancelDeleteStage}
               disabled={isDeleting}
             >
               Cancelar
             </Button>
             <Button 
               variant="destructive" 
-              onClick={confirmDeleteCategory}
+              onClick={confirmDeleteStage}
               disabled={isDeleting}
             >
-              {isDeleting ? "Excluindo..." : "Excluir Categoria"}
+              {isDeleting ? "Excluindo..." : "Excluir Etapa"}
             </Button>
           </DialogFooter>
         </DialogContent>

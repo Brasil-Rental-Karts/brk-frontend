@@ -6,6 +6,7 @@ import { ChampionshipHeader } from "@/components/championship/ChampionshipHeader
 import { SeasonsTab } from "@/components/championship/tabs/SeasonsTab";
 import { CategoriesTab } from "@/components/championship/tabs/CategoriesTab";
 import { PilotsTab } from "@/components/championship/tabs/PilotsTab";
+import { StagesTab } from "@/components/championship/tabs/StagesTab";
 import { GridTypesTab } from "@/components/championship/settings/GridTypesTab";
 import { ScoringSystemTab } from "@/components/championship/settings/ScoringSystemTab";
 import { AsaasAccountTab } from "@/components/championship/settings/AsaasAccountTab";
@@ -30,6 +31,8 @@ export const Championship = () => {
     'temporadas': 'temporadas',
     'categories': 'categorias',
     'categorias': 'categorias',
+    'stages': 'etapas',
+    'etapas': 'etapas',
     'pilots': 'pilotos',
     'pilotos': 'pilotos',
     'grid-types': 'config-grid',
@@ -127,6 +130,12 @@ export const Championship = () => {
                 Categorias
               </TabsTrigger>
               <TabsTrigger 
+                value="etapas" 
+                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+              >
+                Etapas
+              </TabsTrigger>
+              <TabsTrigger 
                 value="pilotos" 
                 className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
               >
@@ -144,6 +153,10 @@ export const Championship = () => {
 
           <TabsContent value="categorias" className="mt-0 ring-0 focus-visible:outline-none">
             <CategoriesTab championshipId={id} />
+          </TabsContent>
+
+          <TabsContent value="etapas" className="mt-0 ring-0 focus-visible:outline-none">
+            <StagesTab championshipId={id} />
           </TabsContent>
 
           <TabsContent value="pilotos" className="mt-0 ring-0 focus-visible:outline-none">

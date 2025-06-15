@@ -159,9 +159,8 @@ export const DynamicFilter = ({
               <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos</SelectItem>
               {field.options?.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
+                <SelectItem key={option.value} value={option.value || "all"}>
                   {option.label}
                 </SelectItem>
               ))}

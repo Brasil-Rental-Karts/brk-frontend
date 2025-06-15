@@ -46,7 +46,7 @@ const createFilterFields = (seasonOptions: { value: string; label: string }[] = 
     type: 'combobox',
     placeholder: 'Todos os status',
     options: [
-      { value: '', label: 'Todos os status' },
+      { value: 'all', label: 'Todos os status' },
       { value: 'pending', label: 'Pendente' },
       { value: 'payment_pending', label: 'Pagamento Pendente' },
       { value: 'confirmed', label: 'Confirmado' },
@@ -60,7 +60,7 @@ const createFilterFields = (seasonOptions: { value: string; label: string }[] = 
     type: 'combobox',
     placeholder: 'Todos os pagamentos',
     options: [
-      { value: '', label: 'Todos os pagamentos' },
+      { value: 'all', label: 'Todos os pagamentos' },
       { value: 'pending', label: 'Pendente' },
       { value: 'processing', label: 'Processando' },
       { value: 'paid', label: 'Pago' },
@@ -97,7 +97,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
       
       // Atualizar opções do filtro
       const newSeasonOptions = [
-        { value: '', label: 'Todas as temporadas' },
+        { value: 'all', label: 'Todas as temporadas' },
         ...seasonsData.data.map((season: any) => ({
           value: season.id,
           label: season.name
@@ -120,7 +120,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
 
       let allRegistrations: SeasonRegistration[] = [];
       
-      if (filters.seasonId) {
+      if (filters.seasonId && filters.seasonId !== 'all') {
         // Se filtro por temporada específica
         allRegistrations = await SeasonRegistrationService.getBySeasonId(filters.seasonId as string);
       } else {
@@ -168,17 +168,17 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     // Aplicar filtros
     result = result.filter(registration => {
       // Filtro por temporada
-      if (filters.seasonId && registration.season.id !== filters.seasonId) {
+      if (filters.seasonId && filters.seasonId !== 'all' && registration.season.id !== filters.seasonId) {
         return false;
       }
 
       // Filtro por status
-      if (filters.status && registration.status !== filters.status) {
+      if (filters.status && filters.status !== 'all' && registration.status !== filters.status) {
         return false;
       }
 
       // Filtro por status de pagamento
-      if (filters.paymentStatus && registration.paymentStatus !== filters.paymentStatus) {
+      if (filters.paymentStatus && filters.paymentStatus !== 'all' && registration.paymentStatus !== filters.paymentStatus) {
         return false;
       }
 
