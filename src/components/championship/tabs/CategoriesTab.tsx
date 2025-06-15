@@ -355,7 +355,7 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
       </div>
 
       {/* Tabela de categorias */}
-      <Card className="w-full flex flex-col min-h-[600px]">
+      <Card className="w-full flex flex-col">
         <div className="flex-1 overflow-auto">
           <Table>
             <TableHeader>
