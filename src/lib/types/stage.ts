@@ -11,8 +11,6 @@ export interface Stage {
   streamLink?: string;
   seasonId: string;
   categoryIds: string[];
-  defaultGridTypeId?: string;
-  defaultScoringSystemId?: string;
   doublePoints: boolean;
   briefing?: string;
   briefingTime?: string; // HH:MM format
@@ -32,8 +30,6 @@ export interface CreateStageData {
   streamLink?: string;
   seasonId: string;
   categoryIds: string[];
-  defaultGridTypeId?: string;
-  defaultScoringSystemId?: string;
   doublePoints?: boolean;
   briefing?: string;
   briefingTime?: string; // HH:MM format
@@ -50,8 +46,6 @@ export interface UpdateStageData {
   kartodromeAddress?: string;
   streamLink?: string;
   categoryIds?: string[];
-  defaultGridTypeId?: string;
-  defaultScoringSystemId?: string;
   doublePoints?: boolean;
   briefing?: string;
   briefingTime?: string; // HH:MM format
@@ -81,13 +75,5 @@ export interface StageWithDetails extends Stage {
     name: string;
     ballast: string;
   }[];
-  defaultGridType?: {
-    id: string;
-    name: string;
-    type: string;
-  };
-  defaultScoringSystem?: {
-    id: string;
-    name: string;
-  };
+
 } 

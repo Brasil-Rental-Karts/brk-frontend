@@ -24,8 +24,6 @@ import {
 import { StageService, CreateStageData } from "@/lib/services/stage.service";
 import { SeasonService } from "@/lib/services/season.service";
 import { CategoryService } from "@/lib/services/category.service";
-import { GridTypeService } from "@/lib/services/grid-type.service";
-import { ScoringSystemService } from "@/lib/services/scoring-system.service";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "brk-design-system";
 import { Checkbox } from "brk-design-system";
@@ -48,8 +46,6 @@ export const CreateStage = () => {
     streamLink: "",
     seasonId: "",
     categoryIds: [] as string[],
-    defaultGridTypeId: "",
-    defaultScoringSystemId: "",
     doublePoints: false,
     briefing: "",
     briefingTime: ""
@@ -73,12 +69,8 @@ export const CreateStage = () => {
   // Options
   const [seasonOptions, setSeasonOptions] = useState<any[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<any[]>([]);
-  const [gridTypeOptions, setGridTypeOptions] = useState<any[]>([]);
-  const [scoringSystemOptions, setScoringSystemOptions] = useState<any[]>([]);
   const [isLoadingSeasons, setIsLoadingSeasons] = useState(true);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
-  const [isLoadingGridTypes, setIsLoadingGridTypes] = useState(true);
-  const [isLoadingScoringSystems, setIsLoadingScoringSystems] = useState(true);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -119,59 +111,9 @@ export const CreateStage = () => {
     loadSeasons();
   }, [championshipId]);
 
-  // Load grid types
-  useEffect(() => {
-    const loadGridTypes = async () => {
-      if (!championshipId) return;
 
-      try {
-        setIsLoadingGridTypes(true);
-        const gridTypesData = await GridTypeService.getByChampionship(championshipId);
-        
-        const options = gridTypesData.map(gridType => ({
-          value: gridType.id,
-          label: gridType.name,
-          description: `${gridType.name}${gridType.isDefault ? ' (Padrão)' : ''}`
-        }));
-        
-        setGridTypeOptions(options);
-      } catch (err: any) {
-        console.error('Error loading grid types:', err);
-        setGridTypeOptions([]);
-      } finally {
-        setIsLoadingGridTypes(false);
-      }
-    };
 
-    loadGridTypes();
-  }, [championshipId]);
 
-  // Load scoring systems
-  useEffect(() => {
-    const loadScoringSystems = async () => {
-      if (!championshipId) return;
-
-      try {
-        setIsLoadingScoringSystems(true);
-        const scoringSystemsData = await ScoringSystemService.getByChampionship(championshipId);
-        
-        const options = scoringSystemsData.map(system => ({
-          value: system.id,
-          label: system.name,
-          description: `${system.name}${system.isDefault ? ' (Padrão)' : ''}`
-        }));
-        
-        setScoringSystemOptions(options);
-      } catch (err: any) {
-        console.error('Error loading scoring systems:', err);
-        setScoringSystemOptions([]);
-      } finally {
-        setIsLoadingScoringSystems(false);
-      }
-    };
-
-    loadScoringSystems();
-  }, [championshipId]);
 
   // Load categories when season changes
   const loadCategoriesBySeasonId = useCallback(async (seasonId: string) => {
@@ -226,8 +168,6 @@ export const CreateStage = () => {
           streamLink: stage.streamLink || "",
           seasonId: stage.seasonId,
           categoryIds: stage.categoryIds,
-          defaultGridTypeId: stage.defaultGridTypeId || "inherit",
-          defaultScoringSystemId: stage.defaultScoringSystemId || "inherit",
           doublePoints: stage.doublePoints,
           briefing: stage.briefing || "",
           briefingTime: stage.briefingTime || ""
@@ -296,10 +236,7 @@ export const CreateStage = () => {
 
   // Set initial form data for create mode
   useEffect(() => {
-    if (!isEditMode && !isLoadingSeasons && !isLoadingGridTypes && !isLoadingScoringSystems && !initialFormData) {
-      const defaultGridType = gridTypeOptions.find(gt => gt.label.includes('Padrão'))?.value || gridTypeOptions[0]?.value || "";
-      const defaultScoringSystem = scoringSystemOptions.find(ss => ss.label.includes('Padrão'))?.value || scoringSystemOptions[0]?.value || "";
-      
+    if (!isEditMode && !isLoadingSeasons && !initialFormData) {
       const initialData = {
         name: "",
         date: "",
@@ -309,8 +246,6 @@ export const CreateStage = () => {
         streamLink: "",
         seasonId: "",
         categoryIds: [],
-        defaultGridTypeId: defaultGridType || "inherit",
-        defaultScoringSystemId: defaultScoringSystem || "inherit",
         doublePoints: false,
         briefing: "",
         briefingTime: ""
@@ -319,7 +254,7 @@ export const CreateStage = () => {
       setInitialFormData(initialData);
       setFormData(initialData);
     }
-  }, [isEditMode, isLoadingSeasons, isLoadingGridTypes, isLoadingScoringSystems, gridTypeOptions, scoringSystemOptions, initialFormData]);
+  }, [isEditMode, isLoadingSeasons, initialFormData]);
 
   // Handle cancel
   const handleCancelClick = () => {
@@ -362,8 +297,6 @@ export const CreateStage = () => {
         streamLink: formData.streamLink || undefined,
         seasonId: formData.seasonId,
         categoryIds: formData.categoryIds,
-        defaultGridTypeId: (formData.defaultGridTypeId && formData.defaultGridTypeId !== 'inherit') ? formData.defaultGridTypeId : undefined,
-        defaultScoringSystemId: (formData.defaultScoringSystemId && formData.defaultScoringSystemId !== 'inherit') ? formData.defaultScoringSystemId : undefined,
         doublePoints: formData.doublePoints,
         briefing: formData.briefing || undefined,
         briefingTime: formData.briefingTime || undefined
@@ -421,7 +354,7 @@ export const CreateStage = () => {
   }
 
   // Loading state
-  if (isLoadingSeasons || isLoadingGridTypes || isLoadingScoringSystems || (isEditMode && isLoadingStageData)) {
+  if (isLoadingSeasons || (isEditMode && isLoadingStageData)) {
     return (
       <div className="min-h-screen bg-background">
         <PageHeader
@@ -661,50 +594,6 @@ export const CreateStage = () => {
               <CardTitle>Configurações</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Tipo de Grid */}
-              <div className="space-y-2">
-                <Label htmlFor="defaultGridTypeId">Tipo de Grid</Label>
-                <Select
-                  value={formData.defaultGridTypeId}
-                  onValueChange={(value) => handleInputChange('defaultGridTypeId', value)}
-                  disabled={isSaving}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Herda da categoria" />
-                  </SelectTrigger>
-                                     <SelectContent>
-                     <SelectItem value="inherit">Herda da categoria</SelectItem>
-                     {gridTypeOptions.map((option) => (
-                       <SelectItem key={option.value} value={option.value}>
-                         {option.description}
-                       </SelectItem>
-                     ))}
-                   </SelectContent>
-                </Select>
-              </div>
-
-              {/* Tipo de pontuação */}
-              <div className="space-y-2">
-                <Label htmlFor="defaultScoringSystemId">Tipo de pontuação</Label>
-                <Select
-                  value={formData.defaultScoringSystemId}
-                  onValueChange={(value) => handleInputChange('defaultScoringSystemId', value)}
-                  disabled={isSaving}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Herda da categoria" />
-                  </SelectTrigger>
-                                     <SelectContent>
-                     <SelectItem value="inherit">Herda da categoria</SelectItem>
-                     {scoringSystemOptions.map((option) => (
-                       <SelectItem key={option.value} value={option.value}>
-                         {option.description}
-                       </SelectItem>
-                     ))}
-                   </SelectContent>
-                </Select>
-              </div>
-
               {/* Pontuação em dobro */}
               <div className="flex items-center space-x-2">
                 <Checkbox
