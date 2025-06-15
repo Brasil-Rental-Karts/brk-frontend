@@ -310,6 +310,7 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
       <Card className="w-full">
         <div className="p-6">
           <Alert variant="destructive">
+            <AlertTitle>Erro ao carregar categorias</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
           <div className="mt-4">

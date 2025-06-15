@@ -19,8 +19,9 @@ const CompleteProfile = lazy(() => import('@/pages/CompleteProfile'));
 const CreateChampionship = lazy(() => import('@/pages/CreateChampionship'));
 const CreateSeason = lazy(() => import('@/pages/CreateSeason'));
 const CreateCategory = lazy(() => import('@/pages/CreateCategory'));
+const SeasonRegistration = lazy(() => import('@/pages/SeasonRegistration').then(module => ({ default: module.SeasonRegistration })));
+const RegistrationPayment = lazy(() => import('@/pages/RegistrationPayment').then(module => ({ default: module.RegistrationPayment })));
 const Championship = lazy(() => import('@/pages/Championship').then(module => ({ default: module.Championship })));
-const ChampionshipSettings = lazy(() => import('@/pages/ChampionshipSettings').then(module => ({ default: module.ChampionshipSettings })));
 const EditProfile = lazy(() => import('@/pages/EditProfile'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const GoogleCallback = lazy(() => import('@/pages/GoogleCallback'));
@@ -81,6 +82,17 @@ const LoginErrorRedirect = () => {
       replace 
     />
   );
+};
+
+// Confirm email redirect handler that preserves query parameters
+const ConfirmEmailRedirect = () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const queryString = urlParams.toString();
+  const redirectUrl = queryString 
+    ? `/auth/confirm-email?${queryString}`
+    : '/auth/confirm-email';
+  
+  return <Navigate to={redirectUrl} replace />;
 };
 
 export const router = createBrowserRouter([
@@ -197,18 +209,6 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "championship/:id/settings",
-        element: (
-          <ProtectedRoute>
-            <MainLayout>
-              <LazyWrapper>
-                <ChampionshipSettings />
-              </LazyWrapper>
-            </MainLayout>
-          </ProtectedRoute>
-        ),
-      },
-      {
         path: "championship/:championshipId/create-season",
         element: (
           <ProtectedRoute>
@@ -263,6 +263,30 @@ export const router = createBrowserRouter([
             <MainLayout>
               <LazyWrapper>
                 <CreateCategory />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "season/:seasonId/register",
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <LazyWrapper>
+                <SeasonRegistration />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "registration/:registrationId/payment",
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <LazyWrapper>
+                <RegistrationPayment />
               </LazyWrapper>
             </MainLayout>
           </ProtectedRoute>
@@ -329,6 +353,10 @@ export const router = createBrowserRouter([
       {
         path: "login-error",
         element: <Navigate to="/auth/login-error" replace />,
+      },
+      {
+        path: "confirm-email",
+        element: <ConfirmEmailRedirect />,
       },
       {
         path: "app/dashboard",

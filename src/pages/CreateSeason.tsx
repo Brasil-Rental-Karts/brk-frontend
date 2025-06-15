@@ -65,7 +65,7 @@ export const CreateSeason = () => {
           startDate: formatDateForDisplay(season.startDate),
           endDate: formatDateForDisplay(season.endDate),
           status: season.status,
-          inscriptionValue: formatCurrency(season.inscriptionValue),
+          inscriptionValue: formatCurrency(parseFloat(season.inscriptionValue?.toString() || '0')),
           inscriptionType: season.inscriptionType,
           paymentMethods: season.paymentMethods || []
         };
@@ -321,9 +321,8 @@ export const CreateSeason = () => {
             mandatory: true,
             options: [
               { value: "pix", description: "PIX" },
-              { value: "cartao_debito", description: "Cartão de Débito" },
               { value: "cartao_credito", description: "Cartão de Crédito" },
-              { value: "boleto", description: "Boleto" }
+              { value: "boleto", description: "Boleto" },
             ]
           }
         ]
@@ -440,7 +439,7 @@ export const CreateSeason = () => {
       {/* Alerts */}
       <div className="w-full px-6 mb-4">
         {showErrorAlert && error && (
-          <Alert variant="destructive" hasCloseButton onClose={handleCloseErrorAlert} className="mb-4">
+          <Alert variant="destructive" dismissible onClose={handleCloseErrorAlert} className="mb-4">
             <AlertTitle>Erro ao {isEditMode ? 'atualizar' : 'criar'} temporada</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>

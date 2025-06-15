@@ -15,6 +15,7 @@ import {
   fetchCompanyByCNPJ, 
   isValidCNPJFormat, 
   extractMainPhone, 
+  extractMainEmail,
   formatFullAddress 
 } from "@/utils/cnpj";
 import { masks } from "@/utils/masks";
@@ -30,6 +31,23 @@ import { ChampionshipData } from "@/lib/services/championship.service";
 import { useChampionshipContext } from "@/contexts/ChampionshipContext";
 import { PageHeader } from "@/components/ui/page-header";
 import { useCreateChampionship } from "@/hooks/use-create-championship";
+
+// Função auxiliar para converter data DD/MM/AAAA para formato ISO
+const convertDateToISO = (dateString: string): string | undefined => {
+  if (!dateString || dateString.length < 10) return undefined;
+  
+  const [day, month, year] = dateString.split('/');
+  if (!day || !month || !year) return undefined;
+  
+  // Criar data no formato ISO (AAAA-MM-DD)
+  const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  
+  // Validar se a data é válida
+  const date = new Date(isoDate);
+  if (isNaN(date.getTime())) return undefined;
+  
+  return isoDate;
+};
 
 export const CreateChampionship = () => {
   const navigate = useNavigate();
@@ -161,9 +179,10 @@ export const CreateChampionship = () => {
         // Atualiza os campos automaticamente
         formRef.setValue("state", addressData.uf);
         formRef.setValue("fullAddress", addressData.logradouro);
+        formRef.setValue("province", addressData.bairro); // Adiciona o bairro
         
         // Remove erros dos campos que serão preenchidos automaticamente
-        formRef.clearErrors(["state", "city", "fullAddress"]);
+        formRef.clearErrors(["state", "city", "fullAddress", "province"]);
         
         // Carrega as cidades do estado encontrado
         await loadCities(addressData.uf);
@@ -192,11 +211,18 @@ export const CreateChampionship = () => {
           formRef.setValue("city", companyData.address.city);
           formRef.setValue("fullAddress", formatFullAddress(companyData.address));
           formRef.setValue("number", companyData.address.number);
+          formRef.setValue("province", companyData.address.district); // Adiciona o bairro
           
           // Preenche telefone se não for responsável
           const mainPhone = extractMainPhone(companyData.phones);
           if (mainPhone && !currentFormData.isResponsible) {
             formRef.setValue("responsiblePhone", mainPhone);
+          }
+          
+          // Preenche e-mail se não for responsável
+          const mainEmail = extractMainEmail(companyData.emails);
+          if (mainEmail && !currentFormData.isResponsible) {
+            formRef.setValue("responsibleEmail", mainEmail);
           }
           
           // Remove erros dos campos que foram preenchidos automaticamente
@@ -207,7 +233,9 @@ export const CreateChampionship = () => {
             "city", 
             "fullAddress", 
             "number",
-            "responsiblePhone"
+            "province",
+            "responsiblePhone",
+            "responsibleEmail"
           ]);
           
           // Carrega as cidades do estado encontrado
@@ -285,9 +313,14 @@ export const CreateChampionship = () => {
       fullAddress: data.fullAddress,
       number: data.number,
       complement: data.complement || '',
+      province: data.province || '', // Bairro
       isResponsible: data.isResponsible !== false, // Default to true
       responsibleName: data.responsibleName || '',
       responsiblePhone: data.responsiblePhone || '',
+      responsibleEmail: data.responsibleEmail || '', // E-mail do responsável
+      responsibleBirthDate: data.responsibleBirthDate ? convertDateToISO(data.responsibleBirthDate) : undefined, // Data de nascimento do responsável
+      companyType: data.companyType || undefined, // Tipo de empresa (pessoa jurídica)
+      incomeValue: data.incomeValue ? parseFloat(data.incomeValue.replace(/[^\d]/g, '')) / 100 : undefined, // Faturamento/Renda mensal
       sponsors: data.sponsors || []
     };
 
@@ -398,6 +431,22 @@ export const CreateChampionship = () => {
             }
           },
           {
+            id: "companyType",
+            name: "Tipo de empresa",
+            type: "select",
+            mandatory: true,
+            options: [
+              { value: "MEI", description: "MEI - Microempreendedor Individual" },
+              { value: "LIMITED", description: "Limited - Sociedade Limitada" },
+              { value: "INDIVIDUAL", description: "Individual - Empresário Individual" },
+              { value: "ASSOCIATION", description: "Association - Associação" }
+            ],
+            conditionalField: {
+              dependsOn: "personType",
+              showWhen: "1"
+            }
+          },
+          {
             id: "cep",
             name: "CEP",
             type: "inputMask",
@@ -428,7 +477,18 @@ export const CreateChampionship = () => {
             name: "Endereço completo",
             type: "input",
             mandatory: true,
-            placeholder: "Rua, avenida ou logradouro completo"
+            placeholder: "Rua, avenida ou logradouro completo",
+            inline: true,
+            inlineGroup: "addressFull"
+          },
+          {
+            id: "province",
+            name: "Bairro",
+            type: "input",
+            mandatory: true,
+            placeholder: "Nome do bairro",
+            inline: true,
+            inlineGroup: "addressFull"
           },
           {
             id: "number",
@@ -447,6 +507,14 @@ export const CreateChampionship = () => {
             placeholder: "Apto, sala, bloco (opcional)",
             inline: true,
             inlineGroup: "address"
+          },
+          {
+            id: "incomeValue",
+            name: "Faturamento/Renda mensal",
+            type: "inputMask",
+            mandatory: true,
+            mask: "currency",
+            placeholder: "R$ 0,00"
           },
           {
             id: "isResponsible",
@@ -472,6 +540,29 @@ export const CreateChampionship = () => {
             mandatory: true,
             mask: "phone",
             placeholder: "(11) 99999-9999",
+            conditionalField: {
+              dependsOn: "isResponsible",
+              showWhen: false
+            }
+          },
+          {
+            id: "responsibleEmail",
+            name: "E-mail do responsável",
+            type: "input",
+            mandatory: true,
+            placeholder: "email@exemplo.com",
+            conditionalField: {
+              dependsOn: "isResponsible",
+              showWhen: false
+            }
+          },
+          {
+            id: "responsibleBirthDate",
+            name: "Data de nascimento do responsável",
+            type: "inputMask",
+            mandatory: true,
+            mask: "date",
+            placeholder: "DD/MM/AAAA",
             conditionalField: {
               dependsOn: "isResponsible",
               showWhen: false
@@ -527,7 +618,7 @@ export const CreateChampionship = () => {
       {/* Alerts */}
       <div className="w-full px-6 mb-4">
         {showErrorAlert && error && (
-          <Alert variant="destructive" hasCloseButton onClose={handleCloseErrorAlert} className="mb-4">
+          <Alert variant="destructive" dismissible onClose={handleCloseErrorAlert} className="mb-4">
             <AlertTitle>Erro ao criar campeonato</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>

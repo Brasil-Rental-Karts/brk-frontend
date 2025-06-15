@@ -452,19 +452,9 @@ export const CreateCategory = () => {
       {/* Alerts */}
       <div className="w-full px-6 mb-4">
         {showErrorAlert && error && (
-          <Alert variant="destructive" className="mb-4">
+          <Alert variant="destructive" dismissible onClose={handleCloseErrorAlert} className="mb-4">
             <AlertTitle>Erro ao {isEditMode ? 'atualizar' : 'criar'} categoria</AlertTitle>
-            <AlertDescription className="flex items-center justify-between">
-              <span>{error}</span>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleCloseErrorAlert}
-                className="h-auto p-1 ml-2"
-              >
-                ✕
-              </Button>
-            </AlertDescription>
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
       </div>

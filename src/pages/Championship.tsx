@@ -8,6 +8,10 @@ import { StagesTab } from "@/components/championship/tabs/StagesTab";
 import { CategoriesTab } from "@/components/championship/tabs/CategoriesTab";
 import { ClassificationTab } from "@/components/championship/tabs/ClassificationTab";
 import { EventTab } from "@/components/championship/tabs/EventTab";
+import { PilotsTab } from "@/components/championship/tabs/PilotsTab";
+import { GridTypesTab } from "@/components/championship/settings/GridTypesTab";
+import { ScoringSystemTab } from "@/components/championship/settings/ScoringSystemTab";
+import { AsaasAccountTab } from "@/components/championship/settings/AsaasAccountTab";
 import { useChampionship } from "@/hooks/use-championship";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription } from "brk-design-system";
@@ -16,7 +20,7 @@ import { AlertTriangle } from "lucide-react";
 /**
  * Página principal do campeonato
  * Exibe as informações detalhadas de um campeonato específico
- * com tabs para temporadas, etapas, categorias, classificação e eventos
+ * com tabs para temporadas, etapas, categorias, classificação, eventos e configurações
  */
 export const Championship = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,7 +38,15 @@ export const Championship = () => {
     'classification': 'classificacao',
     'classificacao': 'classificacao',
     'event': 'evento',
-    'evento': 'evento'
+    'evento': 'evento',
+    'pilots': 'pilotos',
+    'pilotos': 'pilotos',
+    'grid-types': 'config-grid',
+    'config-grid': 'config-grid',
+    'scoring-systems': 'config-scoring',
+    'config-scoring': 'config-scoring',
+    'asaas-account': 'config-asaas',
+    'config-asaas': 'config-asaas'
   };
 
   // Ler o parâmetro tab da URL ao montar o componente
@@ -141,6 +153,12 @@ export const Championship = () => {
               >
                 Evento
               </TabsTrigger>
+              <TabsTrigger 
+                value="pilotos" 
+                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+              >
+                Pilotos
+              </TabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -165,6 +183,22 @@ export const Championship = () => {
 
           <TabsContent value="evento" className="mt-0 ring-0 focus-visible:outline-none">
             <EventTab championshipId={id} />
+          </TabsContent>
+
+          <TabsContent value="pilotos" className="mt-0 ring-0 focus-visible:outline-none">
+            <PilotsTab championshipId={id} />
+          </TabsContent>
+
+          <TabsContent value="config-grid" className="mt-0 ring-0 focus-visible:outline-none">
+            <GridTypesTab championshipId={id} />
+          </TabsContent>
+
+          <TabsContent value="config-scoring" className="mt-0 ring-0 focus-visible:outline-none">
+            <ScoringSystemTab championshipId={id} />
+          </TabsContent>
+
+          <TabsContent value="config-asaas" className="mt-0 ring-0 focus-visible:outline-none">
+            <AsaasAccountTab championshipId={id} />
           </TabsContent>
         </div>
       </Tabs>
