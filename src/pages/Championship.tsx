@@ -4,10 +4,7 @@ import { Button } from "brk-design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
 import { ChampionshipHeader } from "@/components/championship/ChampionshipHeader";
 import { SeasonsTab } from "@/components/championship/tabs/SeasonsTab";
-import { StagesTab } from "@/components/championship/tabs/StagesTab";
 import { CategoriesTab } from "@/components/championship/tabs/CategoriesTab";
-import { ClassificationTab } from "@/components/championship/tabs/ClassificationTab";
-import { EventTab } from "@/components/championship/tabs/EventTab";
 import { PilotsTab } from "@/components/championship/tabs/PilotsTab";
 import { GridTypesTab } from "@/components/championship/settings/GridTypesTab";
 import { ScoringSystemTab } from "@/components/championship/settings/ScoringSystemTab";
@@ -20,7 +17,7 @@ import { AlertTriangle } from "lucide-react";
 /**
  * Página principal do campeonato
  * Exibe as informações detalhadas de um campeonato específico
- * com tabs para temporadas, etapas, categorias, classificação, eventos e configurações
+ * com tabs para temporadas, categorias e configurações
  */
 export const Championship = () => {
   const { id } = useParams<{ id: string }>();
@@ -31,14 +28,8 @@ export const Championship = () => {
   const tabMapping: { [key: string]: string } = {
     'seasons': 'temporadas',
     'temporadas': 'temporadas',
-    'stages': 'etapas', 
-    'etapas': 'etapas',
     'categories': 'categorias',
     'categorias': 'categorias',
-    'classification': 'classificacao',
-    'classificacao': 'classificacao',
-    'event': 'evento',
-    'evento': 'evento',
     'pilots': 'pilotos',
     'pilotos': 'pilotos',
     'grid-types': 'config-grid',
@@ -130,28 +121,10 @@ export const Championship = () => {
                 Temporadas
               </TabsTrigger>
               <TabsTrigger 
-                value="etapas" 
-                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-              >
-                Etapas
-              </TabsTrigger>
-              <TabsTrigger 
                 value="categorias" 
                 className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
               >
                 Categorias
-              </TabsTrigger>
-              <TabsTrigger 
-                value="classificacao" 
-                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-              >
-                Classificação
-              </TabsTrigger>
-              <TabsTrigger 
-                value="evento" 
-                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-              >
-                Evento
               </TabsTrigger>
               <TabsTrigger 
                 value="pilotos" 
@@ -169,20 +142,8 @@ export const Championship = () => {
             <SeasonsTab championshipId={id} />
           </TabsContent>
 
-          <TabsContent value="etapas" className="mt-0 ring-0 focus-visible:outline-none">
-            <StagesTab championshipId={id} />
-          </TabsContent>
-
           <TabsContent value="categorias" className="mt-0 ring-0 focus-visible:outline-none">
             <CategoriesTab championshipId={id} />
-          </TabsContent>
-
-          <TabsContent value="classificacao" className="mt-0 ring-0 focus-visible:outline-none">
-            <ClassificationTab championshipId={id} />
-          </TabsContent>
-
-          <TabsContent value="evento" className="mt-0 ring-0 focus-visible:outline-none">
-            <EventTab championshipId={id} />
           </TabsContent>
 
           <TabsContent value="pilotos" className="mt-0 ring-0 focus-visible:outline-none">
