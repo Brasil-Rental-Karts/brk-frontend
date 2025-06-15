@@ -61,6 +61,9 @@ export interface CreateAsaasAccountResponse {
   message: string;
   asaasCustomerId: string;
   asaasWalletId: string;
+  wasExisting: boolean;
+  foundBy?: 'cpfCnpj' | 'email';
+  updatedFields?: string[];
 }
 
 export class ChampionshipService {

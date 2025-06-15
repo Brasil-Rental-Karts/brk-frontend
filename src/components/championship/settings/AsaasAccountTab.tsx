@@ -73,14 +73,32 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
       
       const result = await ChampionshipService.createAsaasAccount(championshipId);
       
-      // Recarregar status após criação
+      // Recarregar status após criação/vinculação
       const updatedStatus = await ChampionshipService.getAsaasStatus(championshipId);
       setAsaasStatus(updatedStatus);
       
-      // Mostrar sucesso (você pode adicionar um toast aqui)
-      console.log('Conta Asaas criada com sucesso:', result);
+      // Recarregar dados do campeonato para refletir possíveis atualizações
+      const updatedChampionshipData = await ChampionshipService.getById(championshipId);
+      setChampionship(updatedChampionshipData);
+      
+      // Mostrar mensagem de sucesso baseada no tipo de operação
+      const successMessage = result.wasExisting 
+        ? `🎉 ${result.message}` 
+        : `✅ ${result.message}`;
+        
+      console.log(successMessage, result);
+      
+      // Mostrar detalhes sobre campos atualizados se houver
+      if (result.wasExisting && result.updatedFields && result.updatedFields.length > 0) {
+        console.log(`📋 Campos atualizados: ${result.updatedFields.join(', ')}`);
+        console.log('🔄 Os dados do campeonato foram atualizados com as informações da conta existente do Asaas.');
+      }
+      
+      // TODO: Você pode adicionar um toast aqui para mostrar a mensagem
+      // toast.success(successMessage);
+      
     } catch (err: any) {
-      setError(err.message || 'Erro ao criar conta Asaas');
+      setError(err.message || 'Erro ao criar/vincular conta Asaas');
     } finally {
       setCreating(false);
     }
@@ -173,10 +191,10 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
               <FileText className="h-5 w-5" />
               Dados para Criação da Conta Asaas
             </CardTitle>
-            <CardDescription>
-              Informações que serão utilizadas para criar a subconta no Asaas. 
-              Campos com asterisco (*) são obrigatórios na API do Asaas.
-            </CardDescription>
+                      <CardDescription>
+            Informações que serão utilizadas para verificar se já existe uma conta ou criar uma nova subconta no Asaas. 
+            O sistema primeiro verifica por CPF/CNPJ, depois por e-mail. Campos com asterisco (*) são obrigatórios na API do Asaas.
+          </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -398,7 +416,7 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
                 className="flex items-center gap-2"
               >
                 <CreditCard className="h-4 w-4" />
-                {creating ? "Criando..." : "Criar Conta Asaas"}
+                {creating ? "Verificando/criando..." : "Verificar/Criar Conta Asaas"}
               </Button>
             )}
 
