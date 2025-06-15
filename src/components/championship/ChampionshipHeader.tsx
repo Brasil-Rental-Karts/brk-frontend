@@ -6,7 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "brk-design-system";
-import { Settings, CreditCard, ChevronDown } from "lucide-react";
+import { Settings, CreditCard, Trophy, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Championship } from "@/lib/services/championship.service";
 
@@ -26,7 +26,7 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
     window.open(`/public/championship/${championship.id}`, '_blank');
   };
 
-  const handleConfigurationOption = (option: 'grid-types' | 'asaas-account') => {
+  const handleConfigurationOption = (option: 'grid-types' | 'scoring-systems' | 'asaas-account') => {
     navigate(`/championship/${championship.id}?tab=${option}`);
   };
 
@@ -95,6 +95,13 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
                   Tipos de Grid
                 </DropdownMenuItem>
                 <DropdownMenuItem 
+                  onClick={() => handleConfigurationOption('scoring-systems')}
+                  className="flex items-center gap-2"
+                >
+                  <Trophy className="h-4 w-4" />
+                  Sistema de Pontuação
+                </DropdownMenuItem>
+                <DropdownMenuItem 
                   onClick={() => handleConfigurationOption('asaas-account')}
                   className="flex items-center gap-2"
                 >
@@ -155,6 +162,13 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
                 >
                   <Settings className="h-4 w-4" />
                   Tipos de Grid
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => handleConfigurationOption('scoring-systems')}
+                  className="flex items-center gap-2"
+                >
+                  <Trophy className="h-4 w-4" />
+                  Sistema de Pontuação
                 </DropdownMenuItem>
                 <DropdownMenuItem 
                   onClick={() => handleConfigurationOption('asaas-account')}

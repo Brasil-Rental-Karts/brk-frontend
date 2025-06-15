@@ -10,6 +10,7 @@ import { ClassificationTab } from "@/components/championship/tabs/Classification
 import { EventTab } from "@/components/championship/tabs/EventTab";
 import { PilotsTab } from "@/components/championship/tabs/PilotsTab";
 import { GridTypesTab } from "@/components/championship/settings/GridTypesTab";
+import { ScoringSystemTab } from "@/components/championship/settings/ScoringSystemTab";
 import { AsaasAccountTab } from "@/components/championship/settings/AsaasAccountTab";
 import { useChampionship } from "@/hooks/use-championship";
 import { Skeleton } from "brk-design-system";
@@ -42,6 +43,8 @@ export const Championship = () => {
     'pilotos': 'pilotos',
     'grid-types': 'config-grid',
     'config-grid': 'config-grid',
+    'scoring-systems': 'config-scoring',
+    'config-scoring': 'config-scoring',
     'asaas-account': 'config-asaas',
     'config-asaas': 'config-asaas'
   };
@@ -188,6 +191,10 @@ export const Championship = () => {
 
           <TabsContent value="config-grid" className="mt-0 ring-0 focus-visible:outline-none">
             <GridTypesTab championshipId={id} />
+          </TabsContent>
+
+          <TabsContent value="config-scoring" className="mt-0 ring-0 focus-visible:outline-none">
+            <ScoringSystemTab championshipId={id} />
           </TabsContent>
 
           <TabsContent value="config-asaas" className="mt-0 ring-0 focus-visible:outline-none">
