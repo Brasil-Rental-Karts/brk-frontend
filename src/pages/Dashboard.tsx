@@ -7,7 +7,6 @@ import {
   User,
   MapPin,
   Calendar,
-  Users,
   Settings,
   Eye,
 } from "lucide-react";
@@ -27,11 +26,19 @@ import { useNavigation } from "@/router";
 import { useDashboardChampionships } from "@/hooks/use-dashboard-championships";
 import { useChampionshipContext } from "@/contexts/ChampionshipContext";
 import { formatDateToBrazilian } from "@/utils/date";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserRegistrations } from "@/hooks/use-user-registrations";
+import { useUserUpcomingRaces } from "@/hooks/use-user-upcoming-races";
+import { useUserStats } from "@/hooks/use-user-stats";
 
 export const Dashboard = () => {
   const nav = useNavigation();
+  const { user } = useAuth();
   const [showProfileAlert, setShowProfileAlert] = useState(true);
-  const [selectedRace, setSelectedRace] = useState<(typeof nextRaces)[0] | null>(null);
+  const [selectedRace, setSelectedRace] = useState<any>(null);
+  
+  // Check if user is manager or administrator
+  const isManager = user?.role === 'Manager' || user?.role === 'Administrator';
   
   // Use context for championships data and hook for loading/error states
   const { championshipsOrganized } = useChampionshipContext();
@@ -41,42 +48,24 @@ export const Dashboard = () => {
     refreshChampionships 
   } = useDashboardChampionships();
   
-  // Dados mockados para exemplo
-  const championshipsParticipating = [];
-  const userStats = {
-    memberSince: "2023",
-    totalRaces: 15,
-    totalChampionship: 3,
-    bestPosition: "2º",
-    averagePosition: "5º",
-  };
-
-  const nextRaces = [
-    {
-      id: 1,
-      championship: "Copa São Paulo de Kart",
-      location: "Kartódromo Granja Viana",
-      date: new Date("2024-02-15"),
-      stage: 3,
-      season: "2024",
-      notification: {
-        type: "warning" as const,
-        message: "Inscrições abertas até 10/02",
-      },
-    },
-    {
-      id: 2,
-      championship: "Campeonato Paulista",
-      location: "Kartódromo Aldeia da Serra",
-      date: new Date("2024-02-22"),
-      stage: 1,
-      season: "2024",
-      notification: {
-        type: "success" as const,
-        message: "Você está inscrito",
-      },
-    },
-  ];
+  // Hooks para dados do usuário
+  const { 
+    championshipsParticipating, 
+    loading: loadingRegistrations, 
+    error: registrationsError 
+  } = useUserRegistrations();
+  
+  const { 
+    upcomingRaces, 
+    loading: loadingRaces, 
+    error: racesError 
+  } = useUserUpcomingRaces();
+  
+  const {
+    stats: userStats,
+    loading: loadingStats,
+    error: statsError
+  } = useUserStats();
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -94,13 +83,15 @@ export const Dashboard = () => {
       {/* Cabeçalho com CTA */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
         <h1 className="text-3xl font-bold">Dashboard</h1>
-        <Button 
-          className="bg-primary hover:bg-primary/90 w-full sm:w-auto"
-          onClick={() => nav.goToCreateChampionship()}
-        >
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Criar Campeonato
-        </Button>
+        {isManager && (
+          <Button 
+            className="bg-primary hover:bg-primary/90 w-full sm:w-auto"
+            onClick={() => nav.goToCreateChampionship()}
+          >
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Criar Campeonato
+          </Button>
+        )}
       </div>
 
       {/* Perfil e Estatísticas */}
@@ -111,7 +102,7 @@ export const Dashboard = () => {
               <User className="h-8 w-8 text-muted-foreground" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold">Olá Usuário,</h2>
+              <h2 className="text-xl font-semibold">Olá {user?.name || 'Usuário'},</h2>
               <p className="text-sm text-muted-foreground">
                 Resumo da sua performance
               </p>
@@ -125,143 +116,170 @@ export const Dashboard = () => {
             Editar Perfil
           </Button>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 text-center">
-          <div>
-            <p className="text-2xl font-bold">{userStats.memberSince}</p>
-            <p className="text-sm text-muted-foreground">Membro desde</p>
+        {loadingStats ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-sm text-muted-foreground">Carregando estatísticas...</div>
           </div>
-          <div>
-            <p className="text-2xl font-bold">{userStats.totalRaces}</p>
-            <p className="text-sm text-muted-foreground">Corridas</p>
+        ) : statsError ? (
+          <div className="py-4">
+            <Alert variant="destructive">
+              <AlertTitle>Erro ao carregar estatísticas</AlertTitle>
+              <AlertDescription>{statsError}</AlertDescription>
+            </Alert>
           </div>
-          <div>
-            <p className="text-2xl font-bold">{userStats.totalChampionship}</p>
-            <p className="text-sm text-muted-foreground">
-              Participação em Campeonatos
-            </p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 text-center">
+            <div>
+              <p className="text-2xl font-bold">{userStats?.memberSince || '2024'}</p>
+              <p className="text-sm text-muted-foreground">Membro desde</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{userStats?.totalRegistrations || 0}</p>
+              <p className="text-sm text-muted-foreground">Inscrições</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{userStats?.totalChampionships || 0}</p>
+              <p className="text-sm text-muted-foreground">
+                Campeonatos
+              </p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{userStats?.confirmedRegistrations || 0}</p>
+              <p className="text-sm text-muted-foreground">Confirmadas</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{userStats?.totalSeasons || 0}</p>
+              <p className="text-sm text-muted-foreground">Temporadas</p>
+            </div>
           </div>
-          <div>
-            <p className="text-2xl font-bold">{userStats.bestPosition}</p>
-            <p className="text-sm text-muted-foreground">Melhor Pos.</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold">{userStats.averagePosition}</p>
-            <p className="text-sm text-muted-foreground">Média Pos.</p>
-          </div>
-        </div>
+        )}
       </Card>
 
       {/* Grid principal */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Campeonatos Organizados */}
-        <Card className="p-6">
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold">Organizando</h2>
-            <p className="text-sm text-muted-foreground">
-              Você Organiza ou Gerencia
-            </p>
-          </div>
-          
-          {loadingChampionships ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="text-sm text-muted-foreground">Carregando campeonatos...</div>
+        {/* Campeonatos Organizados - Só mostra para managers */}
+        {isManager && (
+          <Card className="p-6">
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold">Organizando</h2>
+              <p className="text-sm text-muted-foreground">
+                Você Organiza ou Gerencia
+              </p>
             </div>
-          ) : championshipsError ? (
-            <div className="py-4">
-              <Alert variant="destructive">
-                <AlertTitle>Erro ao carregar campeonatos</AlertTitle>
-                <AlertDescription>{championshipsError}</AlertDescription>
-              </Alert>
-              <div className="mt-4 text-center">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={refreshChampionships}
-                >
-                  Tentar novamente
-                </Button>
+            
+            {loadingChampionships ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-sm text-muted-foreground">Carregando campeonatos...</div>
               </div>
-            </div>
-          ) : championshipsOrganized.length === 0 ? (
-            <EmptyState
-              icon={Trophy}
-              title="Você ainda não organizou nenhum campeonato"
-              action={{
-                label: "Criar Primeiro Campeonato",
-                onClick: () => nav.goToCreateChampionship(),
-              }}
-            />
-          ) : (
-            <div className="space-y-3">
-              {championshipsOrganized.map((championship) => (
-                <div
-                  key={championship.id}
-                  className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                  onClick={() => nav.goToChampionship(championship.id)}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-medium text-sm truncate flex-1 mr-2" title={championship.name}>
-                      {championship.name}
-                    </h3>
-                    <div className="flex gap-1 flex-shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                        title="Ver campeonato"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          nav.goToChampionship(championship.id);
-                        }}
-                      >
-                        <Eye className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                        title="Gerenciar campeonato"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          nav.goToChampionship(championship.id);
-                        }}
-                      >
-                        <Settings className="h-3 w-3" />
-                      </Button>
+            ) : championshipsError ? (
+              <div className="py-4">
+                <Alert variant="destructive">
+                  <AlertTitle>Erro ao carregar campeonatos</AlertTitle>
+                  <AlertDescription>{championshipsError}</AlertDescription>
+                </Alert>
+                <div className="mt-4 text-center">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={refreshChampionships}
+                  >
+                    Tentar novamente
+                  </Button>
+                </div>
+              </div>
+            ) : championshipsOrganized.length === 0 ? (
+              <EmptyState
+                icon={Trophy}
+                title="Você ainda não organizou nenhum campeonato"
+                action={{
+                  label: "Criar Primeiro Campeonato",
+                  onClick: () => nav.goToCreateChampionship(),
+                }}
+              />
+            ) : (
+              <div className="space-y-3">
+                {championshipsOrganized.map((championship) => (
+                  <div
+                    key={championship.id}
+                    className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => nav.goToChampionship(championship.id)}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-medium text-sm truncate flex-1 mr-2" title={championship.name}>
+                        {championship.name}
+                      </h3>
+                      <div className="flex gap-1 flex-shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          title="Ver campeonato"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            nav.goToChampionship(championship.id);
+                          }}
+                        >
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          title="Gerenciar campeonato"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            nav.goToChampionship(championship.id);
+                          }}
+                        >
+                          <Settings className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {championship.shortDescription && (
+                      <p className="text-xs text-muted-foreground mb-2 overflow-hidden" style={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical'
+                      }}>
+                        {championship.shortDescription}
+                      </p>
+                    )}
+                    
+                    <div className="flex justify-between items-center text-xs text-muted-foreground">
+                      <span>Criado em {formatDateToBrazilian(championship.createdAt)}</span>
+                      <Badge variant="outline" className="text-xs">
+                        Organizador
+                      </Badge>
                     </div>
                   </div>
-                  
-                  {championship.shortDescription && (
-                    <p className="text-xs text-muted-foreground mb-2 overflow-hidden" style={{
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical'
-                    }}>
-                      {championship.shortDescription}
-                    </p>
-                  )}
-                  
-                  <div className="flex justify-between items-center text-xs text-muted-foreground">
-                    <span>Criado em {formatDateToBrazilian(championship.createdAt)}</span>
-                    <Badge variant="outline" className="text-xs">
-                      Organizador
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
 
-        {/* Campeonatos Participando */}
-        <Card className="p-6">
-          <div>
+        {/* Campeonatos Participando - Ocupa mais espaço para Members */}
+        <Card className={`p-6 ${!isManager ? 'lg:col-span-2' : ''}`}>
+          <div className="mb-4">
             <h2 className="text-xl font-semibold">Participando</h2>
             <p className="text-sm text-muted-foreground">
               Você está Inscrito como Piloto
             </p>
           </div>
-          {championshipsParticipating.length === 0 ? (
+          
+          {loadingRegistrations ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-sm text-muted-foreground">Carregando inscrições...</div>
+            </div>
+          ) : registrationsError ? (
+            <div className="py-4">
+              <Alert variant="destructive">
+                <AlertTitle>Erro ao carregar inscrições</AlertTitle>
+                <AlertDescription>{registrationsError}</AlertDescription>
+              </Alert>
+            </div>
+          ) : championshipsParticipating.length === 0 ? (
             <EmptyState
               icon={Flag}
               title="Você ainda não participa de nenhum campeonato"
@@ -272,7 +290,48 @@ export const Dashboard = () => {
             />
           ) : (
             <div className="space-y-4">
-              {/* Lista de campeonatos participando */}
+              {championshipsParticipating.map((participation) => (
+                <div
+                  key={participation.championship.id}
+                  className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                  onClick={() => nav.goToChampionship(participation.championship.id)}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-medium text-sm truncate flex-1 mr-2" title={participation.championship.name}>
+                      {participation.championship.name}
+                    </h3>
+                    <Badge variant="outline" className="text-xs">
+                      Piloto
+                    </Badge>
+                  </div>
+                  
+                  {participation.championship.shortDescription && (
+                    <p className="text-xs text-muted-foreground mb-2 overflow-hidden" style={{
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical'
+                    }}>
+                      {participation.championship.shortDescription}
+                    </p>
+                  )}
+                  
+                  <div className="space-y-1">
+                    {participation.seasons.map((season) => (
+                      <div key={season.id} className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground">{season.name}</span>
+                        <Badge 
+                          variant={season.registrationStatus === 'confirmed' ? 'default' : 'secondary'}
+                          className="text-xs"
+                        >
+                          {season.registrationStatus === 'confirmed' ? 'Confirmado' : 
+                           season.registrationStatus === 'payment_pending' ? 'Pag. Pendente' : 
+                           season.registrationStatus}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </Card>
@@ -285,46 +344,59 @@ export const Dashboard = () => {
               Suas próximas corridas agendadas
             </p>
           </div>
-          <div className="space-y-4">
-            {nextRaces.map((race) => (
-              <div
-                key={race.id}
-                className="border rounded-lg p-4 hover:bg-muted/50 cursor-pointer transition-colors"
-                onClick={() => setSelectedRace(race)}
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-medium text-sm">{race.championship}</h3>
-                  <Badge variant="outline">
-                    Etapa {race.stage} - {race.season}
-                  </Badge>
-                </div>
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <div className="flex items-center">
-                    <MapPin className="h-3 w-3 mr-1" />
-                    {race.location}
-                  </div>
-                  <div className="flex items-center">
-                    <Calendar className="h-3 w-3 mr-1" />
-                    {formatDateToBrazilian(race.date.toISOString())}
-                  </div>
-                </div>
-                {race.notification && (
-                  <div className="mt-2">
-                    <Badge
-                      variant={
-                        race.notification.type === "warning"
-                          ? "destructive"
-                          : "default"
-                      }
-                      className="text-xs"
-                    >
-                      {race.notification.message}
+          
+          {loadingRaces ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-sm text-muted-foreground">Carregando corridas...</div>
+            </div>
+          ) : racesError ? (
+            <div className="py-4">
+              <Alert variant="destructive">
+                <AlertTitle>Erro ao carregar corridas</AlertTitle>
+                <AlertDescription>{racesError}</AlertDescription>
+              </Alert>
+            </div>
+          ) : upcomingRaces.length === 0 ? (
+            <EmptyState
+              icon={Flag}
+              title="Nenhuma corrida agendada"
+              description="Você não tem corridas próximas"
+            />
+          ) : (
+            <div className="space-y-4">
+              {upcomingRaces.map((race) => (
+                <div
+                  key={race.stage.id}
+                  className="border rounded-lg p-4 hover:bg-muted/50 cursor-pointer transition-colors"
+                  onClick={() => setSelectedRace(race)}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-medium text-sm">{race.stage.name}</h3>
+                    <Badge variant="outline">
+                      {race.season.name}
                     </Badge>
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    <div className="flex items-center">
+                      <MapPin className="h-3 w-3 mr-1" />
+                      {race.stage.kartodrome}
+                    </div>
+                    <div className="flex items-center">
+                      <Calendar className="h-3 w-3 mr-1" />
+                      {formatDateToBrazilian(race.stage.date)} às {race.stage.time}
+                    </div>
+                  </div>
+                  {race.stage.doublePoints && (
+                    <div className="mt-2">
+                      <Badge variant="default" className="text-xs">
+                        Pontuação em Dobro
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
 
@@ -332,26 +404,34 @@ export const Dashboard = () => {
       <Dialog open={!!selectedRace} onOpenChange={() => setSelectedRace(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{selectedRace?.championship}</DialogTitle>
+            <DialogTitle>{selectedRace?.stage?.name}</DialogTitle>
             <DialogDescription>
-              Etapa {selectedRace?.stage} - {selectedRace?.season}
+              {selectedRace?.season?.name}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <MapPin className="h-4 w-4 text-muted-foreground" />
-              <span>{selectedRace?.location}</span>
+              <span>{selectedRace?.stage?.kartodrome}</span>
             </div>
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
-                <span>{formatDateToBrazilian(selectedRace?.date.toISOString() || "")}</span>
+                <span>{formatDateToBrazilian(selectedRace?.stage?.date || "")} às {selectedRace?.stage?.time}</span>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span>24 pilotos inscritos</span>
-            </div>
+            {selectedRace?.stage?.kartodromeAddress && (
+              <div className="flex items-start space-x-2">
+                <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <span className="text-sm text-muted-foreground">{selectedRace.stage.kartodromeAddress}</span>
+              </div>
+            )}
+            {selectedRace?.stage?.doublePoints && (
+              <div className="flex items-center space-x-2">
+                <Trophy className="h-4 w-4 text-muted-foreground" />
+                <span>Pontuação em dobro</span>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelectedRace(null)}>
@@ -366,3 +446,4 @@ export const Dashboard = () => {
 };
 
 export default Dashboard;
+

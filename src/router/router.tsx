@@ -332,7 +332,7 @@ export const router = createBrowserRouter([
       {
         path: "create-championship",
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiredRoles={['Manager', 'Administrator']}>
             <MainLayout>
               <LazyWrapper>
                 <CreateChampionship />

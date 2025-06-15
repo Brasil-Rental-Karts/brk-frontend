@@ -21,6 +21,7 @@ export interface SeasonRegistration {
   season: {
     id: string;
     name: string;
+    championshipId: string;
   };
   categories: {
     id: string;
