@@ -372,9 +372,16 @@ export const Dashboard = () => {
                 >
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-medium text-sm">{race.stage.name}</h3>
-                    <Badge variant="outline">
-                      {race.season.name}
-                    </Badge>
+                    <div className="flex gap-1">
+                      <Badge variant="outline">
+                        {race.season.name}
+                      </Badge>
+                      {race.isOrganizer && (
+                        <Badge variant="default" className="bg-orange-500 hover:bg-orange-600">
+                          Organizador
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <div className="space-y-1 text-xs text-muted-foreground">
                     <div className="flex items-center">
