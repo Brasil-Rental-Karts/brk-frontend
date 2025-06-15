@@ -9,6 +9,8 @@ import {
   Calendar,
   Settings,
   Eye,
+  Check,
+  Clock,
 } from "lucide-react";
 import { useState } from "react";
 import { Alert, AlertTitle, AlertDescription } from "brk-design-system";
@@ -30,12 +32,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserRegistrations } from "@/hooks/use-user-registrations";
 import { useUserUpcomingRaces } from "@/hooks/use-user-upcoming-races";
 import { useUserStats } from "@/hooks/use-user-stats";
+import { StageParticipationService } from "@/lib/services/stage-participation.service";
+import { toast } from "sonner";
 
 export const Dashboard = () => {
   const nav = useNavigation();
   const { user } = useAuth();
-  const [showProfileAlert, setShowProfileAlert] = useState(true);
+  const [showProfileAlert, setShowProfileAlert] = useState(false);
   const [selectedRace, setSelectedRace] = useState<any>(null);
+  const [confirmingParticipation, setConfirmingParticipation] = useState<string | null>(null);
   
   // Check if user is manager or administrator
   const isManager = user?.role === 'Manager' || user?.role === 'Administrator';
@@ -66,6 +71,21 @@ export const Dashboard = () => {
     loading: loadingStats,
     error: statsError
   } = useUserStats();
+
+  // Função para confirmar participação
+  const handleConfirmParticipation = async (stageId: string, categoryId: string) => {
+    try {
+      setConfirmingParticipation(stageId);
+      await StageParticipationService.confirmParticipation({ stageId, categoryId });
+      toast.success('Participação confirmada com sucesso!');
+      // Refresh upcoming races to update the UI
+      window.location.reload(); // Temporary solution - ideally we'd refresh just the data
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao confirmar participação');
+    } finally {
+      setConfirmingParticipation(null);
+    }
+  };
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -367,38 +387,85 @@ export const Dashboard = () => {
               {upcomingRaces.map((race) => (
                 <div
                   key={race.stage.id}
-                  className="border rounded-lg p-4 hover:bg-muted/50 cursor-pointer transition-colors"
+                  className="border rounded-lg p-5 hover:bg-muted/50 transition-colors cursor-pointer"
                   onClick={() => setSelectedRace(race)}
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-medium text-sm">{race.stage.name}</h3>
-                    <div className="flex gap-1">
-                      <Badge variant="outline">
+                  {/* Header com título e status principal */}
+                  <div className="flex justify-between items-start mb-4 gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-lg mb-1 truncate">
+                        {race.stage.name}
+                      </h3>
+                      <p className="text-sm text-muted-foreground truncate">
                         {race.season.name}
-                      </Badge>
+                      </p>
+                    </div>
+                    
+                    {/* Status badges - apenas os mais importantes */}
+                    <div className="flex flex-col gap-1 items-end shrink-0">
                       {race.isOrganizer && (
-                        <Badge variant="default" className="bg-orange-500 hover:bg-orange-600">
+                        <Badge variant="default" className="bg-orange-500 text-xs whitespace-nowrap">
                           Organizador
+                        </Badge>
+                      )}
+                      {race.hasConfirmedParticipation && (
+                        <Badge variant="default" className="bg-green-500 text-xs whitespace-nowrap">
+                          <Check className="h-3 w-3 mr-1" />
+                          Confirmado
+                        </Badge>
+                      )}
+                      {race.stage.doublePoints && (
+                        <Badge variant="secondary" className="text-xs whitespace-nowrap">
+                          2x Pontos
                         </Badge>
                       )}
                     </div>
                   </div>
-                  <div className="space-y-1 text-xs text-muted-foreground">
-                    <div className="flex items-center">
-                      <MapPin className="h-3 w-3 mr-1" />
-                      {race.stage.kartodrome}
+                  
+                  {/* Informações essenciais */}
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-4 w-4" />
+                      <span className="whitespace-nowrap">{formatDateToBrazilian(race.stage.date)}</span>
                     </div>
-                    <div className="flex items-center">
-                      <Calendar className="h-3 w-3 mr-1" />
-                      {formatDateToBrazilian(race.stage.date)} às {race.stage.time}
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-4 w-4" />
+                      <span className="whitespace-nowrap">{race.stage.time}</span>
+                    </div>
+                    <div className="flex items-center gap-1 min-w-0">
+                      <MapPin className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{race.stage.kartodrome}</span>
                     </div>
                   </div>
-                  {race.stage.doublePoints && (
-                    <div className="mt-2">
-                      <Badge variant="default" className="text-xs">
-                        Pontuação em Dobro
-                      </Badge>
-                    </div>
+                  
+                  {/* Botão de ação principal - ocupa toda a largura */}
+                  {race.availableCategories && race.availableCategories.length > 0 && !race.hasConfirmedParticipation && (
+                    <Button
+                      size="default"
+                      variant="default"
+                      disabled={confirmingParticipation === race.stage.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (race.availableCategories!.length === 1) {
+                          handleConfirmParticipation(race.stage.id, race.availableCategories![0].id);
+                        } else {
+                          setSelectedRace(race);
+                        }
+                      }}
+                      className="w-full bg-primary hover:bg-primary/90"
+                    >
+                      {confirmingParticipation === race.stage.id ? (
+                        <>
+                          <Clock className="h-4 w-4 mr-2" />
+                          Confirmando...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="h-4 w-4 mr-2" />
+                          Confirmar Participação
+                        </>
+                      )}
+                    </Button>
                   )}
                 </div>
               ))}
@@ -440,11 +507,66 @@ export const Dashboard = () => {
               </div>
             )}
           </div>
+          
+          {/* Seção de confirmação de participação */}
+          {selectedRace && selectedRace.availableCategories && selectedRace.availableCategories.length > 0 && (
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">
+                Confirmar Participação
+                {selectedRace.isOrganizer && (
+                  <Badge variant="outline" className="ml-2 text-xs">
+                    Organizador & Piloto
+                  </Badge>
+                )}
+              </h4>
+              {selectedRace.hasConfirmedParticipation ? (
+                <div className="flex items-center gap-2 text-green-600">
+                  <Check className="h-4 w-4" />
+                  <span className="text-sm">Participação confirmada</span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Selecione uma categoria para confirmar sua participação:
+                  </p>
+                  <div className="grid gap-2">
+                    {selectedRace.availableCategories.map((category: any) => (
+                      <Button
+                        key={category.id}
+                        variant="outline"
+                        size="sm"
+                        disabled={confirmingParticipation === selectedRace.stage.id || category.isConfirmed}
+                        onClick={() => {
+                          handleConfirmParticipation(selectedRace.stage.id, category.id);
+                          setSelectedRace(null);
+                        }}
+                        className="justify-start"
+                      >
+                        {category.isConfirmed ? (
+                          <Check className="h-3 w-3 mr-2 text-green-500" />
+                        ) : confirmingParticipation === selectedRace.stage.id ? (
+                          <Clock className="h-3 w-3 mr-2" />
+                        ) : (
+                          <div className="h-3 w-3 mr-2" />
+                        )}
+                        {category.name} - {category.ballast}
+                        {category.isConfirmed && (
+                          <Badge variant="default" className="ml-auto text-xs bg-green-500">
+                            Confirmado
+                          </Badge>
+                        )}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelectedRace(null)}>
               Fechar
             </Button>
-            <Button>Ver Detalhes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

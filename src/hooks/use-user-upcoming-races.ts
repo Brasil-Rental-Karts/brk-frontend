@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { StageService } from '@/lib/services/stage.service';
 import { ChampionshipService } from '@/lib/services/championship.service';
 import { SeasonService } from '@/lib/services/season.service';
+import { StageParticipationService, type AvailableCategory } from '@/lib/services/stage-participation.service';
 import { useUserRegistrations } from './use-user-registrations';
 import type { Stage } from '@/lib/types/stage';
 
@@ -16,6 +17,8 @@ export interface UserUpcomingRace {
     name: string;
   };
   isOrganizer?: boolean;
+  availableCategories?: AvailableCategory[];
+  hasConfirmedParticipation?: boolean;
 }
 
 export const useUserUpcomingRaces = () => {
@@ -123,8 +126,31 @@ export const useUserUpcomingRaces = () => {
         return dateA.getTime() - dateB.getTime();
       });
 
-      // 5. Pegar apenas as próximas 10 corridas
-      const limitedRaces = sortedRaces.slice(0, 10);
+      // 5. Buscar informações de participação para cada corrida
+      const racesWithParticipation = await Promise.all(
+        sortedRaces.map(async (race) => {
+          try {
+            const availableCategories = await StageParticipationService.getAvailableCategories(race.stage.id);
+            const hasConfirmedParticipation = availableCategories.some(cat => cat.isConfirmed);
+            
+            return {
+              ...race,
+              availableCategories,
+              hasConfirmedParticipation
+            };
+          } catch (error) {
+            console.error(`Erro ao buscar categorias da etapa ${race.stage.id}:`, error);
+            return {
+              ...race,
+              availableCategories: [],
+              hasConfirmedParticipation: false
+            };
+          }
+        })
+      );
+
+      // 6. Pegar apenas as próximas 10 corridas
+      const limitedRaces = racesWithParticipation.slice(0, 10);
 
       setUpcomingRaces(limitedRaces);
     } catch (err: any) {
