@@ -450,20 +450,7 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
              }
            }
         ]
-      }]),
-      {
-        section: "Patrocinadores",
-        detail: "Gerenciar patrocinadores do campeonato",
-        fields: [
-          {
-            id: "sponsors",
-            name: "Lista de patrocinadores",
-            type: "sponsor-list" as const,
-            mandatory: false,
-            placeholder: "Adicione patrocinadores ao seu campeonato"
-          }
-        ]
-      }
+      }])
     ];
 
     setFormConfig(config);
@@ -526,8 +513,7 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
     responsibleEmail: championship.responsibleEmail || '',
     responsibleBirthDate: championship.responsibleBirthDate ? convertISOToDate(championship.responsibleBirthDate) : '',
     companyType: championship.companyType || '',
-    incomeValue: championship.incomeValue ? (championship.incomeValue * 100).toFixed(0) : '',
-    sponsors: championship.sponsors || []
+    incomeValue: championship.incomeValue ? (championship.incomeValue * 100).toFixed(0) : ''
   };
 
   return (
@@ -548,8 +534,8 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Conta Asaas Configurada</AlertTitle>
           <AlertDescription>
-            Como já existe uma conta Asaas configurada para este campeonato, os campos referentes aos dados legais e financeiros não podem mais ser alterados.
-            Apenas as informações sobre o campeonato e patrocinadores podem ser editadas.
+            Como já existe uma conta Asaas configurada para este campeonato, os campos referente aos dados legais e financeiros não podem mais ser alterados.
+          Apenas as informações sobre o campeonato podem ser editadas.
           </AlertDescription>
         </Alert>
       )}

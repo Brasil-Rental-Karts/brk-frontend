@@ -320,8 +320,7 @@ export const CreateChampionship = () => {
       responsibleEmail: data.responsibleEmail || '', // E-mail do responsável
       responsibleBirthDate: data.responsibleBirthDate ? convertDateToISO(data.responsibleBirthDate) : undefined, // Data de nascimento do responsável
       companyType: data.companyType || undefined, // Tipo de empresa (pessoa jurídica)
-      incomeValue: data.incomeValue ? parseFloat(data.incomeValue.replace(/[^\d]/g, '')) / 100 : undefined, // Faturamento/Renda mensal
-      sponsors: data.sponsors || []
+      incomeValue: data.incomeValue ? parseFloat(data.incomeValue.replace(/[^\d]/g, '')) / 100 : undefined // Faturamento/Renda mensal
     };
 
     try {
@@ -569,19 +568,6 @@ export const CreateChampionship = () => {
             }
           }
         ]
-      },
-      {
-        section: "Patrocinadores",
-        detail: "Gerenciar patrocinadores do campeonato",
-        fields: [
-          {
-            id: "sponsors",
-            name: "Lista de patrocinadores",
-            type: "sponsor-list",
-            mandatory: false,
-            placeholder: "Adicione patrocinadores ao seu campeonato"
-          }
-        ]
       }
     ];
 
@@ -640,8 +626,7 @@ export const CreateChampionship = () => {
           formId="championship-form"
           initialValues={{
             personType: "0", // Pessoa Física por padrão
-            isResponsible: true, // Sou responsável pelo campeonato marcado por padrão
-            sponsors: [] // Array vazio de sponsors
+            isResponsible: true // Sou responsável pelo campeonato marcado por padrão
           }}
         />
       </div>
