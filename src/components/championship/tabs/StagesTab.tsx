@@ -35,6 +35,7 @@ import { SeasonService } from "@/lib/services/season.service";
 import { Stage } from "@/lib/types/stage";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
+import { StageDetailsModal } from "@/components/championship/modals/StageDetailsModal";
 
 interface StagesTabProps {
   championshipId: string;
@@ -84,6 +85,10 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
   const [stageToDelete, setStageToDelete] = useState<Stage | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Estados para o modal de detalhes
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [stageToView, setStageToView] = useState<Stage | null>(null);
 
   // Memoizar a configuração dos filtros para evitar re-renders
   const filterFields = useMemo(() => createFilterFields(seasonOptions), [seasonOptions]);
@@ -283,7 +288,8 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
 
     switch (action) {
       case "view":
-        // TODO: Implementar visualização de detalhes da etapa
+        setStageToView(stage);
+        setShowDetailsModal(true);
         break;
       case "edit":
         handleEditStage(stageId);
@@ -564,6 +570,16 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
           />
         </div>
       </Card>
+
+      {/* Modal de detalhes da etapa */}
+      <StageDetailsModal
+        stage={stageToView}
+        isOpen={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false);
+          setStageToView(null);
+        }}
+      />
 
       {/* Modal de confirmação de exclusão */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
