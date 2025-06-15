@@ -81,17 +81,33 @@ export class CategoryService {
   }
 
   /**
-   * Busca categoria por nome
+   * Busca categorias por nome
    */
-  static async getByName(name: string): Promise<Category> {
+  static async getByName(name: string): Promise<Category[]> {
     try {
-      const response = await api.get<Category>(`${this.BASE_URL}/name/${name}`);
+      const response = await api.get<Category[]>(`${this.BASE_URL}/name/${name}`);
       return response.data;
     } catch (error: any) {
-      console.error('Error fetching category by name:', error);
+      console.error('Error fetching categories by name:', error);
       throw new Error(
         error.response?.data?.message || 
-        'Erro ao buscar categoria por nome.'
+        'Erro ao buscar categorias por nome.'
+      );
+    }
+  }
+
+  /**
+   * Busca categoria por nome e temporada
+   */
+  static async getByNameAndSeason(name: string, seasonId: string): Promise<Category> {
+    try {
+      const response = await api.get<Category>(`${this.BASE_URL}/name/${name}?seasonId=${seasonId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching category by name and season:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao buscar categoria por nome e temporada.'
       );
     }
   }
