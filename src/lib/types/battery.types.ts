@@ -8,6 +8,9 @@ export interface BatteryConfig {
   /** Tipo de grid utilizado nesta bateria */
   gridType: string; // ID do GridType
   
+  /** Sistema de pontuação utilizado nesta bateria */
+  scoringSystemId: string; // ID do ScoringSystem
+  
   /** Ordem da bateria na sequência */
   order: number;
   
@@ -34,6 +37,7 @@ export const BATTERY_TEMPLATES = {
     {
       name: "Bateria 1",
       gridType: "",
+      scoringSystemId: "",
       order: 1,
       isRequired: true,
       description: "Bateria principal"
@@ -44,6 +48,7 @@ export const BATTERY_TEMPLATES = {
     {
       name: "Classificação",
       gridType: "",
+      scoringSystemId: "",
       order: 1,
       isRequired: true,
       description: "Bateria de classificação"
@@ -51,6 +56,7 @@ export const BATTERY_TEMPLATES = {
     {
       name: "Corrida",
       gridType: "",
+      scoringSystemId: "",
       order: 2,
       isRequired: true,
       description: "Bateria principal"
@@ -61,6 +67,7 @@ export const BATTERY_TEMPLATES = {
     {
       name: "Classificação",
       gridType: "",
+      scoringSystemId: "",
       order: 1,
       isRequired: true,
       description: "Bateria de classificação"
@@ -68,6 +75,7 @@ export const BATTERY_TEMPLATES = {
     {
       name: "Semifinal",
       gridType: "",
+      scoringSystemId: "",
       order: 2,
       isRequired: true,
       description: "Bateria semifinal"
@@ -75,6 +83,7 @@ export const BATTERY_TEMPLATES = {
     {
       name: "Final",
       gridType: "",
+      scoringSystemId: "",
       order: 3,
       isRequired: true,
       description: "Bateria final"
@@ -85,6 +94,7 @@ export const BATTERY_TEMPLATES = {
     {
       name: "Treino",
       gridType: "",
+      scoringSystemId: "",
       order: 1,
       isRequired: false,
       description: "Bateria de treino"
@@ -92,6 +102,7 @@ export const BATTERY_TEMPLATES = {
     {
       name: "Classificação",
       gridType: "",
+      scoringSystemId: "",
       order: 2,
       isRequired: true,
       description: "Bateria de classificação"
@@ -99,6 +110,7 @@ export const BATTERY_TEMPLATES = {
     {
       name: "Corrida",
       gridType: "",
+      scoringSystemId: "",
       order: 3,
       isRequired: true,
       description: "Bateria principal"
@@ -116,8 +128,8 @@ export const validateBatteryConfig = (battery: BatteryConfig): string[] => {
     errors.push('Nome da bateria é obrigatório');
   }
   
-  if (battery.order === undefined || battery.order < 1) {
-    errors.push('Ordem da bateria deve ser maior que 0');
+  if (battery.order === undefined || battery.order < 0) {
+    errors.push('Ordem da bateria deve ser maior ou igual a 0');
   }
   
   if (battery.duration !== undefined && battery.duration < 1) {

@@ -23,6 +23,7 @@ import {
 import { CategoryData, CategoryService } from "@/lib/services/category.service";
 import { SeasonService } from "@/lib/services/season.service";
 import { GridTypeService } from "@/lib/services/grid-type.service";
+import { ScoringSystemService, ScoringSystem } from "@/lib/services/scoring-system.service";
 import { PageHeader } from "@/components/ui/page-header";
 import { useCreateCategory } from "@/hooks/use-create-category";
 import { Skeleton } from "brk-design-system";
@@ -70,6 +71,10 @@ export const CreateCategory = () => {
   // Grid types for batteries
   const [gridTypes, setGridTypes] = useState<GridType[]>([]);
   const [isLoadingGridTypes, setIsLoadingGridTypes] = useState(true);
+
+  // Scoring systems for batteries
+  const [scoringSystems, setScoringSystems] = useState<ScoringSystem[]>([]);
+  const [isLoadingScoringSystems, setIsLoadingScoringSystems] = useState(true);
 
   const { isLoading, error, createCategory, clearError } = useCreateCategory();
 
@@ -127,6 +132,26 @@ export const CreateCategory = () => {
     };
 
     loadGridTypes();
+  }, [championshipId]);
+
+  // Load scoring systems
+  useEffect(() => {
+    const loadScoringSystems = async () => {
+      if (!championshipId) return;
+
+      try {
+        setIsLoadingScoringSystems(true);
+        const scoringSystemsData = await ScoringSystemService.getByChampionship(championshipId);
+        setScoringSystems(scoringSystemsData);
+      } catch (err: any) {
+        console.error('Error loading scoring systems:', err);
+        setScoringSystems([]);
+      } finally {
+        setIsLoadingScoringSystems(false);
+      }
+    };
+
+    loadScoringSystems();
   }, [championshipId]);
 
   // Load category data for edit mode
@@ -188,8 +213,9 @@ export const CreateCategory = () => {
 
   // Set initial form data for create mode
   useEffect(() => {
-    if (!isEditMode && !isLoadingSeasons && !isLoadingGridTypes && gridTypes.length > 0 && !initialFormData) {
+    if (!isEditMode && !isLoadingSeasons && !isLoadingGridTypes && !isLoadingScoringSystems && gridTypes.length > 0 && scoringSystems.length > 0 && !initialFormData) {
       const defaultGridType = gridTypes.find(gt => gt.isDefault)?.id || gridTypes[0]?.id || "";
+      const defaultScoringSystem = scoringSystems.find(ss => ss.isDefault)?.id || scoringSystems[0]?.id || "";
       
       const initialData = {
         name: "",
@@ -198,9 +224,10 @@ export const CreateCategory = () => {
         batteriesConfig: [{
           name: "Bateria 1",
           gridType: defaultGridType,
+          scoringSystemId: defaultScoringSystem,
           order: 1,
           isRequired: true,
-          description: "Bateria principal"
+          description: ""
         }],
         minimumAge: "",
         seasonId: seasonId || ""
@@ -209,7 +236,7 @@ export const CreateCategory = () => {
       setInitialFormData(initialData);
       setFormData(initialData);
     }
-  }, [isEditMode, seasonId, isLoadingSeasons, isLoadingGridTypes, gridTypes, initialFormData]);
+  }, [isEditMode, isLoadingSeasons, isLoadingGridTypes, isLoadingScoringSystems, gridTypes, scoringSystems, initialFormData, seasonId]);
 
   // Monitor form changes
   useEffect(() => {
@@ -374,7 +401,7 @@ export const CreateCategory = () => {
   }
 
   // Loading state
-  if (isLoadingSeasons || isLoadingGridTypes || (isEditMode && isLoadingCategoryData)) {
+  if (isLoadingSeasons || isLoadingGridTypes || isLoadingScoringSystems || (isEditMode && isLoadingCategoryData)) {
     return (
       <div className="min-h-screen bg-background">
         <PageHeader
@@ -551,6 +578,7 @@ export const CreateCategory = () => {
                 value={formData.batteriesConfig}
                 onChange={handleBatteriesConfigChange}
                 gridTypes={gridTypes}
+                scoringSystems={scoringSystems}
                 disabled={isLoading || isSaving}
               />
             </CardContent>

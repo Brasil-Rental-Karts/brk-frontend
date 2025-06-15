@@ -25,12 +25,14 @@ import { Alert, AlertDescription } from "brk-design-system";
 import { Plus, Trash2, GripVertical, Settings2 } from "lucide-react";
 import { BatteryConfig, BatteriesConfig, BATTERY_TEMPLATES, validateBatteriesConfig } from "@/lib/types/battery.types";
 import { GridType } from "@/lib/types/grid-type";
+import { ScoringSystem } from "@/lib/services/scoring-system.service";
 import { GridTypeIcon } from "@/lib/icons/grid-type-icons";
 
 interface BatteriesConfigFormProps {
   value: BatteriesConfig;
   onChange: (config: BatteriesConfig) => void;
   gridTypes: GridType[];
+  scoringSystems: ScoringSystem[];
   disabled?: boolean;
 }
 
@@ -41,6 +43,7 @@ export const BatteriesConfigForm = ({
   value,
   onChange,
   gridTypes,
+  scoringSystems,
   disabled = false
 }: BatteriesConfigFormProps) => {
   const [batteries, setBatteries] = useState<BatteriesConfig>(value || []);
@@ -68,6 +71,7 @@ export const BatteriesConfigForm = ({
     const newBattery: BatteryConfig = template || {
       name: `Bateria ${newOrder}`,
       gridType: gridTypes.find(gt => gt.isDefault)?.id || gridTypes[0]?.id || "",
+      scoringSystemId: scoringSystems.find(ss => ss.isDefault)?.id || scoringSystems[0]?.id || "",
       order: newOrder,
       isRequired: true,
       description: ""
@@ -97,6 +101,7 @@ export const BatteriesConfigForm = ({
     const templatedBatteries = template.map((battery, index) => ({
       ...battery,
       gridType: gridTypes.find(gt => gt.isDefault)?.id || gridTypes[0]?.id || "",
+      scoringSystemId: scoringSystems.find(ss => ss.isDefault)?.id || scoringSystems[0]?.id || "",
       order: index + 1
     }));
     setBatteries(templatedBatteries);
@@ -130,6 +135,11 @@ export const BatteriesConfigForm = ({
     return <GridTypeIcon type={gridType.type} size={20} withColor={true} />;
   };
 
+  const getScoringSystemName = (scoringSystemId: string) => {
+    const scoringSystem = scoringSystems.find(ss => ss.id === scoringSystemId);
+    return scoringSystem ? scoringSystem.name : "Sistema não encontrado";
+  };
+
   return (
     <div className="space-y-4">
       {/* Header com templates */}
@@ -137,7 +147,7 @@ export const BatteriesConfigForm = ({
         <div>
           <Label className="text-base font-medium">Configuração de Baterias</Label>
           <p className="text-sm text-muted-foreground">
-            Configure as baterias e seus tipos de grid
+            Configure as baterias, seus tipos de grid e sistemas de pontuação
           </p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
@@ -235,6 +245,9 @@ export const BatteriesConfigForm = ({
                           <p className="text-sm text-muted-foreground">
                             Grid: {getGridTypeName(battery.gridType)}
                           </p>
+                          <p className="text-sm text-muted-foreground">
+                            Pontuação: {getScoringSystemName(battery.scoringSystemId)}
+                          </p>
                           {battery.description && (
                             <p className="text-xs text-muted-foreground">
                               {battery.description}
@@ -313,6 +326,9 @@ export const BatteriesConfigForm = ({
                     <div className="space-y-2">
                       <p className="text-xs text-muted-foreground">
                         Grid: {getGridTypeName(battery.gridType)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Pontuação: {getScoringSystemName(battery.scoringSystemId)}
                       </p>
                       {battery.description && (
                         <p className="text-xs text-muted-foreground">
@@ -411,6 +427,7 @@ export const BatteriesConfigForm = ({
         onOpenChange={setShowBatteryForm}
         battery={editingBattery}
         gridTypes={gridTypes}
+        scoringSystems={scoringSystems}
         onSave={handleSaveBattery}
       />
     </div>
@@ -423,6 +440,7 @@ interface BatteryFormDialogProps {
   onOpenChange: (open: boolean) => void;
   battery: BatteryConfig | null;
   gridTypes: GridType[];
+  scoringSystems: ScoringSystem[];
   onSave: (battery: BatteryConfig) => void;
 }
 
@@ -431,11 +449,13 @@ const BatteryFormDialog = ({
   onOpenChange,
   battery,
   gridTypes,
+  scoringSystems,
   onSave
 }: BatteryFormDialogProps) => {
   const [formData, setFormData] = useState<BatteryConfig>({
     name: "",
     gridType: "",
+    scoringSystemId: "",
     order: 1,
     isRequired: true,
     description: ""
@@ -448,12 +468,13 @@ const BatteryFormDialog = ({
       setFormData({
         name: "",
         gridType: gridTypes.find(gt => gt.isDefault)?.id || gridTypes[0]?.id || "",
+        scoringSystemId: scoringSystems.find(ss => ss.isDefault)?.id || scoringSystems[0]?.id || "",
         order: 1,
         isRequired: true,
         description: ""
       });
     }
-  }, [battery, gridTypes, open]);
+  }, [battery, gridTypes, scoringSystems, open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -499,6 +520,32 @@ const BatteryFormDialog = ({
                       <GridTypeIcon type={gridType.type} size={16} />
                       {gridType.name}
                       {gridType.isDefault && (
+                        <Badge variant="secondary" className="text-xs ml-2">
+                          Padrão
+                        </Badge>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="scoringSystemId">Sistema de Pontuação *</Label>
+            <Select
+              value={formData.scoringSystemId}
+              onValueChange={(value) => setFormData({ ...formData, scoringSystemId: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o sistema de pontuação" />
+              </SelectTrigger>
+              <SelectContent>
+                {scoringSystems.map((scoringSystem) => (
+                  <SelectItem key={scoringSystem.id} value={scoringSystem.id}>
+                    <div className="flex items-center gap-2">
+                      {scoringSystem.name}
+                      {scoringSystem.isDefault && (
                         <Badge variant="secondary" className="text-xs ml-2">
                           Padrão
                         </Badge>
