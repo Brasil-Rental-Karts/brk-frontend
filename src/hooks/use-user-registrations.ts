@@ -31,28 +31,16 @@ export const useUserRegistrations = () => {
       const userRegistrations = await SeasonRegistrationService.getMyRegistrations();
       setRegistrations(userRegistrations);
 
-      // Extrair IDs únicos de campeonatos das temporadas
-      const championshipIds = new Set<string>();
-      userRegistrations.forEach(registration => {
-        if (registration.season?.championshipId) {
-          championshipIds.add(registration.season.championshipId);
-        }
-      });
-
-      // Buscar detalhes dos campeonatos
-      const championshipPromises = Array.from(championshipIds).map(id => 
-        ChampionshipService.getById(id)
-      );
+      // Buscar todos os campeonatos do usuário (incluindo onde é apenas piloto)
+      const allUserChampionships = await ChampionshipService.getMy();
       
-      const championships = await Promise.all(championshipPromises);
-
-      // Filtrar apenas campeonatos onde o usuário NÃO é organizador
-      const participatingChampionships = championships.filter(championship => 
-        championship.ownerId !== user.id
+      // Filtrar apenas campeonatos onde o usuário é piloto (não owner nem staff)
+      const pilotChampionships = allUserChampionships.filter(championship => 
+        championship.isPilot && !championship.isOwner && !championship.isStaff
       );
 
       // Agrupar por campeonato
-      const grouped: UserChampionshipParticipation[] = participatingChampionships.map(championship => {
+      const grouped: UserChampionshipParticipation[] = pilotChampionships.map(championship => {
         const championshipRegistrations = userRegistrations.filter(reg => 
           reg.season?.championshipId === championship.id
         );

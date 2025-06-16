@@ -37,6 +37,9 @@ export interface Championship extends ChampionshipData {
   ownerId: string;
   createdAt: string;
   updatedAt: string;
+  isOwner?: boolean;
+  isStaff?: boolean;
+  isPilot?: boolean;
 }
 
 export interface ChampionshipBasicInfo {

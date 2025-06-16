@@ -6,7 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "brk-design-system";
-import { Settings, CreditCard, Trophy, ChevronDown, Award } from "lucide-react";
+import { Settings, CreditCard, Trophy, ChevronDown, Award, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Championship } from "@/lib/services/championship.service";
 
@@ -26,7 +26,7 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
     window.open(`/public/championship/${championship.id}`, '_blank');
   };
 
-  const handleConfigurationOption = (option: 'grid-types' | 'scoring-systems' | 'asaas-account' | 'edit-data' | 'sponsors') => {
+  const handleConfigurationOption = (option: 'grid-types' | 'scoring-systems' | 'asaas-account' | 'edit-data' | 'sponsors' | 'staff') => {
     navigate(`/championship/${championship.id}?tab=${option}`);
   };
 
@@ -100,6 +100,13 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
                 >
                   <Award className="h-4 w-4" />
                   Patrocinadores
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => handleConfigurationOption('staff')}
+                  className="flex items-center gap-2"
+                >
+                  <Users className="h-4 w-4" />
+                  Equipe
                 </DropdownMenuItem>
                 <DropdownMenuItem 
                   onClick={() => handleConfigurationOption('grid-types')}
@@ -183,6 +190,13 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
                 >
                   <Award className="h-4 w-4" />
                   Patrocinadores
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => handleConfigurationOption('staff')}
+                  className="flex items-center gap-2"
+                >
+                  <Users className="h-4 w-4" />
+                  Equipe
                 </DropdownMenuItem>
                 <DropdownMenuItem 
                   onClick={() => handleConfigurationOption('grid-types')}

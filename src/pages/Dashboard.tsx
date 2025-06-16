@@ -177,8 +177,8 @@ export const Dashboard = () => {
 
       {/* Grid principal */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Campeonatos Organizados - Só mostra para managers */}
-        {isManager && (
+        {/* Campeonatos Organizados - Mostra para managers ou para quem tem campeonatos como staff */}
+        {(isManager || championshipsOrganized.length > 0) && (
           <Card className="p-6">
             <div className="mb-4">
               <h2 className="text-xl font-semibold">Organizando</h2>
@@ -268,8 +268,11 @@ export const Dashboard = () => {
                     
                     <div className="flex justify-between items-center text-xs text-muted-foreground">
                       <span>Criado em {formatDateToBrazilian(championship.createdAt)}</span>
-                      <Badge variant="outline" className="text-xs">
-                        Organizador
+                      <Badge 
+                        variant={championship.isOwner !== false ? "default" : "secondary"} 
+                        className="text-xs"
+                      >
+                        {championship.isOwner !== false ? "Organizador" : "Equipe"}
                       </Badge>
                     </div>
                   </div>
@@ -279,8 +282,8 @@ export const Dashboard = () => {
           </Card>
         )}
 
-        {/* Campeonatos Participando - Ocupa mais espaço para Members */}
-        <Card className={`p-6 ${!isManager ? 'lg:col-span-2' : ''}`}>
+        {/* Campeonatos Participando - Ocupa mais espaço quando não há seção "Organizando" */}
+        <Card className={`p-6 ${!(isManager || championshipsOrganized.length > 0) ? 'lg:col-span-2' : ''}`}>
           <div className="mb-4">
             <h2 className="text-xl font-semibold">Participando</h2>
             <p className="text-sm text-muted-foreground">

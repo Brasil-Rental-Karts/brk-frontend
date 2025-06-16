@@ -21,8 +21,14 @@ export const useDashboardChampionships = (): UseDashboardChampionshipsReturn => 
     try {
       setLoadingChampionships(true);
       setChampionshipsError(null);
-      const championships = await ChampionshipService.getMy();
-      setChampionshipsOrganized(championships);
+      const allChampionships = await ChampionshipService.getMy();
+      
+      // Filtrar apenas campeonatos onde o usuário é owner ou staff (organizando)
+      const championshipsOrganized = allChampionships.filter(championship => 
+        championship.isOwner || championship.isStaff
+      );
+      
+      setChampionshipsOrganized(championshipsOrganized);
     } catch (error: any) {
       console.error('Error fetching my championships:', error);
       setChampionshipsError(error.message || 'Erro ao carregar campeonatos');
