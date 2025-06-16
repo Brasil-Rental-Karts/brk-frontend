@@ -12,6 +12,7 @@ import { ScoringSystemTab } from "@/components/championship/settings/ScoringSyst
 import { AsaasAccountTab } from "@/components/championship/settings/AsaasAccountTab";
 import { EditChampionshipTab } from "@/components/championship/settings/EditChampionshipTab";
 import { SponsorsTab } from "@/components/championship/settings/SponsorsTab";
+import { ClassificationTab } from "@/components/championship/tabs/ClassificationTab";
 import { useChampionship } from "@/hooks/use-championship";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription } from "brk-design-system";
@@ -46,7 +47,8 @@ export const Championship = () => {
     'scoring-systems': 'config-scoring',
     'config-scoring': 'config-scoring',
     'asaas-account': 'config-asaas',
-    'config-asaas': 'config-asaas'
+    'config-asaas': 'config-asaas',
+    'classificacao': 'classificacao'
   };
 
   // Ler o parâmetro tab da URL ao montar o componente
@@ -147,6 +149,12 @@ export const Championship = () => {
               >
                 Pilotos
               </TabsTrigger>
+              <TabsTrigger 
+                value="classificacao" 
+                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+              >
+                Classificação
+              </TabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -167,6 +175,10 @@ export const Championship = () => {
 
           <TabsContent value="pilotos" className="mt-0 ring-0 focus-visible:outline-none">
             <PilotsTab championshipId={id} />
+          </TabsContent>
+
+          <TabsContent value="classificacao" className="mt-0 ring-0 focus-visible:outline-none">
+            <ClassificationTab championshipId={id} />
           </TabsContent>
 
           <TabsContent value="config-edit" className="mt-0 ring-0 focus-visible:outline-none">
