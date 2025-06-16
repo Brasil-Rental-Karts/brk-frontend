@@ -4,7 +4,7 @@ import { Button } from "brk-design-system";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "brk-design-system";
 import { Badge } from "brk-design-system";
 import { Input } from "brk-design-system";
-import { AlertTriangle, Mail, Plus, Trash2, Users, Calendar } from "lucide-react";
+import { AlertTriangle, Mail, Plus, Trash2, Users, Calendar, Crown } from "lucide-react";
 import { ChampionshipStaffService, StaffMember } from "@/lib/services/championship-staff.service";
 
 interface StaffTabProps {
@@ -106,13 +106,17 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
     });
   };
 
-      if (loading) {
-      return (
-        <div className="flex items-center justify-center py-8">
-          <div className="text-sm text-muted-foreground">Carregando equipe...</div>
-        </div>
-      );
-    }
+  // Calcular membros da equipe (sem contar o owner)
+  const teamMembers = staffMembers.filter(member => !member.isOwner);
+  const hasTeamMembers = teamMembers.length > 0;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-sm text-muted-foreground">Carregando equipe...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -157,10 +161,10 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
       {showAddForm && (
         <Card>
           <CardHeader>
-                      <CardTitle className="text-lg">Adicionar Membro à Equipe</CardTitle>
-          <CardDescription>
-            Informe o email do usuário que deve ter acesso para editar dados do campeonato
-          </CardDescription>
+            <CardTitle className="text-lg">Adicionar Membro à Equipe</CardTitle>
+            <CardDescription>
+              Informe o email do usuário que deve ter acesso para editar dados do campeonato
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleAddMember} className="space-y-4">
@@ -205,13 +209,8 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
 
       {/* Staff Members List */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">
-            Membros da Equipe ({staffMembers.length})
-          </h3>
-        </div>
 
-        {staffMembers.length === 0 ? (
+        {!hasTeamMembers ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-8">
               <Users className="h-12 w-12 text-muted-foreground mb-4" />
@@ -225,7 +224,10 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
               </Button>
             </CardContent>
           </Card>
-        ) : (
+        ) : null}
+
+        {/* Lista de todos os membros (owner + equipe) */}
+        {staffMembers.length > 0 && (
           <div className="grid gap-4">
             {staffMembers.map((member) => (
               <Card key={member.id}>
@@ -235,7 +237,14 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="font-semibold">{member.user.name}</h4>
-                          <Badge variant="secondary">Equipe</Badge>
+                          {member.isOwner ? (
+                            <Badge variant="default" className="bg-yellow-500 hover:bg-yellow-600">
+                              <Crown className="h-3 w-3 mr-1" />
+                              Proprietário
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">Equipe</Badge>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                           <Mail className="h-3 w-3" />
@@ -243,18 +252,23 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Calendar className="h-3 w-3" />
-                          Adicionado em {formatDate(member.addedAt)} por {member.addedBy.name}
+                          {member.isOwner 
+                            ? `Proprietário desde ${formatDate(member.addedAt)}`
+                            : `Adicionado em ${formatDate(member.addedAt)} por ${member.addedBy.name}`
+                          }
                         </div>
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveMember(member.id, member.user.name)}
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {!member.isOwner && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveMember(member.id, member.user.name)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -280,8 +294,8 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
             • Apenas o proprietário do campeonato e administradores podem gerenciar a equipe.
           </p>
           <p>
-            • O proprietário do campeonato sempre tem todas as permissões e não precisa ser 
-            adicionado à equipe.
+            • O proprietário do campeonato aparece na lista com todas as permissões, mas não pode 
+            ser removido da equipe.
           </p>
         </CardContent>
       </Card>

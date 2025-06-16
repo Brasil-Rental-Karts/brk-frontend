@@ -7,13 +7,14 @@ export interface StaffMember {
     name: string;
     email: string;
   };
-  role: 'staff';
+  role: 'staff' | 'owner';
   addedAt: string;
   addedBy: {
     id: string;
     name: string;
     email: string;
   };
+  isOwner?: boolean;
 }
 
 export interface AddStaffMemberRequest {
