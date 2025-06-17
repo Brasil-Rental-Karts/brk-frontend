@@ -26,19 +26,26 @@ export const EditProfile = () => {
   const [cities, setCities] = useState<City[]>([]);
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
 
-  const loadCities = async (uf: string) => {
+  const loadCities = useCallback(async (uf: string) => {
     const citiesData = await fetchCitiesByState(uf);
     setCities(citiesData);
-  };
+  }, []);
 
-  const handleFieldChange = async (fieldId: string, value: any, formData: any, formRef: any) => {
+  const handleFieldChange = useCallback(async (fieldId: string, value: any, formData: any, formRef: any) => {
     if (fieldId === "state" && value) {
       await loadCities(value);
       if (formRef) {
         formRef.setValue("city", "");
       }
     }
-  };
+  }, [loadCities]);
+
+  const fetchData = useCallback(() => ProfileService.getMemberProfile(), []);
+
+  const updateData = useCallback(
+    (_id: string, data: any) => ProfileService.updateMemberProfile(data),
+    []
+  );
 
   const transformInitialData = useCallback((data: any) => {
     if (data.state) {
@@ -314,8 +321,8 @@ export const EditProfile = () => {
       formId="profile-form"
       formConfig={formConfig}
       id="me" 
-      fetchData={() => ProfileService.getMemberProfile()}
-      updateData={(_id, data) => ProfileService.updateMemberProfile(data)}
+      fetchData={fetchData}
+      updateData={updateData}
       transformInitialData={transformInitialData}
       transformSubmitData={transformSubmitData}
       onSuccess={onSuccess}
