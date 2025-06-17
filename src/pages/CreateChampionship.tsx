@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useBlocker } from "react-router-dom";
-import { DynamicForm, FormSectionConfig } from "@/components/ui/dynamic-form";
-import { Button } from "brk-design-system";
-import { Alert, AlertTitle, AlertDescription } from "brk-design-system";
+import { useNavigate } from "react-router-dom";
+import { FormScreen } from "@/components/ui/FormScreen";
+import { FormSectionConfig } from "@/components/ui/dynamic-form";
 import { validateDocument } from "@/utils/validation";
 import { 
   fetchAddressByCEP, 
@@ -19,30 +18,17 @@ import {
   formatFullAddress 
 } from "@/utils/cnpj";
 import { masks } from "@/utils/masks";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "brk-design-system";
-import { ChampionshipData } from "@/lib/services/championship.service";
+import { ChampionshipData, ChampionshipService } from "@/lib/services/championship.service";
 import { useChampionshipContext } from "@/contexts/ChampionshipContext";
-import { PageHeader } from "@/components/ui/page-header";
-import { useCreateChampionship } from "@/hooks/use-create-championship";
 
-// Função auxiliar para converter data DD/MM/AAAA para formato ISO
 const convertDateToISO = (dateString: string): string | undefined => {
   if (!dateString || dateString.length < 10) return undefined;
   
   const [day, month, year] = dateString.split('/');
   if (!day || !month || !year) return undefined;
   
-  // Criar data no formato ISO (AAAA-MM-DD)
   const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   
-  // Validar se a data é válida
   const date = new Date(isoDate);
   if (isNaN(date.getTime())) return undefined;
   
@@ -53,141 +39,22 @@ export const CreateChampionship = () => {
   const navigate = useNavigate();
   const [cities, setCities] = useState<City[]>([]);
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
-  const [currentState, setCurrentState] = useState<string>("");
-  const [formRef, setFormRef] = useState<any>(null);
-  const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
-  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
-  const [showErrorAlert, setShowErrorAlert] = useState(false);
-  const [saveSuccessful, setSaveSuccessful] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [initialFormData, setInitialFormData] = useState<any>(null);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-
-  const { isLoading, error, createChampionship, clearError } = useCreateChampionship();
   const { addChampionship } = useChampionshipContext();
 
-  // Helper function to check if form has changes
-  const checkForChanges = useCallback((currentData: any) => {
-    if (!initialFormData || !currentData) {
-      setHasUnsavedChanges(false);
-      return;
-    }
-
-    // Compare current data with initial data
-    const hasChanges = Object.keys(currentData).some(key => {
-      const initialValue = initialFormData[key];
-      const currentValue = currentData[key];
-      
-      // Handle empty strings vs null/undefined
-      const normalizeValue = (val: any) => {
-        if (val === null || val === undefined || val === '') return '';
-        return val.toString();
-      };
-      
-      return normalizeValue(initialValue) !== normalizeValue(currentValue);
-    });
-
-    setHasUnsavedChanges(hasChanges);
-  }, [initialFormData]);
-
-  // Block navigation when there are unsaved changes (but not when save was successful or currently saving)
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      hasUnsavedChanges && !saveSuccessful && !isSaving && currentLocation.pathname !== nextLocation.pathname
-  );
-
-  // Handle blocked navigation
-  useEffect(() => {
-    if (blocker.state === "blocked") {
-      setShowUnsavedChangesDialog(true);
-      setPendingNavigation(blocker.location?.pathname || null);
-    }
-  }, [blocker]);
-
-  // Handle beforeunload event (browser refresh/close)
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges && !saveSuccessful && !isSaving) {
-        e.preventDefault();
-        e.returnValue = "Você tem alterações não salvas. Tem certeza que deseja sair?";
-        return e.returnValue;
-      }
-    };
-
-    if (hasUnsavedChanges && !saveSuccessful && !isSaving) {
-      window.addEventListener("beforeunload", handleBeforeUnload);
-    }
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [hasUnsavedChanges, saveSuccessful, isSaving]);
-
-  // Show error alert when error changes
-  useEffect(() => {
-    if (error) {
-      setShowErrorAlert(true);
-    }
-  }, [error]);
-
-  // Initialize empty form data as "saved state"
-  useEffect(() => {
-    const emptyFormData = {
-      name: "",
-      shortDescription: "",
-      fullDescription: "",
-      personType: "0",
-      document: "",
-      socialReason: "",
-      cep: "",
-      state: "",
-      city: "",
-      fullAddress: "",
-      number: "",
-      complement: "",
-      isResponsible: true,
-      responsibleName: "",
-      responsiblePhone: "",
-      sponsors: []
-    };
-    setInitialFormData(emptyFormData);
-    setHasUnsavedChanges(false);
-  }, []);
-
-  // Load cities based on selected state
   const loadCities = async (uf: string) => {
     const citiesData = await fetchCitiesByState(uf);
     setCities(citiesData);
   };
 
-  // Handle form changes
-  const handleFormChange = (data: any) => {
-    if (data.state && data.state !== currentState) {
-      setCurrentState(data.state);
-      loadCities(data.state);
-    }
-    
-    // Check for changes whenever form data changes
-    checkForChanges(data);
-  };
-
-  // Handle specific field changes
-  const handleFieldChange = async (fieldId: string, value: any) => {
+  const handleFieldChange = async (fieldId: string, value: any, formData: any, formRef: any) => {
     if (fieldId === "cep" && value && isValidCEPFormat(value)) {
       const addressData = await fetchAddressByCEP(value);
       if (addressData && formRef) {
-        // Atualiza os campos automaticamente
         formRef.setValue("state", addressData.uf);
         formRef.setValue("fullAddress", addressData.logradouro);
-        formRef.setValue("province", addressData.bairro); // Adiciona o bairro
-        
-        // Remove erros dos campos que serão preenchidos automaticamente
+        formRef.setValue("province", addressData.bairro);
         formRef.clearErrors(["state", "city", "fullAddress", "province"]);
-        
-        // Carrega as cidades do estado encontrado
         await loadCities(addressData.uf);
-        
-        // Define a cidade após carregar as cidades
         setTimeout(() => {
           formRef.setValue("city", addressData.localidade);
         }, 500);
@@ -195,111 +62,41 @@ export const CreateChampionship = () => {
     }
     
     if (fieldId === "document" && value && formRef) {
-      // Verifica se é pessoa jurídica e se o documento é um CNPJ válido
-      const currentFormData = formRef.getValues();
-      const personType = currentFormData.personType;
-      
+      const personType = formData.personType;
       if (personType === "1" && isValidCNPJFormat(value)) {
         const companyData = await fetchCompanyByCNPJ(value);
         if (companyData && formRef) {
-          // Preenche automaticamente os campos com os dados da empresa
           formRef.setValue("socialReason", companyData.company.name);
-          
-          // Preenche dados de endereço
           formRef.setValue("cep", masks.cep(companyData.address.zip));
           formRef.setValue("state", companyData.address.state);
           formRef.setValue("city", companyData.address.city);
           formRef.setValue("fullAddress", formatFullAddress(companyData.address));
           formRef.setValue("number", companyData.address.number);
-          formRef.setValue("province", companyData.address.district); // Adiciona o bairro
+          formRef.setValue("province", companyData.address.district);
           
-          // Preenche telefone se não for responsável
           const mainPhone = extractMainPhone(companyData.phones);
-          if (mainPhone && !currentFormData.isResponsible) {
+          if (mainPhone && !formData.isResponsible) {
             formRef.setValue("responsiblePhone", mainPhone);
           }
           
-          // Preenche e-mail se não for responsável
           const mainEmail = extractMainEmail(companyData.emails);
-          if (mainEmail && !currentFormData.isResponsible) {
+          if (mainEmail && !formData.isResponsible) {
             formRef.setValue("responsibleEmail", mainEmail);
           }
           
-          // Remove erros dos campos que foram preenchidos automaticamente
           formRef.clearErrors([
-            "socialReason", 
-            "cep", 
-            "state", 
-            "city", 
-            "fullAddress", 
-            "number",
-            "province",
-            "responsiblePhone",
-            "responsibleEmail"
+            "socialReason", "cep", "state", "city", "fullAddress", "number",
+            "province", "responsiblePhone", "responsibleEmail"
           ]);
           
-          // Carrega as cidades do estado encontrado
           await loadCities(companyData.address.state);
         }
       }
     }
   };
 
-  // Scroll to first error field
-  const scrollToFirstError = () => {
-    setTimeout(() => {
-      const firstErrorElement = document.querySelector('[data-invalid="true"], .text-destructive, [aria-invalid="true"]');
-      if (firstErrorElement) {
-        firstErrorElement.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
-        });
-      }
-    }, 100);
-  };
-
-  // Handle cancel - navigate directly to dashboard
-  const handleCancelClick = useCallback(() => {
-    setHasUnsavedChanges(false);
-    navigate('/dashboard');
-  }, [navigate]);
-
-  // Handle unsaved changes dialog
-  const handleConfirmUnsavedChanges = useCallback(() => {
-    setShowUnsavedChangesDialog(false);
-    setHasUnsavedChanges(false);
-    
-    if (pendingNavigation) {
-      blocker.proceed?.();
-    }
-    
-    setPendingNavigation(null);
-  }, [blocker, pendingNavigation]);
-
-  const handleCancelUnsavedChanges = useCallback(() => {
-    setShowUnsavedChangesDialog(false);
-    blocker.reset?.();
-    setPendingNavigation(null);
-  }, [blocker]);
-
-  const handleSubmit = async (data: any) => {
-    // Check if there are any validation errors
-    if (formRef) {
-      const formState = formRef.formState;
-      if (formState.errors && Object.keys(formState.errors).length > 0) {
-        scrollToFirstError();
-        return;
-      }
-    }
-
-    // Clear any previous errors and mark as saved (removes "Alterações não salvas" indicator)
-    // Also set saving state to disable blocker
-    clearError();
-    setShowErrorAlert(false);
-    setIsSaving(true);
-
-    // Prepare championship data
-    const championshipData: ChampionshipData = {
+  const transformSubmitData = (data: any): ChampionshipData => {
+    return {
       name: data.name,
       championshipImage: data.championshipImage || '',
       shortDescription: data.shortDescription || '',
@@ -313,41 +110,26 @@ export const CreateChampionship = () => {
       fullAddress: data.fullAddress,
       number: data.number,
       complement: data.complement || '',
-      province: data.province || '', // Bairro
-      isResponsible: data.isResponsible !== false, // Default to true
+      province: data.province || '',
+      isResponsible: data.isResponsible !== false,
       responsibleName: data.responsibleName || '',
       responsiblePhone: data.responsiblePhone || '',
-      responsibleEmail: data.responsibleEmail || '', // E-mail do responsável
-      responsibleBirthDate: data.responsibleBirthDate ? convertDateToISO(data.responsibleBirthDate) : undefined, // Data de nascimento do responsável
-      companyType: data.companyType || undefined, // Tipo de empresa (pessoa jurídica)
-      incomeValue: data.incomeValue ? parseFloat(data.incomeValue.replace(/[^\d]/g, '')) / 100 : undefined // Faturamento/Renda mensal
+      responsibleEmail: data.responsibleEmail || '',
+      responsibleBirthDate: data.responsibleBirthDate ? convertDateToISO(data.responsibleBirthDate) : undefined,
+      companyType: data.companyType || undefined,
+      incomeValue: data.incomeValue ? parseFloat(data.incomeValue.replace(/[^\d]/g, '')) / 100 : undefined
     };
-
-    try {
-      const championship = await createChampionship(championshipData);
-      
-      if (championship) {
-        // Success - add to context and navigate to the new championship page
-        // Use replace to avoid history stack and ensure blocker doesn't interfere
-        addChampionship(championship);
-        setSaveSuccessful(true);
-        setHasUnsavedChanges(false); // Reset unsaved changes after successful save
-        navigate(`/championship/${championship.id}`, { replace: true });
-      }
-    } catch (err) {
-      // Error occurred - restore unsaved changes indicator and stop saving
-      setIsSaving(false);
-      scrollToFirstError();
-    }
   };
 
-  // Handle alert close
-  const handleCloseErrorAlert = () => {
-    setShowErrorAlert(false);
-    clearError();
+  const onSuccess = (championship: any) => {
+    addChampionship(championship);
+    navigate(`/championship/${championship.id}`, { replace: true });
   };
 
-  // Create form configuration
+  const onCancel = () => {
+    navigate('/dashboard');
+  };
+
   useEffect(() => {
     const config: FormSectionConfig[] = [
       {
@@ -570,87 +352,26 @@ export const CreateChampionship = () => {
         ]
       }
     ];
-
     setFormConfig(config);
   }, [cities]);
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <PageHeader
-        title="Criar Campeonato"
-        actions={[
-          {
-            label: "Cancelar",
-            onClick: handleCancelClick,
-            variant: "outline",
-            disabled: isLoading
-          },
-          {
-            label: isLoading ? "Salvando..." : "Salvar Campeonato",
-            onClick: () => {
-              // Trigger form submission
-              const form = document.getElementById('championship-form') as HTMLFormElement;
-              if (form) {
-                form.requestSubmit();
-              }
-            },
-            variant: "default",
-            disabled: isLoading
-          }
-        ]}
-      />
-
-      {/* Alerts */}
-      <div className="w-full px-6 mb-4">
-        {showErrorAlert && error && (
-          <Alert variant="destructive" dismissible onClose={handleCloseErrorAlert} className="mb-4">
-            <AlertTitle>Erro ao criar campeonato</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="w-full px-6" id="championship-form-container">
-        <DynamicForm
-          config={formConfig}
-          onSubmit={handleSubmit}
-          onChange={handleFormChange}
-          onFieldChange={handleFieldChange}
-          onFormReady={setFormRef}
-          submitLabel={isLoading ? "Salvando..." : "Salvar Campeonato"}
-          cancelLabel="Cancelar"
-          showButtons={true}
-          className="space-y-6"
-          formId="championship-form"
-          initialValues={{
-            personType: "0", // Pessoa Física por padrão
-            isResponsible: true // Sou responsável pelo campeonato marcado por padrão
-          }}
-        />
-      </div>
-
-      {/* Unsaved Changes Dialog */}
-      <Dialog open={showUnsavedChangesDialog} onOpenChange={setShowUnsavedChangesDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Alterações não salvas</DialogTitle>
-            <DialogDescription>
-              Você tem alterações não salvas. Tem certeza que deseja sair sem salvar?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCancelUnsavedChanges}>
-              Continuar editando
-            </Button>
-            <Button variant="destructive" onClick={handleConfirmUnsavedChanges}>
-              Sair sem salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+    <FormScreen
+      title="Criar Campeonato"
+      formId="championship-form"
+      formConfig={formConfig}
+      createData={(data) => ChampionshipService.create(data)}
+      transformSubmitData={transformSubmitData}
+      onSuccess={onSuccess}
+      onCancel={onCancel}
+      onFieldChange={handleFieldChange}
+      initialValues={{
+        personType: "0",
+        isResponsible: true,
+      }}
+      successMessage="Campeonato criado com sucesso!"
+      errorMessage="Erro ao criar campeonato."
+    />
   );
 };
 
