@@ -5,13 +5,13 @@ import { Stage, CreateStageData, UpdateStageData, StageStats } from '../types/st
 export type { Stage, CreateStageData, UpdateStageData, StageStats };
 
 export class StageService {
-  private static BASE_URL = '/stages';
+  private static readonly BASE_URL = '/stages';
 
   /**
    * Buscar todas as etapas
    */
   static async getAll(): Promise<Stage[]> {
-    const response = await api.get<Stage[]>(this.BASE_URL);
+    const response = await api.get<Stage[]>(StageService.BASE_URL);
     return response.data;
   }
 
@@ -19,7 +19,7 @@ export class StageService {
    * Buscar etapa por ID
    */
   static async getById(id: string): Promise<Stage> {
-    const response = await api.get<Stage>(`${this.BASE_URL}/${id}`);
+    const response = await api.get<Stage>(`${StageService.BASE_URL}/${id}`);
     return response.data;
   }
 
@@ -27,7 +27,7 @@ export class StageService {
    * Buscar etapas por temporada
    */
   static async getBySeasonId(seasonId: string): Promise<Stage[]> {
-    const response = await api.get<Stage[]>(`${this.BASE_URL}/season/${seasonId}`);
+    const response = await api.get<Stage[]>(`${StageService.BASE_URL}/season/${seasonId}`);
     return response.data;
   }
 
@@ -35,7 +35,7 @@ export class StageService {
    * Buscar próximas etapas por temporada
    */
   static async getUpcomingBySeasonId(seasonId: string): Promise<Stage[]> {
-    const response = await api.get<Stage[]>(`${this.BASE_URL}/season/${seasonId}/upcoming`);
+    const response = await api.get<Stage[]>(`${StageService.BASE_URL}/season/${seasonId}/upcoming`);
     return response.data;
   }
 
@@ -43,7 +43,7 @@ export class StageService {
    * Buscar etapas passadas por temporada
    */
   static async getPastBySeasonId(seasonId: string): Promise<Stage[]> {
-    const response = await api.get<Stage[]>(`${this.BASE_URL}/season/${seasonId}/past`);
+    const response = await api.get<Stage[]>(`${StageService.BASE_URL}/season/${seasonId}/past`);
     return response.data;
   }
 
@@ -52,7 +52,7 @@ export class StageService {
    */
   static async getNextBySeasonId(seasonId: string): Promise<Stage | null> {
     try {
-      const response = await api.get<Stage>(`${this.BASE_URL}/season/${seasonId}/next`);
+      const response = await api.get<Stage>(`${StageService.BASE_URL}/season/${seasonId}/next`);
       return response.data;
     } catch (error: any) {
       if (error.response?.status === 404) {
@@ -66,7 +66,7 @@ export class StageService {
    * Criar nova etapa
    */
   static async create(data: CreateStageData): Promise<Stage> {
-    const response = await api.post<Stage>(this.BASE_URL, data);
+    const response = await api.post<Stage>(StageService.BASE_URL, data);
     return response.data;
   }
 
@@ -74,7 +74,7 @@ export class StageService {
    * Atualizar etapa
    */
   static async update(id: string, data: UpdateStageData): Promise<Stage> {
-    const response = await api.put<Stage>(`${this.BASE_URL}/${id}`, data);
+    const response = await api.put<Stage>(`${StageService.BASE_URL}/${id}`, data);
     return response.data;
   }
 
@@ -82,7 +82,7 @@ export class StageService {
    * Deletar etapa
    */
   static async delete(id: string): Promise<void> {
-    await api.delete(`${this.BASE_URL}/${id}`);
+    await api.delete(`${StageService.BASE_URL}/${id}`);
   }
 
   /**

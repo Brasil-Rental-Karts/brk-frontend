@@ -12,7 +12,7 @@ export class GridTypeService {
    */
   static async getByChampionship(championshipId: string): Promise<GridType[]> {
     try {
-      const response = await api.get<GridType[]>(`${this.BASE_URL}/${championshipId}/grid-types`);
+      const response = await api.get<GridType[]>(`${GridTypeService.BASE_URL}/${championshipId}/grid-types`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching grid types:', error);
@@ -28,7 +28,7 @@ export class GridTypeService {
    */
   static async getById(championshipId: string, gridTypeId: string): Promise<GridType> {
     try {
-      const response = await api.get<GridType>(`${this.BASE_URL}/${championshipId}/grid-types/${gridTypeId}`);
+      const response = await api.get<GridType>(`${GridTypeService.BASE_URL}/${championshipId}/grid-types/${gridTypeId}`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching grid type:', error);
@@ -44,7 +44,7 @@ export class GridTypeService {
    */
   static async create(championshipId: string, data: GridTypeFormData): Promise<GridType> {
     try {
-      const response = await api.post<GridType>(`${this.BASE_URL}/${championshipId}/grid-types`, data);
+      const response = await api.post<GridType>(`${GridTypeService.BASE_URL}/${championshipId}/grid-types`, data);
       return response.data;
     } catch (error: any) {
       console.error('Error creating grid type:', error);
@@ -60,7 +60,7 @@ export class GridTypeService {
    */
   static async update(championshipId: string, gridTypeId: string, data: Partial<GridTypeFormData>): Promise<GridType> {
     try {
-      const response = await api.put<GridType>(`${this.BASE_URL}/${championshipId}/grid-types/${gridTypeId}`, data);
+      const response = await api.put<GridType>(`${GridTypeService.BASE_URL}/${championshipId}/grid-types/${gridTypeId}`, data);
       return response.data;
     } catch (error: any) {
       console.error('Error updating grid type:', error);
@@ -76,7 +76,7 @@ export class GridTypeService {
    */
   static async delete(championshipId: string, gridTypeId: string): Promise<void> {
     try {
-      await api.delete(`${this.BASE_URL}/${championshipId}/grid-types/${gridTypeId}`);
+      await api.delete(`${GridTypeService.BASE_URL}/${championshipId}/grid-types/${gridTypeId}`);
     } catch (error: any) {
       console.error('Error deleting grid type:', error);
       throw new Error(
@@ -91,7 +91,7 @@ export class GridTypeService {
    */
   static async createPredefined(championshipId: string): Promise<GridType[]> {
     try {
-      const response = await api.post<GridType[]>(`${this.BASE_URL}/${championshipId}/grid-types/predefined`);
+      const response = await api.post<GridType[]>(`${GridTypeService.BASE_URL}/${championshipId}/grid-types/predefined`);
       return response.data;
     } catch (error: any) {
       console.error('Error creating predefined grid types:', error);
@@ -107,7 +107,7 @@ export class GridTypeService {
    */
   static async setAsDefault(championshipId: string, gridTypeId: string): Promise<GridType> {
     try {
-      const response = await api.patch<GridType>(`${this.BASE_URL}/${championshipId}/grid-types/${gridTypeId}/set-default`);
+      const response = await api.patch<GridType>(`${GridTypeService.BASE_URL}/${championshipId}/grid-types/${gridTypeId}/set-default`);
       return response.data;
     } catch (error: any) {
       console.error('Error setting grid type as default:', error);
@@ -123,7 +123,7 @@ export class GridTypeService {
    */
   static async toggleActive(championshipId: string, gridTypeId: string): Promise<GridType> {
     try {
-      const response = await api.patch<GridType>(`${this.BASE_URL}/${championshipId}/grid-types/${gridTypeId}/toggle-active`);
+      const response = await api.patch<GridType>(`${GridTypeService.BASE_URL}/${championshipId}/grid-types/${gridTypeId}/toggle-active`);
       return response.data;
     } catch (error: any) {
       console.error('Error toggling grid type active status:', error);

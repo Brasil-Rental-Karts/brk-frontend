@@ -52,7 +52,7 @@ export class StageParticipationService {
       const response = await api.post<{
         message: string;
         data: StageParticipation;
-      }>(`${this.BASE_URL}/confirm`, data);
+      }>(`${StageParticipationService.BASE_URL}/confirm`, data);
       return response.data.data;
     } catch (error: any) {
       console.error('Error confirming participation:', error);
@@ -68,7 +68,7 @@ export class StageParticipationService {
    */
   static async cancelParticipation(data: CancelParticipationData): Promise<void> {
     try {
-      await api.post(`${this.BASE_URL}/cancel`, data);
+      await api.post(`${StageParticipationService.BASE_URL}/cancel`, data);
     } catch (error: any) {
       console.error('Error cancelling participation:', error);
       throw new Error(
@@ -86,7 +86,7 @@ export class StageParticipationService {
       const response = await api.get<{
         message: string;
         data: StageParticipation[];
-      }>(`${this.BASE_URL}/my`);
+      }>(`${StageParticipationService.BASE_URL}/my`);
       return response.data.data;
     } catch (error: any) {
       console.error('Error fetching my participations:', error);
@@ -105,7 +105,7 @@ export class StageParticipationService {
       const response = await api.get<{
         message: string;
         data: StageParticipation[];
-      }>(`${this.BASE_URL}/stage/${stageId}`);
+      }>(`${StageParticipationService.BASE_URL}/stage/${stageId}`);
       return response.data.data;
     } catch (error: any) {
       console.error('Error fetching stage participations:', error);
@@ -124,7 +124,7 @@ export class StageParticipationService {
       const response = await api.get<{
         message: string;
         data: AvailableCategory[];
-      }>(`${this.BASE_URL}/available-categories/${stageId}`);
+      }>(`${StageParticipationService.BASE_URL}/available-categories/${stageId}`);
       return response.data.data;
     } catch (error: any) {
       console.error('Error fetching available categories:', error);

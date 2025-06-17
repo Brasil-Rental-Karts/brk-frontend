@@ -127,7 +127,7 @@ export const CreateStage = () => {
         return section;
       });
       // Deep copy to ensure re-render
-      return JSON.parse(JSON.stringify(newConfig));
+      return newConfig;
     });
   }, []);
 
@@ -169,22 +169,14 @@ export const CreateStage = () => {
       try {
         const seasonsData = await SeasonService.getByChampionshipId(championshipId!, 1, 1000);
         const activeSeasons = seasonsData.data.filter(s => s.status === 'agendado' || s.status === 'em_andamento');
-        
         const seasonOptions = activeSeasons.map(s => ({ value: s.id, description: s.name }));
-        const seasonField = baseConfig.find(s => s.section === 'Temporada e Categorias')?.fields.find(f => f.id === 'seasonId');
-        if (seasonField) {
-          seasonField.options = seasonOptions;
-        }
 
+        let categoryOptions: { value: string; description: string }[] = [];
         if (isEditMode) {
           const stageData = await StageService.getById(stageId!);
           if (stageData.seasonId) {
             const categories = await CategoryService.getBySeasonId(stageData.seasonId);
-            const categoryOptions = categories.map(c => ({ value: c.id, description: c.name }));
-            const categoryField = baseConfig.find(s => s.section === 'Temporada e Categorias')?.fields.find(f => f.id === 'categoryIds');
-            if (categoryField) {
-              categoryField.options = categoryOptions;
-            }
+            categoryOptions = categories.map(c => ({ value: c.id, description: c.name }));
           }
           setInitialValues({
             ...stageData,
@@ -193,8 +185,27 @@ export const CreateStage = () => {
         } else {
           setInitialValues(STAGE_INITIAL_VALUES);
         }
+
+        const newConfig = baseConfig.map(section => {
+          if (section.section === "Temporada e Categorias") {
+            return {
+              ...section,
+              fields: section.fields.map(field => {
+                if (field.id === 'seasonId') {
+                  return { ...field, options: seasonOptions };
+                }
+                if (field.id === 'categoryIds') {
+                  // For edit mode, we preload the options
+                  return { ...field, options: categoryOptions };
+                }
+                return field;
+              })
+            };
+          }
+          return section;
+        });
         
-        setFormConfig(JSON.parse(JSON.stringify(baseConfig)));
+        setFormConfig(newConfig);
       } catch (error) {
         console.error("Failed to load initial data for stage form", error);
       } finally {

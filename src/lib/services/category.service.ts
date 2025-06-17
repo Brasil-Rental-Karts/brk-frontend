@@ -33,145 +33,136 @@ export class CategoryService {
   private static readonly BASE_URL = '/categories';
 
   /**
-   * Busca todas as categorias
+   * Retrieves all categories.
+   * @returns A list of all categories.
    */
   static async getAll(): Promise<Category[]> {
     try {
-      const response = await api.get<Category[]>(this.BASE_URL);
+      const response = await api.get<Category[]>(CategoryService.BASE_URL);
       return response.data;
-    } catch (error: any) {
-      console.error('Error fetching categories:', error);
-      throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar categorias.'
-      );
+    } catch (error) {
+      console.error("Failed to retrieve all categories:", error);
+      throw error;
     }
   }
 
   /**
-   * Busca categoria por ID
+   * Retrieves a category by its ID.
+   * @param id - The ID of the category.
+   * @returns The category with the given ID.
    */
   static async getById(id: string): Promise<Category> {
     try {
-      const response = await api.get<Category>(`${this.BASE_URL}/${id}`);
+      const response = await api.get<Category>(`${CategoryService.BASE_URL}/${id}`);
       return response.data;
-    } catch (error: any) {
-      console.error('Error fetching category:', error);
-      throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar categoria.'
-      );
+    } catch (error) {
+      console.error(`Failed to retrieve category with ID ${id}:`, error);
+      throw error;
     }
   }
 
   /**
-   * Busca categorias por temporada
+   * Retrieves all categories for a given season.
+   * @param seasonId - The ID of the season.
+   * @returns A list of categories for the season.
    */
   static async getBySeasonId(seasonId: string): Promise<Category[]> {
     try {
-      const response = await api.get<Category[]>(`${this.BASE_URL}/season/${seasonId}`);
+      const response = await api.get<Category[]>(`${CategoryService.BASE_URL}/season/${seasonId}`);
       return response.data;
-    } catch (error: any) {
-      console.error('Error fetching categories by season:', error);
-      throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar categorias da temporada.'
-      );
+    } catch (error) {
+      console.error(`Failed to retrieve categories for season ID ${seasonId}:`, error);
+      throw error;
     }
   }
 
   /**
-   * Busca categorias por nome
+   * Retrieves categories by name.
+   * @param name - The name of the category.
+   * @returns A list of categories with the given name.
    */
   static async getByName(name: string): Promise<Category[]> {
     try {
-      const response = await api.get<Category[]>(`${this.BASE_URL}/name/${name}`);
+      const response = await api.get<Category[]>(`${CategoryService.BASE_URL}/name/${name}`);
       return response.data;
-    } catch (error: any) {
-      console.error('Error fetching categories by name:', error);
-      throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar categorias por nome.'
-      );
+    } catch (error) {
+      console.error(`Failed to retrieve categories with name ${name}:`, error);
+      throw error;
     }
   }
 
   /**
-   * Busca categoria por nome e temporada
+   * Retrieves a category by name and season ID.
+   * @param name - The name of the category.
+   * @param seasonId - The ID of the season.
+   * @returns The category with the given name and season ID.
    */
   static async getByNameAndSeason(name: string, seasonId: string): Promise<Category> {
     try {
-      const response = await api.get<Category>(`${this.BASE_URL}/name/${name}?seasonId=${seasonId}`);
+      const response = await api.get<Category>(`${CategoryService.BASE_URL}/name/${name}?seasonId=${seasonId}`);
       return response.data;
-    } catch (error: any) {
-      console.error('Error fetching category by name and season:', error);
-      throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar categoria por nome e temporada.'
-      );
+    } catch (error) {
+      console.error(`Failed to retrieve category with name ${name} for season ID ${seasonId}:`, error);
+      throw error;
     }
   }
 
   /**
-   * Busca categorias por lastro
+   * Retrieves categories by ballast requirement.
+   * @param ballast - The ballast value.
+   * @returns A list of categories with the specified ballast.
    */
-  static async getByBallast(ballast: string): Promise<Category[]> {
+  static async getByBallast(ballast: number): Promise<Category[]> {
     try {
-      const response = await api.get<Category[]>(`${this.BASE_URL}/ballast/${ballast}`);
+      const response = await api.get<Category[]>(`${CategoryService.BASE_URL}/ballast/${ballast}`);
       return response.data;
-    } catch (error: any) {
-      console.error('Error fetching categories by ballast:', error);
-      throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar categorias por lastro.'
-      );
+    } catch (error) {
+      console.error(`Failed to retrieve categories with ballast ${ballast}:`, error);
+      throw error;
     }
   }
 
   /**
-   * Cria uma nova categoria
+   * Creates a new category.
+   * @param data - The data for the new category.
+   * @returns The created category.
    */
   static async create(data: CategoryData): Promise<Category> {
     try {
-      const response = await api.post<Category>(this.BASE_URL, data);
+      const response = await api.post<Category>(CategoryService.BASE_URL, data);
       return response.data;
-    } catch (error: any) {
-      console.error('Error creating category:', error);
-      throw new Error(
-        error.response?.data?.message || 
-        'Erro ao criar categoria. Tente novamente.'
-      );
+    } catch (error) {
+      console.error("Failed to create category:", error);
+      throw error;
     }
   }
 
   /**
-   * Atualiza uma categoria
+   * Updates an existing category.
+   * @param id - The ID of the category to update.
+   * @param data - The data to update the category with.
+   * @returns The updated category.
    */
   static async update(id: string, data: Partial<CategoryData>): Promise<Category> {
     try {
-      const response = await api.put<Category>(`${this.BASE_URL}/${id}`, data);
+      const response = await api.put<Category>(`${CategoryService.BASE_URL}/${id}`, data);
       return response.data;
-    } catch (error: any) {
-      console.error('Error updating category:', error);
-      throw new Error(
-        error.response?.data?.message || 
-        'Erro ao atualizar categoria.'
-      );
+    } catch (error) {
+      console.error(`Failed to update category with ID ${id}:`, error);
+      throw error;
     }
   }
 
   /**
-   * Exclui uma categoria
+   * Deletes a category by its ID.
+   * @param id - The ID of the category to delete.
    */
   static async delete(id: string): Promise<void> {
     try {
-      await api.delete(`${this.BASE_URL}/${id}`);
-    } catch (error: any) {
-      console.error('Error deleting category:', error);
-      throw new Error(
-        error.response?.data?.message || 
-        'Erro ao deletar categoria.'
-      );
+      await api.delete(`${CategoryService.BASE_URL}/${id}`);
+    } catch (error) {
+      console.error(`Failed to delete category with ID ${id}:`, error);
+      throw error;
     }
   }
 } 

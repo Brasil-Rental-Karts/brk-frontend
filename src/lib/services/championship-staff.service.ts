@@ -1,4 +1,5 @@
 import api from '../axios';
+import { AxiosError } from 'axios';
 
 export interface StaffMember {
   id: string;
@@ -34,14 +35,14 @@ export interface StaffListResponse {
  * Serviço para gerenciar staff de campeonatos
  */
 export class ChampionshipStaffService {
-  private static BASE_URL = '/championships';
+  private static readonly BASE_URL = '/championships';
 
   /**
    * Buscar membros do staff de um campeonato
    */
   static async getStaffMembers(championshipId: string): Promise<StaffMember[]> {
     try {
-      const response = await api.get<StaffListResponse>(`${this.BASE_URL}/${championshipId}/staff`);
+      const response = await api.get<StaffListResponse>(`${ChampionshipStaffService.BASE_URL}/${championshipId}/staff`);
       return response.data.data;
     } catch (error: any) {
       console.error('Error fetching staff members:', error);
@@ -57,7 +58,7 @@ export class ChampionshipStaffService {
    */
   static async addStaffMember(championshipId: string, request: AddStaffMemberRequest): Promise<StaffMember> {
     try {
-      const response = await api.post<StaffMemberResponse>(`${this.BASE_URL}/${championshipId}/staff`, request);
+      const response = await api.post<StaffMemberResponse>(`${ChampionshipStaffService.BASE_URL}/${championshipId}/staff`, request);
       return response.data.data;
     } catch (error: any) {
       console.error('Error adding staff member:', error);
@@ -73,7 +74,7 @@ export class ChampionshipStaffService {
    */
   static async removeStaffMember(championshipId: string, staffMemberId: string): Promise<void> {
     try {
-      await api.delete(`${this.BASE_URL}/${championshipId}/staff/${staffMemberId}`);
+      await api.delete(`${ChampionshipStaffService.BASE_URL}/${championshipId}/staff/${staffMemberId}`);
     } catch (error: any) {
       console.error('Error removing staff member:', error);
       throw new Error(

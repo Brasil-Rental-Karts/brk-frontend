@@ -35,7 +35,7 @@ export class SeasonService {
    */
   static async create(data: SeasonData): Promise<Season> {
     try {
-      const response = await api.post<Season>(this.BASE_URL, data);
+      const response = await api.post<Season>(SeasonService.BASE_URL, data);
       return response.data;
     } catch (error: any) {
       console.error('Error creating season:', error);
@@ -51,7 +51,7 @@ export class SeasonService {
    */
   static async getById(id: string): Promise<Season> {
     try {
-      const response = await api.get<Season>(`${this.BASE_URL}/${id}`);
+      const response = await api.get<Season>(`${SeasonService.BASE_URL}/${id}`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching season:', error);
@@ -68,7 +68,7 @@ export class SeasonService {
   static async getAll(page: number = 1, limit: number = 10): Promise<PaginatedSeasons> {
     try {
       const response = await api.get<PaginatedSeasons>(
-        `${this.BASE_URL}?page=${page}&limit=${limit}`
+        `${SeasonService.BASE_URL}?page=${page}&limit=${limit}`
       );
       return response.data;
     } catch (error: any) {
@@ -90,7 +90,7 @@ export class SeasonService {
   ): Promise<PaginatedSeasons> {
     try {
       const response = await api.get<PaginatedSeasons>(
-        `${this.BASE_URL}/championship/${championshipId}?page=${page}&limit=${limit}`
+        `${SeasonService.BASE_URL}/championship/${championshipId}?page=${page}&limit=${limit}`
       );
       return response.data;
     } catch (error: any) {
@@ -107,7 +107,7 @@ export class SeasonService {
    */
   static async update(id: string, data: Partial<SeasonData>): Promise<Season> {
     try {
-      const response = await api.put<Season>(`${this.BASE_URL}/${id}`, data);
+      const response = await api.put<Season>(`${SeasonService.BASE_URL}/${id}`, data);
       return response.data;
     } catch (error: any) {
       console.error('Error updating season:', error);
@@ -123,7 +123,7 @@ export class SeasonService {
    */
   static async delete(id: string): Promise<void> {
     try {
-      await api.delete(`${this.BASE_URL}/${id}`);
+      await api.delete(`${SeasonService.BASE_URL}/${id}`);
     } catch (error: any) {
       console.error('Error deleting season:', error);
       throw new Error(

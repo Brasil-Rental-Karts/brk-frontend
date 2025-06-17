@@ -77,7 +77,7 @@ export class ChampionshipService {
    */
   static async create(data: ChampionshipData): Promise<Championship> {
     try {
-      const response = await api.post<Championship>(this.BASE_URL, data);
+      const response = await api.post<Championship>(ChampionshipService.BASE_URL, data);
       return response.data;
     } catch (error: any) {
       console.error('Error creating championship:', error);
@@ -93,7 +93,7 @@ export class ChampionshipService {
    */
   static async getAll(): Promise<Championship[]> {
     try {
-      const response = await api.get<Championship[]>(this.BASE_URL);
+      const response = await api.get<Championship[]>(ChampionshipService.BASE_URL);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching championships:', error);
@@ -109,7 +109,7 @@ export class ChampionshipService {
    */
   static async getById(id: string): Promise<Championship> {
     try {
-      const response = await api.get<Championship>(`${this.BASE_URL}/${id}`);
+      const response = await api.get<Championship>(`${ChampionshipService.BASE_URL}/${id}`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching championship:', error);
@@ -125,7 +125,7 @@ export class ChampionshipService {
    */
   static async getBasicInfo(id: string): Promise<ChampionshipBasicInfo> {
     try {
-      const response = await api.get<ChampionshipBasicInfo>(`${this.BASE_URL}/${id}/basic`);
+      const response = await api.get<ChampionshipBasicInfo>(`${ChampionshipService.BASE_URL}/${id}/basic`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching championship basic info:', error);
@@ -141,7 +141,7 @@ export class ChampionshipService {
    */
   static async getMy(): Promise<Championship[]> {
     try {
-      const response = await api.get<Championship[]>(`${this.BASE_URL}/my`);
+      const response = await api.get<Championship[]>(`${ChampionshipService.BASE_URL}/my`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching my championships:', error);
@@ -157,7 +157,7 @@ export class ChampionshipService {
    */
   static async update(id: string, data: Partial<ChampionshipData>): Promise<Championship> {
     try {
-      const response = await api.put<Championship>(`${this.BASE_URL}/${id}`, data);
+      const response = await api.put<Championship>(`${ChampionshipService.BASE_URL}/${id}`, data);
       return response.data;
     } catch (error: any) {
       console.error('Error updating championship:', error);
@@ -173,7 +173,7 @@ export class ChampionshipService {
    */
   static async delete(id: string): Promise<void> {
     try {
-      await api.delete(`${this.BASE_URL}/${id}`);
+      await api.delete(`${ChampionshipService.BASE_URL}/${id}`);
     } catch (error: any) {
       console.error('Error deleting championship:', error);
       throw new Error(
@@ -188,7 +188,7 @@ export class ChampionshipService {
    */
   static async getAsaasStatus(id: string): Promise<AsaasStatus> {
     try {
-      const response = await api.get<AsaasStatus>(`${this.BASE_URL}/${id}/asaas-status`);
+      const response = await api.get<AsaasStatus>(`${ChampionshipService.BASE_URL}/${id}/asaas-status`);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching Asaas status:', error);
@@ -204,7 +204,7 @@ export class ChampionshipService {
    */
   static async createAsaasAccount(id: string): Promise<CreateAsaasAccountResponse> {
     try {
-      const response = await api.post<CreateAsaasAccountResponse>(`${this.BASE_URL}/${id}/create-asaas-account`);
+      const response = await api.post<CreateAsaasAccountResponse>(`${ChampionshipService.BASE_URL}/${id}/create-asaas-account`);
       return response.data;
     } catch (error: any) {
       console.error('Error creating Asaas account:', error);

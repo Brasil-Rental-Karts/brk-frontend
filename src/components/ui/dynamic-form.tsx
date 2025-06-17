@@ -178,8 +178,16 @@ const validateVisibleFields = (data: any, config: FormSectionConfig[]) => {
   config.forEach((section) => {
     section.fields.forEach((field) => {
       // Check if field should be visible
-      const shouldShow = !field.conditionalField || 
-        data[field.conditionalField.dependsOn] === field.conditionalField.showWhen;
+      let shouldShow = !field.conditionalField;
+      if (field.conditionalField) {
+        const { dependsOn, showWhen } = field.conditionalField;
+        const dependentValue = data[dependsOn];
+        if (typeof showWhen === 'function') {
+          shouldShow = showWhen(dependentValue);
+        } else {
+          shouldShow = dependentValue === showWhen;
+        }
+      }
 
       if (shouldShow && field.mandatory) {
         const value = data[field.id];
@@ -301,6 +309,10 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
     const { dependsOn, showWhen } = field.conditionalField;
     const dependentValue = watchedValues[dependsOn];
     
+    if (typeof showWhen === "function") {
+      return showWhen(dependentValue);
+    }
+
     return dependentValue === showWhen;
   };
 

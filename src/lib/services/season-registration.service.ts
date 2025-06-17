@@ -78,7 +78,7 @@ export class SeasonRegistrationService {
           registration: SeasonRegistration;
           paymentData: RegistrationPaymentData;
         };
-      }>(this.BASE_URL, data);
+      }>(SeasonRegistrationService.BASE_URL, data);
       return response.data.data;
     } catch (error: any) {
       console.error('Error creating registration:', error);
@@ -97,7 +97,7 @@ export class SeasonRegistrationService {
       const response = await api.get<{
         message: string;
         data: SeasonRegistration[];
-      }>(`${this.BASE_URL}/my`);
+      }>(`${SeasonRegistrationService.BASE_URL}/my`);
       return response.data.data;
     } catch (error: any) {
       console.error('Error fetching my registrations:', error);
@@ -116,7 +116,7 @@ export class SeasonRegistrationService {
       const response = await api.get<{
         message: string;
         data: SeasonRegistration;
-      }>(`${this.BASE_URL}/${id}`);
+      }>(`${SeasonRegistrationService.BASE_URL}/${id}`);
       return response.data.data;
     } catch (error: any) {
       console.error('Error fetching registration:', error);
@@ -133,7 +133,7 @@ export class SeasonRegistrationService {
   static async getPaymentData(registrationId: string): Promise<RegistrationPaymentData> {
     try {
       const response: AxiosResponse<{ data: RegistrationPaymentData }> = await api.get(
-        `${this.BASE_URL}/${registrationId}/payment`
+        `${SeasonRegistrationService.BASE_URL}/${registrationId}/payment`
       );
       return response.data.data;
     } catch (error: any) {
@@ -153,7 +153,7 @@ export class SeasonRegistrationService {
       const response = await api.post<{
         message: string;
         data: SeasonRegistration;
-      }>(`${this.BASE_URL}/${id}/cancel`, { reason });
+      }>(`${SeasonRegistrationService.BASE_URL}/${id}/cancel`, { reason });
       return response.data.data;
     } catch (error: any) {
       console.error('Error cancelling registration:', error);
@@ -172,7 +172,7 @@ export class SeasonRegistrationService {
       const response = await api.get<{
         message: string;
         data: SeasonRegistration[];
-      }>(`${this.BASE_URL}/season/${seasonId}`);
+      }>(`${SeasonRegistrationService.BASE_URL}/season/${seasonId}`);
       return response.data.data;
     } catch (error: any) {
       console.error('Error fetching season registrations:', error);
@@ -191,7 +191,7 @@ export class SeasonRegistrationService {
       const response = await api.get<{
         message: string;
         data: SeasonRegistration[];
-      }>(`${this.BASE_URL}/championship/${championshipId}`);
+      }>(`${SeasonRegistrationService.BASE_URL}/championship/${championshipId}`);
       return response.data.data;
     } catch (error: any) {
       console.error('Error fetching championship registrations:', error);
@@ -218,7 +218,7 @@ export class SeasonRegistrationService {
           errors: string[];
           championship: any;
         };
-      }>(`${this.BASE_URL}/championship/${championshipId}/split-status`);
+      }>(`${SeasonRegistrationService.BASE_URL}/championship/${championshipId}/split-status`);
       return response.data.data;
     } catch (error: any) {
       console.error('Error checking championship split status:', error);
