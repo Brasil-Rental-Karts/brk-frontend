@@ -41,12 +41,12 @@ export const CreateChampionship = () => {
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const { addChampionship } = useChampionshipContext();
 
-  const loadCities = async (uf: string) => {
+  const loadCities = useCallback(async (uf: string) => {
     const citiesData = await fetchCitiesByState(uf);
     setCities(citiesData);
-  };
+  }, []);
 
-  const handleFieldChange = async (fieldId: string, value: any, formData: any, formRef: any) => {
+  const handleFieldChange = useCallback(async (fieldId: string, value: any, formData: any, formRef: any) => {
     if (fieldId === "cep" && value && isValidCEPFormat(value)) {
       const addressData = await fetchAddressByCEP(value);
       if (addressData && formRef) {
@@ -60,6 +60,13 @@ export const CreateChampionship = () => {
         }, 500);
       }
     }
+
+    if (fieldId === "state" && value) {
+      await loadCities(value);
+      if (formRef) {
+        formRef.setValue("city", "");
+      }
+    }
     
     if (fieldId === "document" && value && formRef) {
       const personType = formData.personType;
@@ -69,10 +76,24 @@ export const CreateChampionship = () => {
           formRef.setValue("socialReason", companyData.company.name);
           formRef.setValue("cep", masks.cep(companyData.address.zip));
           formRef.setValue("state", companyData.address.state);
-          formRef.setValue("city", companyData.address.city);
+          
           formRef.setValue("fullAddress", formatFullAddress(companyData.address));
           formRef.setValue("number", companyData.address.number);
           formRef.setValue("province", companyData.address.district);
+          
+          formRef.setValue("companyType", "");
+          if (companyData.company.simei?.optant) {
+            formRef.setValue("companyType", "MEI");
+          } else {
+            const natureText = companyData.company.nature?.text;
+            if (natureText === "Empresário (Individual)") {
+              formRef.setValue("companyType", "INDIVIDUAL");
+            } else if (natureText === "Sociedade Limitada") {
+              formRef.setValue("companyType", "LIMITED");
+            } else if (natureText === "Associação Privada") {
+              formRef.setValue("companyType", "ASSOCIATION");
+            }
+          }
           
           const mainPhone = extractMainPhone(companyData.phones);
           if (mainPhone && !formData.isResponsible) {
@@ -90,12 +111,15 @@ export const CreateChampionship = () => {
           ]);
           
           await loadCities(companyData.address.state);
+          setTimeout(() => {
+            formRef.setValue("city", companyData.address.city);
+          }, 500);
         }
       }
     }
-  };
+  }, [loadCities]);
 
-  const transformSubmitData = (data: any): ChampionshipData => {
+  const transformSubmitData = useCallback((data: any): ChampionshipData => {
     return {
       name: data.name,
       championshipImage: data.championshipImage || '',
@@ -119,16 +143,18 @@ export const CreateChampionship = () => {
       companyType: data.companyType || undefined,
       incomeValue: data.incomeValue ? parseFloat(data.incomeValue.replace(/[^\d]/g, '')) / 100 : undefined
     };
-  };
+  }, []);
 
-  const onSuccess = (championship: any) => {
+  const onSuccess = useCallback((championship: any) => {
     addChampionship(championship);
     navigate(`/championship/${championship.id}`, { replace: true });
-  };
+  }, [addChampionship, navigate]);
 
-  const onCancel = () => {
+  const onCancel = useCallback(() => {
     navigate('/dashboard');
-  };
+  }, [navigate]);
+
+  const createData = useCallback((data: ChampionshipData) => ChampionshipService.create(data), []);
 
   useEffect(() => {
     const config: FormSectionConfig[] = [
@@ -218,9 +244,9 @@ export const CreateChampionship = () => {
             mandatory: true,
             options: [
               { value: "MEI", description: "MEI - Microempreendedor Individual" },
-              { value: "LIMITED", description: "Limited - Sociedade Limitada" },
-              { value: "INDIVIDUAL", description: "Individual - Empresário Individual" },
-              { value: "ASSOCIATION", description: "Association - Associação" }
+              { value: "LIMITED", description: "LTDA - Sociedade Limitada" },
+              { value: "INDIVIDUAL", description: "Empresário Individual" },
+              { value: "ASSOCIATION", description: "Associação" }
             ],
             conditionalField: {
               dependsOn: "personType",
@@ -360,7 +386,7 @@ export const CreateChampionship = () => {
       title="Criar Campeonato"
       formId="championship-form"
       formConfig={formConfig}
-      createData={(data) => ChampionshipService.create(data)}
+      createData={createData}
       transformSubmitData={transformSubmitData}
       onSuccess={onSuccess}
       onCancel={onCancel}
