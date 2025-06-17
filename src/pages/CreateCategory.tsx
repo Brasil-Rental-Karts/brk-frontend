@@ -7,7 +7,6 @@ import { SeasonService, Season } from "@/lib/services/season.service";
 import { GridTypeService } from "@/lib/services/grid-type.service";
 import { ScoringSystemService, ScoringSystem } from "@/lib/services/scoring-system.service";
 import { BatteriesConfigForm } from "@/components/category/BatteriesConfigForm";
-import { BATTERY_TEMPLATES } from "@/lib/types/battery.types";
 import { GridType } from "@/lib/types/grid-type";
 
 export const CreateCategory = () => {

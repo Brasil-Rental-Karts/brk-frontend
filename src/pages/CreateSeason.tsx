@@ -176,14 +176,23 @@ export const CreateSeason = () => {
       transformSubmitData={transformSubmitData}
       onSuccess={onSuccess}
       onCancel={onCancel}
-      initialValues={{
-        status: "agendado",
-        paymentMethods: []
-      }}
+      initialValues={SEASON_INITIAL_VALUES}
       successMessage={isEditMode ? "Temporada atualizada com sucesso!" : "Temporada criada com sucesso!"}
       errorMessage={isEditMode ? "Erro ao atualizar temporada." : "Erro ao criar temporada."}
     />
   );
+};
+
+const SEASON_INITIAL_VALUES = {
+  name: "",
+  seasonImage: "",
+  description: "",
+  startDate: "",
+  endDate: "",
+  status: "agendado",
+  inscriptionValue: "",
+  inscriptionType: "",
+  paymentMethods: []
 };
 
 export default CreateSeason; 

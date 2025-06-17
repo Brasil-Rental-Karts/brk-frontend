@@ -31,7 +31,7 @@ export const EditProfile = () => {
     setCities(citiesData);
   }, []);
 
-  const handleFieldChange = useCallback(async (fieldId: string, value: any, formData: any, formRef: any) => {
+  const handleFieldChange = useCallback(async (fieldId: string, value: any, _formData: any, formRef: any) => {
     if (fieldId === "state" && value) {
       await loadCities(value);
       if (formRef) {

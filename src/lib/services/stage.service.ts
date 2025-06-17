@@ -2,7 +2,7 @@ import api from '../axios';
 import { Stage, CreateStageData, UpdateStageData, StageStats } from '../types/stage';
 
 // Re-export types for easier importing
-export type { CreateStageData, UpdateStageData, StageStats };
+export type { Stage, CreateStageData, UpdateStageData, StageStats };
 
 export class StageService {
   private static BASE_URL = '/stages';

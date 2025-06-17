@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useBlocker, useNavigate } from "react-router-dom";
+import { useBlocker } from "react-router-dom";
 import { toast } from "sonner";
 
 const deepEqual = (obj1: any, obj2: any): boolean => {
@@ -45,8 +45,9 @@ export interface UseFormScreenOptions<TData, TSubmit> {
     fieldId: string,
     value: any,
     formData: any,
-    formRef: any
+    formActions: { setValue: (name: string, value: any) => void }
   ) => void;
+  onInitialDataLoaded?: (data: TData) => void;
   initialValues?: Record<string, any>;
   successMessage?: string;
   errorMessage?: string;
@@ -63,11 +64,11 @@ export const useFormScreen = <TData, TSubmit>({
   onSuccess,
   onCancel,
   onFieldChange,
+  onInitialDataLoaded,
   initialValues: defaultInitialValues,
   successMessage,
   errorMessage,
 }: UseFormScreenOptions<TData, TSubmit>) => {
-  const navigate = useNavigate();
   const [initialData, setInitialData] = useState<Record<string, any> | null>(
     null
   );
@@ -146,6 +147,9 @@ export const useFormScreen = <TData, TSubmit>({
     setIsLoading(true);
     try {
       const data = await fetchData(id);
+      if (onInitialDataLoaded) {
+        onInitialDataLoaded(data);
+      }
       const transformedData = transformInitialData ? transformInitialData(data) : (data as Record<string, any>);
       setInitialData(transformedData);
     } catch (err: any) {
@@ -154,7 +158,7 @@ export const useFormScreen = <TData, TSubmit>({
       setIsLoading(false);
       setTimeout(() => setFormInitialized(true), 100);
     }
-  }, [id, isEditMode, fetchData, transformInitialData, defaultInitialValues]);
+  }, [id, isEditMode, fetchData, transformInitialData, onInitialDataLoaded, defaultInitialValues]);
 
   useEffect(() => {
     loadData();
@@ -179,7 +183,7 @@ export const useFormScreen = <TData, TSubmit>({
   };
 
   const handleFieldChange = (fieldId: string, value: any, formData: any) => {
-    onFieldChange?.(fieldId, value, formData, formRef);
+    onFieldChange?.(fieldId, value, formData, { setValue: formRef?.setValue });
   };
 
   const scrollToFirstError = () => {
