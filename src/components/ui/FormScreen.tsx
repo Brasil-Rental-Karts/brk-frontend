@@ -120,6 +120,21 @@ export const FormScreen = <TData, TSubmit>({
         )}
       </div>
 
+      <div className="w-full px-6 py-4 mt-4 border-border flex justify-end gap-4">
+        <Button
+          onClick={() => {
+            const form = document.getElementById(formId) as HTMLFormElement;
+            if (form) {
+              form.requestSubmit();
+            }
+          }}
+          variant="default"
+          disabled={isSaving}
+        >
+          {isSaving ? savingLabel : submitLabel}
+        </Button>
+      </div>
+
       <Dialog
         open={showUnsavedChangesDialog}
         onOpenChange={handleCancelUnsavedChanges}
