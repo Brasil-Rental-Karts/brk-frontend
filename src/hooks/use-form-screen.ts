@@ -2,6 +2,36 @@ import { useState, useEffect, useCallback } from "react";
 import { useBlocker, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+const deepEqual = (obj1: any, obj2: any): boolean => {
+  if (obj1 === obj2) return true;
+
+  if (obj1 && typeof obj1 === 'object' && obj2 && typeof obj2 === 'object') {
+    if (obj1.constructor !== obj2.constructor) return false;
+
+    if (Array.isArray(obj1)) {
+      if (obj1.length !== obj2.length) return false;
+      for (let i = 0; i < obj1.length; i++) {
+        if (!deepEqual(obj1[i], obj2[i])) return false;
+      }
+      return true;
+    }
+
+    const keys1 = Object.keys(obj1);
+    const keys2 = Object.keys(obj2);
+
+    if (keys1.length !== keys2.length) return false;
+
+    for (const key of keys1) {
+      if (!keys2.includes(key) || !deepEqual(obj1[key], obj2[key])) return false;
+    }
+
+    return true;
+  }
+
+  // Primitives
+  return obj1 === obj2;
+};
+
 export interface UseFormScreenOptions<TData, TSubmit> {
   id?: string;
   fetchData?: (id: string) => Promise<TData>;
@@ -137,24 +167,7 @@ export const useFormScreen = <TData, TSubmit>({
         return;
       }
 
-      const hasChanges = Object.keys(initialData).some((key) => {
-        const initialValue = initialData[key];
-        const currentValue = currentData[key];
-
-        if (Array.isArray(initialValue) && Array.isArray(currentValue)) {
-          return (
-            JSON.stringify(initialValue.sort()) !==
-            JSON.stringify(currentValue.sort())
-          );
-        }
-
-        const normalizeValue = (val: any) => {
-          if (val === null || val === undefined || val === "") return "";
-          return val.toString();
-        };
-
-        return normalizeValue(initialValue) !== normalizeValue(currentValue);
-      });
+      const hasChanges = !deepEqual(initialData, currentData);
 
       setHasUnsavedChanges(hasChanges);
     },

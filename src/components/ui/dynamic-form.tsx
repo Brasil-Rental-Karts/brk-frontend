@@ -41,7 +41,7 @@ export interface FormFieldOption {
 export interface FormFieldConfig {
   name: string;
   id: string;
-  type: "input" | "textarea" | "select" | "checkbox" | "inputMask" | "checkbox-group" | "sponsor-list" | "file";
+  type: "input" | "textarea" | "select" | "checkbox" | "inputMask" | "checkbox-group" | "sponsor-list" | "file" | "custom";
   max_char?: number;
   mandatory?: boolean;
   readonly?: boolean;
@@ -59,6 +59,8 @@ export interface FormFieldConfig {
     validate: (value: string, formData: any) => boolean;
     errorMessage: string;
   };
+  customComponent?: React.FC<any>;
+  customComponentProps?: Record<string, any>;
   // File upload specific options
   accept?: string;
   maxSize?: number;
@@ -131,6 +133,9 @@ const createZodSchema = (config: FormSectionConfig[]) => {
         case "file":
           fieldSchema = z.string();
           break;
+        case "custom":
+          fieldSchema = z.any().optional();
+          break;
         default:
           fieldSchema = z.string();
       }
@@ -155,6 +160,8 @@ const createZodSchema = (config: FormSectionConfig[]) => {
           logoImage: z.string(),
           website: z.string().optional()
         })).optional();
+      } else if (field.type === "custom") {
+        schemaFields[field.id] = z.any().optional();
       } else {
         schemaFields[field.id] = z.string().nullable().optional();
       }
@@ -241,6 +248,8 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
           defaults[field.id] = [];
         } else if (field.type === "file") {
           defaults[field.id] = "";
+        } else if (field.type === "custom") {
+          defaults[field.id] = null;
         } else {
           defaults[field.id] = "";
         }
@@ -488,6 +497,14 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                         showPreview={field.showPreview}
                       />
                     );
+                  
+                  case "custom":
+                    if (field.customComponent) {
+                      const CustomComponent = field.customComponent;
+                      const additionalProps = field.customComponentProps || {};
+                      return <CustomComponent {...formField} {...commonProps} {...additionalProps} />;
+                    }
+                    return null;
                   
                   default:
                     return <Input {...formField} {...commonProps} value={formField.value || ""} />;

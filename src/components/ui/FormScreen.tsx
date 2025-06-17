@@ -120,7 +120,14 @@ export const FormScreen = <TData, TSubmit>({
         )}
       </div>
 
-      <div className="w-full px-6 py-4 mt-4 border-border flex justify-end gap-4">
+      <div className="w-full px-6 py-4 mt-4 border-t border-border flex justify-end gap-4">
+        <Button
+          onClick={handleCancel}
+          variant="outline"
+          disabled={isSaving}
+        >
+          Cancelar
+        </Button>
         <Button
           onClick={() => {
             const form = document.getElementById(formId) as HTMLFormElement;

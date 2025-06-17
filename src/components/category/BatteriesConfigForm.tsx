@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { Button } from "brk-design-system";
 import { Input } from "brk-design-system";
 import { Label } from "brk-design-system";
@@ -39,32 +39,23 @@ interface BatteriesConfigFormProps {
 /**
  * Componente para configurar baterias de uma categoria
  */
-export const BatteriesConfigForm = ({
-  value,
+export const BatteriesConfigForm = forwardRef<HTMLDivElement, BatteriesConfigFormProps>(({
+  value: batteries = [],
   onChange,
   gridTypes,
   scoringSystems,
   disabled = false
-}: BatteriesConfigFormProps) => {
-  const [batteries, setBatteries] = useState<BatteriesConfig>(value || []);
+}, ref) => {
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [editingBattery, setEditingBattery] = useState<BatteryConfig | null>(null);
   const [showBatteryForm, setShowBatteryForm] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
 
-  // Sincronizar com prop value
-  useEffect(() => {
-    setBatteries(value || []);
-  }, [value]);
-
-  // Validar e notificar mudanças
+  // Validate whenever the value from the parent form changes
   useEffect(() => {
     const validationErrors = validateBatteriesConfig(batteries);
     setErrors(validationErrors);
-    
-    // Only call onChange if batteries actually changed
-    onChange(batteries);
-  }, [batteries]); // Removed onChange from dependencies to avoid infinite loops
+  }, [batteries]);
 
   const addBattery = (template?: BatteryConfig) => {
     const newOrder = Math.max(0, ...batteries.map(b => b.order)) + 1;
@@ -76,24 +67,22 @@ export const BatteriesConfigForm = ({
       isRequired: true,
       description: ""
     };
-
-    setBatteries([...batteries, { ...newBattery, order: newOrder }]);
+    onChange([...batteries, { ...newBattery, order: newOrder }]);
   };
 
   const updateBattery = (index: number, updatedBattery: BatteryConfig) => {
     const newBatteries = [...batteries];
     newBatteries[index] = updatedBattery;
-    setBatteries(newBatteries);
+    onChange(newBatteries);
   };
 
   const removeBattery = (index: number) => {
     const newBatteries = batteries.filter((_, i) => i !== index);
-    // Reordenar
     const reorderedBatteries = newBatteries.map((battery, i) => ({
       ...battery,
       order: i + 1
     }));
-    setBatteries(reorderedBatteries);
+    onChange(reorderedBatteries);
   };
 
   const applyTemplate = (templateKey: keyof typeof BATTERY_TEMPLATES) => {
@@ -104,7 +93,7 @@ export const BatteriesConfigForm = ({
       scoringSystemId: scoringSystems.find(ss => ss.isDefault)?.id || scoringSystems[0]?.id || "",
       order: index + 1
     }));
-    setBatteries(templatedBatteries);
+    onChange(templatedBatteries);
     setShowTemplateDialog(false);
   };
 
@@ -141,7 +130,7 @@ export const BatteriesConfigForm = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" ref={ref}>
       {/* Header com templates */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -432,7 +421,7 @@ export const BatteriesConfigForm = ({
       />
     </div>
   );
-};
+});
 
 // Componente auxiliar para o formulário de bateria
 interface BatteryFormDialogProps {
