@@ -211,18 +211,10 @@ export const router = createBrowserRouter([
       },
       {
         path: "championship/:championshipId/create-season",
-        element: (
-          <ProtectedRoute>
-            <MainLayout>
-              <LazyWrapper>
-                <CreateSeason />
-              </LazyWrapper>
-            </MainLayout>
-          </ProtectedRoute>
-        ),
+        element: <Navigate to="../season/new" replace />,
       },
       {
-        path: "championship/:championshipId/season/:seasonId/edit",
+        path: "championship/:championshipId/season/:seasonId",
         element: (
           <ProtectedRoute>
             <MainLayout>

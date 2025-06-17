@@ -160,11 +160,11 @@ export const SeasonsTab = ({ championshipId }: SeasonsTabProps) => {
   };
 
   const handleAddSeason = () => {
-    navigate(`/championship/${championshipId}/create-season`);
+    navigate(`/championship/${championshipId}/season/new`);
   };
 
   const handleEditSeason = (seasonId: string) => {
-    navigate(`/championship/${championshipId}/season/${seasonId}/edit`);
+    navigate(`/championship/${championshipId}/season/${seasonId}`);
   };
 
   const handleDeleteSeason = (season: Season) => {

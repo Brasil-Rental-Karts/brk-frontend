@@ -9,6 +9,8 @@ export const CreateSeason = () => {
   const navigate = useNavigate();
   const { championshipId, seasonId } = useParams<{ championshipId: string; seasonId?: string }>();
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
+  const isEditMode = seasonId !== 'new';
+  const currentSeasonId = isEditMode ? seasonId : undefined;
 
   useEffect(() => {
     const config: FormSectionConfig[] = [
@@ -161,15 +163,13 @@ export const CreateSeason = () => {
     );
   }
 
-  const isEditMode = !!seasonId;
-
   return (
     <FormScreen
       title={isEditMode ? "Editar Temporada" : "Criar Temporada"}
       formId="season-form"
       formConfig={formConfig}
-      id={seasonId}
-      fetchData={isEditMode ? () => SeasonService.getById(seasonId!) : undefined}
+      id={currentSeasonId}
+      fetchData={isEditMode ? () => SeasonService.getById(currentSeasonId!) : undefined}
       createData={(data) => SeasonService.create(data)}
       updateData={(id, data) => SeasonService.update(id, data)}
       transformInitialData={transformInitialData}
