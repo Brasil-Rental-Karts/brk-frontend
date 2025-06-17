@@ -62,10 +62,89 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
   const [cities, setCities] = useState<City[]>([]);
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
 
-  const loadCities = async (uf: string) => {
+  const loadCities = useCallback(async (uf: string) => {
     const citiesData = await fetchCitiesByState(uf);
     setCities(citiesData);
-  };
+  }, []);
+
+  const fetchData = useCallback(async (id: string) => {
+    const [championshipData, statusData] = await Promise.all([
+      ChampionshipService.getById(id),
+      ChampionshipService.getAsaasStatus(id),
+    ]);
+    setAsaasStatus(statusData);
+    if (championshipData.state) {
+      await loadCities(championshipData.state);
+    }
+    return championshipData;
+  }, [loadCities]);
+
+  const updateData = useCallback((id: string, data: Partial<ChampionshipData>) => 
+    ChampionshipService.update(id, data), 
+  []);
+
+  const transformInitialData = useCallback((championship: Championship) => ({
+    name: championship.name || "",
+    championshipImage: championship.championshipImage || "",
+    shortDescription: championship.shortDescription || "",
+    fullDescription: championship.fullDescription || "",
+    personType: championship.personType?.toString() || "0",
+    document: championship.document || "",
+    socialReason: championship.socialReason || "",
+    cep: championship.cep || "",
+    state: championship.state || "",
+    city: championship.city || "",
+    fullAddress: championship.fullAddress || "",
+    number: championship.number || "",
+    complement: championship.complement || "",
+    province: championship.province || "",
+    isResponsible: championship.isResponsible !== false,
+    responsibleName: championship.responsibleName || "",
+    responsiblePhone: championship.responsiblePhone || "",
+    responsibleEmail: championship.responsibleEmail || "",
+    responsibleBirthDate: championship.responsibleBirthDate
+      ? convertISOToDate(championship.responsibleBirthDate)
+      : "",
+    companyType: championship.companyType || "",
+    incomeValue: championship.incomeValue?.toString() || ""
+  }), []);
+
+  const transformSubmitData = useCallback((data: any) => {
+    const championshipData: Partial<ChampionshipData> = {
+      name: data.name,
+      championshipImage: data.championshipImage || "",
+      shortDescription: data.shortDescription || "",
+      fullDescription: data.fullDescription || "",
+      sponsors: data.sponsors || [],
+    };
+
+    if (!asaasStatus?.configured) {
+      championshipData.personType = parseInt(data.personType || "0");
+      championshipData.document = data.document;
+      championshipData.socialReason = data.socialReason || "";
+      championshipData.cep = data.cep;
+      championshipData.state = data.state;
+      championshipData.city = data.city;
+      championshipData.fullAddress = data.fullAddress;
+      championshipData.number = data.number;
+      championshipData.complement = data.complement || "";
+      championshipData.province = data.province || "";
+      championshipData.isResponsible = data.isResponsible !== false;
+      championshipData.responsibleName = data.responsibleName || "";
+      championshipData.responsiblePhone = data.responsiblePhone || "";
+      championshipData.responsibleEmail = data.responsibleEmail || "";
+      championshipData.responsibleBirthDate = data.responsibleBirthDate
+        ? convertDateToISO(data.responsibleBirthDate)
+        : undefined;
+      championshipData.companyType = data.companyType || undefined;
+      championshipData.incomeValue = data.incomeValue ? parseFloat(data.incomeValue.replace(/[^\d]/g, '')) / 100 : undefined
+    }
+    return championshipData;
+  }, [asaasStatus]);
+
+  const onSuccess = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
   const {
     isLoading,
@@ -78,130 +157,85 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
     handleFormChange,
   } = useFormScreen<Championship, Partial<ChampionshipData>>({
     id: championshipId,
-    fetchData: async () => {
-      const [championshipData, statusData] = await Promise.all([
-        ChampionshipService.getById(championshipId),
-        ChampionshipService.getAsaasStatus(championshipId),
-      ]);
-      setAsaasStatus(statusData);
-      if (championshipData.state) {
-        await loadCities(championshipData.state);
-      }
-      return championshipData;
-    },
-    updateData: (id, data) => ChampionshipService.update(id, data),
-    transformInitialData: (championship) => ({
-      name: championship.name || "",
-      championshipImage: championship.championshipImage || "",
-      shortDescription: championship.shortDescription || "",
-      fullDescription: championship.fullDescription || "",
-      personType: championship.personType?.toString() || "0",
-      document: championship.document || "",
-      socialReason: championship.socialReason || "",
-      cep: championship.cep || "",
-      state: championship.state || "",
-      city: championship.city || "",
-      fullAddress: championship.fullAddress || "",
-      number: championship.number || "",
-      complement: championship.complement || "",
-      province: championship.province || "",
-      isResponsible: championship.isResponsible !== false,
-      responsibleName: championship.responsibleName || "",
-      responsiblePhone: championship.responsiblePhone || "",
-      responsibleEmail: championship.responsibleEmail || "",
-      responsibleBirthDate: championship.responsibleBirthDate
-        ? convertISOToDate(championship.responsibleBirthDate)
-        : "",
-      companyType: championship.companyType || "",
-      incomeValue: championship.incomeValue?.toString() || ""
-    }),
-    transformSubmitData: (data) => {
-      const championshipData: Partial<ChampionshipData> = {
-        name: data.name,
-        championshipImage: data.championshipImage || "",
-        shortDescription: data.shortDescription || "",
-        fullDescription: data.fullDescription || "",
-        sponsors: data.sponsors || [],
-      };
-
-      if (!asaasStatus?.configured) {
-        championshipData.personType = parseInt(data.personType || "0");
-        championshipData.document = data.document;
-        championshipData.socialReason = data.socialReason || "";
-        championshipData.cep = data.cep;
-        championshipData.state = data.state;
-        championshipData.city = data.city;
-        championshipData.fullAddress = data.fullAddress;
-        championshipData.number = data.number;
-        championshipData.complement = data.complement || "";
-        championshipData.province = data.province || "";
-        championshipData.isResponsible = data.isResponsible !== false;
-        championshipData.responsibleName = data.responsibleName || "";
-        championshipData.responsiblePhone = data.responsiblePhone || "";
-        championshipData.responsibleEmail = data.responsibleEmail || "";
-        championshipData.responsibleBirthDate = data.responsibleBirthDate
-          ? convertDateToISO(data.responsibleBirthDate)
-          : undefined;
-        championshipData.companyType = data.companyType || undefined;
-        championshipData.incomeValue = data.incomeValue ? parseFloat(data.incomeValue.replace(/[^\d,]/g, '').replace(',', '.')) / 100 : undefined;
-      }
-      return championshipData;
-    },
-    onSuccess: () => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    },
+    fetchData,
+    updateData,
+    transformInitialData,
+    transformSubmitData,
+    onSuccess,
     onCancel: () => {},
     successMessage: "Dados do campeonato atualizados com sucesso!",
   });
 
-  const handleFieldChange = async (fieldId: string, value: any, formData: any, formRef: any) => {
-    if (fieldId === "cep" && value && isValidCEPFormat(value) && formRef) {
-        try {
-          const addressData = await fetchAddressByCEP(value);
-          if (addressData && !asaasStatus?.configured) {
-            formRef.setValue("state", addressData.uf);
+  const handleFieldChange = useCallback(async (fieldId: string, value: any, formData: any) => {
+    if (fieldId === "cep" && value && isValidCEPFormat(value) && formRef && !asaasStatus?.configured) {
+      try {
+        const addressData = await fetchAddressByCEP(value);
+        if (addressData) {
+          formRef.setValue("state", addressData.uf);
+          formRef.setValue("fullAddress", addressData.logradouro);
+          formRef.setValue("province", addressData.bairro);
+          await loadCities(addressData.uf);
+          setTimeout(() => {
             formRef.setValue("city", addressData.localidade);
-            formRef.setValue("fullAddress", addressData.logradouro);
-            formRef.setValue("province", addressData.bairro);
-            await loadCities(addressData.uf);
+          }, 500);
+        }
+      } catch (error) {
+        console.warn("Erro ao buscar endereço por CEP:", error);
+      }
+    }
+    
+    if (fieldId === "state" && value && formRef) {
+      await loadCities(value);
+      formRef.setValue("city", "");
+    }
+
+    if (fieldId === "document" && value && formRef && !asaasStatus?.configured) {
+      const personType = formData.personType;
+      if (personType === "1" && isValidCNPJFormat(value)) {
+        try {
+          const companyData = await fetchCompanyByCNPJ(value);
+          if (companyData) {
+            formRef.setValue("socialReason", companyData.company.name);
+            formRef.setValue("cep", masks.cep(companyData.address.zip));
+            formRef.setValue("state", companyData.address.state);
+            formRef.setValue("fullAddress", formatFullAddress(companyData.address));
+            formRef.setValue("number", companyData.address.number);
+            formRef.setValue("province", companyData.address.district);
+            
+            formRef.setValue("companyType", ""); // Clear previous value
+            if (companyData.company.simei?.optant) {
+              formRef.setValue("companyType", "MEI");
+            } else {
+              const natureText = companyData.company.nature?.text;
+              if (natureText === "Empresário (Individual)") {
+                formRef.setValue("companyType", "INDIVIDUAL");
+              } else if (natureText === "Sociedade Limitada") {
+                formRef.setValue("companyType", "LIMITED");
+              } else if (natureText === "Associação Privada") {
+                formRef.setValue("companyType", "ASSOCIATION");
+              }
+            }
+
+            const mainPhone = extractMainPhone(companyData.phones);
+            if (mainPhone && !formData.isResponsible) {
+              formRef.setValue("responsiblePhone", mainPhone);
+            }
+            
+            const mainEmail = extractMainEmail(companyData.emails);
+            if (mainEmail && !formData.isResponsible) {
+              formRef.setValue("responsibleEmail", mainEmail);
+            }
+            await loadCities(companyData.address.state);
+            setTimeout(() => {
+              formRef.setValue("city", companyData.address.city);
+            }, 500);
           }
         } catch (error) {
-          console.warn("Erro ao buscar endereço por CEP:", error);
+          console.warn("Erro ao buscar dados da empresa:", error);
         }
       }
-      
-      if (fieldId === "document" && value && formRef) {
-        const personType = formData.personType;
-        
-        if (personType === "1" && isValidCNPJFormat(value) && !asaasStatus?.configured) {
-          try {
-            const companyData = await fetchCompanyByCNPJ(value);
-            if (companyData && formRef) {
-              formRef.setValue("socialReason", companyData.company.name);
-              formRef.setValue("cep", masks.cep(companyData.address.zip));
-              formRef.setValue("state", companyData.address.state);
-              formRef.setValue("city", companyData.address.city);
-              formRef.setValue("fullAddress", formatFullAddress(companyData.address));
-              formRef.setValue("number", companyData.address.number);
-              formRef.setValue("province", companyData.address.district);
-              
-              const mainPhone = extractMainPhone(companyData.phones);
-              if (mainPhone && !formData.isResponsible) {
-                formRef.setValue("responsiblePhone", mainPhone);
-              }
-              
-              const mainEmail = extractMainEmail(companyData.emails);
-              if (mainEmail && !formData.isResponsible) {
-                formRef.setValue("responsibleEmail", mainEmail);
-              }
-              await loadCities(companyData.address.state);
-            }
-          } catch (error) {
-            console.warn("Erro ao buscar dados da empresa:", error);
-          }
-        }
-      }
-  };
+    }
+  }, [asaasStatus, loadCities, formRef]);
 
   useEffect(() => {
     if (!asaasStatus) return;
@@ -501,6 +535,19 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
             Atualize as informações do seu campeonato
           </p>
         </div>
+        <div>
+          <Button
+            onClick={() => {
+              const form = document.getElementById("edit-championship-form") as HTMLFormElement;
+              if (form) {
+                form.requestSubmit();
+              }
+            }}
+            disabled={isSaving}
+          >
+            {isSaving ? "Salvando..." : "Salvar Alterações"}
+          </Button>
+        </div>
       </div>
 
       {asaasStatus?.configured && (
@@ -528,13 +575,8 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
         <DynamicForm
           config={formConfig}
           onSubmit={handleSubmit}
-          onChange={(data) => {
-            handleFormChange(data);
-            if (data.state) {
-                loadCities(data.state);
-            }
-          }}
-          onFieldChange={(fieldId: string, value: any, formData: any) => handleFieldChange(fieldId, value, formData, formRef)}
+          onChange={handleFormChange}
+          onFieldChange={handleFieldChange}
           onFormReady={onFormReady}
           submitLabel={isSaving ? "Salvando..." : "Salvar Alterações"}
           showButtons={true}
