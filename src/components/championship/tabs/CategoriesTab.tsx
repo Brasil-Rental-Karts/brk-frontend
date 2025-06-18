@@ -34,6 +34,12 @@ import { CategoryService, Category } from "@/lib/services/category.service";
 import { SeasonService } from "@/lib/services/season.service";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "brk-design-system";
 
 interface CategoriesTabProps {
   championshipId: string;
@@ -63,6 +69,7 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [seasonOptions, setSeasonOptions] = useState<{ value: string; label: string }[]>([]);
+  const [canCreateCategory, setCanCreateCategory] = useState(false);
 
   // Estados para o modal de exclusão
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -78,6 +85,9 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
     try {
       const seasonsData = await SeasonService.getByChampionshipId(championshipId, 1, 100);
       
+      const hasCreatableSeason = seasonsData.data.some((season: any) => season.status !== 'cancelado');
+      setCanCreateCategory(hasCreatableSeason);
+
       // Atualizar opções do filtro
       const newSeasonOptions = [
         { value: 'all', label: 'Todas as temporadas' },
@@ -126,8 +136,6 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
       setLoading(false);
     }
   }, [filters.seasonId]);
-
-
 
   // Carregar dados iniciais apenas uma vez
   useEffect(() => {
@@ -348,10 +356,23 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
             className="w-full"
           />
         </div>
-        <Button onClick={handleAddCategory} className="w-full sm:w-auto">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Nova Categoria
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="w-full sm:w-auto">
+                <Button onClick={handleAddCategory} disabled={!canCreateCategory} className="w-full">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Nova Categoria
+                </Button>
+              </div>
+            </TooltipTrigger>
+            {!canCreateCategory && (
+              <TooltipContent>
+                <p>É necessário ter pelo menos uma temporada que não esteja cancelada para criar uma categoria.</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {/* Tabela de categorias */}

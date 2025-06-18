@@ -7,6 +7,20 @@ export interface Sponsor {
   website?: string;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+}
+
+export interface Season {
+  id: string;
+  name: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  categories?: Category[];
+}
+
 export interface ChampionshipData {
   name: string;
   championshipImage?: string;
@@ -41,6 +55,7 @@ export interface Championship extends ChampionshipData {
   isOwner?: boolean;
   isStaff?: boolean;
   isPilot?: boolean;
+  seasons?: Season[];
 }
 
 export interface ChampionshipBasicInfo {

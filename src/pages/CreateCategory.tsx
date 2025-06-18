@@ -19,6 +19,7 @@ export const CreateCategory = () => {
 
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const [seasons, setSeasons] = useState<Season[]>([]);
+  const [allSeasons, setAllSeasons] = useState<Season[]>([]);
   const [gridTypes, setGridTypes] = useState<GridType[]>([]);
   const [scoringSystems, setScoringSystems] = useState<ScoringSystem[]>([]);
 
@@ -34,10 +35,7 @@ export const CreateCategory = () => {
           ScoringSystemService.getByChampionshipId(championshipId),
         ]);
         
-        const activeSeasons = seasonsData.data.filter((season: Season) => 
-          season.status === 'agendado' || season.status === 'em_andamento'
-        );
-        setSeasons(activeSeasons);
+        setAllSeasons(seasonsData.data);
         setGridTypes(gridTypesData);
         setScoringSystems(scoringSystemsData);
       } catch (error) {
@@ -46,6 +44,42 @@ export const CreateCategory = () => {
     };
     loadDependencies();
   }, [championshipId]);
+
+  useEffect(() => {
+    const prepareSeasonsForDropdown = async () => {
+        let availableSeasons = allSeasons.filter(s => s.status !== 'cancelado');
+        
+        if (isEditMode && categoryId) {
+            try {
+                const categoryData = await CategoryService.getById(categoryId);
+                const categorySeason = allSeasons.find(s => s.id === categoryData.seasonId);
+
+                if (categorySeason && categorySeason.status === 'cancelado') {
+                    if (!availableSeasons.some(s => s.id === categorySeason.id)) {
+                        availableSeasons.push(categorySeason);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch category for season check", error);
+            }
+        }
+        setSeasons(availableSeasons);
+    };
+
+    if (allSeasons.length > 0) {
+      prepareSeasonsForDropdown();
+    }
+  }, [allSeasons, isEditMode, categoryId]);
+
+  const getSeasonStatusLabel = (status: string) => {
+    switch (status) {
+      case 'agendado': return 'Agendado';
+      case 'em_andamento': return 'Em Andamento';
+      case 'finalizado': return 'Finalizado';
+      case 'cancelado': return 'Cancelado';
+      default: return status;
+    }
+  };
 
   useEffect(() => {
     const config: FormSectionConfig[] = [
@@ -90,7 +124,7 @@ export const CreateCategory = () => {
             mandatory: true,
             options: seasons.map(season => ({
               value: season.id,
-              description: `${season.name} (${season.status === 'agendado' ? 'Agendado' : 'Em Andamento'})`,
+              description: `${season.name} (${getSeasonStatusLabel(season.status)})`,
             })),
           },
         ],
@@ -121,12 +155,19 @@ export const CreateCategory = () => {
     minimumAge: data.minimumAge.toString(),
   }), []);
   
-  const transformSubmitData = useCallback((data: any): CategoryData => ({
-    ...data,
-    maxPilots: parseInt(data.maxPilots, 10),
-    minimumAge: parseInt(data.minimumAge, 10),
-    championshipId: championshipId!,
-  }), [championshipId]);
+  const transformSubmitData = useCallback((data: any): CategoryData => {
+    const selectedSeason = allSeasons.find(s => s.id === data.seasonId);
+    if (selectedSeason && selectedSeason.status === 'cancelado') {
+        throw new Error("Não é possível salvar a categoria em uma temporada cancelada.");
+    }
+    
+    return {
+      ...data,
+      maxPilots: parseInt(data.maxPilots, 10),
+      minimumAge: parseInt(data.minimumAge, 10),
+      championshipId: championshipId!,
+    }
+  }, [championshipId, allSeasons]);
 
   const onSuccess = useCallback(() => {
     navigate(`/championship/${championshipId}?tab=categories`);

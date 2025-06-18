@@ -54,25 +54,6 @@ export const Championship = () => {
     'classificacao': 'classificacao'
   };
 
-  // Ler o parâmetro tab da URL ao montar o componente
-  useEffect(() => {
-    const tabFromUrl = searchParams.get("tab");
-    console.log('=== Championship Tab Debug ===');
-    console.log('tabFromUrl:', tabFromUrl);
-    
-    if (tabFromUrl) {
-      const mappedTab = tabMapping[tabFromUrl.toLowerCase()];
-      console.log('mappedTab:', mappedTab);
-      
-      if (mappedTab) {
-        console.log('Setting activeTab to:', mappedTab);
-        setActiveTab(mappedTab);
-      } else {
-        console.log('Invalid tab, using default: temporadas');
-      }
-    }
-  }, [searchParams]);
-  
   const {
     championship,
     loading,
@@ -80,6 +61,40 @@ export const Championship = () => {
     refresh
   } = useChampionship(id);
 
+  // Ler o parâmetro tab da URL ao montar o componente
+  useEffect(() => {
+    if (!championship || !championship.seasons) return;
+
+    const tabFromUrl = searchParams.get("tab");
+    const hasSeasons = championship.seasons.length > 0;
+    const hasCategories = hasSeasons && championship.seasons.some(s => s.categories && s.categories.length > 0);
+
+    const disabledTabsWithoutSeasons = ['categorias', 'etapas', 'pilotos', 'classificacao'];
+    const disabledTabsWithoutCategories = ['etapas', 'pilotos', 'classificacao'];
+
+    if (tabFromUrl) {
+      const mappedTab = tabMapping[tabFromUrl.toLowerCase()];
+      
+      if (mappedTab) {
+        let shouldRedirect = false;
+        if (!hasSeasons && disabledTabsWithoutSeasons.includes(mappedTab)) {
+          shouldRedirect = true;
+        } else if (!hasCategories && disabledTabsWithoutCategories.includes(mappedTab)) {
+          shouldRedirect = true;
+        }
+
+        if (shouldRedirect) {
+          if (activeTab !== 'temporadas') {
+            setActiveTab('temporadas');
+            setSearchParams({ tab: 'temporadas' });
+          }
+        } else if (activeTab !== mappedTab) {
+          setActiveTab(mappedTab);
+        }
+      }
+    }
+  }, [searchParams, championship, activeTab, setSearchParams]);
+  
   // Loading state
   if (loading) {
     return (
@@ -112,6 +127,9 @@ export const Championship = () => {
     );
   }
 
+  const hasSeasons = !!championship?.seasons?.length;
+  const hasCategories = hasSeasons && championship.seasons!.some(s => s.categories && s.categories.length > 0);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header do campeonato - colado com as tabs */}
@@ -136,24 +154,28 @@ export const Championship = () => {
               </TabsTrigger>
               <TabsTrigger 
                 value="categorias" 
+                disabled={!hasSeasons}
                 className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
               >
                 Categorias
               </TabsTrigger>
               <TabsTrigger 
                 value="etapas" 
+                disabled={!hasCategories}
                 className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
               >
                 Etapas
               </TabsTrigger>
               <TabsTrigger 
                 value="pilotos" 
+                disabled={!hasCategories}
                 className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
               >
                 Pilotos
               </TabsTrigger>
               <TabsTrigger 
                 value="classificacao" 
+                disabled={!hasCategories}
                 className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
               >
                 Classificação
@@ -168,21 +190,47 @@ export const Championship = () => {
             <SeasonsTab championshipId={id} />
           </TabsContent>
 
-          <TabsContent value="categorias" className="mt-0 ring-0 focus-visible:outline-none">
-            <CategoriesTab championshipId={id} />
-          </TabsContent>
-
-          <TabsContent value="etapas" className="mt-0 ring-0 focus-visible:outline-none">
-            <StagesTab championshipId={id} />
-          </TabsContent>
-
-          <TabsContent value="pilotos" className="mt-0 ring-0 focus-visible:outline-none">
-            <PilotsTab championshipId={id} />
-          </TabsContent>
-
-          <TabsContent value="classificacao" className="mt-0 ring-0 focus-visible:outline-none">
-            <ClassificationTab championshipId={id} />
-          </TabsContent>
+          {hasSeasons ? (
+            <>
+              <TabsContent value="categorias" className="mt-0 ring-0 focus-visible:outline-none">
+                <CategoriesTab championshipId={id} />
+              </TabsContent>
+    
+              {hasCategories ? (
+                <>
+                  <TabsContent value="etapas" className="mt-0 ring-0 focus-visible:outline-none">
+                    <StagesTab championshipId={id} />
+                  </TabsContent>
+        
+                  <TabsContent value="pilotos" className="mt-0 ring-0 focus-visible:outline-none">
+                    <PilotsTab championshipId={id} />
+                  </TabsContent>
+        
+                  <TabsContent value="classificacao" className="mt-0 ring-0 focus-visible:outline-none">
+                    <ClassificationTab championshipId={id} />
+                  </TabsContent>
+                </>
+              ) : (
+                !['temporadas', 'categorias', 'config-edit', 'config-grid', 'config-scoring', 'config-sponsors', 'config-staff', 'config-asaas'].includes(activeTab) && (
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      Este campeonato ainda não possui categorias. Crie uma categoria para habilitar as outras abas.
+                    </AlertDescription>
+                  </Alert>
+                )
+              )}
+            </>
+          ) : (
+            !['temporadas', 'config-edit', 'config-grid', 'config-scoring', 'config-sponsors', 'config-staff', 'config-asaas'].includes(activeTab) && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  Este campeonato ainda não possui temporadas. Crie uma temporada para habilitar as outras abas.
+                </AlertDescription>
+              </Alert>
+            )
+          )}
 
           <TabsContent value="config-edit" className="mt-0 ring-0 focus-visible:outline-none">
             <EditChampionshipTab championshipId={id} />
