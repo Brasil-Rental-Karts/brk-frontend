@@ -22,8 +22,12 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
   const navigate = useNavigate();
 
   const handleViewPublicPage = () => {
-    // TODO: Implementar navegação para página pública
-    window.open(`/public/championship/${championship.id}`, '_blank');
+    const siteUrl = import.meta.env.VITE_SITE_URL;
+    if (!siteUrl) {
+      console.error("VITE_SITE_URL is not defined in .env file");
+      return;
+    }
+    window.open(`${siteUrl}/championship/${championship.slug}`, '_blank');
   };
 
   const handleConfigurationOption = (option: 'grid-types' | 'scoring-systems' | 'asaas-account' | 'edit-data' | 'sponsors' | 'staff') => {

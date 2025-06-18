@@ -34,6 +34,7 @@ export interface ChampionshipData {
 
 export interface Championship extends ChampionshipData {
   id: string;
+  slug: string;
   ownerId: string;
   createdAt: string;
   updatedAt: string;
