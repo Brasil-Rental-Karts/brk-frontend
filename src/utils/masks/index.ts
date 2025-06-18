@@ -1,4 +1,4 @@
-export type MaskType = "phone" | "cpf" | "cnpj" | "cep" | "date" | "currency" | "time";
+export type MaskType = "phone" | "cpf" | "cnpj" | "cep" | "date" | "currency" | "time" | "number";
 
 export const masks = {
   phone: (value: string) => {
@@ -76,6 +76,9 @@ export const masks = {
     });
     return formatted;
   },
+  number: (value: string) => {
+    return value.replace(/\D/g, "");
+  },
 };
 
 export const maxLengths: Record<MaskType, number> = {
@@ -86,4 +89,5 @@ export const maxLengths: Record<MaskType, number> = {
   date: 8,
   time: 4,
   currency: 16,
+  number: 3,
 };

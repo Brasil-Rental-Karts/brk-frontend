@@ -43,6 +43,8 @@ export interface FormFieldConfig {
   id: string;
   type: "input" | "textarea" | "select" | "checkbox" | "inputMask" | "checkbox-group" | "sponsor-list" | "file" | "custom";
   max_char?: number;
+  min_value?: number;
+  max_value?: number;
   mandatory?: boolean;
   readonly?: boolean;
   disabled?: boolean;
@@ -100,6 +102,27 @@ const createZodSchema = (config: FormSectionConfig[]) => {
         case "input":
         case "textarea":
         case "inputMask":
+          if (field.mask === 'number') {
+            const stringToNumber = z.string()
+              .refine((val) => val === '' || /^\d+$/.test(val), "Deve conter apenas números")
+              .transform((val) => (val === "" ? null : Number(val)));
+            
+            let numberSchema = z.number();
+            if (field.min_value !== undefined) {
+              numberSchema = numberSchema.min(field.min_value, `O valor mínimo é ${field.min_value}`);
+            }
+            if (field.max_value !== undefined) {
+              numberSchema = numberSchema.max(field.max_value, `O valor máximo é ${field.max_value}`);
+            }
+
+            if (field.mandatory) {
+              schemaFields[field.id] = stringToNumber.pipe(numberSchema.nullable().refine(val => val !== null, { message: `${field.name} é obrigatório` }));
+            } else {
+              schemaFields[field.id] = stringToNumber.pipe(numberSchema).nullable().optional();
+            }
+            return; // Skip remaining logic for this field
+          }
+
           fieldSchema = z.string();
           if (field.max_char) {
             fieldSchema = (fieldSchema as z.ZodString).max(field.max_char, `Máximo ${field.max_char} caracteres`);

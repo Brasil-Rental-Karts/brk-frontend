@@ -5,7 +5,7 @@ import { Season } from './season.service';
 export interface Category {
   id: string;
   name: string;
-  ballast: string;
+  ballast: number;
   maxPilots: number;
   batteriesConfig: BatteriesConfig;
   minimumAge: number;
@@ -16,7 +16,7 @@ export interface Category {
 
 export interface CategoryData {
   name: string;
-  ballast: string;
+  ballast: number;
   maxPilots: number;
   batteriesConfig: BatteriesConfig;
   minimumAge: number;

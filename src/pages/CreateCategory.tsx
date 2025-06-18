@@ -97,25 +97,33 @@ export const CreateCategory = () => {
           },
           {
             id: "ballast",
-            name: "Lastro",
-            type: "input",
+            name: "Lastro (Kg)",
+            type: "inputMask",
+            mask: "number",
             mandatory: true,
-            placeholder: "Ex: 75Kg",
-            max_char: 10,
+            placeholder: "Ex: 75",
+            min_value: 0,
+            max_value: 999,
           },
           {
             id: "maxPilots",
             name: "Máximo de pilotos",
-            type: "input",
+            type: "inputMask",
+            mask: "number",
             mandatory: true,
             placeholder: "Ex: 20",
+            min_value: 0,
+            max_value: 999,
           },
           {
             id: "minimumAge",
             name: "Idade mínima",
-            type: "input",
+            type: "inputMask",
+            mask: "number",
             mandatory: true,
             placeholder: "Ex: 18",
+            min_value: 0,
+            max_value: 999,
           },
           {
             id: "seasonId",
@@ -151,6 +159,7 @@ export const CreateCategory = () => {
 
   const transformInitialData = useCallback((data: CategoryData) => ({
     ...data,
+    ballast: data.ballast.toString(),
     maxPilots: data.maxPilots.toString(),
     minimumAge: data.minimumAge.toString(),
   }), []);
@@ -163,6 +172,7 @@ export const CreateCategory = () => {
     
     return {
       ...data,
+      ballast: parseInt(data.ballast, 10),
       maxPilots: parseInt(data.maxPilots, 10),
       minimumAge: parseInt(data.minimumAge, 10),
       championshipId: championshipId!,
