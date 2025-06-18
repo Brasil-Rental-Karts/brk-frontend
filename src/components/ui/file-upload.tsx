@@ -143,62 +143,72 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   };
 
   return (
-    <div className="space-y-3">
-      {/* URL Input */}
-      <div className="space-y-1">
-        <label className="text-sm font-medium">{label}</label>
-        <Input
-          value={value}
-          onChange={(e) => handleUrlChange(e.target.value)}
-          placeholder={placeholder}
-          disabled={disabled}
-          type="url"
-        />
-      </div>
+    <div className="space-y-2">
+      <label className="text-sm font-medium">{label}</label>
 
-      {/* Upload Area */}
-      <Card 
-        className={`border-2 border-dashed transition-colors ${
-          isDragOver 
-            ? 'border-primary bg-primary/5' 
+      {/* Upload Area / Preview Area */}
+      <Card
+        className={`border-2 border-dashed transition-colors relative group ${
+          isDragOver
+            ? 'border-primary bg-primary/5'
             : 'border-muted-foreground/25 hover:border-muted-foreground/50'
         }`}
       >
-        <CardContent className="p-6">
-          <div
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            className="text-center space-y-3"
-          >
-            {isUploading ? (
-              <div className="flex flex-col items-center space-y-2">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Fazendo upload...</p>
-              </div>
-            ) : (
-              <>
-                <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">
-                    Arraste um arquivo aqui ou{' '}
-                    <Button
-                      type="button"
-                      variant="link"
-                      onClick={openFileDialog}
-                      disabled={disabled}
-                      className="h-auto p-0"
-                    >
-                      clique para selecionar
-                    </Button>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Máximo {maxSize}MB • {accept}
-                  </p>
+        <CardContent
+          className="p-4 flex items-center justify-center h-[150px]"
+        >
+          {value && isImage(value) ? (
+            // Preview
+            <>
+              <img
+                src={value}
+                alt="Preview"
+                className="h-full w-full object-contain rounded"
+              />
+              {!disabled && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  onClick={handleRemoveFile}
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
+            </>
+          ) : (
+            // Upload
+            <div
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              className="text-center space-y-3 w-full cursor-pointer"
+              onClick={disabled ? undefined : openFileDialog}
+            >
+              {isUploading ? (
+                <div className="flex flex-col items-center space-y-2">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <p className="text-sm text-muted-foreground">Fazendo upload...</p>
                 </div>
-              </>
-            )}
-          </div>
+              ) : (
+                <>
+                  <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">
+                      Arraste uma imagem ou{' '}
+                      <span className="text-primary hover:underline">
+                        clique aqui
+                      </span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Máximo {maxSize}MB
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -214,66 +224,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
       {/* Error Message */}
       {uploadError && (
-        <div className="text-sm text-destructive bg-destructive/10 p-2 rounded border">
+        <div className="text-sm text-destructive bg-destructive/10 p-2 rounded-md border border-destructive/20">
           {uploadError}
         </div>
-      )}
-
-      {/* Preview */}
-      {value && showPreview && (
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3 flex-1 min-w-0">
-                {isImage(value) ? (
-                  <img
-                    src={value}
-                    alt="Preview"
-                    className="w-12 h-12 object-cover rounded border"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      const fallback = target.nextElementSibling as HTMLElement;
-                      target.style.display = 'none';
-                      if (fallback) {
-                        fallback.style.display = 'flex';
-                      }
-                    }}
-                  />
-                ) : null}
-                <File className="w-6 h-6 text-muted-foreground" style={{ display: isImage(value) ? 'none' : 'flex' }} />
-                
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {value.split('/').pop() || 'Arquivo selecionado'}
-                  </p>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open(value, '_blank')}
-                      className="h-6 px-2 text-xs"
-                    >
-                      <ExternalLink className="w-3 h-3 mr-1" />
-                      Ver
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleRemoveFile}
-                disabled={disabled}
-                className="ml-2"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       )}
     </div>
   );
