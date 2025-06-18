@@ -23,11 +23,7 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
 
   const handleViewPublicPage = () => {
     const siteUrl = import.meta.env.VITE_SITE_URL;
-    if (!siteUrl) {
-      console.error("VITE_SITE_URL is not defined in .env file");
-      return;
-    }
-    window.open(`${siteUrl}/championship/${championship.slug}`, '_blank');
+    window.open(`${siteUrl}/campeonato/${championship.slug}`, '_blank', 'noopener,noreferrer');
   };
 
   const handleConfigurationOption = (option: 'grid-types' | 'scoring-systems' | 'asaas-account' | 'edit-data' | 'sponsors' | 'staff') => {

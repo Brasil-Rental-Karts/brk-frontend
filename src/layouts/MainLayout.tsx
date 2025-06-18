@@ -39,6 +39,7 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
   const [isOpen, setIsOpen] = useState(false);
   const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const siteUrl = import.meta.env.VITE_SITE_URL;
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -71,20 +72,12 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                 </NavigationMenuItem>
 
                 <NavigationMenuItem>
-                  <NavigationMenuTrigger>Campeonatos</NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
-                      <ListItem href="/campeonatos" title="Organizando">
-                        Você Organiza ou Gerencia
-                      </ListItem>
-                      <ListItem href="/campeonatos" title="Participando">
-                        Você está Inscrito como Piloto
-                      </ListItem>
-                      <ListItem href="/campeonatos" title="Buscar Campeonatos">
-                        Procure e Participe de Campeonatos
-                      </ListItem>
-                    </ul>
-                  </NavigationMenuContent>
+                  <NavigationMenuLink
+                    className="group inline-flex h-9 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent/30 hover:text-accent-foreground focus:bg-accent/30 focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50"
+                    asChild
+                  >
+                    <button onClick={() => window.open(`${siteUrl}/campeonatos`, '_blank', 'noopener,noreferrer')}>Campeonatos</button>
+                  </NavigationMenuLink>
                 </NavigationMenuItem>
 
                 <NavigationMenuItem>
@@ -180,27 +173,15 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                     >
                       Início
                     </Link>
-                    <Link
-                      to="/campeonatos"
-                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
-                      onClick={() => setIsOpen(false)}
+                    <button
+                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors text-left"
+                      onClick={() => {
+                        window.open(`${siteUrl}/campeonatos`, '_blank', 'noopener,noreferrer');
+                        setIsOpen(false)
+                      }}
                     >
-                      Organizando
-                    </Link>
-                    <Link
-                      to="/campeonatos"
-                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Participando
-                    </Link>
-                    <Link
-                      to="/campeonatos"
-                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Buscar Campeonatos
-                    </Link>
+                      Campeonatos
+                    </button>
                     <Link
                       to="/calendario"
                       className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
