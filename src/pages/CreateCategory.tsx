@@ -31,10 +31,10 @@ export const CreateCategory = () => {
         const [seasonsData, gridTypesData, scoringSystemsData] = await Promise.all([
           SeasonService.getByChampionshipId(championshipId, 1, 1000),
           GridTypeService.getByChampionship(championshipId),
-          ScoringSystemService.getByChampionship(championshipId),
+          ScoringSystemService.getByChampionshipId(championshipId),
         ]);
         
-        const activeSeasons = seasonsData.data.filter(season => 
+        const activeSeasons = seasonsData.data.filter((season: Season) => 
           season.status === 'agendado' || season.status === 'em_andamento'
         );
         setSeasons(activeSeasons);
