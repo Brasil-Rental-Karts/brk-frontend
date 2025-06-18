@@ -55,17 +55,6 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
     }
   }, [championshipId]);
 
-  // Criar tipos pré-configurados
-  const createPredefinedTypes = async () => {
-    try {
-      setLoading(true);
-      await GridTypeService.createPredefined(championshipId);
-      await fetchGridTypes();
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
   // Alternar status ativo
   const toggleActive = async (gridType: GridType) => {
     // Verificar se está tentando desativar o último tipo ativo
@@ -221,8 +210,8 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
         title="Nenhum tipo de grid configurado"
         description="Configure tipos de grid para definir como as posições de largada serão determinadas"
         action={{
-          label: "Criar Tipos Pré-configurados",
-          onClick: createPredefinedTypes,
+          label: "Novo Tipo",
+          onClick: handleCreateNew,
         }}
       />
     );

@@ -63,17 +63,6 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
     }
   }, [championshipId]);
 
-  // Criar sistemas pré-configurados
-  const createPredefinedSystems = async () => {
-    try {
-      setLoading(true);
-      await ScoringSystemService.createPredefined(championshipId);
-      await fetchScoringSystems();
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
   // Alternar status ativo
   const toggleActive = async (system: ScoringSystem) => {
     // Verificar se está tentando desativar o último sistema ativo
@@ -238,15 +227,10 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
           title="Nenhum sistema de pontuação configurado"
           description="Crie seu primeiro sistema de pontuação para definir como os pontos serão distribuídos nas corridas."
           action={{
-            label: "Criar sistemas pré-configurados",
-            onClick: createPredefinedSystems
+            label: "Criar Sistema Personalizado",
+            onClick: handleCreateNew
           }}
         />
-        <div className="flex justify-center mt-4">
-          <Button onClick={handleCreateNew} variant="outline">
-            Criar sistema personalizado
-          </Button>
-        </div>
       </div>
     );
   }
@@ -262,12 +246,6 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
           </p>
         </div>
         <div className="flex gap-2">
-          {scoringSystems.length === 0 && (
-            <Button onClick={createPredefinedSystems} variant="outline">
-              <Plus className="h-4 w-4 mr-2" />
-              Criar Pré-configurados
-            </Button>
-          )}
           <Button onClick={handleCreateNew}>
             <Plus className="h-4 w-4 mr-2" />
             Novo Sistema
