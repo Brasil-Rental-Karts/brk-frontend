@@ -88,6 +88,7 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
     championshipImage: championship.championshipImage || "",
     shortDescription: championship.shortDescription || "",
     fullDescription: championship.fullDescription || "",
+    rules: championship.rules || "",
     personType: championship.personType?.toString() || "0",
     document: championship.document || "",
     socialReason: championship.socialReason || "",
@@ -115,6 +116,7 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
       championshipImage: data.championshipImage || "",
       shortDescription: data.shortDescription || "",
       fullDescription: data.fullDescription || "",
+      rules: data.rules || "",
       sponsors: data.sponsors || [],
     };
 
@@ -257,7 +259,7 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
             id: "championshipImage",
             name: "Imagem do campeonato",
             type: "file" as const,
-            mandatory: false,
+            mandatory: true,
             placeholder: "Faça upload da imagem ou insira uma URL",
             accept: "image/*",
             maxSize: 5,
@@ -267,7 +269,7 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
             id: "shortDescription",
             name: "Descrição curta do campeonato",
             type: "textarea" as const,
-            mandatory: false,
+            mandatory: true,
             max_char: 165,
             placeholder: "Breve descrição que aparecerá nas listagens e buscas",
           },
@@ -275,10 +277,17 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
             id: "fullDescription",
             name: "Descrição completa do campeonato",
             type: "textarea" as const,
-            mandatory: false,
+            mandatory: true,
             max_char: 1000,
             placeholder:
-              "Descrição detalhada com regulamento, categorias, premiação, etc.",
+              "Descrição detalhada com informações gerais, categorias, premiação, etc.",
+          },
+          {
+            id: "rules",
+            name: "Link para o regulamento",
+            type: "input" as const,
+            mandatory: true,
+            placeholder: "https://seusite.com/regulamento.pdf",
           },
         ],
       },
@@ -415,8 +424,8 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
                   id: "complement",
                   name: "Complemento",
                   type: "input" as const,
-                  mandatory: false,
-                  placeholder: "Apto, sala, bloco (opcional)",
+                  mandatory: true,
+                  placeholder: "Apto, sala, bloco",
                   inline: true,
                   inlineGroup: "address",
                 },
@@ -551,8 +560,7 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
       </div>
 
       {asaasStatus?.configured && (
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
+        <Alert variant="warning">
           <AlertTitle>Conta Asaas Configurada</AlertTitle>
           <AlertDescription>
             Como já existe uma conta Asaas configurada para este campeonato, os

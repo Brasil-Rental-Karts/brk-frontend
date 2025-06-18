@@ -22,6 +22,7 @@ export interface ChampionshipData {
   championshipImage?: string;
   shortDescription?: string;
   fullDescription?: string;
+  rules?: string;
   personType: number;
   document: string;
   socialReason?: string;

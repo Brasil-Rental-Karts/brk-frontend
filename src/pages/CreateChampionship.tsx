@@ -125,6 +125,7 @@ export const CreateChampionship = () => {
       championshipImage: data.championshipImage || '',
       shortDescription: data.shortDescription || '',
       fullDescription: data.fullDescription || '',
+      rules: data.rules || '',
       personType: parseInt(data.personType || '0'),
       document: data.document,
       socialReason: data.socialReason || '',
@@ -174,7 +175,7 @@ export const CreateChampionship = () => {
             id: "championshipImage",
             name: "Imagem do campeonato",
             type: "file",
-            mandatory: false,
+            mandatory: true,
             placeholder: "Faça upload da imagem ou insira uma URL",
             accept: "image/*",
             maxSize: 5,
@@ -184,7 +185,7 @@ export const CreateChampionship = () => {
             id: "shortDescription",
             name: "Descrição curta do campeonato",
             type: "textarea",
-            mandatory: false,
+            mandatory: true,
             max_char: 165,
             placeholder: "Breve descrição que aparecerá nas listagens e buscas"
           },
@@ -192,9 +193,16 @@ export const CreateChampionship = () => {
             id: "fullDescription",
             name: "Descrição completa do campeonato",
             type: "textarea",
-            mandatory: false,
+            mandatory: true,
             max_char: 1000,
-            placeholder: "Descrição detalhada com regulamento, categorias, premiação, etc."
+            placeholder: "Descrição detalhada com informações gerais, categorias, premiação, etc."
+          },
+          {
+            id: "rules",
+            name: "Link para o regulamento",
+            type: "input",
+            mandatory: true,
+            placeholder: "https://seusite.com/regulamento.pdf"
           }
         ]
       },
@@ -310,8 +318,8 @@ export const CreateChampionship = () => {
             id: "complement",
             name: "Complemento",
             type: "input",
-            mandatory: false,
-            placeholder: "Apto, sala, bloco (opcional)",
+            mandatory: true,
+            placeholder: "Apto, sala, bloco",
             inline: true,
             inlineGroup: "address"
           },
