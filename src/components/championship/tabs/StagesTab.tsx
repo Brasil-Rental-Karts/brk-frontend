@@ -36,6 +36,12 @@ import { Stage } from "@/lib/types/stage";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { StageDetailsModal } from "@/components/championship/modals/StageDetailsModal";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "brk-design-system";
 
 interface StagesTabProps {
   championshipId: string;
@@ -79,6 +85,7 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
   const [error, setError] = useState<string | null>(null);
   const [seasonOptions, setSeasonOptions] = useState<{ value: string; label: string }[]>([]);
   const [seasonMap, setSeasonMap] = useState<{ [key: string]: any }>({});
+  const [canCreateStage, setCanCreateStage] = useState(false);
 
   // Estados para o modal de exclusão
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -98,6 +105,9 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
     try {
       const seasonsData = await SeasonService.getByChampionshipId(championshipId, 1, 100);
       
+      const hasCreatableSeason = seasonsData.data.some((season: any) => season.status !== 'cancelado');
+      setCanCreateStage(hasCreatableSeason);
+
       // Criar mapa de temporadas
       const newSeasonMap: { [key: string]: any } = {};
       seasonsData.data.forEach((season: any) => {
@@ -384,11 +394,19 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
       <EmptyState
         icon={Flag}
         title="Nenhuma etapa criada"
-        description="Crie sua primeira etapa para começar a organizar as corridas"
-        action={{
-          label: "Criar Etapa",
-          onClick: handleAddStage
-        }}
+        description={
+          canCreateStage
+            ? "Crie a primeira etapa para começar a planejar o campeonato."
+            : "É necessário ter pelo menos uma temporada que não esteja cancelada para criar uma etapa."
+        }
+        action={
+          canCreateStage
+            ? {
+                label: "Criar Etapa",
+                onClick: handleAddStage,
+              }
+            : undefined
+        }
       />
     );
   }
@@ -404,10 +422,23 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
             className="w-full"
           />
         </div>
-        <Button onClick={handleAddStage} className="w-full sm:w-auto">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Nova Etapa
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="w-full sm:w-auto">
+                <Button onClick={handleAddStage} disabled={!canCreateStage} className="w-full">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Nova Etapa
+                </Button>
+              </div>
+            </TooltipTrigger>
+            {!canCreateStage && (
+              <TooltipContent>
+                <p>É necessário ter pelo menos uma temporada que não esteja cancelada para criar uma etapa.</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {/* Tabela de etapas */}

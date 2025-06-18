@@ -336,11 +336,19 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
       <EmptyState
         icon={Tag}
         title="Nenhuma categoria criada"
-        description="Crie sua primeira categoria para começar a organizar os participantes"
-        action={{
-          label: "Criar Categoria",
-          onClick: handleAddCategory
-        }}
+        description={
+          canCreateCategory
+            ? "Crie sua primeira categoria para começar a organizar os participantes."
+            : "É necessário ter pelo menos uma temporada que não esteja cancelada para criar uma categoria."
+        }
+        action={
+          canCreateCategory
+            ? {
+                label: "Criar Categoria",
+                onClick: handleAddCategory,
+              }
+            : undefined
+        }
       />
     );
   }

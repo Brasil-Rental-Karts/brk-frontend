@@ -99,6 +99,7 @@ export const CreateStage = () => {
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const [initialValues, setInitialValues] = useState<Record<string, any> | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+  const [allSeasons, setAllSeasons] = useState<any[]>([]);
 
   const isEditMode = !!stageId;
 
@@ -168,23 +169,33 @@ export const CreateStage = () => {
       setIsLoading(true);
       try {
         const seasonsData = await SeasonService.getByChampionshipId(championshipId!, 1, 1000);
-        const activeSeasons = seasonsData.data.filter(s => s.status === 'agendado' || s.status === 'em_andamento');
-        const seasonOptions = activeSeasons.map(s => ({ value: s.id, description: s.name }));
-
+        setAllSeasons(seasonsData.data);
+        let activeSeasons = seasonsData.data.filter(s => s.status !== 'cancelado');
+        
         let categoryOptions: { value: string; description: string }[] = [];
+        let stageDataToSet: Record<string, any> = STAGE_INITIAL_VALUES;
+
         if (isEditMode) {
           const stageData = await StageService.getById(stageId!);
+          stageDataToSet = {
+            ...STAGE_INITIAL_VALUES,
+            ...stageData,
+            date: formatISOToDate(stageData.date),
+          };
+
           if (stageData.seasonId) {
             const categories = await CategoryService.getBySeasonId(stageData.seasonId);
             categoryOptions = categories.map(c => ({ value: c.id, description: c.name }));
+
+            const stageSeason = seasonsData.data.find(s => s.id === stageData.seasonId);
+            if (stageSeason && stageSeason.status === 'cancelado' && !activeSeasons.some(s => s.id === stageSeason.id)) {
+              activeSeasons.push(stageSeason);
+            }
           }
-          setInitialValues({
-            ...stageData,
-            date: formatISOToDate(stageData.date),
-          });
-        } else {
-          setInitialValues(STAGE_INITIAL_VALUES);
         }
+        
+        const seasonOptions = activeSeasons.map(s => ({ value: s.id, description: s.name }));
+        setInitialValues(stageDataToSet);
 
         const newConfig = baseConfig.map(section => {
           if (section.section === "Temporada e Categorias") {
@@ -214,13 +225,28 @@ export const CreateStage = () => {
     };
 
     loadDataAndConfig();
-  }, [championshipId, stageId, isEditMode]);
+  }, [championshipId, isEditMode, stageId, loadCategoriesForSeason]);
   
-  const transformSubmitData = useCallback((data: any): CreateStageData => ({
-    ...data,
-    date: formatDateToISO(data.date)!,
-    championshipId: championshipId!,
-  }), [championshipId]);
+  const transformSubmitData = useCallback((data: any): CreateStageData => {
+    const selectedSeason = allSeasons.find(s => s.id === data.seasonId);
+    if (selectedSeason && selectedSeason.status === 'cancelado') {
+        throw new Error("Não é possível salvar a etapa em uma temporada cancelada.");
+    }
+
+    const transformedData = { ...data };
+    if (transformedData.briefingTime === '') {
+      transformedData.briefingTime = null;
+    }
+    if (transformedData.streamLink === '') {
+      transformedData.streamLink = null;
+    }
+
+    return {
+      ...transformedData,
+      date: formatDateToISO(data.date)!,
+      championshipId: championshipId!,
+    }
+  }, [championshipId, allSeasons]);
   
   // Event handlers
   const onFieldChange = useCallback(async (fieldId: string, value: any, _formData: any, formActions: { setValue: (name: string, value: any) => void }) => {

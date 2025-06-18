@@ -1,5 +1,6 @@
 import api from '../axios';
 import { BatteriesConfig } from '../types/battery.types';
+import { Season } from './season.service';
 
 export interface Category {
   id: string;
