@@ -16,6 +16,7 @@ import {
 } from "brk-design-system";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "brk-design-system";
 import { ScoringSystemService, ScoringSystem, ScoringSystemData } from "@/lib/services/scoring-system.service";
+import { toast } from "sonner";
 
 interface ScoringSystemTabProps {
   championshipId: string;
@@ -53,7 +54,7 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await ScoringSystemService.getByChampionship(championshipId);
+      const data = await ScoringSystemService.getByChampionshipId(championshipId);
       setScoringSystems(data);
     } catch (err: any) {
       setError(err.message);
@@ -92,13 +93,19 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
   };
 
   // Definir como padrão
-  const setAsDefault = async (system: ScoringSystem) => {
+  const setDefault = async (system: ScoringSystem) => {
     try {
       setError(null);
-      await ScoringSystemService.setAsDefault(system.id, championshipId);
+      await ScoringSystemService.setDefault(system.id, championshipId);
       await fetchScoringSystems();
+      toast.success("Sistema de pontuação definido como padrão.", {
+        description: "O sistema de pontuação foi definido como padrão com sucesso.",
+      });
     } catch (err: any) {
       setError(err.message);
+      toast.error("Erro ao definir sistema de pontuação como padrão.", {
+        description: err.message,
+      });
     }
   };
 
@@ -107,14 +114,19 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
     try {
       if (editingSystem) {
         await ScoringSystemService.update(editingSystem.id, championshipId, formData);
+        toast.success("Sistema de pontuação atualizado com sucesso!");
       } else {
         await ScoringSystemService.create(championshipId, formData);
+        toast.success("Sistema de pontuação criado com sucesso!");
       }
       
       await fetchScoringSystems();
       handleFormClose();
     } catch (err: any) {
       setError(err.message);
+      toast.error("Erro ao salvar sistema de pontuação.", {
+        description: err.message,
+      });
     }
   };
 
@@ -129,8 +141,12 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
       await fetchScoringSystems();
       setShowDeleteDialog(false);
       setDeletingSystem(null);
+      toast.success("Sistema de pontuação excluído com sucesso!");
     } catch (err: any) {
       setError(err.message);
+      toast.error("Erro ao excluir sistema de pontuação.", {
+        description: err.message,
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -372,7 +388,7 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setAsDefault(system)}
+                        onClick={() => setDefault(system)}
                       >
                         <Star className="h-4 w-4 mr-1" />
                         Definir como Padrão
