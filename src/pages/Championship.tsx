@@ -18,6 +18,7 @@ import { useChampionship } from "@/hooks/use-championship";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription } from "brk-design-system";
 import { AlertTriangle } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 /**
  * Página principal do campeonato
@@ -28,6 +29,7 @@ export const Championship = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("temporadas");
+  const isMobile = useIsMobile();
 
   // Mapeamento de tabs (aceita inglês e português)
   const tabMapping: { [key: string]: string } = {
@@ -144,7 +146,9 @@ export const Championship = () => {
       }} className="h-full">
         {/* Seção das tabs com fundo escuro - sem espaçamento do header */}
         <div className="bg-dark-900 border-b border-white/10 -mx-6">
-          <div className="px-10">
+          <div 
+            className={`px-4 sm:px-10 ${isMobile ? 'overflow-x-auto whitespace-nowrap scrollbar-hide' : ''}`}
+          >
             <TabsList className="bg-transparent border-0 h-auto p-0 space-x-0">
               <TabsTrigger 
                 value="temporadas" 
