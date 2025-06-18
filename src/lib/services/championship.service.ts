@@ -1,20 +1,12 @@
 import api from '../axios';
 import { Category } from './category.service';
+import { Season } from './season.service';
 
 export interface Sponsor {
   id?: string;
   name: string;
   logoImage: string;
   website?: string;
-}
-
-export interface Season {
-  id: string;
-  name: string;
-  status: string;
-  startDate: string;
-  endDate: string;
-  categories?: Category[];
 }
 
 export interface ChampionshipData {

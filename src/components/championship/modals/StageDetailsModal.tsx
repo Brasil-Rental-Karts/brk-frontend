@@ -33,7 +33,7 @@ interface StageDetailsModalProps {
 interface CategoryWithParticipants {
   id: string;
   name: string;
-  ballast: string;
+  ballast: number;
   participants: StageParticipation[];
   totalRegistered: number;
 }

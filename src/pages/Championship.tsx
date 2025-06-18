@@ -19,6 +19,12 @@ import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription } from "brk-design-system";
 import { AlertTriangle } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Category } from "@/lib/services/category.service";
+import { Season as BaseSeason } from "@/lib/services/season.service";
+import { Stage } from "@/lib/types/stage";
+
+// Estende a interface base da temporada para incluir as categorias
+type Season = BaseSeason & { categories?: Category[]; stages?: Stage[] };
 
 /**
  * Página principal do campeonato
@@ -69,7 +75,8 @@ export const Championship = () => {
 
     const tabFromUrl = searchParams.get("tab");
     const hasSeasons = championship.seasons.length > 0;
-    const hasCategories = hasSeasons && championship.seasons.some(s => s.categories && s.categories.length > 0);
+    const hasCategories = hasSeasons && (championship.seasons as Season[]).some(s => s.categories && s.categories.length > 0);
+    const hasStages = hasSeasons && (championship.seasons as Season[]).some(s => s.stages && s.stages.length > 0);
 
     const disabledTabsWithoutSeasons = ['categorias', 'etapas', 'pilotos', 'classificacao'];
     const disabledTabsWithoutCategories = ['etapas', 'pilotos', 'classificacao'];
@@ -130,7 +137,8 @@ export const Championship = () => {
   }
 
   const hasSeasons = !!championship?.seasons?.length;
-  const hasCategories = hasSeasons && championship.seasons!.some(s => s.categories && s.categories.length > 0);
+  const hasCategories = hasSeasons && (championship.seasons as Season[]).some(s => s.categories && s.categories.length > 0);
+  const hasStages = hasSeasons && (championship.seasons as Season[]).some(s => s.stages && s.stages.length > 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -165,7 +173,7 @@ export const Championship = () => {
               </TabsTrigger>
               <TabsTrigger 
                 value="etapas" 
-                disabled={!hasCategories}
+                disabled={!hasCategories || !hasStages}
                 className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
               >
                 Etapas
@@ -191,19 +199,37 @@ export const Championship = () => {
         {/* Conteúdo das tabs com espaçamento fixo */}
         <div className="px-4 pt-6">
           <TabsContent value="temporadas" className="mt-0 ring-0 focus-visible:outline-none">
-            <SeasonsTab championshipId={id} />
+            <SeasonsTab 
+              championshipId={id} 
+              seasons={championship.seasons || []}
+              isLoading={loading}
+              error={error}
+              onRefresh={refresh}
+            />
           </TabsContent>
 
           {hasSeasons ? (
             <>
               <TabsContent value="categorias" className="mt-0 ring-0 focus-visible:outline-none">
-                <CategoriesTab championshipId={id} />
+                <CategoriesTab 
+                  championshipId={id}
+                  seasons={championship.seasons || []}
+                  isLoading={loading}
+                  error={error}
+                  onRefresh={refresh}
+                />
               </TabsContent>
     
               {hasCategories ? (
                 <>
                   <TabsContent value="etapas" className="mt-0 ring-0 focus-visible:outline-none">
-                    <StagesTab championshipId={id} />
+                    <StagesTab 
+                      championshipId={id}
+                      seasons={championship.seasons || []}
+                      isLoading={loading}
+                      error={error}
+                      onRefresh={refresh}
+                    />
                   </TabsContent>
         
                   <TabsContent value="pilotos" className="mt-0 ring-0 focus-visible:outline-none">

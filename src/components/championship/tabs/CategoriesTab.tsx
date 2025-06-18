@@ -1,9 +1,9 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "brk-design-system";
-import { Card } from "brk-design-system";
+import { Card, CardHeader, CardContent } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { PlusCircle, Tag, Users, MoreVertical, Calendar, Hash } from "lucide-react";
+import { PlusCircle, Tag, Users, MoreVertical, Calendar, Hash, Loader2 } from "lucide-react";
 import { EmptyState } from "brk-design-system";
 import {
   DropdownMenu,
@@ -31,7 +31,7 @@ import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynami
 import { Pagination } from "brk-design-system";
 import { usePagination } from "@/hooks/usePagination";
 import { CategoryService, Category } from "@/lib/services/category.service";
-import { SeasonService } from "@/lib/services/season.service";
+import { Season as BaseSeason } from "@/lib/services/season.service";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import {
@@ -40,9 +40,17 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "brk-design-system";
+import { useIsMobile } from "@/hooks/use-mobile";
+
+// Estende a interface base da temporada para incluir as categorias
+type Season = BaseSeason & { categories?: Category[] };
 
 interface CategoriesTabProps {
   championshipId: string;
+  seasons: Season[];
+  isLoading: boolean;
+  error: string | null;
+  onRefresh: () => void;
 }
 
 // Configuração inicial dos filtros
@@ -56,20 +64,50 @@ const createFilterFields = (seasonOptions: { value: string; label: string }[] = 
   }
 ];
 
+// Tipo local para incluir o nome da temporada
+type CategoryWithSeasonName = Category & { seasonName: string };
+
+const CategoryCard = ({ category }: { category: CategoryWithSeasonName }) => {
+  return (
+    <Card className="w-full">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <h3 className="text-lg font-semibold tracking-tight">{category.name}</h3>
+        <Badge variant="outline">{category.seasonName}</Badge>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="text-sm text-muted-foreground">
+          Idade mínima: {category.minimumAge} anos
+        </div>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="flex flex-col">
+            <span className="text-muted-foreground">Lastro</span>
+            <span className="font-medium capitalize">{category.ballast}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-muted-foreground">Máx. Pilotos</span>
+            <span className="font-medium">{category.maxPilots}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-muted-foreground">Baterias</span>
+            <span className="font-medium">{category.batteriesConfig?.length || 0}</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+
 /**
  * Tab de categorias do campeonato
  * Exibe e gerencia as categorias de um campeonato específico
  */
-export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
+export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initialError, onRefresh }: CategoriesTabProps) => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortBy, setSortBy] = useState<keyof Category>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [seasonOptions, setSeasonOptions] = useState<{ value: string; label: string }[]>([]);
-  const [canCreateCategory, setCanCreateCategory] = useState(false);
 
   // Estados para o modal de exclusão
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -77,93 +115,25 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Memoizar a configuração dos filtros para evitar re-renders
+  const seasonOptions = useMemo(() => [
+    { value: 'all', label: 'Todas as temporadas' },
+    ...seasons.map((season) => ({ value: season.id, label: season.name }))
+  ], [seasons]);
+
   const filterFields = useMemo(() => createFilterFields(seasonOptions), [seasonOptions]);
-
-  // Buscar temporadas do campeonato (apenas uma vez)
-  const fetchSeasons = useCallback(async () => {
-    try {
-      const seasonsData = await SeasonService.getByChampionshipId(championshipId, 1, 100);
-      
-      const hasCreatableSeason = seasonsData.data.some((season: any) => season.status !== 'cancelado');
-      setCanCreateCategory(hasCreatableSeason);
-
-      // Atualizar opções do filtro
-      const newSeasonOptions = [
-        { value: 'all', label: 'Todas as temporadas' },
-        ...seasonsData.data.map((season: any) => ({
-          value: season.id,
-          label: season.name
-        }))
-      ];
-      setSeasonOptions(newSeasonOptions);
-      return seasonsData.data;
-    } catch (err: any) {
-      console.error('Error loading seasons:', err);
-      return [];
-    }
-  }, [championshipId]);
-
-  // Buscar categorias do backend
-  const fetchCategories = useCallback(async (seasons: any[] = []) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Buscar categorias
-      let allCategories: Category[] = [];
-      
-      if (filters.seasonId && filters.seasonId !== 'all') {
-        // Se filtro por temporada específica
-        allCategories = await CategoryService.getBySeasonId(filters.seasonId as string);
-      } else {
-        // Buscar de todas as temporadas
-        for (const season of seasons) {
-          try {
-            const seasonCategories = await CategoryService.getBySeasonId(season.id);
-            allCategories.push(...seasonCategories);
-          } catch (err) {
-            console.warn(`Error loading categories for season ${season.id}:`, err);
-          }
-        }
-      }
-
-      setCategories(allCategories);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar categorias');
-      setCategories([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters.seasonId]);
-
-  // Carregar dados iniciais apenas uma vez
-  useEffect(() => {
-    let mounted = true;
-    
-    const initializeData = async () => {
-      try {
-        const seasons = await fetchSeasons();
-        if (mounted) {
-          await fetchCategories(seasons);
-        }
-      } catch (error) {
-        console.error('Error initializing data:', error);
-      }
-    };
-    
-    initializeData();
-    
-    return () => {
-      mounted = false;
-    };
-  }, [championshipId]);
+  
+  const canCreateCategory = useMemo(() => seasons.some((s) => s.status !== 'cancelado'), [seasons]);
 
   // Aplicar filtros e ordenação aos dados
-  const processedCategories = useMemo(() => {
-    if (categories.length === 0) return [];
+  const filteredCategories = useMemo(() => {
+    const allCategories: CategoryWithSeasonName[] = seasons.flatMap(season => 
+      (season.categories || []).map((category: Category) => ({
+        ...category,
+        seasonName: season.name
+      }))
+    );
     
-    let result = [...categories];
+    let result = [...allCategories];
 
     // Aplicar filtros
     if (filters.seasonId && filters.seasonId !== 'all') {
@@ -180,34 +150,70 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
         bValue = bValue.toLowerCase();
       }
 
-      if (aValue < bValue) {
-        return sortOrder === 'asc' ? -1 : 1;
-      }
-      if (aValue > bValue) {
-        return sortOrder === 'asc' ? 1 : -1;
-      }
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
       return 0;
     });
 
     return result;
-  }, [categories, filters, sortBy, sortOrder]);
+  }, [seasons, filters, sortBy, sortOrder]);
 
-  // Configuração da paginação (baseada nas categorias filtradas)
-  const pagination = usePagination(processedCategories.length, 5, 1);
+  // --- Lógica para Desktop (Paginação) ---
+  const pagination = usePagination(filteredCategories.length, 5, 1);
+  const paginatedDesktopCategories = useMemo(() => {
+    if (isMobile) return [];
+    return filteredCategories.slice(pagination.info.startIndex, pagination.info.endIndex);
+  }, [isMobile, filteredCategories, pagination.info.startIndex, pagination.info.endIndex]);
 
-  // Aplicar paginação aos dados processados
-  const paginatedCategories = useMemo(() => {
-    const startIndex = (pagination.state.currentPage - 1) * pagination.state.itemsPerPage;
-    const endIndex = startIndex + pagination.state.itemsPerPage;
-    return processedCategories.slice(startIndex, endIndex);
-  }, [processedCategories, pagination.state.currentPage, pagination.state.itemsPerPage]);
+  // --- Lógica para Mobile (Scroll Infinito) ---
+  const [visibleMobileCategories, setVisibleMobileCategories] = useState<CategoryWithSeasonName[]>([]);
+  const [mobilePage, setMobilePage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const observer = useRef<IntersectionObserver>();
+  const itemsPerPage = 5;
+
+  useEffect(() => {
+    if (isMobile) {
+      setVisibleMobileCategories(filteredCategories.slice(0, itemsPerPage));
+      setMobilePage(2);
+      setHasMore(filteredCategories.length > itemsPerPage);
+    }
+  }, [isMobile, filteredCategories]);
+
+  const lastCategoryElementRef = useCallback((node: HTMLElement | null) => {
+    if (loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setLoadingMore(true);
+        setTimeout(() => {
+          const newCategories = filteredCategories.slice(0, mobilePage * itemsPerPage);
+          setVisibleMobileCategories(newCategories);
+          setHasMore(newCategories.length < filteredCategories.length);
+          setMobilePage(prev => prev + 1);
+          setLoadingMore(false);
+        }, 300);
+      }
+    });
+
+    if (node) observer.current.observe(node);
+  }, [loadingMore, hasMore, mobilePage, filteredCategories]);
+  
+  const processedCategories = isMobile ? visibleMobileCategories : paginatedDesktopCategories;
 
   const handleSort = (column: keyof Category) => {
-    if (sortBy === column) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(column);
-      setSortOrder("asc");
+    setSortBy(prevSortBy => {
+      if (prevSortBy === column) {
+        setSortOrder(prevOrder => (prevOrder === 'asc' ? 'desc' : 'asc'));
+      } else {
+        setSortOrder('asc');
+      }
+      return column;
+    });
+    if (!isMobile) {
+      pagination.actions.goToFirstPage();
     }
   };
 
@@ -233,14 +239,7 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
 
     try {
       await CategoryService.delete(categoryToDelete.id);
-      
-      // Atualizar a lista de categorias
-      const seasons = seasonOptions
-        .filter(option => option.value !== 'all')
-        .map(option => ({ id: option.value, name: option.label }));
-      await fetchCategories(seasons);
-      
-      // Fechar o modal
+      onRefresh(); // Notificar componente pai para re-buscar os dados
       setShowDeleteDialog(false);
       setCategoryToDelete(null);
     } catch (err: any) {
@@ -257,7 +256,7 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
   };
 
   const handleCategoryAction = (action: string, categoryId: string) => {
-    const category = categories.find(c => c.id === categoryId);
+    const category = filteredCategories.find(c => c.id === categoryId);
     if (!category) return;
 
     switch (action) {
@@ -274,28 +273,17 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
     }
   };
 
-  const getSeasonName = (seasonId: string) => {
-    // Buscar nome da temporada do cache
-    const seasonOption = seasonOptions.find((opt: any) => opt.value === seasonId);
-    return seasonOption ? seasonOption.label : 'Temporada não encontrada';
-  };
-
   const handleFiltersChange = useCallback((newFilters: FilterValues) => {
     setFilters(newFilters);
-    // Reset para primeira página quando filtros mudam
-    pagination.actions.goToFirstPage();
-  }, [pagination.actions.goToFirstPage]);
+    if (!isMobile) {
+      pagination.actions.goToFirstPage();
+    }
+  }, [isMobile, pagination.actions]);
 
-  // Handlers diretos para paginação
-  const handlePageChange = useCallback((page: number) => {
-    pagination.actions.setCurrentPage(page);
-  }, [pagination.actions.setCurrentPage]);
+  const handlePageChange = (page: number) => pagination.actions.setCurrentPage(page);
+  const handleItemsPerPageChange = (items: number) => pagination.actions.setItemsPerPage(items);
 
-  const handleItemsPerPageChange = useCallback((itemsPerPage: number) => {
-    pagination.actions.setItemsPerPage(itemsPerPage);
-  }, [pagination.actions.setItemsPerPage]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <Card className="w-full">
         <div className="p-6 space-y-4">
@@ -313,16 +301,16 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
     );
   }
 
-  if (error) {
+  if (initialError) {
     return (
       <Card className="w-full">
         <div className="p-6">
           <Alert variant="destructive">
             <AlertTitle>Erro ao carregar categorias</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>{initialError}</AlertDescription>
           </Alert>
           <div className="mt-4">
-            <Button onClick={() => window.location.reload()} variant="outline">
+            <Button onClick={onRefresh} variant="outline">
               Tentar novamente
             </Button>
           </div>
@@ -331,7 +319,7 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
     );
   }
 
-  if (processedCategories.length === 0 && Object.keys(filters).length === 0) {
+  if (filteredCategories.length === 0 && Object.keys(filters).length === 0) {
     return (
       <EmptyState
         icon={Tag}
@@ -382,150 +370,170 @@ export const CategoriesTab = ({ championshipId }: CategoriesTabProps) => {
           </Tooltip>
         </TooltipProvider>
       </div>
-
-      {/* Tabela de categorias */}
-      <Card className="w-full flex flex-col">
-        <div className="flex-1 overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 min-w-[200px]"
-                  onClick={() => handleSort("name")}
-                >
-                  <div className="flex items-center gap-2">
-                    Nome da Categoria
-                    {sortBy === "name" && (
-                      <span className="text-xs">
-                        {sortOrder === "asc" ? "↑" : "↓"}
-                      </span>
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead className="text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Temporada
-                  </div>
-                </TableHead>
-                <TableHead className="text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    Lastro
-                  </div>
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 text-center"
-                  onClick={() => handleSort("maxPilots")}
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Máx. Pilotos
-                    {sortBy === "maxPilots" && (
-                      <span className="text-xs">
-                        {sortOrder === "asc" ? "↑" : "↓"}
-                      </span>
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead className="text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <Hash className="h-4 w-4" />
-                    Baterias
-                  </div>
-                </TableHead>
-                <TableHead className="text-center">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {processedCategories.length === 0 ? (
+      
+      {isMobile ? (
+        <>
+          <div className="space-y-4">
+            {processedCategories.map((category, index) => (
+              <div key={category.id} ref={processedCategories.length === index + 1 ? lastCategoryElementRef : null} onClick={() => handleEditCategory(category.id)}>
+                 <CategoryCard category={category as CategoryWithSeasonName} />
+              </div>
+            ))}
+          </div>
+          {loadingMore && (
+            <div className="flex justify-center items-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          )}
+          {!loadingMore && !hasMore && processedCategories.length > 0 && (
+            <div className="text-center text-sm text-muted-foreground py-4">
+              Fim dos resultados.
+            </div>
+          )}
+        </>
+      ) : (
+        <Card className="w-full flex flex-col">
+          <div className="flex-1 overflow-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    Nenhuma categoria encontrada com os filtros aplicados
-                  </TableCell>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 min-w-[200px]"
+                    onClick={() => handleSort("name")}
+                  >
+                    <div className="flex items-center gap-2">
+                      Nome da Categoria
+                      {sortBy === "name" && (
+                        <span className="text-xs">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Temporada
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      Lastro
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 text-center"
+                    onClick={() => handleSort("maxPilots")}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Máx. Pilotos
+                      {sortBy === "maxPilots" && (
+                        <span className="text-xs">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <Hash className="h-4 w-4" />
+                      Baterias
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
-              ) : (
-                paginatedCategories.map((category) => (
-                  <TableRow key={category.id} className="hover:bg-muted/50">
-                    <TableCell className="py-4">
-                      <div>
-                        <div className="font-medium">{category.name}</div>
-                        <div className="text-sm text-muted-foreground mt-1">
-                          Idade mín: {category.minimumAge} anos
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <Badge variant="outline">
-                        {getSeasonName(category.seasonId)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <div className="text-sm font-medium">
-                        {category.ballast}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <div className="text-sm font-medium">
-                        {category.maxPilots}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        pilotos
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <div className="text-sm font-medium">
-                        {category.batteriesConfig?.length || 0}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {category.batteriesConfig?.length === 1 ? 'bateria' : 'baterias'}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleCategoryAction("view", category.id)}>
-                            Ver detalhes
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleCategoryAction("edit", category.id)}>
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleCategoryAction("delete", category.id)}
-                            className="text-destructive"
-                          >
-                            Excluir
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+              </TableHeader>
+              <TableBody>
+                {processedCategories.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      Nenhuma categoria encontrada com os filtros aplicados
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        
-        {/* Paginação sempre fixada na parte inferior */}
-        <div className="flex-shrink-0">
-          <Pagination
-            currentPage={pagination.state.currentPage}
-            totalPages={pagination.info.totalPages}
-            itemsPerPage={pagination.state.itemsPerPage}
-            totalItems={pagination.state.totalItems}
-            startIndex={pagination.info.startIndex}
-            endIndex={pagination.info.endIndex}
-            hasNextPage={pagination.info.hasNextPage}
-            hasPreviousPage={pagination.info.hasPreviousPage}
-            onPageChange={handlePageChange}
-            onItemsPerPageChange={handleItemsPerPageChange}
-          />
-        </div>
-      </Card>
+                ) : (
+                  (processedCategories as CategoryWithSeasonName[]).map((category) => (
+                    <TableRow key={category.id} className="hover:bg-muted/50">
+                      <TableCell className="py-4">
+                        <div>
+                          <div className="font-medium">{category.name}</div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            Idade mín: {category.minimumAge} anos
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <Badge variant="outline">
+                          {category.seasonName}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <div className="text-sm font-medium">
+                          {category.ballast}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <div className="text-sm font-medium">
+                          {category.maxPilots}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          pilotos
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <div className="text-sm font-medium">
+                          {category.batteriesConfig?.length || 0}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {category.batteriesConfig?.length === 1 ? 'bateria' : 'baterias'}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleCategoryAction("view", category.id)}>
+                              Ver detalhes
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleCategoryAction("edit", category.id)}>
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleCategoryAction("delete", category.id)}
+                              className="text-destructive"
+                            >
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          
+          <div className="flex-shrink-0">
+            <Pagination
+              currentPage={pagination.state.currentPage}
+              totalPages={pagination.info.totalPages}
+              itemsPerPage={pagination.state.itemsPerPage}
+              totalItems={pagination.state.totalItems}
+              startIndex={pagination.info.startIndex}
+              endIndex={pagination.info.endIndex}
+              hasNextPage={pagination.info.hasNextPage}
+              hasPreviousPage={pagination.info.hasPreviousPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
+          </div>
+        </Card>
+      )}
 
       {/* Modal de confirmação de exclusão */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

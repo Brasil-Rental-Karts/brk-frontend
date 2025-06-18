@@ -24,29 +24,12 @@ import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 
 import { SeasonService, Season } from "@/lib/services/season.service";
-import { CategoryService } from "@/lib/services/category.service";
-import { StageService } from "@/lib/services/stage.service";
+import { CategoryService, Category } from "@/lib/services/category.service";
+import { StageService, Stage } from "@/lib/services/stage.service";
 import { SeasonRegistrationService } from "@/lib/services/season-registration.service";
 
 interface ClassificationTabProps {
   championshipId: string;
-}
-
-interface Category {
-  id: string;
-  name: string;
-  ballast: string;
-  seasonId: string;
-  batteriesConfig: any[];
-}
-
-interface Stage {
-  id: string;
-  name: string;
-  date: string;
-  doublePoints: boolean;
-  seasonId: string;
-  categoryIds: string[];
 }
 
 interface Pilot {

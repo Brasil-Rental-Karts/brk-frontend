@@ -1,9 +1,9 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "brk-design-system";
-import { Card } from "brk-design-system";
+import { Card, CardHeader, CardContent } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { PlusCircle, MapPin, Clock, Users, MoreVertical, Calendar, Flag, Link as LinkIcon } from "lucide-react";
+import { PlusCircle, MapPin, Clock, Users, MoreVertical, Calendar, Flag, Link as LinkIcon, Loader2 } from "lucide-react";
 import { EmptyState } from "brk-design-system";
 import {
   DropdownMenu,
@@ -31,7 +31,8 @@ import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynami
 import { Pagination } from "brk-design-system";
 import { usePagination } from "@/hooks/usePagination";
 import { StageService } from "@/lib/services/stage.service";
-import { SeasonService } from "@/lib/services/season.service";
+import { Season as BaseSeason } from "@/lib/services/season.service";
+import { Category } from "@/lib/services/category.service";
 import { Stage } from "@/lib/types/stage";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
@@ -42,10 +43,20 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "brk-design-system";
+import { useIsMobile } from "@/hooks/use-mobile";
+
+
+type Season = BaseSeason & { categories?: Category[], stages?: Stage[] };
+type StageWithSeasonName = Stage & { seasonName: string };
 
 interface StagesTabProps {
   championshipId: string;
+  seasons: Season[];
+  isLoading: boolean;
+  error: string | null;
+  onRefresh: () => void;
 }
+
 
 // Configuração inicial dos filtros
 const createFilterFields = (seasonOptions: { value: string; label: string }[] = []): FilterField[] => [
@@ -71,21 +82,60 @@ const createFilterFields = (seasonOptions: { value: string; label: string }[] = 
   }
 ];
 
+const StageCard = ({ stage, onAction, getStageStatusBadge }: { stage: StageWithSeasonName, onAction: (action: string, stageId: string) => void, getStageStatusBadge: (stage: Stage) => JSX.Element }) => {
+  return (
+    <Card className="w-full" onClick={() => onAction("view", stage.id)}>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <h3 className="text-lg font-semibold tracking-tight">{stage.name}</h3>
+        {getStageStatusBadge(stage)}
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {stage.doublePoints && (
+          <Badge variant="outline" className="w-fit text-xs">
+            Pontos em dobro
+          </Badge>
+        )}
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="flex flex-col">
+            <span className="text-muted-foreground">Data</span>
+            <span className="font-medium">{StageService.formatDate(stage.date)}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-muted-foreground">Hora</span>
+            <span className="font-medium flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {StageService.formatTime(stage.time)}
+            </span>
+          </div>
+          <div className="flex flex-col col-span-2">
+            <span className="text-muted-foreground">Kartódromo</span>
+            <span className="font-medium">{stage.kartodrome}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-muted-foreground">Temporada</span>
+            <Badge variant="outline" className="w-fit mt-1">{stage.seasonName}</Badge>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-muted-foreground">Categorias</span>
+            <span className="font-medium">{stage.categoryIds.length}</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+
 /**
  * Tab de etapas do campeonato
  * Exibe e gerencia as etapas de um campeonato específico
  */
-export const StagesTab = ({ championshipId }: StagesTabProps) => {
+export const StagesTab = ({ championshipId, seasons, isLoading, error: initialError, onRefresh }: StagesTabProps) => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortBy, setSortBy] = useState<keyof Stage>("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [stages, setStages] = useState<Stage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [seasonOptions, setSeasonOptions] = useState<{ value: string; label: string }[]>([]);
-  const [seasonMap, setSeasonMap] = useState<{ [key: string]: any }>({});
-  const [canCreateStage, setCanCreateStage] = useState(false);
 
   // Estados para o modal de exclusão
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -97,108 +147,30 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [stageToView, setStageToView] = useState<Stage | null>(null);
 
-  // Memoizar a configuração dos filtros para evitar re-renders
+  const seasonOptions = useMemo(() => [
+    { value: 'all', label: 'Todas as temporadas' },
+    ...seasons.map((season) => ({ value: season.id, label: season.name }))
+  ], [seasons]);
+
   const filterFields = useMemo(() => createFilterFields(seasonOptions), [seasonOptions]);
-
-  // Buscar temporadas do campeonato (apenas uma vez)
-  const fetchSeasons = useCallback(async () => {
-    try {
-      const seasonsData = await SeasonService.getByChampionshipId(championshipId, 1, 100);
-      
-      const hasCreatableSeason = seasonsData.data.some((season: any) => season.status !== 'cancelado');
-      setCanCreateStage(hasCreatableSeason);
-
-      // Criar mapa de temporadas
-      const newSeasonMap: { [key: string]: any } = {};
-      seasonsData.data.forEach((season: any) => {
-        newSeasonMap[season.id] = season;
-      });
-      setSeasonMap(newSeasonMap);
-      
-      // Atualizar opções do filtro
-      const newSeasonOptions = [
-        { value: 'all', label: 'Todas as temporadas' },
-        ...seasonsData.data.map((season: any) => ({
-          value: season.id,
-          label: season.name
-        }))
-      ];
-      setSeasonOptions(newSeasonOptions);
-      return seasonsData.data;
-    } catch (err: any) {
-      console.error('Error loading seasons:', err);
-      return [];
-    }
-  }, [championshipId]);
-
-  // Buscar etapas do backend
-  const fetchStages = useCallback(async (seasons: any[] = []) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Buscar etapas
-      let allStages: Stage[] = [];
-      
-      if (filters.seasonId && filters.seasonId !== 'all') {
-        // Se filtro por temporada específica
-        allStages = await StageService.getBySeasonId(filters.seasonId as string);
-      } else {
-        // Buscar de todas as temporadas
-        for (const season of seasons) {
-          try {
-            const seasonStages = await StageService.getBySeasonId(season.id);
-            allStages.push(...seasonStages);
-          } catch (err) {
-            console.warn(`Error loading stages for season ${season.id}:`, err);
-          }
-        }
-      }
-
-      setStages(allStages);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar etapas');
-      setStages([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters.seasonId]);
-
-
-
-  // Carregar dados iniciais apenas uma vez
-  useEffect(() => {
-    let mounted = true;
-    
-    const initializeData = async () => {
-      try {
-        const seasons = await fetchSeasons();
-        if (mounted) {
-          await fetchStages(seasons);
-        }
-      } catch (error) {
-        console.error('Error initializing data:', error);
-      }
-    };
-    
-    initializeData();
-    
-    return () => {
-      mounted = false;
-    };
-  }, [championshipId]);
+  
+  const canCreateStage = useMemo(() => seasons.some((s) => s.status !== 'cancelado'), [seasons]);
 
   // Aplicar filtros e ordenação aos dados
-  const processedStages = useMemo(() => {
-    if (stages.length === 0) return [];
-    
-    let result = [...stages];
+  const filteredStages = useMemo(() => {
+    const allStages: StageWithSeasonName[] = seasons.flatMap(season => 
+      (season.stages || []).map(stage => ({
+        ...stage,
+        seasonName: season.name
+      }))
+    );
+
+    let result = [...allStages];
 
     // Aplicar filtros
     if (filters.seasonId && filters.seasonId !== 'all') {
       result = result.filter(stage => stage.seasonId === filters.seasonId);
     }
-
     if (filters.status && filters.status !== 'all') {
       result = result.filter(stage => {
         const status = StageService.getStageStatus(stage.date, stage.time);
@@ -211,7 +183,6 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
       let aValue: any = a[sortBy];
       let bValue: any = b[sortBy];
 
-      // Tratamento especial para data
       if (sortBy === 'date') {
         aValue = new Date(aValue);
         bValue = new Date(bValue);
@@ -220,34 +191,72 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
         bValue = bValue.toLowerCase();
       }
 
-      if (aValue < bValue) {
-        return sortOrder === 'asc' ? -1 : 1;
-      }
-      if (aValue > bValue) {
-        return sortOrder === 'asc' ? 1 : -1;
-      }
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
       return 0;
     });
 
     return result;
-  }, [stages, filters, sortBy, sortOrder]);
+  }, [seasons, filters, sortBy, sortOrder]);
 
-  // Configuração da paginação (baseada nas etapas filtradas)
-  const pagination = usePagination(processedStages.length, 5, 1);
 
-  // Aplicar paginação aos dados processados
-  const paginatedStages = useMemo(() => {
-    const startIndex = (pagination.state.currentPage - 1) * pagination.state.itemsPerPage;
-    const endIndex = startIndex + pagination.state.itemsPerPage;
-    return processedStages.slice(startIndex, endIndex);
-  }, [processedStages, pagination.state.currentPage, pagination.state.itemsPerPage]);
+  // --- Lógica para Desktop (Paginação) ---
+  const pagination = usePagination(filteredStages.length, 5, 1);
+  const paginatedDesktopStages = useMemo(() => {
+    if (isMobile) return [];
+    return filteredStages.slice(pagination.info.startIndex, pagination.info.endIndex);
+  }, [isMobile, filteredStages, pagination.info.startIndex, pagination.info.endIndex]);
+
+
+  // --- Lógica para Mobile (Scroll Infinito) ---
+  const [visibleMobileStages, setVisibleMobileStages] = useState<StageWithSeasonName[]>([]);
+  const [mobilePage, setMobilePage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const observer = useRef<IntersectionObserver>();
+  const itemsPerPage = 5;
+
+  useEffect(() => {
+    if (isMobile) {
+      setVisibleMobileStages(filteredStages.slice(0, itemsPerPage));
+      setMobilePage(2);
+      setHasMore(filteredStages.length > itemsPerPage);
+    }
+  }, [isMobile, filteredStages]);
+
+  const lastStageElementRef = useCallback((node: HTMLElement | null) => {
+    if (loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setLoadingMore(true);
+        setTimeout(() => {
+          const newStages = filteredStages.slice(0, mobilePage * itemsPerPage);
+          setVisibleMobileStages(newStages);
+          setHasMore(newStages.length < filteredStages.length);
+          setMobilePage(prev => prev + 1);
+          setLoadingMore(false);
+        }, 300);
+      }
+    });
+
+    if (node) observer.current.observe(node);
+  }, [loadingMore, hasMore, mobilePage, filteredStages]);
+
+  const processedStages = isMobile ? visibleMobileStages : paginatedDesktopStages;
 
   const handleSort = (column: keyof Stage) => {
-    if (sortBy === column) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(column);
-      setSortOrder("asc");
+    setSortBy(prevSortBy => {
+      if (prevSortBy === column) {
+        setSortOrder(prevOrder => (prevOrder === 'asc' ? 'desc' : 'asc'));
+      } else {
+        setSortOrder('asc');
+      }
+      return column;
+    });
+    if (!isMobile) {
+      pagination.actions.goToFirstPage();
     }
   };
 
@@ -273,10 +282,7 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
 
     try {
       await StageService.delete(stageToDelete.id);
-      
-      // Remover da lista local
-      setStages(prev => prev.filter(s => s.id !== stageToDelete.id));
-      
+      onRefresh(); // Notificar o componente pai
       setShowDeleteDialog(false);
       setStageToDelete(null);
     } catch (err: any) {
@@ -293,7 +299,7 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
   };
 
   const handleStageAction = (action: string, stageId: string) => {
-    const stage = stages.find(s => s.id === stageId);
+    const stage = filteredStages.find(s => s.id === stageId);
     if (!stage) return;
 
     switch (action) {
@@ -312,24 +318,15 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
     }
   };
 
-  // Handlers diretos para paginação
-  const handlePageChange = useCallback((page: number) => {
-    pagination.actions.setCurrentPage(page);
-  }, [pagination.actions.setCurrentPage]);
-
-  const handleItemsPerPageChange = useCallback((itemsPerPage: number) => {
-    pagination.actions.setItemsPerPage(itemsPerPage);
-  }, [pagination.actions.setItemsPerPage]);
-
   const handleFiltersChange = useCallback((newFilters: FilterValues) => {
     setFilters(newFilters);
-    // Reset para primeira página quando filtros mudam
-    pagination.actions.goToFirstPage();
-  }, [pagination.actions.goToFirstPage]);
+    if (!isMobile) {
+      pagination.actions.goToFirstPage();
+    }
+  }, [isMobile, pagination.actions]);
 
-  const getSeasonName = (seasonId: string) => {
-    return seasonMap[seasonId]?.name || 'Temporada não encontrada';
-  };
+  const handlePageChange = (page: number) => pagination.actions.setCurrentPage(page);
+  const handleItemsPerPageChange = (items: number) => pagination.actions.setItemsPerPage(items);
 
   const getStageStatusBadge = (stage: Stage) => {
     const status = StageService.getStageStatus(stage.date, stage.time);
@@ -348,12 +345,7 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
     }
   };
 
-  const refreshStages = async () => {
-    const seasons = Object.values(seasonMap);
-    await fetchStages(seasons);
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
       <Card className="w-full">
         <div className="p-6 space-y-4">
@@ -371,16 +363,16 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
     );
   }
 
-  if (error) {
+  if (initialError) {
     return (
       <Card className="w-full">
         <div className="p-6">
           <Alert variant="destructive">
             <AlertTitle>Erro ao carregar etapas</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>{initialError}</AlertDescription>
           </Alert>
           <div className="mt-4">
-            <Button onClick={refreshStages} variant="outline">
+            <Button onClick={onRefresh} variant="outline">
               Tentar novamente
             </Button>
           </div>
@@ -389,7 +381,7 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
     );
   }
 
-  if (processedStages.length === 0 && Object.keys(filters).length === 0) {
+  if (filteredStages.length === 0 && Object.keys(filters).length === 0) {
     return (
       <EmptyState
         icon={Flag}
@@ -441,166 +433,191 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
         </TooltipProvider>
       </div>
 
-      {/* Tabela de etapas */}
-      <Card className="w-full flex flex-col">
-        <div className="flex-1 overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 min-w-[200px]"
-                  onClick={() => handleSort("name")}
-                >
-                  <div className="flex items-center gap-2">
-                    <Flag className="h-4 w-4" />
-                    Nome da Etapa
-                    {sortBy === "name" && (
-                      <span className="text-xs">
-                        {sortOrder === "asc" ? "↑" : "↓"}
-                      </span>
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 text-center"
-                  onClick={() => handleSort("date")}
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Data e Hora
-                    {sortBy === "date" && (
-                      <span className="text-xs">
-                        {sortOrder === "asc" ? "↑" : "↓"}
-                      </span>
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead className="text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Kartódromo
-                  </div>
-                </TableHead>
-                <TableHead className="text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Temporada
-                  </div>
-                </TableHead>
-                <TableHead className="text-center">Status</TableHead>
-                <TableHead className="text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Categorias
-                  </div>
-                </TableHead>
-                <TableHead className="text-center">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {processedStages.length === 0 ? (
+      {isMobile ? (
+         <>
+          <div className="space-y-4">
+            {processedStages.map((stage, index) => (
+              <div key={stage.id} ref={processedStages.length === index + 1 ? lastStageElementRef : null}>
+                 <StageCard 
+                  stage={stage as StageWithSeasonName} 
+                  onAction={handleStageAction}
+                  getStageStatusBadge={getStageStatusBadge}
+                 />
+              </div>
+            ))}
+          </div>
+          {loadingMore && (
+            <div className="flex justify-center items-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          )}
+          {!loadingMore && !hasMore && processedStages.length > 0 && (
+            <div className="text-center text-sm text-muted-foreground py-4">
+              Fim dos resultados.
+            </div>
+          )}
+        </>
+      ) : (
+        <Card className="w-full flex flex-col">
+          <div className="flex-1 overflow-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    Nenhuma etapa encontrada com os filtros aplicados
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginatedStages.map((stage) => (
-                  <TableRow key={stage.id} className="hover:bg-muted/50">
-                    <TableCell className="py-4">
-                      <div>
-                        <div className="font-medium">{stage.name}</div>
-                        {stage.doublePoints && (
-                          <Badge variant="outline" className="w-fit text-xs mt-1">
-                            Pontos em dobro
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <div>
-                        <div className="font-medium">
-                          {StageService.formatDate(stage.date)}
-                        </div>
-                        <div className="text-sm text-muted-foreground flex items-center justify-center gap-1 mt-1">
-                          <Clock className="h-3 w-3" />
-                          {StageService.formatTime(stage.time)}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <div>
-                        <div className="font-medium">{stage.kartodrome}</div>
-                        <div className="text-sm text-muted-foreground mt-1">
-                          {stage.kartodromeAddress}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <Badge variant="outline">
-                        {getSeasonName(stage.seasonId)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      {getStageStatusBadge(stage)}
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <div className="flex items-center justify-center gap-1">
-                        <span className="text-sm font-medium">{stage.categoryIds.length}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {stage.categoryIds.length === 1 ? 'categoria' : 'categorias'}
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 min-w-[200px]"
+                    onClick={() => handleSort("name")}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Flag className="h-4 w-4" />
+                      Nome da Etapa
+                      {sortBy === "name" && (
+                        <span className="text-xs">
+                          {sortOrder === "asc" ? "↑" : "↓"}
                         </span>
-                        {stage.streamLink && (
-                          <LinkIcon className="h-3 w-3 ml-2 text-muted-foreground" />
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleStageAction("view", stage.id)}>
-                            Ver detalhes
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStageAction("edit", stage.id)}>
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleStageAction("delete", stage.id)}
-                            className="text-destructive"
-                          >
-                            Excluir
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 text-center"
+                    onClick={() => handleSort("date")}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Data e Hora
+                      {sortBy === "date" && (
+                        <span className="text-xs">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Kartódromo
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Temporada
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Categorias
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {processedStages.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      Nenhuma etapa encontrada com os filtros aplicados
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        
-        {/* Paginação sempre fixada na parte inferior */}
-        <div className="flex-shrink-0">
-          <Pagination
-            currentPage={pagination.state.currentPage}
-            totalPages={pagination.info.totalPages}
-            itemsPerPage={pagination.state.itemsPerPage}
-            totalItems={pagination.state.totalItems}
-            startIndex={pagination.info.startIndex}
-            endIndex={pagination.info.endIndex}
-            hasNextPage={pagination.info.hasNextPage}
-            hasPreviousPage={pagination.info.hasPreviousPage}
-            onPageChange={handlePageChange}
-            onItemsPerPageChange={handleItemsPerPageChange}
-          />
-        </div>
-      </Card>
+                ) : (
+                  (processedStages as StageWithSeasonName[]).map((stage) => (
+                    <TableRow key={stage.id} className="hover:bg-muted/50">
+                      <TableCell className="py-4">
+                        <div>
+                          <div className="font-medium">{stage.name}</div>
+                          {stage.doublePoints && (
+                            <Badge variant="outline" className="w-fit text-xs mt-1">
+                              Pontos em dobro
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <div>
+                          <div className="font-medium">
+                            {StageService.formatDate(stage.date)}
+                          </div>
+                          <div className="text-sm text-muted-foreground flex items-center justify-center gap-1 mt-1">
+                            <Clock className="h-3 w-3" />
+                            {StageService.formatTime(stage.time)}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <div>
+                          <div className="font-medium">{stage.kartodrome}</div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {stage.kartodromeAddress}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <Badge variant="outline">
+                          {stage.seasonName}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        {getStageStatusBadge(stage)}
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="text-sm font-medium">{stage.categoryIds.length}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {stage.categoryIds.length === 1 ? 'categoria' : 'categorias'}
+                          </span>
+                          {stage.streamLink && (
+                            <LinkIcon className="h-3 w-3 ml-2 text-muted-foreground" />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleStageAction("view", stage.id)}>
+                              Ver detalhes
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStageAction("edit", stage.id)}>
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleStageAction("delete", stage.id)}
+                              className="text-destructive"
+                            >
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          
+          <div className="flex-shrink-0">
+            <Pagination
+              currentPage={pagination.state.currentPage}
+              totalPages={pagination.info.totalPages}
+              itemsPerPage={pagination.state.itemsPerPage}
+              totalItems={pagination.state.totalItems}
+              startIndex={pagination.info.startIndex}
+              endIndex={pagination.info.endIndex}
+              hasNextPage={pagination.info.hasNextPage}
+              hasPreviousPage={pagination.info.hasPreviousPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
+          </div>
+        </Card>
+      )}
+
 
       {/* Modal de detalhes da etapa */}
       <StageDetailsModal
@@ -651,4 +668,4 @@ export const StagesTab = ({ championshipId }: StagesTabProps) => {
       </Dialog>
     </div>
   );
-}; 
+};

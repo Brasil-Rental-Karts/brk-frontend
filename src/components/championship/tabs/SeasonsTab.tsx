@@ -30,7 +30,7 @@ import {
 import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
 import { Pagination } from "brk-design-system";
 import { usePagination } from "@/hooks/usePagination";
-import { SeasonService, Season, PaginatedSeasons } from "@/lib/services/season.service";
+import { SeasonService, Season } from "@/lib/services/season.service";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { formatDateToBrazilian, getYearFromDate, compareDates, formatCurrency } from "@/utils/date";
@@ -38,6 +38,10 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 interface SeasonsTabProps {
   championshipId: string;
+  seasons: Season[];
+  isLoading: boolean;
+  error: string | null;
+  onRefresh: () => void;
 }
 
 // Configuração dos filtros
@@ -116,118 +120,28 @@ const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod }: { season
  * Tab de temporadas do campeonato
  * Exibe e gerencia as temporadas de um campeonato específico
  */
-export const SeasonsTab = ({ championshipId }: SeasonsTabProps) => {
+export const SeasonsTab = ({ 
+  championshipId, 
+  seasons: initialSeasons,
+  isLoading, 
+  error: initialError, 
+  onRefresh 
+}: SeasonsTabProps) => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortBy, setSortBy] = useState<keyof Season>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   
-  // --- Estados para Desktop ---
-  const [seasons, setSeasons] = useState<Season[]>([]);
-  const [totalSeasons, setTotalSeasons] = useState(0);
-  const pagination = usePagination(totalSeasons, 5, 1);
-
-  // --- Estados para Mobile ---
-  const [mobileSeasons, setMobileSeasons] = useState<Season[]>([]);
-  const [mobilePage, setMobilePage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  
-  // --- Estados compartilhados ---
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Estados para o modal de exclusão
+  // --- Estados para o modal de exclusão ---
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [seasonToDelete, setSeasonToDelete] = useState<Season | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Lógica de fetch para Desktop (paginação)
-  const fetchSeasonsForDesktop = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const result: PaginatedSeasons = await SeasonService.getByChampionshipId(
-        championshipId,
-        pagination.state.currentPage,
-        pagination.state.itemsPerPage
-      );
-      
-      setSeasons(result.data);
-      setTotalSeasons(result.total);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar temporadas');
-      setSeasons([]);
-      setTotalSeasons(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [championshipId, pagination.state.currentPage, pagination.state.itemsPerPage]);
-
-  // Lógica de fetch para Mobile (scroll infinito)
-  const fetchSeasonsForMobile = useCallback(async (page: number) => {
-    if (page === 1) {
-      setLoading(true);
-    } else {
-      setLoadingMore(true);
-    }
-    setError(null);
-
-    try {
-      const result = await SeasonService.getByChampionshipId(championshipId, page, 5);
-      
-      setMobileSeasons(prev => {
-        const newSeasons = page === 1 ? result.data : [...prev, ...result.data];
-        setHasMore(newSeasons.length < result.total);
-        return newSeasons;
-      });
-      setMobilePage(page + 1);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar temporadas');
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  }, [championshipId]);
-  
-  // Carregar dados iniciais (Desktop)
-  useEffect(() => {
-    if (!isMobile) {
-      fetchSeasonsForDesktop();
-    }
-  }, [isMobile, fetchSeasonsForDesktop]);
-
-  // Carregar dados iniciais ou resetar (Mobile)
-  useEffect(() => {
-    if (isMobile) {
-      setMobileSeasons([]);
-      setMobilePage(1);
-      setHasMore(true);
-      fetchSeasonsForMobile(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile, championshipId, JSON.stringify(filters)]);
-
-  // Intersection Observer para carregar mais no mobile
-  const observer = useRef<IntersectionObserver>();
-  const lastSeasonElementRef = useCallback((node: HTMLElement | null) => {
-    if (loadingMore) return;
-    if (observer.current) observer.current.disconnect();
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
-        fetchSeasonsForMobile(mobilePage);
-      }
-    });
-    if (node) observer.current.observe(node);
-  }, [loadingMore, hasMore, mobilePage, fetchSeasonsForMobile]);
-
   // Aplicar filtros e ordenação aos dados
-  const processedSeasons = useMemo(() => {
-    const sourceSeasons = isMobile ? mobileSeasons : seasons;
-    let result = [...sourceSeasons];
+  const filteredSeasons = useMemo(() => {
+    let result = [...initialSeasons];
 
     // Aplicar filtros
     result = result.filter(season => {
@@ -267,7 +181,58 @@ export const SeasonsTab = ({ championshipId }: SeasonsTabProps) => {
     });
 
     return result;
-  }, [isMobile, mobileSeasons, seasons, filters, sortBy, sortOrder]);
+  }, [initialSeasons, filters, sortBy, sortOrder]);
+
+  // --- Lógica para Desktop (Paginação) ---
+  const pagination = usePagination(filteredSeasons.length, 5, 1);
+  const paginatedDesktopSeasons = useMemo(() => {
+    if (isMobile) return [];
+    return filteredSeasons.slice(pagination.info.startIndex, pagination.info.endIndex);
+  }, [isMobile, filteredSeasons, pagination.info.startIndex, pagination.info.endIndex]);
+
+
+  // --- Lógica para Mobile (Scroll Infinito) ---
+  const [visibleMobileSeasons, setVisibleMobileSeasons] = useState<Season[]>([]);
+  const [mobilePage, setMobilePage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const observer = useRef<IntersectionObserver>();
+  const itemsPerPage = 5;
+
+  // Resetar scroll infinito quando os filtros ou o modo mobile mudam
+  useEffect(() => {
+    if (isMobile) {
+      setVisibleMobileSeasons(filteredSeasons.slice(0, itemsPerPage));
+      setMobilePage(2);
+      setHasMore(filteredSeasons.length > itemsPerPage);
+    }
+  }, [isMobile, filteredSeasons]);
+
+
+  // Intersection Observer para carregar mais no mobile
+  const lastSeasonElementRef = useCallback((node: HTMLElement | null) => {
+    if (loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setLoadingMore(true);
+        // Timeout para simular uma carga e evitar piscar a tela
+        setTimeout(() => {
+          const newSeasons = filteredSeasons.slice(0, mobilePage * itemsPerPage);
+          setVisibleMobileSeasons(newSeasons);
+          setHasMore(newSeasons.length < filteredSeasons.length);
+          setMobilePage(prev => prev + 1);
+          setLoadingMore(false);
+        }, 300);
+      }
+    });
+
+    if (node) observer.current.observe(node);
+  }, [loadingMore, hasMore, mobilePage, filteredSeasons]);
+
+  // Define os dados a serem processados com base no dispositivo
+  const processedSeasons = isMobile ? visibleMobileSeasons : paginatedDesktopSeasons;
 
   const handleSort = (column: keyof Season) => {
     if (sortBy === column) {
@@ -275,6 +240,10 @@ export const SeasonsTab = ({ championshipId }: SeasonsTabProps) => {
     } else {
       setSortBy(column);
       setSortOrder("asc");
+    }
+    // Voltar para a primeira página ao reordenar
+    if (!isMobile) {
+      pagination.actions.goToFirstPage();
     }
   };
 
@@ -301,12 +270,8 @@ export const SeasonsTab = ({ championshipId }: SeasonsTabProps) => {
     try {
       await SeasonService.delete(seasonToDelete.id);
       
-      // Atualizar a lista de temporadas
-      if (isMobile) {
-        setMobileSeasons(prev => prev.filter(s => s.id !== seasonToDelete.id));
-      } else {
-        await fetchSeasonsForDesktop();
-      }
+      // Atualizar a lista de temporadas notificando o componente pai
+      onRefresh();
       
       // Fechar o modal
       setShowDeleteDialog(false);
@@ -325,7 +290,7 @@ export const SeasonsTab = ({ championshipId }: SeasonsTabProps) => {
   };
 
   const handleSeasonAction = (action: string, seasonId: string) => {
-    const season = seasons.find(s => s.id === seasonId);
+    const season = initialSeasons.find(s => s.id === seasonId);
     if (!season) return;
 
     switch (action) {
@@ -372,18 +337,18 @@ export const SeasonsTab = ({ championshipId }: SeasonsTabProps) => {
     }
   }, [isMobile, pagination.actions]);
 
-  // Handlers diretos para paginação
-  const handlePageChange = useCallback((page: number) => {
+  // Handlers diretos para paginação (não precisam mais de useCallback)
+  const handlePageChange = (page: number) => {
     if (!isMobile) {
       pagination.actions.setCurrentPage(page);
     }
-  }, [isMobile, pagination.actions]);
+  };
 
-  const handleItemsPerPageChange = useCallback((itemsPerPage: number) => {
+  const handleItemsPerPageChange = (itemsPerPage: number) => {
     pagination.actions.setItemsPerPage(itemsPerPage);
-  }, [pagination.actions]);
+  };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Card className="w-full">
         <div className="p-6 space-y-4">
@@ -401,16 +366,16 @@ export const SeasonsTab = ({ championshipId }: SeasonsTabProps) => {
     );
   }
 
-  if (error) {
+  if (initialError) {
     return (
       <Card className="w-full">
         <div className="p-6">
           <Alert variant="destructive">
             <AlertTitle>Erro ao carregar temporadas</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>{initialError}</AlertDescription>
           </Alert>
           <div className="mt-4">
-            <Button onClick={isMobile ? () => fetchSeasonsForMobile(1) : fetchSeasonsForDesktop} variant="outline">
+            <Button onClick={onRefresh} variant="outline">
               Tentar novamente
             </Button>
           </div>
@@ -419,7 +384,7 @@ export const SeasonsTab = ({ championshipId }: SeasonsTabProps) => {
     );
   }
 
-  if (processedSeasons.length === 0 && Object.keys(filters).length === 0) {
+  if (initialSeasons.length === 0 && Object.keys(filters).length === 0) {
     return (
       <EmptyState
         icon={Trophy}
