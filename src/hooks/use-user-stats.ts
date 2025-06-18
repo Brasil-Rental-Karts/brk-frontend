@@ -19,7 +19,7 @@ export const useUserStats = () => {
       setLoading(true);
       setError(null);
 
-      const userStats = await UserStatsService.getUserBasicStats();
+      const userStats = await UserStatsService.getBasicStats();
       setStats(userStats);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar estatísticas');

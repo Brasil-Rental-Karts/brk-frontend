@@ -17,6 +17,7 @@ import {
   useFormScreen,
   UseFormScreenOptions,
 } from "@/hooks/use-form-screen";
+import { Loader2 } from "lucide-react";
 
 interface FormScreenProps<TData, TSubmit>
   extends UseFormScreenOptions<TData, TSubmit> {
@@ -79,7 +80,14 @@ export const FormScreen = <TData, TSubmit>({
             disabled: isSaving,
           },
           {
-            label: isSaving ? savingLabel : submitLabel,
+            label: isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {savingLabel}
+              </>
+            ) : (
+              submitLabel
+            ),
             onClick: () => {
               const form = document.getElementById(formId) as HTMLFormElement;
               if (form) {
@@ -137,7 +145,14 @@ export const FormScreen = <TData, TSubmit>({
           variant="default"
           disabled={isSaving}
         >
-          {isSaving ? savingLabel : submitLabel}
+          {isSaving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {savingLabel}
+            </>
+          ) : (
+            submitLabel
+          )}
         </Button>
       </div>
 

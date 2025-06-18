@@ -69,8 +69,7 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
       return;
     }
 
-    const newSponsor: Sponsor = {
-      id: '', // ID será gerado pelo backend
+    const newSponsor: Omit<Sponsor, 'id'> & { id?: string } = {
       name: formData.name.trim(),
       logoImage: formData.logoImage.trim(),
       website: formData.website.trim() || undefined
@@ -83,13 +82,11 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
       updatedSponsors = [...value];
       updatedSponsors[editingIndex] = {
         ...updatedSponsors[editingIndex],
-        name: newSponsor.name,
-        logoImage: newSponsor.logoImage,
-        website: newSponsor.website
+        ...newSponsor
       };
     } else {
       // Adding new sponsor
-      updatedSponsors = [...value, newSponsor];
+      updatedSponsors = [...value, newSponsor as Sponsor];
     }
 
     onChange(updatedSponsors);

@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 
 interface PageHeaderAction {
-  label: string;
+  label: React.ReactNode;
   onClick: () => void;
   variant?: 'default' | 'outline' | 'destructive';
   disabled?: boolean;
