@@ -103,7 +103,7 @@ const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod }: { season
             <span className="font-medium">{formatCurrency(parseFloat(season.inscriptionValue?.toString() || '0'))}</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-muted-foreground">Modalidade</span>
+            <span className="text-muted-foreground">Condições de pagamento</span>
             <span className="font-medium capitalize">{season.inscriptionType}</span>
           </div>
         </div>

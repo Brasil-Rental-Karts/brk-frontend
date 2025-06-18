@@ -2,7 +2,6 @@ import api from '../axios';
 
 export interface SeasonData {
   name: string;
-  seasonImage: string;
   description: string;
   startDate: string;
   endDate: string;

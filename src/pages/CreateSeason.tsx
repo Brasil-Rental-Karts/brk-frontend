@@ -27,18 +27,8 @@ export const CreateSeason = () => {
             placeholder: "Ex: Temporada 2024/1"
           },
           {
-            id: "seasonImage",
-            name: "Imagem da temporada",
-            type: "file",
-            mandatory: true,
-            placeholder: "Faça upload da imagem ou insira uma URL",
-            accept: "image/*",
-            maxSize: 5,
-            showPreview: true
-          },
-          {
             id: "description",
-            name: "Descrição",
+            name: "Descrição da temporada",
             type: "textarea",
             mandatory: true,
             max_char: 1000,
@@ -88,7 +78,7 @@ export const CreateSeason = () => {
           },
           {
             id: "inscriptionType",
-            name: "Tipo da inscrição",
+            name: "Condições de pagamento",
             type: "select",
             mandatory: true,
             options: [
@@ -100,7 +90,7 @@ export const CreateSeason = () => {
           },
           {
             id: "paymentMethods",
-            name: "Condições de pagamento",
+            name: "Condições de pagamento aceitas",
             type: "checkbox-group",
             mandatory: true,
             options: [
@@ -118,7 +108,6 @@ export const CreateSeason = () => {
   const transformInitialData = (season: any) => {
     return {
       name: season.name,
-      seasonImage: season.seasonImage,
       description: season.description,
       startDate: formatDateForDisplay(season.startDate),
       endDate: formatDateForDisplay(season.endDate),
@@ -132,7 +121,6 @@ export const CreateSeason = () => {
   const transformSubmitData = (data: any): SeasonData => {
     return {
       name: data.name,
-      seasonImage: data.seasonImage,
       description: data.description,
       startDate: formatDateToISO(data.startDate) || '',
       endDate: formatDateToISO(data.endDate) || '',
@@ -185,7 +173,6 @@ export const CreateSeason = () => {
 
 const SEASON_INITIAL_VALUES = {
   name: "",
-  seasonImage: "",
   description: "",
   startDate: "",
   endDate: "",
