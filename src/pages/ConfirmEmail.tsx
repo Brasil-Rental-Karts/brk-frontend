@@ -57,12 +57,6 @@ export function ConfirmEmail() {
         <a href="/auth/login">Voltar para o Login</a>
       </Button>
 
-      <div className="text-sm text-center text-muted-foreground">
-        Precisa de ajuda?{" "}
-        <a href="/support" className="text-primary hover:underline">
-          Acesse nossa página de suporte
-        </a>
-      </div>
     </div>
   );
 } 

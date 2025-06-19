@@ -123,13 +123,7 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                   </button>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/perfil">Perfil</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/plano">Plano</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/ajuda">Ajuda</Link>
+                  <Link to="/profile/edit">Perfil</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={async () => { await logout(); navigate('/'); }}>
@@ -201,25 +195,11 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                       Dashboard
                     </button>
                     <Link
-                      to="/perfil"
+                      to="/profile/edit"
                       className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
                       onClick={() => setIsOpen(false)}
                     >
                       Perfil
-                    </Link>
-                    <Link
-                      to="/plano"
-                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Plano
-                    </Link>
-                    <Link
-                      to="/ajuda"
-                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Ajuda
                     </Link>
                     <div className="h-px bg-border my-2" />
                     <button

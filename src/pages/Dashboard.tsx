@@ -124,7 +124,7 @@ export const Dashboard = () => {
             <div>
               <h2 className="text-xl font-semibold">Olá {user?.name || 'Usuário'},</h2>
               <p className="text-sm text-muted-foreground">
-                Resumo da sua performance
+                Bem vindo de volta!
               </p>
             </div>
           </div>

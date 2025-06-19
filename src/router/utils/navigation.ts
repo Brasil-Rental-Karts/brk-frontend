@@ -19,7 +19,7 @@ export const ROUTES = {
   DASHBOARD: '/dashboard',
   CREATE_CHAMPIONSHIP: '/create-championship',
   CHAMPIONSHIP: '/championship',
-  EDIT_PROFILE: '/edit-profile',
+  EDIT_PROFILE: '/profile/edit',
   CHANGE_PASSWORD: '/change-password',
   
   // Root
