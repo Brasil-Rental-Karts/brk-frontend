@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Button } from "brk-design-system";
 import { Input } from "brk-design-system";
 import { Label } from "brk-design-system";
@@ -65,14 +65,20 @@ const formatDateToISO = (date?: string) => {
   if (!date) return undefined;
   const parts = date.split('/');
   if (parts.length !== 3) return undefined;
-  return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  const day = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1; // month is 0-indexed in JS Date
+  const year = parseInt(parts[2], 10);
+  if (isNaN(day) || isNaN(month) || isNaN(year)) return undefined;
+  return new Date(Date.UTC(year, month, day)).toISOString();
 };
 
 const formatISOToDate = (iso?: string) => {
   if (!iso) return "";
-  const parts = iso.split('T')[0].split('-');
-  if (parts.length !== 3) return "";
-  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  const date = new Date(iso);
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const year = date.getUTCFullYear();
+  return `${day}/${month}/${year}`;
 };
 
 const STAGE_INITIAL_VALUES = {
@@ -95,6 +101,7 @@ export const CreateStage = () => {
     championshipId: string; 
     stageId?: string; 
   }>();
+  const location = useLocation();
 
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const [initialValues, setInitialValues] = useState<Record<string, any> | undefined>(undefined);
@@ -175,6 +182,8 @@ export const CreateStage = () => {
         let categoryOptions: { value: string; description: string }[] = [];
         let stageDataToSet: Record<string, any> = STAGE_INITIAL_VALUES;
 
+        const duplicatedData = location.state?.initialData;
+
         if (isEditMode) {
           const stageData = await StageService.getById(stageId!);
           stageDataToSet = {
@@ -191,6 +200,17 @@ export const CreateStage = () => {
             if (stageSeason && stageSeason.status === 'cancelado' && !activeSeasons.some(s => s.id === stageSeason.id)) {
               activeSeasons.push(stageSeason);
             }
+          }
+        } else if (duplicatedData) {
+          stageDataToSet = {
+            ...STAGE_INITIAL_VALUES,
+            ...duplicatedData,
+            date: formatISOToDate(duplicatedData.date),
+          };
+
+          if (duplicatedData.seasonId) {
+            const categories = await CategoryService.getBySeasonId(duplicatedData.seasonId);
+            categoryOptions = categories.map(c => ({ value: c.id, description: c.name }));
           }
         }
         
@@ -225,7 +245,7 @@ export const CreateStage = () => {
     };
 
     loadDataAndConfig();
-  }, [championshipId, isEditMode, stageId, loadCategoriesForSeason]);
+  }, [championshipId, isEditMode, stageId, loadCategoriesForSeason, location.state?.initialData]);
   
   const transformSubmitData = useCallback((data: any): CreateStageData => {
     const selectedSeason = allSeasons.find(s => s.id === data.seasonId);

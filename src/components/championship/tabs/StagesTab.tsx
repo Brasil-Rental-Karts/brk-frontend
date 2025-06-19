@@ -84,12 +84,40 @@ const createFilterFields = (seasonOptions: { value: string; label: string }[] = 
 
 const StageCard = ({ stage, onAction, getStageStatusBadge }: { stage: StageWithSeasonName, onAction: (action: string, stageId: string) => void, getStageStatusBadge: (stage: Stage) => JSX.Element }) => {
   return (
-    <Card className="w-full" onClick={() => onAction("view", stage.id)}>
+    <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <h3 className="text-lg font-semibold tracking-tight">{stage.name}</h3>
-        {getStageStatusBadge(stage)}
+        <div className="flex-1 cursor-pointer pr-2" onClick={() => onAction("view", stage.id)}>
+          <h3 className="text-lg font-semibold tracking-tight">{stage.name}</h3>
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-2">
+            {getStageStatusBadge(stage)}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onAction("view", stage.id)}>
+                  Ver detalhes
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onAction("edit", stage.id)}>
+                  Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onAction("duplicate", stage.id)}>
+                  Duplicar
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => onAction("delete", stage.id)}
+                  className="text-destructive"
+                >
+                  Excluir
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 cursor-pointer" onClick={() => onAction("view", stage.id)}>
         {stage.doublePoints && (
           <Badge variant="outline" className="w-fit text-xs">
             Pontos em dobro
@@ -268,6 +296,21 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
     navigate(`/championship/${championshipId}/stage/${stageId}/edit`);
   };
 
+  const handleDuplicateStage = (stageId: string) => {
+    const stageToDuplicate = filteredStages.find((s) => s.id === stageId);
+    if (!stageToDuplicate) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, createdAt, updatedAt, ...stageData } = stageToDuplicate;
+    const duplicatedStageData = {
+      ...stageData,
+      name: `${stageData.name} (Cópia)`,
+    };
+    navigate(`/championship/${championshipId}/create-stage`, {
+      state: { initialData: duplicatedStageData },
+    });
+  };
+
   const handleDeleteStage = (stage: Stage) => {
     setStageToDelete(stage);
     setDeleteError(null);
@@ -309,6 +352,9 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
         break;
       case "edit":
         handleEditStage(stageId);
+        break;
+      case "duplicate":
+        handleDuplicateStage(stageId);
         break;
       case "delete":
         handleDeleteStage(stage);
@@ -584,6 +630,9 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleStageAction("edit", stage.id)}>
                               Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStageAction("duplicate", stage.id)}>
+                              Duplicar
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => handleStageAction("delete", stage.id)}
