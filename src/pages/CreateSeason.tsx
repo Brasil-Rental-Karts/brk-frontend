@@ -100,6 +100,34 @@ export const CreateSeason = () => {
             ]
           }
         ]
+      },
+      {
+        section: "Parcelamento",
+        detail: "Configurações de pagamento parcelado",
+        fields: [
+          {
+            id: "allowInstallment",
+            name: "Permitir parcelamento",
+            type: "checkbox",
+            mandatory: false
+          },
+          {
+            id: "maxInstallments",
+            name: "Número máximo de parcelas",
+            type: "input",
+            mandatory: false,
+            placeholder: "Ex: 12"
+            // TODO: Adicionar lógica para mostrar este campo apenas se allowInstallment for true
+          },
+          {
+            id: "interestRate",
+            name: "Taxa de juros ao mês (%)",
+            type: "input",
+            mandatory: false,
+            placeholder: "Ex: 1.99"
+            // TODO: Adicionar lógica para mostrar este campo apenas se allowInstallment for true
+          }
+        ]
       }
     ];
     setFormConfig(config);
@@ -114,7 +142,10 @@ export const CreateSeason = () => {
       status: season.status,
       inscriptionValue: formatCurrency(parseFloat(season.inscriptionValue?.toString() || '0')),
       inscriptionType: season.inscriptionType,
-      paymentMethods: season.paymentMethods || []
+      paymentMethods: season.paymentMethods || [],
+      allowInstallment: season.allowInstallment || false,
+      maxInstallments: season.maxInstallments || '',
+      interestRate: season.interestRate || ''
     };
   };
 
@@ -128,7 +159,10 @@ export const CreateSeason = () => {
       inscriptionValue: parseFloat(data.inscriptionValue.replace(/[^\d,]/g, '').replace(',', '.')),
       inscriptionType: data.inscriptionType,
       paymentMethods: data.paymentMethods || [],
-      championshipId: championshipId!
+      championshipId: championshipId!,
+      allowInstallment: data.allowInstallment,
+      maxInstallments: data.maxInstallments ? parseInt(data.maxInstallments, 10) : undefined,
+      interestRate: data.interestRate ? parseFloat(data.interestRate) : undefined,
     };
   };
 
@@ -179,7 +213,10 @@ const SEASON_INITIAL_VALUES = {
   status: "agendado",
   inscriptionValue: "",
   inscriptionType: "",
-  paymentMethods: []
+  paymentMethods: [],
+  allowInstallment: false,
+  maxInstallments: "",
+  interestRate: ""
 };
 
 export default CreateSeason; 

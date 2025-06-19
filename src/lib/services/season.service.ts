@@ -10,6 +10,9 @@ export interface SeasonData {
   inscriptionType: 'mensal' | 'anual' | 'semestral' | 'trimestral';
   paymentMethods: ('pix' | 'cartao_credito' | 'boleto')[];
   championshipId: string;
+  allowInstallment?: boolean;
+  maxInstallments?: number;
+  interestRate?: number;
 }
 
 export interface Season extends SeasonData {

@@ -13,12 +13,40 @@ import { BoletoPayment } from '@/components/payment/BoletoPayment';
 import { CreditCardPayment } from '@/components/payment/CreditCardPayment';
 import { formatCurrency } from '@/utils/currency';
 
+const InstallmentList: React.FC<{ payments: RegistrationPaymentData[] }> = ({ payments }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>Plano de Pagamento (Carnê)</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <ul className="space-y-3">
+        {payments.map((payment, index) => (
+          <li key={payment.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+            <div className="flex items-center gap-4">
+              <div className="text-lg font-bold text-primary">{index + 1}</div>
+              <div>
+                <div className="font-semibold">{formatCurrency(payment.value)}</div>
+                <div className="text-sm text-muted-foreground">
+                  Vencimento: {new Date(payment.dueDate).toLocaleDateString('pt-BR')}
+                </div>
+              </div>
+            </div>
+            <Badge variant={payment.status === 'PAID' ? 'default' : 'outline'}>
+              {payment.status}
+            </Badge>
+          </li>
+        ))}
+      </ul>
+    </CardContent>
+  </Card>
+);
+
 export const RegistrationPayment: React.FC = () => {
   const { registrationId } = useParams<{ registrationId: string }>();
   const navigate = useNavigate();
 
   const [registration, setRegistration] = useState<SeasonRegistration | null>(null);
-  const [paymentData, setPaymentData] = useState<RegistrationPaymentData | null>(null);
+  const [payments, setPayments] = useState<RegistrationPaymentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,18 +70,11 @@ export const RegistrationPayment: React.FC = () => {
       // Tentar carregar dados de pagamento
       try {
         const paymentResponse = await SeasonRegistrationService.getPaymentData(registrationId);
-        setPaymentData(paymentResponse);
+        setPayments(paymentResponse || []);
       } catch (paymentError: any) {
         // Se não há dados de pagamento, criar um objeto padrão
         if (paymentError.message?.includes('não encontrados')) {
-          setPaymentData({
-            id: registrationId,
-            registrationId: registrationId,
-            billingType: 'PIX',
-            value: registrationData.amount,
-            status: 'pending',
-            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 dias
-          });
+          setPayments([]);
         } else {
           throw paymentError;
         }
@@ -73,16 +94,18 @@ export const RegistrationPayment: React.FC = () => {
 
   // Auto-refresh para pagamentos PIX (verifica status a cada 30 segundos)
   useEffect(() => {
-    if (!registration || !paymentData) return;
+    if (!registration || !payments.length) return;
     
-    if (paymentData.billingType === 'PIX' && registration.paymentStatus === 'pending') {
+    const pendingPixPayment = payments.find(p => p.billingType === 'PIX' && p.status === 'PENDING');
+
+    if (pendingPixPayment) {
       const interval = setInterval(() => {
         loadData(true);
       }, 30000); // 30 segundos
 
       return () => clearInterval(interval);
     }
-  }, [registration, paymentData]);
+  }, [registration, payments]);
 
   const handleBack = () => {
     navigate(-1);
@@ -131,13 +154,16 @@ export const RegistrationPayment: React.FC = () => {
   };
 
   const renderPaymentMethod = () => {
-    if (!paymentData || !registration) return null;
+    if (!payments.length || !registration) return null;
 
-    switch (paymentData.billingType) {
+    // Encontra o primeiro pagamento pendente, ou o primeiro da lista se nenhum estiver pendente
+    const paymentToRender = payments.find(p => p.status === 'PENDING' || p.status === 'AWAITING_RISK_ANALYSIS') || payments[0];
+
+    switch (paymentToRender.billingType) {
       case 'PIX':
         return (
           <PixPayment
-            paymentData={paymentData}
+            paymentData={paymentToRender}
             registration={registration}
             onPaymentComplete={() => loadData(true)}
           />
@@ -145,7 +171,7 @@ export const RegistrationPayment: React.FC = () => {
       case 'BOLETO':
         return (
           <BoletoPayment
-            paymentData={paymentData}
+            paymentData={paymentToRender}
             registration={registration}
             onPaymentComplete={() => loadData(true)}
           />
@@ -153,7 +179,7 @@ export const RegistrationPayment: React.FC = () => {
       case 'CREDIT_CARD':
         return (
           <CreditCardPayment
-            paymentData={paymentData}
+            paymentData={paymentToRender}
             registration={registration}
             onPaymentComplete={() => loadData(true)}
           />
@@ -162,7 +188,7 @@ export const RegistrationPayment: React.FC = () => {
         return (
           <Alert>
             <AlertDescription>
-              Método de pagamento não suportado: {paymentData.billingType}
+              Método de pagamento não suportado: {paymentToRender.billingType}
             </AlertDescription>
           </Alert>
         );
@@ -232,7 +258,7 @@ export const RegistrationPayment: React.FC = () => {
     );
   }
 
-  if (!registration || !paymentData) {
+  if (!registration || !payments.length) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -333,7 +359,10 @@ export const RegistrationPayment: React.FC = () => {
             </CardContent>
           </Card>
         ) : (
-          renderPaymentMethod()
+          <>
+            {payments.length > 1 && <InstallmentList payments={payments} />}
+            {renderPaymentMethod()}
+          </>
         )}
 
         {/* Instruções gerais */}

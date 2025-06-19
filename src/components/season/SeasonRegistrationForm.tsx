@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -9,6 +9,7 @@ import { CategoryService, Category } from '@/lib/services/category.service';
 import { SeasonRegistrationService, CreateRegistrationData } from '@/lib/services/season-registration.service';
 import { formatCurrency } from '@/utils/currency';
 import { useFormScreen } from '@/hooks/use-form-screen';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SeasonRegistrationFormProps {
   seasonId: string;
@@ -22,10 +23,21 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   onCancel,
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [season, setSeason] = useState<Season | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [total, setTotal] = useState(0);
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
+
+  const fetchData = useCallback(async () => {
+    const [seasonData, categoriesData] = await Promise.all([
+      SeasonService.getById(seasonId),
+      CategoryService.getBySeasonId(seasonId)
+    ]);
+    setSeason(seasonData);
+    setCategories(categoriesData);
+    return { season: seasonData, categories: categoriesData };
+  }, [seasonId]);
 
   const {
     isLoading,
@@ -35,21 +47,15 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     handleFormChange: useFormScreenChange,
   } = useFormScreen<any, CreateRegistrationData>({
     id: seasonId,
-    fetchData: async () => {
-      const [seasonData, categoriesData] = await Promise.all([
-        SeasonService.getById(seasonId),
-        CategoryService.getBySeasonId(seasonId)
-      ]);
-      setSeason(seasonData);
-      setCategories(categoriesData);
-      return { season: seasonData, categories: categoriesData };
-    },
+    fetchData: fetchData,
     createData: (data) => SeasonRegistrationService.create(data),
     transformSubmitData: (data) => ({
+      userId: user?.id || '',
       seasonId: seasonId,
       categoryIds: data.categorias || [],
       paymentMethod: data.pagamento,
-      userDocument: data.cpf || undefined
+      userDocument: data.cpf || undefined,
+      installments: data.installments ? parseInt(data.installments, 10) : undefined,
     }),
     onSuccess: (result) => {
       toast.success('Inscrição realizada com sucesso!');
@@ -67,6 +73,37 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
 
   useEffect(() => {
     if (!season || !categories.length) return;
+
+    const paymentFields: any[] = [
+      {
+        id: "pagamento",
+        name: "Método de Pagamento",
+        type: "select",
+        mandatory: true,
+        options: [
+          { value: "pix", description: "PIX - Aprovação Instantânea" },
+          { value: "cartao_credito", description: "Cartão de Crédito" },
+          { value: "boleto", description: "Boleto Bancário" }
+        ]
+      }
+    ];
+
+    if (season.allowInstallment && season.maxInstallments && season.maxInstallments > 1) {
+      const installmentOptions = Array.from({ length: season.maxInstallments - 1 }, (_, i) => {
+        const num = i + 2;
+        return { value: num.toString(), description: `${num}x` };
+      });
+
+      paymentFields.push({
+        id: "installments",
+        name: "Número de Parcelas",
+        type: "select",
+        mandatory: false,
+        placeholder: "1x (à vista)",
+        options: installmentOptions,
+        // TODO: Mostrar apenas quando o método de pagamento suportar parcelamento
+      });
+    }
 
     const config: FormSectionConfig[] = [
       {
@@ -88,19 +125,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       {
         section: "Forma de Pagamento",
         detail: "Selecione como deseja pagar",
-        fields: [
-          {
-            id: "pagamento",
-            name: "Método de Pagamento",
-            type: "select",
-            mandatory: true,
-            options: [
-              { value: "pix", description: "PIX - Aprovação Instantânea" },
-              { value: "cartao_credito", description: "Cartão de Crédito" },
-              { value: "boleto", description: "Boleto Bancário" }
-            ]
-          }
-        ]
+        fields: paymentFields,
       },
       {
         section: "Informações Adicionais",
@@ -210,7 +235,8 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
         initialValues={{
           categorias: [],
           pagamento: '',
-          cpf: ''
+          cpf: '',
+          installments: '',
         }}
       />
     </div>
