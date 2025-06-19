@@ -11,17 +11,10 @@ export const LoginSuccess = () => {
       if (processedRef.current) return;
       processedRef.current = true;
 
-      // Get firstLogin parameter from URL (if present)
-      const firstLoginParam = searchParams.get("firstLogin") === "true";
-
       // No need to call login() here! AuthContext will pick up the user from /auth/me on mount
 
       // Navigate based on firstLogin status
-      if (firstLoginParam) {
-        navigate("/complete-profile", { replace: true });
-      } else {
-        navigate("/dashboard", { replace: true });
-      }
+      navigate("/dashboard", { replace: true });
     };
 
     handleLoginSuccess();

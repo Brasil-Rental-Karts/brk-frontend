@@ -15,7 +15,6 @@ const Register = lazy(() => import('@/pages/Register').then(module => ({ default
 const ResetPassword = lazy(() => import('@/pages/ResetPassword').then(module => ({ default: module.ResetPassword })));
 const ResetPasswordSuccess = lazy(() => import('@/pages/ResetPasswordSuccess').then(module => ({ default: module.ResetPasswordSuccess })));
 const ChangePassword = lazy(() => import('@/pages/ChangePassword'));
-const CompleteProfile = lazy(() => import('@/pages/CompleteProfile'));
 const CreateChampionship = lazy(() => import('@/pages/CreateChampionship'));
 const CreateSeason = lazy(() => import('@/pages/CreateSeason'));
 const CreateCategory = lazy(() => import('@/pages/CreateCategory'));
@@ -334,7 +333,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "edit-profile",
+        path: "profile/edit",
         element: (
           <ProtectedRoute>
             <MainLayout>
@@ -351,18 +350,6 @@ export const router = createBrowserRouter([
           <LazyWrapper>
             <ChangePassword />
           </LazyWrapper>
-        ),
-      },
-
-      // Special protected routes without main layout
-      {
-        path: "complete-profile",
-        element: (
-          <ProtectedRoute>
-            <LazyWrapper>
-              <CompleteProfile />
-            </LazyWrapper>
-          </ProtectedRoute>
         ),
       },
 
@@ -398,10 +385,6 @@ export const router = createBrowserRouter([
       {
         path: "app/settings/change-password",
         element: <Navigate to="/change-password" replace />,
-      },
-      {
-        path: "onboarding/complete-profile",
-        element: <Navigate to="/complete-profile" replace />,
       },
 
       // Catch all - 404

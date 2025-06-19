@@ -21,7 +21,6 @@ export const ROUTES = {
   CHAMPIONSHIP: '/championship',
   EDIT_PROFILE: '/edit-profile',
   CHANGE_PASSWORD: '/change-password',
-  COMPLETE_PROFILE: '/complete-profile',
   
   // Root
   ROOT: '/',
@@ -63,11 +62,6 @@ export class NavigationHelper {
 
   goToChangePassword(state?: any) {
     this.navigate(ROUTES.CHANGE_PASSWORD, { state });
-  }
-
-  // Profile navigation
-  goToCompleteProfile(state?: any) {
-    this.navigate(ROUTES.COMPLETE_PROFILE, { state });
   }
 
   goToEditProfile(state?: any) {
@@ -153,9 +147,6 @@ export const getBreadcrumbs = (pathname: string): Array<{ label: string; path: s
         break;
       case '/change-password':
         label = 'Alterar Senha';
-        break;
-      case '/complete-profile':
-        label = 'Completar Perfil';
         break;
       default:
         // Capitalize first letter and replace hyphens with spaces

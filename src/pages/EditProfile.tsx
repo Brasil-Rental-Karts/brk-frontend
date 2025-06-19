@@ -19,12 +19,15 @@ import {
   interestCategoryOptions
 } from "@/lib/enums/profile";
 import { formatDateForDisplay, formatDateToISO } from "@/utils/date";
+import { DeleteAccountModal } from "@/components/profile/DeleteAccountModal";
+import { Button } from "brk-design-system";
 
 export const EditProfile = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [cities, setCities] = useState<City[]>([]);
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const loadCities = useCallback(async (uf: string) => {
     const citiesData = await fetchCitiesByState(uf);
@@ -46,6 +49,18 @@ export const EditProfile = () => {
     (_id: string, data: any) => ProfileService.updateMemberProfile(data),
     []
   );
+
+  const handleDeleteAccount = async () => {
+    try {
+      await ProfileService.deleteAccount();
+      logout();
+      navigate('/login', { replace: true });
+    } catch (error: any) {
+      console.error("Failed to delete account:", error);
+      // The modal will show its own error message
+      throw error;
+    }
+  };
 
   const transformInitialData = useCallback((data: any) => {
     if (data.state) {
@@ -72,11 +87,11 @@ export const EditProfile = () => {
       teamName: data?.teamName || "",
       telemetryType: data?.telemetryType || "",
       preferredTrack: data?.preferredTrack || "",
-      hasOwnKart: !!data?.hasOwnKart,
-      isTeamMember: !!data?.isTeamMember,
-      usesTelemetry: !!data?.usesTelemetry,
+      hasOwnKart: data?.hasOwnKart?.toString(),
+      isTeamMember: data?.isTeamMember?.toString(),
+      usesTelemetry: data?.usesTelemetry?.toString(),
     };
-  }, [user]);
+  }, [user, loadCities]);
 
   const transformSubmitData = (data: any) => {
     const processedData = {
@@ -94,6 +109,9 @@ export const EditProfile = () => {
       teamName: data.teamName || "",
       telemetryType: data.telemetryType || "",
       preferredTrack: data.preferredTrack || "",
+      hasOwnKart: data.hasOwnKart === "true",
+      isTeamMember: data.isTeamMember === "true",
+      usesTelemetry: data.usesTelemetry === "true",
     };
 
     if (processedData.birthDate === null) {
@@ -193,7 +211,7 @@ export const EditProfile = () => {
         fields: [
           {
             id: "experienceTime",
-            name: "Há quanto tempo anda de kart?",
+            name: "Tempo de experiência com Kart",
             type: "select",
             mandatory: false,
             options: kartExperienceYearsOptions.map(option => ({ 
@@ -203,7 +221,7 @@ export const EditProfile = () => {
           },
           {
             id: "raceFrequency",
-            name: "Com que frequência corre?",
+            name: "Frequência que corro",
             type: "select",
             mandatory: false,
             options: raceFrequencyOptions.map(option => ({ 
@@ -213,7 +231,7 @@ export const EditProfile = () => {
           },
           {
             id: "championshipParticipation",
-            name: "Já participou de campeonatos?",
+            name: "Participação em campeonatos",
             type: "select",
             mandatory: false,
             options: championshipParticipationOptions.map(option => ({ 
@@ -223,7 +241,7 @@ export const EditProfile = () => {
           },
           {
             id: "competitiveLevel",
-            name: "Como você classificaria seu nível no kart?",
+            name: "Nível no kart",
             type: "select",
             mandatory: false,
             options: competitiveLevelOptions.map(option => ({ 
@@ -240,97 +258,145 @@ export const EditProfile = () => {
           {
             id: "hasOwnKart",
             name: "Possui Kart próprio?",
-            type: "checkbox",
-            mandatory: false
+            type: "select",
+            mandatory: false,
+            options: [
+              { value: "true", description: "Sim" },
+              { value: "false", description: "Não" }
+            ],
           },
           {
             id: "isTeamMember",
             name: "Participa de alguma equipe?",
-            type: "checkbox",
-            mandatory: false
+            type: "select",
+            mandatory: false,
+            options: [
+              { value: "true", description: "Sim" },
+              { value: "false", description: "Não" }
+            ],
           },
           {
             id: "teamName",
             name: "Nome da equipe",
             type: "input",
             mandatory: false,
-            max_char: 100,
-            placeholder: "Nome da sua equipe",
             conditionalField: {
               dependsOn: "isTeamMember",
-              showWhen: true
-            }
+              showWhen: "true"
+            },
+            placeholder: "Digite o nome da sua equipe"
           },
           {
             id: "usesTelemetry",
-            name: "Utiliza telemetria?",
-            type: "checkbox",
-            mandatory: false
+            name: "Faz uso de telemetria?",
+            type: "select",
+            mandatory: false,
+            options: [
+              { value: "true", description: "Sim" },
+              { value: "false", description: "Não" }
+            ],
           },
           {
             id: "telemetryType",
-            name: "Tipo de telemetria",
+            name: "Telemetria que utiliza",
             type: "input",
             mandatory: false,
-            max_char: 100,
-            placeholder: "Ex: AiM, MoTeC, etc.",
             conditionalField: {
               dependsOn: "usesTelemetry",
-              showWhen: true
-            }
+              showWhen: "true"
+            },
+            placeholder: "Ex: Race Chrono, AIM, Mycron, etc."
+          },
+          {
+            id: "preferredTrack",
+            name: "Pista favorita",
+            type: "input",
+            mandatory: false,
+            placeholder: "Digite o nome da sua pista favorita"
           },
           {
             id: "attendsEvents",
-            name: "Disposto a participar de eventos em outras cidades?",
+            name: "Frequenta eventos de kart?",
             type: "select",
             mandatory: false,
-            options: attendsEventsOptions.map(option => ({ 
-              value: option.value.toString(), 
-              description: option.label 
+            options: attendsEventsOptions.map(option => ({
+              value: option.value.toString(),
+              description: option.label
             }))
           },
           {
             id: "interestCategories",
-            name: "Quais categorias mais te interessam?",
+            name: "Categorias de interesse",
             type: "checkbox-group",
             mandatory: false,
-            options: interestCategoryOptions.map(option => ({ 
-              value: option.value.toString(), 
-              description: option.label 
+            options: interestCategoryOptions.map(option => ({
+              value: option.value.toString(),
+              description: option.label
             }))
-          },
-          {
-            id: "preferredTrack",
-            name: "Kartódromo preferido",
-            type: "input",
-            mandatory: false,
-            max_char: 100,
-            placeholder: "Nome do seu kartódromo preferido"
           }
         ]
       }
     ];
+
     setFormConfig(config);
-  }, [cities, user?.email]);
-  
-  // This page doesn't have an ID in the URL, but it's an "edit" screen.
-  // We pass a dummy ID to trigger the edit mode logic in useFormScreen.
+  }, [cities, user]);
+
   return (
-    <FormScreen
-      title="Editar Perfil"
-      formId="profile-form"
-      formConfig={formConfig}
-      id="me" 
-      fetchData={fetchData}
-      updateData={updateData}
-      transformInitialData={transformInitialData}
-      transformSubmitData={transformSubmitData}
-      onSuccess={onSuccess}
-      onCancel={onCancel}
-      onFieldChange={handleFieldChange}
-      successMessage="Perfil salvo com sucesso!"
-      errorMessage="Erro ao salvar perfil. Tente novamente."
-    />
+    <>
+      <FormScreen
+        title="Editar Perfil"
+        description="Mantenha suas informações de piloto sempre atualizadas."
+        formConfig={formConfig}
+        fetchData={fetchData}
+        updateData={updateData}
+        transformInitialData={transformInitialData}
+        transformSubmitData={transformSubmitData}
+        onSuccess={onSuccess}
+        onCancel={onCancel}
+        onFieldChange={handleFieldChange}
+        submitLabel="Salvar alterações"
+        id="me"
+        formId="edit-profile-form"
+        successMessage="Perfil atualizado com sucesso!"
+        errorMessage="Ocorreu um erro ao atualizar seu perfil."
+      />
+      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <div className="space-y-8">
+            <div className="border-t border-border pt-8 mt-8 md:grid md:grid-cols-3 md:gap-6">
+                <div className="md:col-span-1">
+                    <h3 className="text-lg font-medium leading-6 text-foreground">Gerenciamento da Conta</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Ações permanentes relacionadas à sua conta de usuário.
+                    </p>
+                </div>
+                <div className="mt-5 md:mt-0 md:col-span-2">
+                    {user?.role === 'Member' ? (
+                    <>
+                        <p className="text-sm text-muted-foreground">
+                            Precisa excluir sua conta? Você pode fazer isso aqui. Esta ação é irreversível e todos os seus dados serão permanentemente removidos.
+                        </p>
+                        <div className="mt-4">
+                            <Button variant="link" className="text-destructive p-0 h-auto" onClick={() => setIsDeleteModalOpen(true)}>
+                                Quero excluir minha conta permanentemente
+                            </Button>
+                        </div>
+                    </>
+                    ) : user?.role === 'Manager' ? (
+                        <p className="text-sm text-muted-foreground">
+                            Entre em contato com o Time BRK para excluir sua conta de organizador.
+                        </p>
+                    ) : null}
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <DeleteAccountModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteAccount}
+      />
+    </>
   );
 };
 

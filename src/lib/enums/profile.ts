@@ -42,9 +42,9 @@ export enum AttendsEvents {
 }
 
 export enum InterestCategory {
-  LightRentalKart = 0,
-  HeavyRentalKart = 1,
-  TwoStrokeKart = 2,
+  RentalKart = 0,
+  FTRentalKart = 1,
+  ProKart = 2,
   Endurance = 3,
   Teams = 4,
   LongChampionships = 5,
@@ -95,13 +95,13 @@ export const attendsEventsLabels: Record<AttendsEvents, string> = {
 };
 
 export const interestCategoryLabels: Record<InterestCategory, string> = {
-  [InterestCategory.LightRentalKart]: "Rental kart leve",
-  [InterestCategory.HeavyRentalKart]: "Rental kart pesado",
-  [InterestCategory.TwoStrokeKart]: "Kart 2 tempos",
+  [InterestCategory.RentalKart]: "Kart Rental",
+  [InterestCategory.FTRentalKart]: "Kart FT Rental (Com Marcha)",
+  [InterestCategory.ProKart]: "Kart Pro",
   [InterestCategory.Endurance]: "Endurance",
   [InterestCategory.Teams]: "Equipes",
-  [InterestCategory.LongChampionships]: "Campeonatos longos",
-  [InterestCategory.SingleRaces]: "Baterias avulsas"
+  [InterestCategory.LongChampionships]: "Campeonatos Longos",
+  [InterestCategory.SingleRaces]: "Baterias Avulsas"
 };
 
 // Helper function to convert enums to options for select components

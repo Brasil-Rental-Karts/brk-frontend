@@ -38,11 +38,6 @@ const routeMetadata: Record<string, RouteMetadata> = {
     title: 'Alterar Senha - BRK',
     description: 'Altere sua senha de acesso',
     keywords: 'alterar senha, configurações, BRK'
-  },
-  '/complete-profile': {
-    title: 'Completar Perfil - BRK',
-    description: 'Complete seu perfil para começar a usar a plataforma',
-    keywords: 'completar perfil, onboarding, BRK'
   }
 };
 

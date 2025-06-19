@@ -12,7 +12,6 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  isFirstLogin: boolean;
   login: (data: LoginRequest) => Promise<{ firstLogin: boolean }>;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => void;
@@ -24,7 +23,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isFirstLogin, setIsFirstLogin] = useState(false);
 
   // On mount, check if user is authenticated via /auth/me
   useEffect(() => {
@@ -46,11 +44,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const response = await AuthService.login(data);
-      setIsFirstLogin(!!response.firstLogin);
       // After login, fetch user info
       const userInfo = await AuthService.me();
       setUser(userInfo);
-      return { firstLogin: !!response.firstLogin };
+      return { firstLogin: false };
     } catch (error) {
       throw error;
     } finally {
@@ -70,7 +67,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     await AuthService.logout();
     setUser(null);
-    setIsFirstLogin(false);
   };
 
   const loginWithGoogle = async () => {
@@ -86,7 +82,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     isAuthenticated: !!user,
     isLoading,
-    isFirstLogin,
     login,
     register,
     logout,

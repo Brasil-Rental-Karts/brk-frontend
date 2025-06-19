@@ -35,18 +35,14 @@ const formSchema = {
 export function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isLoading, loginWithGoogle, isAuthenticated, isFirstLogin } = useAuth();
+  const { login, isLoading, loginWithGoogle, isAuthenticated } = useAuth();
 
   // Redirect if already authenticated
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      if (isFirstLogin) {
-        navigate('/complete-profile', { replace: true });
-      } else {
-        navigate('/dashboard', { replace: true });
-      }
+      navigate('/dashboard', { replace: true });
     }
-  }, [isAuthenticated, isFirstLogin, isLoading, navigate]);
+  }, [isAuthenticated, isLoading, navigate]);
 
   // Check for error message in the location state (from redirects)
   useEffect(() => {
@@ -72,17 +68,13 @@ export function Login() {
 
   const onSubmit = async (values: { email: string; password: string }) => {
     try {
-      const { firstLogin } = await login(values);
+      await login(values);
       
       // Show success message
       toast.success("Login realizado com sucesso!");
       
       // Redirect based on firstLogin status
-      if (firstLogin) {
-        navigate("/complete-profile");
-      } else {
-        navigate("/dashboard");
-      }
+      navigate("/dashboard");
     } catch (error: any) {
       if (error.response) {
         const status = error.response.status;

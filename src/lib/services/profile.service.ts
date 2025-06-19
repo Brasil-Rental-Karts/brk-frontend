@@ -28,5 +28,12 @@ export const ProfileService = {
     } catch (error: any) {
       throw error;
     }
+  },
+  deleteAccount: async (): Promise<void> => {
+    try {
+      await api.delete('/users/me');
+    } catch (error: any) {
+      throw error;
+    }
   }
 }; 

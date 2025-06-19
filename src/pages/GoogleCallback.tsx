@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 export const GoogleCallback = () => {
-  const { isAuthenticated, isFirstLogin } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const processedRef = useRef(false);
@@ -68,12 +68,7 @@ export const GoogleCallback = () => {
     if (!isAuthenticated) {
       processCallback();
     } else {
-      // If already authenticated, check if it's first login
-      if (isFirstLogin) {
-        navigate("/complete-profile", { replace: true });
-      } else {
-        navigate("/dashboard", { replace: true });
-      }
+      navigate("/dashboard", { replace: true });
     }
   }, []); // Empty dependency array to run only once
 

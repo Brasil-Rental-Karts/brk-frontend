@@ -22,12 +22,14 @@ import { Loader2 } from "lucide-react";
 interface FormScreenProps<TData, TSubmit>
   extends UseFormScreenOptions<TData, TSubmit> {
   title: string;
+  description?: string;
   formConfig: FormSectionConfig[];
   formId: string;
 }
 
 export const FormScreen = <TData, TSubmit>({
   title,
+  description,
   formConfig,
   formId,
   ...options
@@ -72,6 +74,7 @@ export const FormScreen = <TData, TSubmit>({
     <div className="min-h-screen bg-background">
       <PageHeader
         title={title}
+        subtitle={description}
         actions={[
           {
             label: "Cancelar",
