@@ -297,6 +297,19 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "championship/:championshipSlug/season/:seasonSlug/register",
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <LazyWrapper>
+                <SeasonRegistration />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      // Rota legacy para compatibilidade
+      {
         path: "season/:seasonId/register",
         element: (
           <ProtectedRoute>

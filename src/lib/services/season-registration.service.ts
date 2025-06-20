@@ -24,8 +24,8 @@ export interface CreateRegistrationData {
   userId: string;
   seasonId: string;
   categoryIds: string[];
-  paymentMethod: 'boleto' | 'pix' | 'cartao_credito';
-  userDocument?: string;
+  paymentMethod: 'pix' | 'cartao_credito';
+  userDocument: string;
   installments?: number;
 }
 
@@ -37,9 +37,12 @@ export interface RegistrationPaymentData {
   dueDate: string;
   status: string;
   installmentNumber?: number | null;
+  installmentCount?: number | null;
+  expirationDate?: string | null;
   invoiceUrl?: string | null;
   bankSlipUrl?: string | null;
   paymentLink?: string | null;
+  pixKey?: string | null;
   pixQrCode?: string | null;
   pixCopyPaste?: string | null;
 }
@@ -55,8 +58,15 @@ export class SeasonRegistrationService {
     paymentData: RegistrationPaymentData;
   }> {
     try {
-      const response = await api.post('/season-registrations', data);
-      return response.data;
+      const response = await api.post<{
+        message: string;
+        data: {
+          registration: SeasonRegistration;
+          paymentData: RegistrationPaymentData;
+        };
+      }>('/season-registrations', data);
+
+      return response.data.data;
     } catch (error: any) {
       console.error('Error creating registration:', error);
       throw new Error(
@@ -109,8 +119,11 @@ export class SeasonRegistrationService {
    */
   static async getPaymentData(registrationId: string): Promise<RegistrationPaymentData[]> {
     try {
-      const response = await api.get(`/season-registrations/${registrationId}/payment`);
-      return response.data;
+      const response = await api.get<{
+        message: string;
+        data: RegistrationPaymentData[];
+      }>(`/season-registrations/${registrationId}/payment`);
+      return response.data.data;
     } catch (error: any) {
       console.error('Error fetching payment data:', error);
       throw new Error(

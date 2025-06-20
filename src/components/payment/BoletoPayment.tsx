@@ -31,8 +31,9 @@ export const BoletoPayment: React.FC<BoletoPaymentProps> = ({
   };
 
   const handleDownloadBoleto = () => {
-    if (paymentData.bankSlipUrl || paymentData.invoiceUrl) {
-      window.open(paymentData.bankSlipUrl || paymentData.invoiceUrl, '_blank');
+    const url = paymentData.bankSlipUrl || paymentData.invoiceUrl;
+    if (url) {
+      window.open(url, '_blank');
     }
   };
 

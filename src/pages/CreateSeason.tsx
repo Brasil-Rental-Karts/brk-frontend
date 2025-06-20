@@ -3,147 +3,135 @@ import { FormScreen } from "@/components/ui/FormScreen";
 import { FormSectionConfig } from "@/components/ui/dynamic-form";
 import { SeasonData, SeasonService } from "@/lib/services/season.service";
 import { formatDateForDisplay, formatDateToISO, formatCurrency } from "@/utils/date";
-import { useEffect, useState } from "react";
+import { useCallback } from "react";
 
 export const CreateSeason = () => {
   const navigate = useNavigate();
   const { championshipId, seasonId } = useParams<{ championshipId: string; seasonId?: string }>();
-  const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const isEditMode = seasonId !== 'new';
   const currentSeasonId = isEditMode ? seasonId : undefined;
 
-  useEffect(() => {
-    const config: FormSectionConfig[] = [
-      {
-        section: "Dados Gerais",
-        detail: "Informações básicas da temporada",
-        fields: [
-          {
-            id: "name",
-            name: "Nome da temporada",
-            type: "input",
-            mandatory: true,
-            max_char: 75,
-            placeholder: "Ex: Temporada 2024/1"
-          },
-          {
-            id: "description",
-            name: "Descrição da temporada",
-            type: "textarea",
-            mandatory: true,
-            max_char: 1000,
-            placeholder: "Descrição detalhada da temporada, regulamento, categorias, etc."
-          },
-          {
-            id: "startDate",
-            name: "Data de início",
-            type: "inputMask",
-            mandatory: true,
-            mask: "date",
-            placeholder: "DD/MM/AAAA"
-          },
-          {
-            id: "endDate",
-            name: "Data de fim",
-            type: "inputMask",
-            mandatory: true,
-            mask: "date",
-            placeholder: "DD/MM/AAAA"
-          },
-          {
-            id: "status",
-            name: "Status",
-            type: "select",
-            mandatory: true,
-            options: [
-              { value: "agendado", description: "Agendado" },
-              { value: "em_andamento", description: "Em andamento" },
-              { value: "cancelado", description: "Cancelado" },
-              { value: "finalizado", description: "Finalizado" }
-            ]
-          },
-          {
-            id: "registrationOpen",
-            name: "Inscrições abertas",
-            type: "select",
-            mandatory: true,
-            options: [
-              { value: "true", description: "Sim" },
-              { value: "false", description: "Não" }
-            ]
-          }
-        ]
-      },
-      {
-        section: "Dados Financeiros",
-        detail: "Informações sobre inscrições e pagamentos",
-        fields: [
-          {
-            id: "inscriptionValue",
-            name: "Valor da inscrição",
-            type: "inputMask",
-            mandatory: true,
-            mask: "currency",
-            placeholder: "R$ 0,00"
-          },
-          {
-            id: "inscriptionType",
-            name: "Condições de pagamento",
-            type: "select",
-            mandatory: true,
-            options: [
-              { value: "mensal", description: "Mensal" },
-              { value: "anual", description: "Anual" },
-              { value: "semestral", description: "Semestral" },
-              { value: "trimestral", description: "Trimestral" }
-            ]
-          },
-          {
-            id: "paymentMethods",
-            name: "Condições de pagamento aceitas",
-            type: "checkbox-group",
-            mandatory: true,
-            options: [
-              { value: "pix", description: "PIX" },
-              { value: "cartao_credito", description: "Cartão de Crédito" },
-              { value: "boleto", description: "Boleto" },
-            ]
-          }
-        ]
-      },
-      {
-        section: "Parcelamento",
-        detail: "Configurações de pagamento parcelado",
-        fields: [
-          {
-            id: "allowInstallment",
-            name: "Permitir parcelamento",
-            type: "checkbox",
-            mandatory: false
-          },
-          {
-            id: "maxInstallments",
-            name: "Número máximo de parcelas",
-            type: "input",
-            mandatory: false,
-            placeholder: "Ex: 12"
-            // TODO: Adicionar lógica para mostrar este campo apenas se allowInstallment for true
-          },
-          {
-            id: "interestRate",
-            name: "Taxa de juros ao mês (%)",
-            type: "input",
-            mandatory: false,
-            placeholder: "Ex: 1.99"
-            // TODO: Adicionar lógica para mostrar este campo apenas se allowInstallment for true
-          }
-        ]
-      }
-    ];
-    setFormConfig(config);
-  }, []);
+  const createInstallmentOptions = () => {
+    return Array.from({ length: 12 }, (_, i) => ({
+      value: i + 1,
+      description: `${i + 1}x`
+    }));
+  };
 
-  const transformInitialData = (season: any) => {
+  // Formulário estático - sem lógica dinâmica
+  const formConfig: FormSectionConfig[] = [
+    {
+      section: "Dados Gerais",
+      detail: "Informações básicas da temporada",
+      fields: [
+        {
+          id: "name",
+          name: "Nome da temporada",
+          type: "input",
+          mandatory: true,
+          max_char: 75,
+          placeholder: "Ex: Temporada 2024/1"
+        },
+        {
+          id: "description",
+          name: "Descrição da temporada",
+          type: "textarea",
+          mandatory: true,
+          max_char: 1000,
+          placeholder: "Descrição detalhada da temporada, regulamento, categorias, etc."
+        },
+        {
+          id: "startDate",
+          name: "Data de início",
+          type: "inputMask",
+          mandatory: true,
+          mask: "date",
+          placeholder: "DD/MM/AAAA"
+        },
+        {
+          id: "endDate",
+          name: "Data de fim",
+          type: "inputMask",
+          mandatory: true,
+          mask: "date",
+          placeholder: "DD/MM/AAAA"
+        },
+        {
+          id: "status",
+          name: "Status",
+          type: "select",
+          mandatory: true,
+          options: [
+            { value: "agendado", description: "Agendado" },
+            { value: "em_andamento", description: "Em andamento" },
+            { value: "cancelado", description: "Cancelado" },
+            { value: "finalizado", description: "Finalizado" }
+          ]
+        },
+        {
+          id: "registrationOpen",
+          name: "Inscrições abertas",
+          type: "select",
+          mandatory: true,
+          options: [
+            { value: "true", description: "Sim" },
+            { value: "false", description: "Não" }
+          ]
+        }
+      ]
+    },
+    {
+      section: "Dados Financeiros",
+      detail: "Informações sobre inscrições e pagamentos",
+      fields: [
+        {
+          id: "inscriptionValue",
+          name: "Valor da inscrição",
+          type: "inputMask",
+          mandatory: true,
+          mask: "currency",
+          placeholder: "R$ 0,00"
+        },
+        {
+          id: "inscriptionType",
+          name: "Condições de pagamento",
+          type: "select",
+          mandatory: true,
+          options: [
+            { value: "por_temporada", description: "Pagamento por Temporada" },
+            { value: "por_etapa", description: "Pagamento por Etapa" }
+          ]
+        },
+        {
+          id: "paymentMethods",
+          name: "Métodos de pagamento aceitos",
+          type: "checkbox-group",
+          mandatory: true,
+          options: [
+            { value: "pix", description: "PIX" },
+            { value: "cartao_credito", description: "Cartão de Crédito" }
+          ]
+        },
+        {
+          id: "pixInstallments",
+          name: "Parcelas PIX",
+          type: "select",
+          mandatory: false,
+          options: createInstallmentOptions()
+        },
+        {
+          id: "creditCardInstallments",
+          name: "Parcelas Cartão de Crédito", 
+          type: "select",
+          mandatory: false,
+          options: createInstallmentOptions()
+        },
+
+      ]
+    }
+  ];
+
+  const transformInitialData = useCallback((season: any) => {
     return {
       name: season.name,
       description: season.description,
@@ -154,13 +142,12 @@ export const CreateSeason = () => {
       inscriptionValue: formatCurrency(parseFloat(season.inscriptionValue?.toString() || '0')),
       inscriptionType: season.inscriptionType,
       paymentMethods: season.paymentMethods || [],
-      allowInstallment: season.allowInstallment || false,
-      maxInstallments: season.maxInstallments || '',
-      interestRate: season.interestRate || ''
+      pixInstallments: (season.pixInstallments || 1).toString(),
+      creditCardInstallments: (season.creditCardInstallments || 1).toString()
     };
-  };
+  }, []);
 
-  const transformSubmitData = (data: any): SeasonData => {
+  const transformSubmitData = useCallback((data: any): SeasonData => {
     return {
       name: data.name,
       description: data.description,
@@ -172,19 +159,18 @@ export const CreateSeason = () => {
       inscriptionType: data.inscriptionType,
       paymentMethods: data.paymentMethods || [],
       championshipId: championshipId!,
-      allowInstallment: data.allowInstallment,
-      maxInstallments: data.maxInstallments ? parseInt(data.maxInstallments, 10) : undefined,
-      interestRate: data.interestRate ? parseFloat(data.interestRate) : undefined,
+      pixInstallments: parseInt(data.pixInstallments) || 1,
+      creditCardInstallments: parseInt(data.creditCardInstallments) || 1
     };
-  };
+  }, [championshipId]);
 
-  const onSuccess = () => {
+  const onSuccess = useCallback(() => {
     navigate(`/championship/${championshipId}`, { replace: true });
-  };
+  }, [navigate, championshipId]);
 
-  const onCancel = () => {
+  const onCancel = useCallback(() => {
     navigate(`/championship/${championshipId}`);
-  };
+  }, [navigate, championshipId]);
 
   if (!championshipId) {
     return (
@@ -223,12 +209,12 @@ const SEASON_INITIAL_VALUES = {
   startDate: "",
   endDate: "",
   status: "agendado",
+  registrationOpen: "true",
   inscriptionValue: "",
-  inscriptionType: "",
+  inscriptionType: "por_temporada",
   paymentMethods: [],
-  allowInstallment: false,
-  maxInstallments: "",
-  interestRate: ""
+  pixInstallments: 1,
+  creditCardInstallments: 1
 };
 
 export default CreateSeason; 

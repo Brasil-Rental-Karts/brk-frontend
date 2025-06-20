@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
@@ -44,6 +44,7 @@ const InstallmentList: React.FC<{ payments: RegistrationPaymentData[] }> = ({ pa
 export const RegistrationPayment: React.FC = () => {
   const { registrationId } = useParams<{ registrationId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [registration, setRegistration] = useState<SeasonRegistration | null>(null);
   const [payments, setPayments] = useState<RegistrationPaymentData[]>([]);
@@ -90,7 +91,18 @@ export const RegistrationPayment: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [registrationId]);
+    
+    // Verificar se há parâmetro success=true na URL
+    const successParam = searchParams.get('success');
+    if (successParam === 'true') {
+      // Mostrar toast de sucesso e limpar o parâmetro da URL
+      setTimeout(() => {
+        // Remove o parâmetro success da URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }, 100);
+    }
+  }, [registrationId, searchParams]);
 
   // Auto-refresh para pagamentos PIX (verifica status a cada 30 segundos)
   useEffect(() => {
@@ -289,6 +301,16 @@ export const RegistrationPayment: React.FC = () => {
       />
       
       <div className="w-full max-w-4xl mx-auto px-6 py-6 space-y-6">
+        {/* Mensagem de Sucesso do Callback */}
+        {searchParams.get('success') === 'true' && (
+          <Alert className="bg-green-50 border-green-200">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">
+              Pagamento processado com sucesso! Aguarde a confirmação automática.
+            </AlertDescription>
+          </Alert>
+        )}
+        
         {/* Resumo da Inscrição */}
         <Card>
           <CardHeader>
