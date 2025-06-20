@@ -6,6 +6,7 @@ export interface SeasonData {
   startDate: string;
   endDate: string;
   status: 'agendado' | 'em_andamento' | 'cancelado' | 'finalizado';
+  registrationOpen: boolean;
   inscriptionValue: number | string; // Decimal vem como string do backend
   inscriptionType: 'mensal' | 'anual' | 'semestral' | 'trimestral';
   paymentMethods: ('pix' | 'cartao_credito' | 'boleto')[];

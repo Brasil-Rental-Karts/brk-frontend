@@ -61,6 +61,16 @@ export const CreateSeason = () => {
               { value: "cancelado", description: "Cancelado" },
               { value: "finalizado", description: "Finalizado" }
             ]
+          },
+          {
+            id: "registrationOpen",
+            name: "Inscrições abertas",
+            type: "select",
+            mandatory: true,
+            options: [
+              { value: "true", description: "Sim" },
+              { value: "false", description: "Não" }
+            ]
           }
         ]
       },
@@ -140,6 +150,7 @@ export const CreateSeason = () => {
       startDate: formatDateForDisplay(season.startDate),
       endDate: formatDateForDisplay(season.endDate),
       status: season.status,
+      registrationOpen: season.registrationOpen !== undefined ? season.registrationOpen.toString() : "true",
       inscriptionValue: formatCurrency(parseFloat(season.inscriptionValue?.toString() || '0')),
       inscriptionType: season.inscriptionType,
       paymentMethods: season.paymentMethods || [],
@@ -156,6 +167,7 @@ export const CreateSeason = () => {
       startDate: formatDateToISO(data.startDate) || '',
       endDate: formatDateToISO(data.endDate) || '',
       status: data.status || 'agendado',
+      registrationOpen: data.registrationOpen === "true" || data.registrationOpen === true,
       inscriptionValue: parseFloat(data.inscriptionValue.replace(/[^\d,]/g, '').replace(',', '.')),
       inscriptionType: data.inscriptionType,
       paymentMethods: data.paymentMethods || [],
