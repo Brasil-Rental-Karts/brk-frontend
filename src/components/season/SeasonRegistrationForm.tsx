@@ -109,7 +109,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
         const installmentValue = total / i;
         
         if (paymentMethod === 'pix') {
-          // Para PIX, explicar que é carnê (1ª PIX + demais boletos)
+                        // Para PIX, explicar que é carnê (PIX parcelado)
           options.push({
             value: i.toString(),
             description: `${i}x de ${formatCurrency(installmentValue)}`
@@ -371,7 +371,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
                 <div className="mt-3 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-md">
                   <div className="text-xs text-yellow-800">
                     <strong>PIX Parcelado:</strong> A 1ª parcela será via PIX (pagamento imediato). 
-                    As demais parcelas serão boletos enviados automaticamente por email nas datas de vencimento.
+                    As demais parcelas serão PIX enviados automaticamente por email nas datas de vencimento.
                   </div>
                 </div>
               )}

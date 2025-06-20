@@ -9,7 +9,7 @@ import { Skeleton } from 'brk-design-system';
 import { PageHeader } from '@/components/ui/page-header';
 import { SeasonRegistrationService, SeasonRegistration, RegistrationPaymentData } from '@/lib/services/season-registration.service';
 import { PixPayment } from '@/components/payment/PixPayment';
-import { BoletoPayment } from '@/components/payment/BoletoPayment';
+
 import { CreditCardPayment } from '@/components/payment/CreditCardPayment';
 import { formatCurrency } from '@/utils/currency';
 
@@ -180,14 +180,7 @@ export const RegistrationPayment: React.FC = () => {
             onPaymentComplete={() => loadData(true)}
           />
         );
-      case 'BOLETO':
-        return (
-          <BoletoPayment
-            paymentData={paymentToRender}
-            registration={registration}
-            onPaymentComplete={() => loadData(true)}
-          />
-        );
+
       case 'CREDIT_CARD':
         return (
           <CreditCardPayment

@@ -16,7 +16,7 @@ import { formatCurrency } from '@/utils/currency';
 import { masks } from '@/utils/masks';
 import { PixPayment } from '@/components/payment/PixPayment';
 import { CreditCardPayment } from '@/components/payment/CreditCardPayment';
-import { BoletoPayment } from '@/components/payment/BoletoPayment';
+
 
 interface FormData {
   categories: string[];
@@ -122,10 +122,10 @@ export const SeasonRegistration: React.FC = () => {
       const installmentValue = total / i;
       
       if (method === 'pix') {
-        // Para PIX, explicar que é carnê (1ª PIX + demais boletos)
+        // Para PIX, explicar que é carnê (PIX parcelado)
         options.push({
           value: i,
-          label: `${i}x de ${formatCurrency(installmentValue)} (1ª PIX + ${i-1} boleto${i > 2 ? 's' : ''})`
+          label: `${i}x de ${formatCurrency(installmentValue)} (PIX parcelado)`
         });
       } else {
         options.push({
