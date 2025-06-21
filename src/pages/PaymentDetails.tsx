@@ -78,29 +78,52 @@ export const PaymentDetails: React.FC = () => {
         throw new Error('Inscrição não encontrada');
       }
 
-      // Calcular resumo dos pagamentos
-      const paidPayments = payments.filter((p: any) => 
-        p.status === 'RECEIVED' || 
-        p.status === 'CONFIRMED' || 
-        p.status === 'RECEIVED_IN_CASH'
-      );
+      // Calcular resumo dos pagamentos com lógica melhorada
+      // Status que indicam pagamento completo
+      const paidStatusList = ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'];
       
-      const pendingPayments = payments.filter((p: any) => 
-        p.status === 'PENDING' || 
-        p.status === 'AWAITING_PAYMENT' ||
-        p.status === 'AWAITING_RISK_ANALYSIS'
-      );
+      // Status que indicam pagamento pendente
+      const pendingStatusList = ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'];
       
-      const overduePayments = payments.filter((p: any) => p.status === 'OVERDUE');
+      // Status que indicam pagamento vencido
+      const overdueStatusList = ['OVERDUE'];
+      
+      const paidPayments = payments.filter((p: any) => paidStatusList.includes(p.status));
+      const pendingPayments = payments.filter((p: any) => pendingStatusList.includes(p.status));
+      const overduePayments = payments.filter((p: any) => overdueStatusList.includes(p.status));
+
+      const paidAmount = paidPayments.reduce((sum: number, p: any) => sum + Number(p.value), 0);
+      const pendingAmount = pendingPayments.reduce((sum: number, p: any) => sum + Number(p.value), 0);
+      const overdueAmount = overduePayments.reduce((sum: number, p: any) => sum + Number(p.value), 0);
+
+      // Verificar se há parcelas com status não mapeados
+      const allMappedPayments = [...paidPayments, ...pendingPayments, ...overduePayments];
+      const unmappedPayments = payments.filter((p: any) => !allMappedPayments.find((mapped: any) => mapped.id === p.id));
+
+      // Debug log apenas se houver discrepâncias ou parcelas não mapeadas
+      if (unmappedPayments.length > 0 || Math.abs((paidAmount + pendingAmount + overdueAmount) - registration.amount) > 0.01) {
+        console.log(`[PAYMENT DETAILS] ⚠️ Atenção - Inscrição ${registrationId}:`, {
+          totalPayments: payments.length,
+          unmappedCount: unmappedPayments.length,
+          paidAmount: paidAmount,
+          pendingAmount: pendingAmount,
+          overdueAmount: overdueAmount,
+          totalCalculated: paidAmount + pendingAmount + overdueAmount,
+          registrationTotal: registration.amount,
+          unmappedPayments: unmappedPayments.map((p: any) => ({ id: p.id, status: p.status, value: p.value }))
+        });
+      }
 
       const summary = {
         totalAmount: Number(registration.amount),
-        paidAmount: paidPayments.reduce((sum: number, p: any) => sum + p.value, 0),
-        pendingAmount: pendingPayments.reduce((sum: number, p: any) => sum + p.value, 0),
-        overdueAmount: overduePayments.reduce((sum: number, p: any) => sum + p.value, 0),
+        paidAmount,
+        pendingAmount,
+        overdueAmount,
         totalInstallments: payments.length || 1,
         paidInstallments: paidPayments.length
       };
+
+
 
       setData({
         registration,
@@ -186,6 +209,43 @@ export const PaymentDetails: React.FC = () => {
   };
 
   const handleMakePayment = () => {
+    // Encontrar a próxima parcela a ser paga (mesma lógica do RegistrationPayment)
+    const overduePayments = payments.filter((p: any) => p.status === 'OVERDUE');
+    const pendingPayments = payments.filter((p: any) => 
+      p.status === 'PENDING' || 
+      p.status === 'AWAITING_PAYMENT' || 
+      p.status === 'AWAITING_RISK_ANALYSIS'
+    );
+    
+    // Função para ordenar por número da parcela ou data de vencimento
+    const sortPayments = (paymentsToSort: any[]) => {
+      return paymentsToSort.sort((a, b) => {
+        if (a.installmentNumber && b.installmentNumber) {
+          return a.installmentNumber - b.installmentNumber;
+        }
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      });
+    };
+
+    let nextPayment = null;
+    if (overduePayments.length > 0) {
+      nextPayment = sortPayments(overduePayments)[0];
+    } else if (pendingPayments.length > 0) {
+      nextPayment = sortPayments(pendingPayments)[0];
+    }
+
+    // Log para debug
+    if (nextPayment) {
+      console.log('🎯 Redirecionando para pagamento da parcela:', {
+        id: nextPayment.id,
+        installmentNumber: nextPayment.installmentNumber,
+        value: nextPayment.value,
+        dueDate: nextPayment.dueDate,
+        status: nextPayment.status,
+        billingType: nextPayment.billingType
+      });
+    }
+
     navigate(`/registration/${registrationId}/payment`);
   };
 
@@ -353,6 +413,18 @@ export const PaymentDetails: React.FC = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Valor Pendente</p>
                   <p className="text-lg font-bold text-yellow-600">{formatCurrency(summary.pendingAmount)}</p>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {(() => {
+                      const pendingCount = payments.filter((p: any) => 
+                        ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(p.status)
+                      ).length;
+                      
+                      if (pendingCount > 0) {
+                        return `${pendingCount} parcela${pendingCount > 1 ? 's' : ''} pendente${pendingCount > 1 ? 's' : ''}`;
+                      }
+                      return 'Nenhuma parcela pendente';
+                    })()}
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -367,6 +439,16 @@ export const PaymentDetails: React.FC = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Valor Vencido</p>
                   <p className="text-lg font-bold text-red-600">{formatCurrency(summary.overdueAmount)}</p>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {(() => {
+                      const overdueCount = payments.filter((p: any) => p.status === 'OVERDUE').length;
+                      
+                      if (overdueCount > 0) {
+                        return `${overdueCount} parcela${overdueCount > 1 ? 's' : ''} vencida${overdueCount > 1 ? 's' : ''}`;
+                      }
+                      return 'Nenhuma parcela vencida';
+                    })()}
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -563,6 +645,30 @@ export const PaymentDetails: React.FC = () => {
                           </div>
                         );
                       })}
+                      
+                      {/* Verificação de discrepância */}
+                      {(() => {
+                        const calculatedTotal = summary.paidAmount + summary.pendingAmount + summary.overdueAmount;
+                        const difference = Math.abs(calculatedTotal - summary.totalAmount);
+                        
+                        if (difference > 0.01) { // Diferença maior que 1 centavo
+                          return (
+                            <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <AlertTriangle className="w-4 h-4 text-orange-600" />
+                                <div className="text-sm">
+                                  <div className="font-medium text-orange-800">Discrepância detectada</div>
+                                  <div className="text-orange-600">
+                                    Total calculado: {formatCurrency(calculatedTotal)} | 
+                                    Total da inscrição: {formatCurrency(summary.totalAmount)}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                   </div>
                 )}
               </CardContent>

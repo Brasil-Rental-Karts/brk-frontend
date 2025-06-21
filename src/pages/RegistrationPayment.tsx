@@ -13,33 +13,74 @@ import { PixPayment } from '@/components/payment/PixPayment';
 import { CreditCardPayment } from '@/components/payment/CreditCardPayment';
 import { formatCurrency } from '@/utils/currency';
 
-const InstallmentList: React.FC<{ payments: RegistrationPaymentData[] }> = ({ payments }) => (
-  <Card>
-    <CardHeader>
-      <CardTitle>Plano de Pagamento (Carnê)</CardTitle>
-    </CardHeader>
-    <CardContent>
-      <ul className="space-y-3">
-        {payments.map((payment, index) => (
-          <li key={payment.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-            <div className="flex items-center gap-4">
-              <div className="text-lg font-bold text-primary">{index + 1}</div>
-              <div>
-                <div className="font-semibold">{formatCurrency(payment.value)}</div>
-                <div className="text-sm text-muted-foreground">
-                  Vencimento: {new Date(payment.dueDate).toLocaleDateString('pt-BR')}
-                </div>
-              </div>
-            </div>
-            <Badge variant={payment.status === 'PAID' ? 'default' : 'outline'}>
-              {payment.status}
-            </Badge>
-          </li>
-        ))}
-      </ul>
-    </CardContent>
-  </Card>
-);
+const InstallmentList: React.FC<{ payments: RegistrationPaymentData[] }> = ({ payments }) => {
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'RECEIVED':
+      case 'CONFIRMED':
+      case 'RECEIVED_IN_CASH':
+        return (
+          <Badge className="bg-green-100 text-green-800 border-green-200">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Pago
+          </Badge>
+        );
+      case 'PENDING':
+      case 'AWAITING_PAYMENT':
+      case 'AWAITING_RISK_ANALYSIS':
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
+            <Clock className="w-3 h-3 mr-1" />
+            Pendente
+          </Badge>
+        );
+      case 'OVERDUE':
+        return (
+          <Badge className="bg-red-100 text-red-800 border-red-200">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Vencido
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline">
+            {status}
+          </Badge>
+        );
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Plano de Pagamento (Carnê)</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ul className="space-y-3">
+          {payments
+            .sort((a, b) => (a.installmentNumber || 1) - (b.installmentNumber || 1))
+            .map((payment, index) => {
+              const installmentNumber = payment.installmentNumber || index + 1;
+              return (
+                <li key={payment.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div className="text-lg font-bold text-primary">{installmentNumber}ª</div>
+                    <div>
+                      <div className="font-semibold">{formatCurrency(payment.value)}</div>
+                      <div className="text-sm text-muted-foreground">
+                        Vencimento: {new Date(payment.dueDate).toLocaleDateString('pt-BR')}
+                      </div>
+                    </div>
+                  </div>
+                  {getStatusBadge(payment.status)}
+                </li>
+              );
+            })}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+};
 
 export const RegistrationPayment: React.FC = () => {
   const { registrationId } = useParams<{ registrationId: string }>();
@@ -71,6 +112,7 @@ export const RegistrationPayment: React.FC = () => {
       // Tentar carregar dados de pagamento
       try {
         const paymentResponse = await SeasonRegistrationService.getPaymentData(registrationId);
+        console.log('📊 [FRONTEND] Dados de pagamento recebidos do backend:', paymentResponse);
         setPayments(paymentResponse || []);
       } catch (paymentError: any) {
         // Se não há dados de pagamento, criar um objeto padrão
@@ -128,6 +170,69 @@ export const RegistrationPayment: React.FC = () => {
   };
 
   const getStatusBadge = (status: string) => {
+    // Para pagamentos parcelados, calcular status real baseado nas parcelas
+    if (payments.length > 1) {
+      const paidPayments = payments.filter(p => 
+        p.status === 'RECEIVED' || 
+        p.status === 'CONFIRMED' || 
+        p.status === 'RECEIVED_IN_CASH'
+      );
+      
+      const pendingPayments = payments.filter(p => 
+        p.status === 'PENDING' || 
+        p.status === 'AWAITING_PAYMENT' || 
+        p.status === 'AWAITING_RISK_ANALYSIS'
+      );
+      
+      const overduePayments = payments.filter(p => p.status === 'OVERDUE');
+      
+      console.log('🏷️ [STATUS BADGE] Calculando status real:', {
+        totalPayments: payments.length,
+        paidCount: paidPayments.length,
+        pendingCount: pendingPayments.length,
+        overdueCount: overduePayments.length
+      });
+      
+      // Todas as parcelas pagas
+      if (paidPayments.length === payments.length) {
+        return (
+          <Badge className="bg-green-100 text-green-800 border-green-200">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Totalmente Pago ({paidPayments.length}/{payments.length})
+          </Badge>
+        );
+      }
+      
+      // Há parcelas vencidas
+      if (overduePayments.length > 0) {
+        return (
+          <Badge className="bg-red-100 text-red-800 border-red-200">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            {overduePayments.length} Vencida{overduePayments.length > 1 ? 's' : ''} • {paidPayments.length}/{payments.length} Pagas
+          </Badge>
+        );
+      }
+      
+      // Parcialmente pago
+      if (paidPayments.length > 0) {
+        return (
+          <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+            <Clock className="w-3 h-3 mr-1" />
+            Parcialmente Pago ({paidPayments.length}/{payments.length})
+          </Badge>
+        );
+      }
+      
+      // Nenhuma parcela paga ainda
+      return (
+        <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
+          <Clock className="w-3 h-3 mr-1" />
+          Pendente ({payments.length} parcelas)
+        </Badge>
+      );
+    }
+    
+    // Para pagamento único, usar status original
     switch (status) {
       case 'paid':
         return (
@@ -137,6 +242,7 @@ export const RegistrationPayment: React.FC = () => {
           </Badge>
         );
       case 'pending':
+      case 'processing':
         return (
           <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
             <Clock className="w-3 h-3 mr-1" />
@@ -144,6 +250,7 @@ export const RegistrationPayment: React.FC = () => {
           </Badge>
         );
       case 'failed':
+      case 'overdue':
         return (
           <Badge variant="destructive">
             <AlertCircle className="w-3 h-3 mr-1" />
@@ -153,7 +260,15 @@ export const RegistrationPayment: React.FC = () => {
       case 'cancelled':
         return (
           <Badge variant="outline" className="text-gray-600">
+            <AlertCircle className="w-3 h-3 mr-1" />
             Cancelado
+          </Badge>
+        );
+      case 'refunded':
+        return (
+          <Badge variant="outline" className="bg-orange-50 text-orange-800 border-orange-200">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Estornado
           </Badge>
         );
       default:
@@ -166,10 +281,124 @@ export const RegistrationPayment: React.FC = () => {
   };
 
   const renderPaymentMethod = () => {
-    if (!payments.length || !registration) return null;
+    console.log('🚀 [RENDER PAYMENT METHOD] FUNÇÃO CHAMADA!', { paymentsLength: payments.length, hasRegistration: !!registration });
+    
+    if (!payments.length || !registration) {
+      console.log('❌ [RENDER PAYMENT METHOD] Saindo - sem dados:', { paymentsLength: payments.length, hasRegistration: !!registration });
+      return null;
+    }
 
-    // Encontra o primeiro pagamento pendente, ou o primeiro da lista se nenhum estiver pendente
-    const paymentToRender = payments.find(p => p.status === 'PENDING' || p.status === 'AWAITING_RISK_ANALYSIS') || payments[0];
+    console.log('🔍 [RENDER PAYMENT METHOD] Iniciando seleção de pagamento...');
+    console.log('📊 Todos os pagamentos recebidos:', payments.map(p => ({
+      id: p.id,
+      installmentNumber: p.installmentNumber,
+      status: p.status,
+      value: p.value,
+      dueDate: p.dueDate
+    })));
+
+    // Lógica melhorada para encontrar a próxima parcela a ser paga
+    // 1. Primeiro, procura por parcelas vencidas (OVERDUE) - prioridade máxima
+    // 2. Depois, procura por parcelas pendentes (PENDING, AWAITING_PAYMENT, AWAITING_RISK_ANALYSIS)
+    // 3. Ordena por número da parcela (installmentNumber) ou data de vencimento
+    
+    const overduePayments = payments.filter(p => p.status === 'OVERDUE');
+    const pendingPayments = payments.filter(p => 
+      p.status === 'PENDING' || 
+      p.status === 'AWAITING_PAYMENT' || 
+      p.status === 'AWAITING_RISK_ANALYSIS'
+    );
+    
+    console.log('🚨 Pagamentos vencidos encontrados:', overduePayments.length);
+    console.log('⏳ Pagamentos pendentes encontrados:', pendingPayments.length);
+    
+    if (overduePayments.length > 0) {
+      console.log('📋 Lista de pagamentos vencidos:', overduePayments.map(p => ({
+        id: p.id,
+        installmentNumber: p.installmentNumber,
+        status: p.status,
+        value: p.value,
+        dueDate: p.dueDate
+      })));
+    }
+    
+    if (pendingPayments.length > 0) {
+      console.log('📋 Lista de pagamentos pendentes:', pendingPayments.map(p => ({
+        id: p.id,
+        installmentNumber: p.installmentNumber,
+        status: p.status,
+        value: p.value,
+        dueDate: p.dueDate
+      })));
+    }
+    
+    // Função para ordenar por número da parcela ou data de vencimento
+    const sortPayments = (paymentsToSort: RegistrationPaymentData[]) => {
+      return paymentsToSort.sort((a, b) => {
+        // Primeiro tenta ordenar por installmentNumber
+        if (a.installmentNumber && b.installmentNumber) {
+          return a.installmentNumber - b.installmentNumber;
+        }
+        // Se não tem installmentNumber, ordena por data de vencimento
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      });
+    };
+
+    let paymentToRender: RegistrationPaymentData | null = null;
+    let selectionReason = '';
+
+    // Prioridade 1: Parcelas vencidas (ordenadas por número/data)
+    if (overduePayments.length > 0) {
+      const sortedOverdue = sortPayments(overduePayments);
+      paymentToRender = sortedOverdue[0];
+      selectionReason = 'OVERDUE_PRIORITY';
+      console.log('🚨 Pagamento vencido selecionado (PRIORIDADE 1):', {
+        id: paymentToRender.id,
+        installmentNumber: paymentToRender.installmentNumber,
+        value: paymentToRender.value,
+        dueDate: paymentToRender.dueDate,
+        status: paymentToRender.status,
+        reason: selectionReason
+      });
+    }
+    // Prioridade 2: Parcelas pendentes (ordenadas por número/data)
+    else if (pendingPayments.length > 0) {
+      const sortedPending = sortPayments(pendingPayments);
+      paymentToRender = sortedPending[0];
+      selectionReason = 'PENDING_PRIORITY';
+      console.log('⏳ Próxima parcela pendente selecionada (PRIORIDADE 2):', {
+        id: paymentToRender.id,
+        installmentNumber: paymentToRender.installmentNumber,
+        value: paymentToRender.value,
+        dueDate: paymentToRender.dueDate,
+        status: paymentToRender.status,
+        reason: selectionReason
+      });
+    }
+    // Fallback: Primeira parcela da lista
+    else {
+      paymentToRender = payments[0];
+      selectionReason = 'FALLBACK_FIRST';
+      console.log('📋 Usando primeira parcela como fallback (PRIORIDADE 3):', {
+        id: paymentToRender.id,
+        installmentNumber: paymentToRender.installmentNumber,
+        value: paymentToRender.value,
+        dueDate: paymentToRender.dueDate,
+        status: paymentToRender.status,
+        reason: selectionReason
+      });
+    }
+
+    console.log('✅ [RENDER PAYMENT METHOD] Pagamento final selecionado:', {
+      id: paymentToRender?.id,
+      installmentNumber: paymentToRender?.installmentNumber,
+      status: paymentToRender?.status,
+      value: paymentToRender?.value,
+      billingType: paymentToRender?.billingType,
+      selectionReason
+    });
+
+    if (!paymentToRender) return null;
 
     switch (paymentToRender.billingType) {
       case 'PIX':
@@ -354,7 +583,32 @@ export const RegistrationPayment: React.FC = () => {
         </Card>
 
         {/* Informações de Pagamento */}
-        {registration.paymentStatus === 'paid' ? (
+        {(() => {
+          // Para pagamentos parcelados, verificar se há parcelas pendentes
+          if (payments.length > 1) {
+            const pendingPayments = payments.filter(p => 
+              p.status === 'PENDING' || 
+              p.status === 'AWAITING_PAYMENT' || 
+              p.status === 'AWAITING_RISK_ANALYSIS' ||
+              p.status === 'OVERDUE'
+            );
+            
+            console.log('🔍 [PAYMENT STATUS CHECK] Parcelas pendentes/vencidas:', pendingPayments.length);
+            
+            // Se há parcelas pendentes, mostrar interface de pagamento
+            if (pendingPayments.length > 0) {
+              console.log('✅ [PAYMENT STATUS CHECK] Decisão: MOSTRAR INTERFACE DE PAGAMENTO (há parcelas pendentes)');
+              return false; // Não está totalmente pago
+            }
+            
+            console.log('✅ [PAYMENT STATUS CHECK] Decisão: TODAS PARCELAS PAGAS');
+          }
+          
+          // Para pagamento único ou todas as parcelas pagas
+          const isPaid = registration.paymentStatus === 'paid';
+          console.log('✅ [PAYMENT STATUS CHECK] Decisão: PAGAMENTO ÚNICO -', isPaid ? 'PAGO' : 'PENDENTE');
+          return isPaid;
+        })() ? (
           <Card>
             <CardContent className="pt-6">
               <div className="text-center py-8">
@@ -375,6 +629,8 @@ export const RegistrationPayment: React.FC = () => {
           </Card>
         ) : (
           <>
+
+
             {payments.length > 1 && <InstallmentList payments={payments} />}
             {renderPaymentMethod()}
           </>
