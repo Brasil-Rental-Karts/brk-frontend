@@ -45,37 +45,40 @@ export const PaymentDetails: React.FC = () => {
       // Buscar dados da inscrição
       const registration = await SeasonRegistrationService.getById(registrationId);
 
-      // Sincronizar e buscar dados de pagamento diretamente do Asaas
-      // Isso garante que todas as parcelas sejam listadas, independente do status
-      console.log('=== SINCRONIZANDO PAGAMENTOS COM ASAAS ===');
-      
-      let payments: any[] = [];
-      try {
-        // Primeiro tenta sincronizar com o Asaas
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/season-registrations/${registrationId}/sync-payment`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-
-        if (response.ok) {
-          payments = await response.json();
-          console.log('Pagamentos sincronizados com sucesso:', payments);
-        } else {
-          console.warn('Erro na sincronização, usando dados locais');
-          const localPayments = await SeasonRegistrationService.getPaymentData(registrationId);
-          payments = localPayments || [];
-        }
-      } catch (syncError) {
-        console.warn('Erro na sincronização, usando dados locais:', syncError);
-        const localPayments = await SeasonRegistrationService.getPaymentData(registrationId);
-        payments = localPayments || [];
-      }
-
       if (!registration) {
         throw new Error('Inscrição não encontrada');
+      }
+
+      // Buscar dados de pagamento do nosso banco de dados
+      console.log('=== CARREGANDO DADOS DE PAGAMENTO DO BANCO ===');
+      const payments = await SeasonRegistrationService.getPaymentData(registrationId);
+
+      console.log('Dados de pagamento carregados:', {
+        registrationId,
+        paymentsCount: payments?.length || 0,
+        payments: payments
+      });
+
+      // Verificar se há dados de pagamento
+      if (!payments || payments.length === 0) {
+        console.warn('Nenhum dado de pagamento encontrado para a inscrição:', registrationId);
+        
+        // Criar dados de fallback baseados na inscrição
+        const fallbackSummary = {
+          totalAmount: Number(registration.amount),
+          paidAmount: registration.paymentStatus === 'paid' ? Number(registration.amount) : 0,
+          pendingAmount: registration.paymentStatus === 'pending' ? Number(registration.amount) : 0,
+          overdueAmount: registration.paymentStatus === 'overdue' ? Number(registration.amount) : 0,
+          totalInstallments: 1,
+          paidInstallments: registration.paymentStatus === 'paid' ? 1 : 0
+        };
+
+        setData({
+          registration,
+          payments: [],
+          summary: fallbackSummary
+        });
+        return;
       }
 
       // Calcular resumo dos pagamentos com lógica melhorada
@@ -123,7 +126,7 @@ export const PaymentDetails: React.FC = () => {
         paidInstallments: paidPayments.length
       };
 
-
+      console.log('Resumo calculado:', summary);
 
       setData({
         registration,
@@ -365,14 +368,6 @@ export const PaymentDetails: React.FC = () => {
       />
       
       <div className="w-full max-w-6xl mx-auto px-6 py-6 space-y-6">
-        {/* Informação sobre sincronização automática */}
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertDescription>
-            Esta página sincroniza automaticamente com o Asaas para mostrar todas as parcelas atualizadas, 
-            independente do status no sistema local.
-          </AlertDescription>
-        </Alert>
 
         {/* Cards de Resumo */}
         <div className="grid md:grid-cols-4 gap-4">
