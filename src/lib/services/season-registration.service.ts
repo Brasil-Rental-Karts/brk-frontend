@@ -7,6 +7,7 @@ export interface SeasonRegistration {
   seasonId: string;
   status: string;
   paymentStatus: string;
+  paymentMethod: string;
   amount: number;
   paymentDate?: string;
   confirmedAt?: string;
