@@ -7,7 +7,7 @@ import { router } from '@/router/router';
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="system" storageKey="brk-ui-theme">
+    <ThemeProvider defaultTheme="light" storageKey="brk-ui-theme">
       <AuthProvider>
         <ChampionshipProvider>
           <RouterProvider router={router} />
