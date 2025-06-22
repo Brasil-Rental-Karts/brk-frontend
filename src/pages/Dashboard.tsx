@@ -308,7 +308,10 @@ export const Dashboard = () => {
               title="Você ainda não participa de nenhum campeonato"
               action={{
                 label: "Descobrir Campeonatos",
-                onClick: () => {},
+                onClick: () => {
+                  const siteUrl = import.meta.env.VITE_SITE_URL;
+                  window.open(`${siteUrl}/campeonatos`, '_blank', 'noopener,noreferrer');
+                },
               }}
             />
           ) : (

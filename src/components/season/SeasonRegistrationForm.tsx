@@ -135,10 +135,10 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
         name: "Método de Pagamento",
         type: "select",
         mandatory: true,
-        options: [
-          { value: "pix", description: "PIX - Aprovação Instantânea" },
-          { value: "cartao_credito", description: "Cartão de Crédito" }
-        ]
+        options: season.paymentMethods.map(method => ({
+          value: method,
+          description: method === 'pix' ? 'PIX - Aprovação Instantânea' : 'Cartão de Crédito'
+        }))
       }
     ];
 
@@ -358,12 +358,16 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
             <div className="mt-4 p-4 bg-blue-50 rounded-lg">
               <h4 className="font-semibold text-blue-900 mb-2">Condições de Pagamento:</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
-                <div>
-                  <strong>PIX:</strong> até {season.pixInstallments || 1}x
-                </div>
-                <div>
-                  <strong>Cartão:</strong> até {season.creditCardInstallments || 1}x
-                </div>
+                {season.paymentMethods.includes('pix') && (
+                  <div>
+                    <strong>PIX:</strong> até {season.pixInstallments || 1}x
+                  </div>
+                )}
+                {season.paymentMethods.includes('cartao_credito') && (
+                  <div>
+                    <strong>Cartão:</strong> até {season.creditCardInstallments || 1}x
+                  </div>
+                )}
               </div>
               
               {/* Explicação sobre PIX parcelado */}

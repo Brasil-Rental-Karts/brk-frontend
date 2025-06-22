@@ -71,6 +71,14 @@ export const SeasonRegistration: React.FC = () => {
          const categoriesData = await CategoryService.getBySeasonId(seasonIdentifier);
         setCategories(categoriesData);
 
+        // Definir método de pagamento padrão baseado nos métodos disponíveis
+        if (seasonData.paymentMethods && seasonData.paymentMethods.length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            paymentMethod: seasonData.paymentMethods[0] as 'pix' | 'cartao_credito'
+          }));
+        }
+
       } catch (err: any) {
         console.error('Erro ao carregar dados:', err);
         setError(err.message || 'Erro ao carregar dados da temporada');
@@ -483,27 +491,30 @@ export const SeasonRegistration: React.FC = () => {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Método de Pagamento</label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <label className="flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="pix"
-                      checked={formData.paymentMethod === 'pix'}
-                      onChange={(e) => updateFormData('paymentMethod', e.target.value)}
-                    />
-                    <span>PIX - Aprovação Instantânea</span>
-                  </label>
-                  <label className="flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="cartao_credito"
-                      checked={formData.paymentMethod === 'cartao_credito'}
-                      onChange={(e) => updateFormData('paymentMethod', e.target.value)}
-                    />
-                    <span>Cartão de Crédito</span>
-                  </label>
-
+                  {season.paymentMethods.includes('pix') && (
+                    <label className="flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="pix"
+                        checked={formData.paymentMethod === 'pix'}
+                        onChange={(e) => updateFormData('paymentMethod', e.target.value)}
+                      />
+                      <span>PIX - Aprovação Instantânea</span>
+                    </label>
+                  )}
+                  {season.paymentMethods.includes('cartao_credito') && (
+                    <label className="flex items-center space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="cartao_credito"
+                        checked={formData.paymentMethod === 'cartao_credito'}
+                        onChange={(e) => updateFormData('paymentMethod', e.target.value)}
+                      />
+                      <span>Cartão de Crédito</span>
+                    </label>
+                  )}
                 </div>
               </div>
 
