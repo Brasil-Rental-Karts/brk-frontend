@@ -39,13 +39,50 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
       return 'Expirado';
     }
     
+    // Calcular diferenças em diferentes unidades
     const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMinutes / 60);
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffWeeks = Math.floor(diffDays / 7);
+    const diffMonths = Math.floor(diffDays / 30);
     
-    if (diffHours > 0) {
-      return `${diffHours}h ${diffMinutes % 60}m`;
+    // Mostrar em meses se for mais de 30 dias
+    if (diffMonths > 0) {
+      const remainingDays = diffDays % 30;
+      if (remainingDays > 0) {
+        return `${diffMonths} ${diffMonths === 1 ? 'mês' : 'meses'} e ${remainingDays} ${remainingDays === 1 ? 'dia' : 'dias'}`;
+      }
+      return `${diffMonths} ${diffMonths === 1 ? 'mês' : 'meses'}`;
     }
     
+    // Mostrar em semanas se for mais de 7 dias
+    if (diffWeeks > 0) {
+      const remainingDays = diffDays % 7;
+      if (remainingDays > 0) {
+        return `${diffWeeks} ${diffWeeks === 1 ? 'semana' : 'semanas'} e ${remainingDays} ${remainingDays === 1 ? 'dia' : 'dias'}`;
+      }
+      return `${diffWeeks} ${diffWeeks === 1 ? 'semana' : 'semanas'}`;
+    }
+    
+    // Mostrar em dias se for mais de 24 horas
+    if (diffDays > 0) {
+      const remainingHours = diffHours % 24;
+      if (remainingHours > 0) {
+        return `${diffDays} ${diffDays === 1 ? 'dia' : 'dias'} e ${remainingHours}h`;
+      }
+      return `${diffDays} ${diffDays === 1 ? 'dia' : 'dias'}`;
+    }
+    
+    // Mostrar em horas e minutos se for menos de 24 horas
+    if (diffHours > 0) {
+      const remainingMinutes = diffMinutes % 60;
+      if (remainingMinutes > 0) {
+        return `${diffHours}h ${remainingMinutes}m`;
+      }
+      return `${diffHours}h`;
+    }
+    
+    // Mostrar apenas minutos se for menos de 1 hora
     return `${diffMinutes}m`;
   };
 
@@ -75,7 +112,14 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
               <div className="w-8 h-8 bg-[#00D4AA] rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">Pix</span>
               </div>
-              Pagamento via PIX
+              <div>
+                <div>Pagamento via PIX</div>
+                {paymentData.installmentCount && paymentData.installmentCount > 1 && (
+                  <div className="text-sm font-normal text-muted-foreground">
+                    Parcelado em {paymentData.installmentCount}x
+                  </div>
+                )}
+              </div>
             </CardTitle>
             
             {(paymentData.expirationDate || paymentData.dueDate) && (
@@ -98,10 +142,20 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
             </Alert>
           ) : (
             <Alert className="border-[#00D4AA] bg-[#00D4AA]/5">
-              <Clock className="h-4 w-4 text-[#00D4AA]" />
               <AlertDescription className="text-[#00D4AA]">
-                <strong>Aguardando pagamento via PIX</strong>
+                <strong>
+                  {paymentData.installmentCount && paymentData.installmentCount > 1 
+                    ? `Aguardando pagamento da ${paymentData.installmentNumber || 1}ª parcela via PIX`
+                    : 'Aguardando pagamento via PIX'
+                  }
+                </strong>
                 <br />
+                {paymentData.installmentCount && paymentData.installmentCount > 1 && (
+                  <>
+                    As próximas parcelas serão enviadas por email nas datas de vencimento.
+                    <br />
+                  </>
+                )}
                 Após o pagamento, a confirmação será automática em alguns minutos.
               </AlertDescription>
             </Alert>
@@ -145,10 +199,21 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
             <CardContent className="space-y-4">
               {/* Valor */}
               <div className="text-center p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">Valor</p>
-                <p className="text-2xl font-bold text-primary">
-                  {formatCurrency(registration.amount)}
+                <p className="text-sm text-muted-foreground">
+                  {paymentData.installmentCount && paymentData.installmentCount > 1 
+                    ? `Valor da ${paymentData.installmentNumber || 1}ª parcela` 
+                    : 'Valor'
+                  }
                 </p>
+                <p className="text-2xl font-bold text-primary">
+                  {formatCurrency(paymentData.value)}
+                </p>
+                {paymentData.installmentCount && paymentData.installmentCount > 1 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {paymentData.installmentCount}x de {formatCurrency(paymentData.value)} 
+                    (Total: {formatCurrency(registration.amount)})
+                  </p>
+                )}
               </div>
 
               {/* Chave PIX */}

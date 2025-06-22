@@ -173,7 +173,7 @@ export const Championship = () => {
               </TabsTrigger>
               <TabsTrigger 
                 value="etapas" 
-                disabled={!hasCategories || !hasStages}
+                disabled={!hasCategories}
                 className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
               >
                 Etapas

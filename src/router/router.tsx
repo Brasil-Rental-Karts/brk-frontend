@@ -21,9 +21,11 @@ const CreateCategory = lazy(() => import('@/pages/CreateCategory'));
 const CreateStage = lazy(() => import('@/pages/CreateStage').then(module => ({ default: module.CreateStage })));
 const SeasonRegistration = lazy(() => import('@/pages/SeasonRegistration').then(module => ({ default: module.SeasonRegistration })));
 const RegistrationPayment = lazy(() => import('@/pages/RegistrationPayment').then(module => ({ default: module.RegistrationPayment })));
+const PaymentDetails = lazy(() => import('@/pages/PaymentDetails').then(module => ({ default: module.PaymentDetails })));
 const Championship = lazy(() => import('@/pages/Championship').then(module => ({ default: module.Championship })));
 const EditProfile = lazy(() => import('@/pages/EditProfile'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
+const Financial = lazy(() => import('@/pages/Financial').then(module => ({ default: module.Financial })));
 const GoogleCallback = lazy(() => import('@/pages/GoogleCallback'));
 const LoginSuccess = lazy(() => import('@/pages/LoginSuccess'));
 const ConfirmEmailInfo = lazy(() => import('@/pages/ConfirmEmailInfo').then(module => ({ default: module.ConfirmEmailInfo })));
@@ -297,6 +299,19 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "championship/:championshipSlug/season/:seasonSlug/register",
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <LazyWrapper>
+                <SeasonRegistration />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      // Rota legacy para compatibilidade
+      {
         path: "season/:seasonId/register",
         element: (
           <ProtectedRoute>
@@ -321,6 +336,18 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "payment-details/:registrationId",
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <LazyWrapper>
+                <PaymentDetails />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "create-championship",
         element: (
           <ProtectedRoute requiredRoles={['Manager', 'Administrator']}>
@@ -339,6 +366,18 @@ export const router = createBrowserRouter([
             <MainLayout>
               <LazyWrapper>
                 <EditProfile />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "financial",
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <LazyWrapper>
+                <Financial />
               </LazyWrapper>
             </MainLayout>
           </ProtectedRoute>

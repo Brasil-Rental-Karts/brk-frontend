@@ -36,6 +36,11 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
   };
 
   const getInstallmentText = () => {
+    console.log('=== DEBUG CREDIT CARD PAYMENT ===');
+    console.log('paymentData.installmentCount:', paymentData.installmentCount);
+    console.log('registration.amount:', registration.amount);
+    console.log('paymentData:', paymentData);
+    
     if (paymentData.installmentCount && paymentData.installmentCount > 1) {
       const installmentValue = registration.amount / paymentData.installmentCount;
       return `${paymentData.installmentCount}x de ${formatCurrency(installmentValue)}`;

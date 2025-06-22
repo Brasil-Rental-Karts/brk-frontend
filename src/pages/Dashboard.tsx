@@ -308,7 +308,10 @@ export const Dashboard = () => {
               title="Você ainda não participa de nenhum campeonato"
               action={{
                 label: "Descobrir Campeonatos",
-                onClick: () => {},
+                onClick: () => {
+                  const siteUrl = import.meta.env.VITE_SITE_URL;
+                  window.open(`${siteUrl}/campeonatos`, '_blank', 'noopener,noreferrer');
+                },
               }}
             />
           ) : (
@@ -317,7 +320,10 @@ export const Dashboard = () => {
                 <div
                   key={participation.championship.id}
                   className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                  onClick={() => nav.goToChampionship(participation.championship.id)}
+                  onClick={() => {
+                    const siteUrl = import.meta.env.VITE_SITE_URL;
+                    window.open(`${siteUrl}/campeonato/${participation.championship.slug}`, '_blank', 'noopener,noreferrer');
+                  }}
                 >
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-medium text-sm truncate flex-1 mr-2" title={participation.championship.name}>

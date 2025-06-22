@@ -30,7 +30,7 @@
     "@shadcn/ui": "^0.0.4",
     "@types/qrcode.react": "^1.0.5",
     "axios": "^1.9.0",
-    "brk-design-system": "github:Brasil-Rental-Karts/brk-design-system",
+    "brk-design-system": "git+ssh://git@github.com/Brasil-Rental-Karts/brk-design-system.git",
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.6.1",
     "clsx": "^2.1.1",

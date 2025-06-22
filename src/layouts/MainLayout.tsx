@@ -123,6 +123,9 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                   </button>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
+                  <Link to="/financial">Financeiro</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link to="/profile/edit">Perfil</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -194,6 +197,13 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                     >
                       Dashboard
                     </button>
+                    <Link
+                      to="/financial"
+                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Financeiro
+                    </Link>
                     <Link
                       to="/profile/edit"
                       className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"

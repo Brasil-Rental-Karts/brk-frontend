@@ -110,7 +110,10 @@ export class StageService {
    */
   static formatDate(dateString: string): string {
     const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const year = date.getUTCFullYear();
+    return `${day}/${month}/${year}`;
   }
 
   /**
@@ -133,7 +136,7 @@ export class StageService {
    * Verificar se uma etapa já passou
    */
   static isPastStage(dateString: string, timeString: string): boolean {
-    const stageDateTime = new Date(`${dateString}T${timeString}`);
+    const stageDateTime = new Date(`${dateString.split('T')[0]}T${timeString}Z`);
     const now = new Date();
     return stageDateTime < now;
   }
@@ -145,7 +148,9 @@ export class StageService {
     const stageDate = new Date(dateString);
     const today = new Date();
     
-    return stageDate.toDateString() === today.toDateString();
+    return stageDate.getUTCFullYear() === today.getUTCFullYear() &&
+           stageDate.getUTCMonth() === today.getUTCMonth() &&
+           stageDate.getUTCDate() === today.getUTCDate();
   }
 
   /**
@@ -154,8 +159,10 @@ export class StageService {
   static isUpcomingSoon(dateString: string): boolean {
     const stageDate = new Date(dateString);
     const today = new Date();
-    const nextWeek = new Date();
-    nextWeek.setDate(today.getDate() + 7);
+    today.setUTCHours(0, 0, 0, 0);
+
+    const nextWeek = new Date(today);
+    nextWeek.setUTCDate(today.getUTCDate() + 7);
     
     return stageDate >= today && stageDate <= nextWeek;
   }

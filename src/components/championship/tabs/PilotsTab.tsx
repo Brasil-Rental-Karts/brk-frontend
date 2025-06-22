@@ -26,6 +26,7 @@ import { SeasonService } from "@/lib/services/season.service";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { formatDateToBrazilian } from "@/utils/date";
+import PaymentInfo from "../pilots/PaymentInfo";
 
 interface PilotsTabProps {
   championshipId: string;
@@ -48,25 +49,9 @@ const createFilterFields = (seasonOptions: { value: string; label: string }[] = 
     options: [
       { value: 'all', label: 'Todos os status' },
       { value: 'pending', label: 'Pendente' },
-      { value: 'payment_pending', label: 'Pagamento Pendente' },
       { value: 'confirmed', label: 'Confirmado' },
       { value: 'cancelled', label: 'Cancelado' },
       { value: 'expired', label: 'Expirado' }
-    ]
-  },
-  {
-    key: 'paymentStatus',
-    label: 'Status do Pagamento',
-    type: 'combobox',
-    placeholder: 'Todos os pagamentos',
-    options: [
-      { value: 'all', label: 'Todos os pagamentos' },
-      { value: 'pending', label: 'Pendente' },
-      { value: 'processing', label: 'Processando' },
-      { value: 'paid', label: 'Pago' },
-      { value: 'failed', label: 'Falhou' },
-      { value: 'cancelled', label: 'Cancelado' },
-      { value: 'refunded', label: 'Reembolsado' }
     ]
   }
 ];
@@ -177,11 +162,6 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         return false;
       }
 
-      // Filtro por status de pagamento
-      if (filters.paymentStatus && filters.paymentStatus !== 'all' && registration.paymentStatus !== filters.paymentStatus) {
-        return false;
-      }
-
       return true;
     });
 
@@ -260,96 +240,53 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
 
   const getStatusBadge = (status: string) => {
     const statusMap = {
-      'pending': { 
-        color: 'bg-yellow-100 text-yellow-800', 
+      pending: {
+        color: 'bg-yellow-100 text-yellow-800',
         label: 'Pendente',
-        icon: Clock
+        icon: Clock,
       },
-      'payment_pending': { 
-        color: 'bg-orange-100 text-orange-800', 
-        label: 'Pagamento Pendente',
-        icon: Clock
-      },
-      'confirmed': { 
-        color: 'bg-green-100 text-green-800', 
+      confirmed: {
+        color: 'bg-green-100 text-green-800',
         label: 'Confirmado',
-        icon: CheckCircle
+        icon: CheckCircle,
       },
-      'cancelled': { 
-        color: 'bg-red-100 text-red-800', 
+      cancelled: {
+        color: 'bg-gray-200 text-gray-800',
         label: 'Cancelado',
-        icon: XCircle
+        icon: XCircle,
       },
-      'expired': { 
-        color: 'bg-gray-100 text-gray-800', 
+      expired: {
+        color: 'bg-red-200 text-red-800',
         label: 'Expirado',
-        icon: XCircle
-      }
+        icon: XCircle,
+      },
     };
-    
-    const statusInfo = statusMap[status as keyof typeof statusMap] || { 
-      color: 'bg-gray-100 text-gray-800', 
-      label: status,
-      icon: Clock
-    };
-    
-    const IconComponent = statusInfo.icon;
-    
+
+    const statusInfo =
+      statusMap[status as keyof typeof statusMap] ||
+      ({
+        color: 'bg-gray-100 text-gray-800',
+        label: status,
+        icon: Users,
+      } as const);
+
+    const Icon = statusInfo.icon;
+
     return (
       <Badge className={`${statusInfo.color} flex items-center gap-1`}>
-        <IconComponent className="h-3 w-3" />
-        {statusInfo.label}
-      </Badge>
-    );
-  };
-
-  const getPaymentStatusBadge = (paymentStatus: string) => {
-    const statusMap = {
-      'pending': { color: 'bg-yellow-100 text-yellow-800', label: 'Pendente' },
-      'processing': { color: 'bg-blue-100 text-blue-800', label: 'Processando' },
-      'paid': { color: 'bg-green-100 text-green-800', label: 'Pago' },
-      'failed': { color: 'bg-red-100 text-red-800', label: 'Falhou' },
-      'cancelled': { color: 'bg-gray-100 text-gray-800', label: 'Cancelado' },
-      'refunded': { color: 'bg-purple-100 text-purple-800', label: 'Reembolsado' }
-    };
-    
-    const statusInfo = statusMap[paymentStatus as keyof typeof statusMap] || { 
-      color: 'bg-gray-100 text-gray-800', 
-      label: paymentStatus 
-    };
-    
-    return (
-      <Badge className={statusInfo.color}>
-        {statusInfo.label}
+        <Icon className="w-3 h-3" />
+        <span>{statusInfo.label}</span>
       </Badge>
     );
   };
 
   const handleRegistrationAction = (action: string, registrationId: string) => {
-    const registration = registrations.find(r => r.id === registrationId);
-    if (!registration) return;
-
-    switch (action) {
-      case "view":
-        // TODO: Implementar visualização de detalhes da inscrição
-        console.log("Ver detalhes da inscrição:", registrationId);
-        break;
-      case "contact":
-        // TODO: Implementar contato com o piloto
-        console.log("Entrar em contato com:", registration.user.name);
-        break;
-      case "payment":
-        // TODO: Implementar visualização dos dados de pagamento
-        console.log("Ver dados de pagamento:", registrationId);
-        break;
-      default:
-        break;
-    }
+    // Ações como "ver detalhes", "cancelar", "confirmar pagamento"
+    console.log(`Ação: ${action} para Inscrição: ${registrationId}`);
   };
 
-  // Determinar se o piloto está confirmado
   const isPilotConfirmed = (registration: SeasonRegistration) => {
-    return registration.status === 'confirmed' && registration.paymentStatus === 'paid';
+    return registration.status === 'confirmed';
   };
 
   if (loading) {
@@ -564,7 +501,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                       {getStatusBadge(registration.status)}
                     </TableCell>
                     <TableCell className="text-center py-4">
-                      {getPaymentStatusBadge(registration.paymentStatus)}
+                      <PaymentInfo registration={registration} />
                     </TableCell>
                     <TableCell className="text-center py-4">
                       <div className="text-sm">
@@ -627,6 +564,43 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
           </div>
         )}
       </Card>
+
+      <div className="mt-8">
+        <h3 className="text-xl font-bold mb-4">Inscrições com Pagamento Pendente</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {registrations
+            .filter((r) => {
+              if (!r.payments || r.payments.length === 0) return false;
+              const paidCount = r.payments.filter(
+                (p) =>
+                  p.status === 'CONFIRMED' || p.status === 'RECEIVED',
+              ).length;
+              return paidCount < r.payments.length;
+            })
+            .map((registration) => (
+              <Card key={registration.id}>
+                <div className="p-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-bold">{registration.user.name}</h4>
+                    <PaymentInfo registration={registration} />
+                  </div>
+                  <div className="text-sm text-gray-500 mt-2">
+                    <p>Temporada: {registration.season.name}</p>
+                    <p>Inscrito em: {formatDateToBrazilian(registration.createdAt)}</p>
+                  </div>
+                  <Button 
+                    variant="link" 
+                    className="mt-4"
+                    onClick={() => handleRegistrationAction('view', registration.id)}
+                  >
+                    Ver detalhes
+                  </Button>
+                </div>
+              </Card>
+            ))
+          }
+        </div>
+      </div>
     </div>
   );
 }; 

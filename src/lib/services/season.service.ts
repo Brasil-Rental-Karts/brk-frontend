@@ -6,14 +6,18 @@ export interface SeasonData {
   startDate: string;
   endDate: string;
   status: 'agendado' | 'em_andamento' | 'cancelado' | 'finalizado';
+  registrationOpen: boolean;
   inscriptionValue: number | string; // Decimal vem como string do backend
-  inscriptionType: 'mensal' | 'anual' | 'semestral' | 'trimestral';
-  paymentMethods: ('pix' | 'cartao_credito' | 'boleto')[];
+  inscriptionType: 'por_temporada' | 'por_etapa';
+  paymentMethods: ('pix' | 'cartao_credito')[];
   championshipId: string;
+  pixInstallments?: number;
+  creditCardInstallments?: number;
 }
 
 export interface Season extends SeasonData {
   id: string;
+  slug: string;
   createdAt: string;
   updatedAt: string;
 }

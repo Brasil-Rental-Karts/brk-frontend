@@ -5,60 +5,47 @@ export interface SeasonRegistration {
   id: string;
   userId: string;
   seasonId: string;
-  status: 'pending' | 'payment_pending' | 'confirmed' | 'cancelled' | 'expired';
-  paymentStatus: 'pending' | 'processing' | 'paid' | 'failed' | 'cancelled' | 'refunded';
+  status: string;
+  paymentStatus: string;
+  paymentMethod: string;
   amount: number;
   paymentDate?: string;
   confirmedAt?: string;
   cancelledAt?: string;
   cancellationReason?: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    phone?: string;
-  };
-  season: {
-    id: string;
-    name: string;
-    championshipId: string;
-  };
-  categories: {
-    id: string;
-    category: {
-      id: string;
-      name: string;
-      ballast: string;
-    };
-  }[];
   createdAt: string;
   updatedAt: string;
+  user: any; // Simplified for now
+  season: any; // Simplified for now
+  categories: any[]; // Simplified for now
+  payments: RegistrationPaymentData[];
 }
 
 export interface CreateRegistrationData {
+  userId: string;
   seasonId: string;
   categoryIds: string[];
-  paymentMethod: 'boleto' | 'pix' | 'cartao_credito';
-  userDocument?: string;
+  paymentMethod: 'pix' | 'cartao_credito';
+  userDocument: string;
+  installments?: number;
 }
 
 export interface RegistrationPaymentData {
   id: string;
-  billingType: 'PIX' | 'BOLETO' | 'CREDIT_CARD';
-  value: number;
-  status: string;
-  pixQrCode?: string;
-  pixKey?: string;
-  expirationDate?: string;
-  bankSlipUrl?: string;
-  creditCardToken?: string;
-  installmentCount?: number;
-  paymentLink?: string;
-  description?: string;
   registrationId: string;
+  billingType: string;
+  value: number;
   dueDate: string;
-  invoiceUrl?: string;
-  pixCopyPaste?: string;
+  status: string;
+  installmentNumber?: number | null;
+  installmentCount?: number | null;
+  expirationDate?: string | null;
+  invoiceUrl?: string | null;
+  bankSlipUrl?: string | null;
+  paymentLink?: string | null;
+  pixKey?: string | null;
+  pixQrCode?: string | null;
+  pixCopyPaste?: string | null;
 }
 
 export class SeasonRegistrationService {
@@ -78,7 +65,8 @@ export class SeasonRegistrationService {
           registration: SeasonRegistration;
           paymentData: RegistrationPaymentData;
         };
-      }>(SeasonRegistrationService.BASE_URL, data);
+      }>('/season-registrations', data);
+
       return response.data.data;
     } catch (error: any) {
       console.error('Error creating registration:', error);
@@ -128,13 +116,14 @@ export class SeasonRegistrationService {
   }
 
   /**
-   * Buscar dados de pagamento de uma inscrição
+   * Buscar dados de pagamento de uma inscrição (pode retornar várias parcelas)
    */
-  static async getPaymentData(registrationId: string): Promise<RegistrationPaymentData> {
+  static async getPaymentData(registrationId: string): Promise<RegistrationPaymentData[]> {
     try {
-      const response: AxiosResponse<{ data: RegistrationPaymentData }> = await api.get(
-        `${SeasonRegistrationService.BASE_URL}/${registrationId}/payment`
-      );
+      const response = await api.get<{
+        message: string;
+        data: RegistrationPaymentData[];
+      }>(`/season-registrations/${registrationId}/payment`);
       return response.data.data;
     } catch (error: any) {
       console.error('Error fetching payment data:', error);
