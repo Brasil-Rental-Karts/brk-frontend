@@ -45,7 +45,7 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
     <div className="min-h-screen flex flex-col">
       {/* Header */}
       <header className="bg-primary text-navbar-foreground py-4 px-6 shadow-md">
-        <div className="w-full flex justify-between items-center">
+        <div className="container flex justify-between items-center">
           <div className="flex items-center gap-4">
             <img
               src="/logo-brk-marca-horizontal-black.svg"
