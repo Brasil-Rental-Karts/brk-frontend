@@ -44,7 +44,7 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="bg-primary text-primary-foreground py-4 px-6 shadow-md">
+      <header className="bg-primary text-navbar-foreground py-4 px-6 shadow-md">
         <div className="w-full flex justify-between items-center">
           <div className="flex items-center gap-4">
             <img
@@ -143,7 +143,7 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="md:hidden text-primary-foreground hover:bg-primary-foreground/10"
+                  className="md:hidden text-navbar-foreground hover:bg-primary-foreground/10"
                 >
                   <Menu className="h-6 w-6" />
                   <span className="sr-only">Abrir menu</span>
