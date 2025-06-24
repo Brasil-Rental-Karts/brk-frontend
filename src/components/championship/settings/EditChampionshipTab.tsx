@@ -117,7 +117,6 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
       shortDescription: data.shortDescription || "",
       fullDescription: data.fullDescription || "",
       rules: data.rules || "",
-      sponsors: data.sponsors || [],
     };
 
     if (!asaasStatus?.configured) {
