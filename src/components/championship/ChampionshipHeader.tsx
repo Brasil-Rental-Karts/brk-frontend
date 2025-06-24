@@ -43,7 +43,7 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
 
   return (
     <div className="bg-dark-900 text-white w-full">
-      <div className="w-full px-4 py-4">
+      <div className="container px-4 py-4">
         {/* Layout Desktop */}
         <div className="hidden md:flex items-center justify-between">
           {/* Avatar e nome */}
