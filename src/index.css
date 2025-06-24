@@ -131,7 +131,7 @@
   }
 }
 
-/* Custom styles for Markdown tables */
+/* Custom styles for Markdown tables and lists */
 @layer components {
   .prose table {
     @apply w-full border-collapse border border-border my-4;
@@ -151,5 +151,34 @@
   
   .prose tbody tr:hover {
     @apply bg-muted/70;
+  }
+  
+  /* Fix for Markdown lists */
+  .prose ul {
+    @apply list-disc list-inside my-4 space-y-2;
+  }
+  
+  .prose ol {
+    @apply list-decimal list-inside my-4 space-y-2;
+  }
+  
+  .prose li {
+    @apply text-base leading-relaxed;
+  }
+  
+  .prose ul li {
+    @apply pl-2;
+  }
+  
+  .prose ol li {
+    @apply pl-2;
+  }
+  
+  /* Nested lists */
+  .prose ul ul,
+  .prose ol ol,
+  .prose ul ol,
+  .prose ol ul {
+    @apply mt-2 mb-2 ml-4;
   }
 }

@@ -287,14 +287,22 @@ export const EditRegulationSection = () => {
 Exemplos:
 # Título Principal
 ## Subtítulo
-- Item de lista
-- Outro item
+
+**Listas com marcadores:**
+- Primeiro item da lista
+- Segundo item da lista
+- Terceiro item da lista
+
+**Listas numeradas:**
+1. Primeiro item numerado
+2. Segundo item numerado
+3. Terceiro item numerado
+
+**Formatação de texto:**
 **Texto em negrito**
 *Texto em itálico*
 
-1. Item numerado
-2. Segundo item
-
+**Tabelas:**
 | Coluna 1 | Coluna 2 | Coluna 3 |
 |----------|----------|----------|
 | Linha 1  | Dados 1  | Info 1   |
@@ -306,7 +314,7 @@ Exemplos:
                   
                   {/* Markdown Help */}
                   <div className="text-xs text-muted-foreground">
-                    <p className="font-medium mb-1">Dicas de Markdown:</p>
+                    <p className="font-medium mb-2">Dicas de Markdown:</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                       <div>
                         <code># Título</code> - Título principal
@@ -326,9 +334,15 @@ Exemplos:
                       <div>
                         <code>1. Item</code> - Lista numerada
                       </div>
-                      <div className="col-span-full">
-                        <code>| Col1 | Col2 |</code> - Tabelas (use | para separar colunas)
-                      </div>
+                    </div>
+                    <div className="mt-2 p-2 bg-muted/30 rounded text-xs">
+                      <p className="font-medium mb-1">💡 Dica para listas:</p>
+                      <p>Use <code>-</code> ou <code>*</code> para listas com marcadores</p>
+                      <p>Use <code>1.</code>, <code>2.</code>, etc. para listas numeradas</p>
+                      <p>Deixe uma linha em branco antes e depois das listas</p>
+                    </div>
+                    <div className="mt-2">
+                      <code className="text-xs">| Col1 | Col2 |</code> - Tabelas (use | para separar colunas)
                     </div>
                   </div>
                 </div>

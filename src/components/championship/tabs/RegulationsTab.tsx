@@ -31,6 +31,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { toast } from "sonner";
 
 interface RegulationsTabProps {
   championshipId: string;
@@ -181,8 +182,16 @@ export const RegulationsTab = ({
     try {
       const publishedRegulation = await RegulationService.publish(regulation.id);
       setRegulation(publishedRegulation);
+      
+      // Show success message based on action
+      if (regulation.status === 'draft') {
+        toast.success('Regulamento publicado com sucesso!');
+      } else {
+        toast.success('Publicação atualizada com sucesso!');
+      }
     } catch (err: any) {
       setError(err.message || 'Erro ao publicar regulamento');
+      toast.error('Erro ao publicar regulamento');
     } finally {
       setPublishing(false);
     }
@@ -322,17 +331,15 @@ export const RegulationsTab = ({
         </div>
         
         <div className="flex items-center gap-2">
-          {regulation.status === 'draft' && (
-            <Button 
-              onClick={handlePublish} 
-              disabled={publishing}
-              variant="default"
-            >
-              {publishing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Globe className="mr-2 h-4 w-4" />
-              Publicar
-            </Button>
-          )}
+          <Button 
+            onClick={handlePublish} 
+            disabled={publishing}
+            variant={regulation.status === 'published' ? "outline" : "default"}
+          >
+            {publishing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Globe className="mr-2 h-4 w-4" />
+            {regulation.status === 'published' ? 'Atualizar Publicação' : 'Publicar'}
+          </Button>
           
           <Button 
             onClick={handleCreateSection} 
