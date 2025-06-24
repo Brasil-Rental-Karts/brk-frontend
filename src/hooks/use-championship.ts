@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Championship, ChampionshipService } from '@/lib/services/championship.service';
-import { CategoryService, Category } from '@/lib/services/category.service';
-import { StageService } from '@/lib/services/stage.service';
-import { Stage } from '@/lib/types/stage';
 
 export interface UseChampionshipReturn {
   championship: Championship | null;
@@ -32,29 +29,8 @@ export const useChampionship = (championshipId: string | undefined): UseChampion
       setLoading(true);
       setError(null);
       
+      // Buscar campeonato com todas as informações necessárias em uma única chamada
       const data = await ChampionshipService.getById(championshipId);
-
-      // Popular categorias e etapas nas temporadas, se existirem
-      if (data.seasons && data.seasons.length > 0) {
-        const seasonsWithDetails = await Promise.all(
-          data.seasons.map(async (season) => {
-            let categories: Category[] = [];
-            let stages: Stage[] = [];
-            try {
-              categories = await CategoryService.getBySeasonId(season.id);
-            } catch (error) {
-              console.error(`Failed to fetch categories for season ${season.id}`, error);
-            }
-            try {
-              stages = await StageService.getBySeasonId(season.id);
-            } catch (error) {
-              console.error(`Failed to fetch stages for season ${season.id}`, error);
-            }
-            return { ...season, categories, stages };
-          })
-        );
-        data.seasons = seasonsWithDetails;
-      }
       
       setChampionship(data);
     } catch (err: any) {

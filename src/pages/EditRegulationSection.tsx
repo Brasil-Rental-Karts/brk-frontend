@@ -84,24 +84,22 @@ export const EditRegulationSection = () => {
       
       setRegulation(data);
       
-      // If editing existing section, load its data
-      if (isEditing && sectionId) {
-        const section = data.sections.find(s => s.id === sectionId);
-        if (section) {
+      // Find existing section or create new one
+      if (sectionId && data) {
+        const existingSection = (data.sections || []).find(s => s.id === sectionId);
+        if (existingSection) {
           setSectionForm({
-            id: section.id,
-            title: section.title,
-            markdownContent: section.markdownContent,
-            order: section.order
+            id: existingSection.id,
+            title: existingSection.title,
+            markdownContent: existingSection.markdownContent,
+            order: existingSection.order
           });
         } else {
           setError('Seção não encontrada');
         }
-      } else {
-        // Creating new section - set next order
-        const nextOrder = data.sections.length > 0 
-          ? Math.max(...data.sections.map(s => s.order)) + 1 
-          : 1;
+      } else if (data) {
+        // Create new section with next order
+        const nextOrder = (data.sections || []).length + 1;
         setSectionForm(prev => ({ ...prev, order: nextOrder }));
       }
     } catch (err: any) {
@@ -121,30 +119,18 @@ export const EditRegulationSection = () => {
     setError(null);
     
     try {
-      const updatedSections = isEditing && sectionId
-        ? regulation.sections.map(s => 
-            s.id === sectionId 
-              ? {
-                  // Only send the fields that can be updated
-                  title: sectionForm.title,
-                  markdownContent: sectionForm.markdownContent,
-                  order: sectionForm.order
-                }
-              : {
-                  // Keep existing sections with only updatable fields
-                  title: s.title,
-                  markdownContent: s.markdownContent,
-                  order: s.order
-                }
+      const newSections = sectionForm.id
+        ? (regulation.sections || []).map(s => 
+            s.id === sectionForm.id 
+              ? { title: sectionForm.title, markdownContent: sectionForm.markdownContent, order: sectionForm.order }
+              : { title: s.title, markdownContent: s.markdownContent, order: s.order }
           )
         : [
-            // Add existing sections (only updatable fields)
-            ...regulation.sections.map(s => ({
+            ...(regulation.sections || []).map(s => ({
               title: s.title,
               markdownContent: s.markdownContent,
               order: s.order
             })),
-            // Add new section (without ID - let backend generate it)
             {
               title: sectionForm.title,
               markdownContent: sectionForm.markdownContent,
@@ -153,10 +139,10 @@ export const EditRegulationSection = () => {
           ];
       
       const updatedRegulation = await RegulationService.update(regulation.id, {
-        sections: updatedSections
+        sections: newSections
       });
       
-      toast.success(isEditing ? 'Seção atualizada com sucesso!' : 'Seção criada com sucesso!');
+      toast.success(sectionForm.id ? 'Seção atualizada com sucesso!' : 'Seção criada com sucesso!');
       
       // Navigate back to championship regulations tab
       navigate(`/championship/${championshipId}?tab=regulations`);

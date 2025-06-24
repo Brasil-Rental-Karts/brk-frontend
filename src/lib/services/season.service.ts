@@ -1,4 +1,6 @@
 import api from '../axios';
+import { Category } from './category.service';
+import { Stage } from '../types/stage';
 
 export interface SeasonData {
   name: string;
@@ -20,6 +22,9 @@ export interface Season extends SeasonData {
   slug: string;
   createdAt: string;
   updatedAt: string;
+  // Relacionamentos opcionais que podem vir do backend
+  categories?: Category[];
+  stages?: Stage[];
 }
 
 export interface PaginatedSeasons {

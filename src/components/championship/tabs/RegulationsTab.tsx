@@ -77,10 +77,18 @@ export const RegulationsTab = ({
     selectedSeasonId || (seasons.length > 0 ? seasons[0].id : null)
   );
 
+  console.log('[REGULATIONS DEBUG] Props:', {
+    selectedSeasonId,
+    seasonsCount: seasons.length,
+    seasons: seasons.map(s => ({ id: s.id, name: s.name })),
+    currentSeasonId
+  });
+
   const currentSeason = seasons.find(s => s.id === currentSeasonId);
 
   // Load regulation when season changes
   useEffect(() => {
+    console.log('[REGULATIONS DEBUG] useEffect triggered with currentSeasonId:', currentSeasonId);
     if (currentSeasonId) {
       loadRegulation();
     }
@@ -88,21 +96,29 @@ export const RegulationsTab = ({
 
   // Update season when seasons change
   useEffect(() => {
+    console.log('[REGULATIONS DEBUG] seasons changed, currentSeasonId:', currentSeasonId, 'seasons.length:', seasons.length);
     if (!currentSeasonId && seasons.length > 0) {
+      console.log('[REGULATIONS DEBUG] Setting currentSeasonId to:', seasons[0].id);
       setCurrentSeasonId(seasons[0].id);
     }
   }, [seasons]);
 
   const loadRegulation = async () => {
-    if (!currentSeasonId) return;
+    if (!currentSeasonId) {
+      console.log('[REGULATIONS DEBUG] loadRegulation called but no currentSeasonId');
+      return;
+    }
     
+    console.log('[REGULATIONS DEBUG] Loading regulation for seasonId:', currentSeasonId);
     setLoading(true);
     setError(null);
     
     try {
       const data = await RegulationService.getBySeasonId(currentSeasonId);
+      console.log('[REGULATIONS DEBUG] Regulation loaded successfully:', data);
       setRegulation(data);
     } catch (err: any) {
+      console.error('[REGULATIONS DEBUG] Error loading regulation:', err);
       setError(err.message || 'Erro ao carregar regulamento');
     } finally {
       setLoading(false);
@@ -153,7 +169,7 @@ export const RegulationsTab = ({
     
     try {
       // Filter out the section to delete and only send necessary fields
-      const updatedSections = regulation.sections
+      const updatedSections = (regulation.sections || [])
         .filter(s => s.id !== sectionToDelete)
         .map(s => ({
           title: s.title,
@@ -202,7 +218,7 @@ export const RegulationsTab = ({
   const handleDragEnd = async (result: any) => {
     if (!regulation || !result.destination) return;
     
-    const sections = Array.from(regulation.sections);
+    const sections = Array.from(regulation.sections || []);
     const [reorderedSection] = sections.splice(result.source.index, 1);
     sections.splice(result.destination.index, 0, reorderedSection);
     
@@ -358,7 +374,7 @@ export const RegulationsTab = ({
         <Droppable droppableId="sections">
           {(provided: any) => (
             <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
-              {regulation.sections
+              {(regulation.sections || [])
                 .sort((a, b) => a.order - b.order)
                 .map((section, index) => (
                   <Draggable key={section.id} draggableId={section.id} index={index}>

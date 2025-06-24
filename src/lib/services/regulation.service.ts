@@ -52,7 +52,14 @@ export class RegulationService {
   static async getBySeasonId(seasonId: string): Promise<Regulation | null> {
     try {
       const response = await api.get(`${this.endpoint}/season/${seasonId}`);
-      return response.data;
+      const data = response.data;
+      
+      // Garantir que sections sempre seja um array
+      if (data) {
+        data.sections = data.sections || [];
+      }
+      
+      return data;
     } catch (error: any) {
       if (error.response?.status === 404) {
         return null;
@@ -64,7 +71,14 @@ export class RegulationService {
   static async getPublishedBySeasonId(seasonId: string): Promise<Regulation | null> {
     try {
       const response = await api.get(`${this.endpoint}/season/${seasonId}/published`);
-      return response.data;
+      const data = response.data;
+      
+      // Garantir que sections sempre seja um array
+      if (data) {
+        data.sections = data.sections || [];
+      }
+      
+      return data;
     } catch (error: any) {
       if (error.response?.status === 404) {
         return null;
@@ -75,22 +89,50 @@ export class RegulationService {
 
   static async getById(id: string): Promise<Regulation> {
     const response = await api.get(`${this.endpoint}/${id}`);
-    return response.data;
+    const data = response.data;
+    
+    // Garantir que sections sempre seja um array
+    if (data) {
+      data.sections = data.sections || [];
+    }
+    
+    return data;
   }
 
   static async create(data: CreateRegulationRequest): Promise<Regulation> {
     const response = await api.post(this.endpoint, data);
-    return response.data;
+    const result = response.data;
+    
+    // Garantir que sections sempre seja um array
+    if (result) {
+      result.sections = result.sections || [];
+    }
+    
+    return result;
   }
 
   static async update(id: string, data: UpdateRegulationRequest): Promise<Regulation> {
     const response = await api.put(`${this.endpoint}/${id}`, data);
-    return response.data;
+    const result = response.data;
+    
+    // Garantir que sections sempre seja um array
+    if (result) {
+      result.sections = result.sections || [];
+    }
+    
+    return result;
   }
 
   static async publish(id: string): Promise<Regulation> {
     const response = await api.post(`${this.endpoint}/${id}/publish`);
-    return response.data;
+    const result = response.data;
+    
+    // Garantir que sections sempre seja um array
+    if (result) {
+      result.sections = result.sections || [];
+    }
+    
+    return result;
   }
 
   static async reorderSections(id: string, sections: ReorderSectionRequest[]): Promise<{ success: boolean; message: string }> {

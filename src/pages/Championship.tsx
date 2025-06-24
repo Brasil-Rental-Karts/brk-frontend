@@ -20,12 +20,7 @@ import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription } from "brk-design-system";
 import { AlertTriangle } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Category } from "@/lib/services/category.service";
-import { Season as BaseSeason } from "@/lib/services/season.service";
-import { Stage } from "@/lib/types/stage";
-
-// Estende a interface base da temporada para incluir as categorias
-type Season = BaseSeason & { categories?: Category[]; stages?: Stage[] };
+import { Season } from "@/lib/services/season.service";
 
 /**
  * Página principal do campeonato
@@ -78,8 +73,8 @@ export const Championship = () => {
 
     const tabFromUrl = searchParams.get("tab");
     const hasSeasons = championship.seasons.length > 0;
-    const hasCategories = hasSeasons && (championship.seasons as Season[]).some(s => s.categories && s.categories.length > 0);
-    const hasStages = hasSeasons && (championship.seasons as Season[]).some(s => s.stages && s.stages.length > 0);
+    const hasCategories = hasSeasons && championship.seasons.some(s => s.categories && s.categories.length > 0);
+    const hasStages = hasSeasons && championship.seasons.some(s => s.stages && s.stages.length > 0);
 
     const disabledTabsWithoutSeasons = ['categorias', 'regulamentos', 'etapas', 'pilotos', 'classificacao'];
     const disabledTabsWithoutCategories = ['etapas', 'pilotos', 'classificacao'];
@@ -140,8 +135,8 @@ export const Championship = () => {
   }
 
   const hasSeasons = !!championship?.seasons?.length;
-  const hasCategories = hasSeasons && (championship.seasons as Season[]).some(s => s.categories && s.categories.length > 0);
-  const hasStages = hasSeasons && (championship.seasons as Season[]).some(s => s.stages && s.stages.length > 0);
+  const hasCategories = hasSeasons && championship.seasons?.some(s => s.categories && s.categories.length > 0);
+  const hasStages = hasSeasons && championship.seasons?.some(s => s.stages && s.stages.length > 0);
 
   return (
     <div className="min-h-screen bg-background">
