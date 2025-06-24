@@ -12,6 +12,7 @@
   "dependencies": {
     "@fontsource/inter": "^5.2.5",
     "@fontsource/rubik": "^5.2.5",
+    "@hello-pangea/dnd": "^18.0.1",
     "@hookform/resolvers": "^5.0.1",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-checkbox": "^1.3.1",
@@ -43,6 +44,7 @@
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.56.3",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.5.0",
     "sonner": "^2.0.5",
     "tailwind-merge": "^1.14.0",

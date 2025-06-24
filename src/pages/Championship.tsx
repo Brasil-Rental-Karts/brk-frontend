@@ -14,6 +14,7 @@ import { EditChampionshipTab } from "@/components/championship/settings/EditCham
 import { SponsorsTab } from "@/components/championship/settings/SponsorsTab";
 import { StaffTab } from "@/components/championship/settings/StaffTab";
 import { ClassificationTab } from "@/components/championship/tabs/ClassificationTab";
+import { RegulationsTab } from "@/components/championship/tabs/RegulationsTab";
 import { useChampionship } from "@/hooks/use-championship";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription } from "brk-design-system";
@@ -43,6 +44,8 @@ export const Championship = () => {
     'temporadas': 'temporadas',
     'categories': 'categorias',
     'categorias': 'categorias',
+    'regulations': 'regulamentos',
+    'regulamentos': 'regulamentos',
     'stages': 'etapas',
     'etapas': 'etapas',
     'pilots': 'pilotos',
@@ -78,7 +81,7 @@ export const Championship = () => {
     const hasCategories = hasSeasons && (championship.seasons as Season[]).some(s => s.categories && s.categories.length > 0);
     const hasStages = hasSeasons && (championship.seasons as Season[]).some(s => s.stages && s.stages.length > 0);
 
-    const disabledTabsWithoutSeasons = ['categorias', 'etapas', 'pilotos', 'classificacao'];
+    const disabledTabsWithoutSeasons = ['categorias', 'regulamentos', 'etapas', 'pilotos', 'classificacao'];
     const disabledTabsWithoutCategories = ['etapas', 'pilotos', 'classificacao'];
 
     if (tabFromUrl) {
@@ -172,6 +175,13 @@ export const Championship = () => {
                 Categorias
               </TabsTrigger>
               <TabsTrigger 
+                value="regulamentos" 
+                disabled={!hasSeasons}
+                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+              >
+                Regulamentos
+              </TabsTrigger>
+              <TabsTrigger 
                 value="etapas" 
                 disabled={!hasCategories}
                 className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
@@ -219,6 +229,18 @@ export const Championship = () => {
                   onRefresh={refresh}
                 />
               </TabsContent>
+
+              <TabsContent value="regulamentos" className="mt-0 ring-0 focus-visible:outline-none">
+                <RegulationsTab 
+                  championshipId={id}
+                  seasons={championship.seasons || []}
+                  selectedSeasonId={null}
+                  onSeasonChange={() => {}}
+                  isLoading={loading}
+                  error={error}
+                  onRefresh={refresh}
+                />
+              </TabsContent>
     
               {hasCategories ? (
                 <>
@@ -241,7 +263,7 @@ export const Championship = () => {
                   </TabsContent>
                 </>
               ) : (
-                !['temporadas', 'categorias', 'config-edit', 'config-grid', 'config-scoring', 'config-sponsors', 'config-staff', 'config-asaas'].includes(activeTab) && (
+                !['temporadas', 'categorias', 'regulamentos', 'config-edit', 'config-grid', 'config-scoring', 'config-sponsors', 'config-staff', 'config-asaas'].includes(activeTab) && (
                   <Alert>
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription>
@@ -252,7 +274,7 @@ export const Championship = () => {
               )}
             </>
           ) : (
-            !['temporadas', 'config-edit', 'config-grid', 'config-scoring', 'config-sponsors', 'config-staff', 'config-asaas'].includes(activeTab) && (
+            !['temporadas', 'regulamentos', 'config-edit', 'config-grid', 'config-scoring', 'config-sponsors', 'config-staff', 'config-asaas'].includes(activeTab) && (
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
