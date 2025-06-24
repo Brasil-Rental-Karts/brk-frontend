@@ -186,7 +186,7 @@ export const CreateChampionship = () => {
             name: "Descrição curta do campeonato",
             type: "textarea",
             mandatory: true,
-            max_char: 165,
+            max_char: 50,
             placeholder: "Breve descrição que aparecerá nas listagens e buscas"
           },
           {
@@ -194,7 +194,7 @@ export const CreateChampionship = () => {
             name: "Descrição completa do campeonato",
             type: "textarea",
             mandatory: true,
-            max_char: 1000,
+            max_char: 290,
             placeholder: "Descrição detalhada com informações gerais, categorias, premiação, etc."
           },
           {
