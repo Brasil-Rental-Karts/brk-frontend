@@ -7,6 +7,7 @@ import { PublicRoute } from './components/PublicRoute';
 import { ScrollRestoration } from './components/ScrollRestoration';
 import { useRouteMetadata } from './hooks/useRouteMetadata';
 import { MainLayout } from '@/layouts/MainLayout';
+import { MainFullWidthLayout } from '@/layouts/MainFullWidhtLayout';
 import { AuthLayout } from '@/layouts/AuthLayout';
 
 // Lazy load pages for better performance
@@ -202,11 +203,11 @@ export const router = createBrowserRouter([
         path: "championship/:id",
         element: (
           <ProtectedRoute>
-            <MainLayout>
+            <MainFullWidthLayout>
               <LazyWrapper>
                 <Championship />
               </LazyWrapper>
-            </MainLayout>
+            </MainFullWidthLayout>
           </ProtectedRoute>
         ),
       },
@@ -218,11 +219,11 @@ export const router = createBrowserRouter([
         path: "championship/:championshipId/season/:seasonId",
         element: (
           <ProtectedRoute>
-            <MainLayout>
+            <MainFullWidthLayout>
               <LazyWrapper>
                 <CreateSeason />
               </LazyWrapper>
-            </MainLayout>
+            </MainFullWidthLayout>
           </ProtectedRoute>
         ),
       },
@@ -230,11 +231,11 @@ export const router = createBrowserRouter([
         path: "championship/:championshipId/create-category",
         element: (
           <ProtectedRoute>
-            <MainLayout>
+            <MainFullWidthLayout>
               <LazyWrapper>
                 <CreateCategory />
               </LazyWrapper>
-            </MainLayout>
+            </MainFullWidthLayout>
           </ProtectedRoute>
         ),
       },
@@ -242,11 +243,11 @@ export const router = createBrowserRouter([
         path: "championship/:championshipId/season/:seasonId/create-category",
         element: (
           <ProtectedRoute>
-            <MainLayout>
+            <MainFullWidthLayout>
               <LazyWrapper>
                 <CreateCategory />
               </LazyWrapper>
-            </MainLayout>
+            </MainFullWidthLayout>
           </ProtectedRoute>
         ),
       },
@@ -254,11 +255,11 @@ export const router = createBrowserRouter([
         path: "championship/:championshipId/category/:categoryId/edit",
         element: (
           <ProtectedRoute>
-            <MainLayout>
+            <MainFullWidthLayout>
               <LazyWrapper>
                 <CreateCategory />
               </LazyWrapper>
-            </MainLayout>
+            </MainFullWidthLayout>
           </ProtectedRoute>
         ),
       },
@@ -266,11 +267,11 @@ export const router = createBrowserRouter([
         path: "championship/:championshipId/create-stage",
         element: (
           <ProtectedRoute>
-            <MainLayout>
+            <MainFullWidthLayout>
               <LazyWrapper>
                 <CreateStage />
               </LazyWrapper>
-            </MainLayout>
+            </MainFullWidthLayout>
           </ProtectedRoute>
         ),
       },
@@ -278,11 +279,11 @@ export const router = createBrowserRouter([
         path: "championship/:championshipId/season/:seasonId/create-stage",
         element: (
           <ProtectedRoute>
-            <MainLayout>
+            <MainFullWidthLayout>
               <LazyWrapper>
                 <CreateStage />
               </LazyWrapper>
-            </MainLayout>
+            </MainFullWidthLayout>
           </ProtectedRoute>
         ),
       },
@@ -290,11 +291,11 @@ export const router = createBrowserRouter([
         path: "championship/:championshipId/stage/:stageId/edit",
         element: (
           <ProtectedRoute>
-            <MainLayout>
+            <MainFullWidthLayout>
               <LazyWrapper>
                 <CreateStage />
               </LazyWrapper>
-            </MainLayout>
+            </MainFullWidthLayout>
           </ProtectedRoute>
         ),
       },
@@ -302,11 +303,11 @@ export const router = createBrowserRouter([
         path: "championship/:championshipSlug/season/:seasonSlug/register",
         element: (
           <ProtectedRoute>
-            <MainLayout>
+            <MainFullWidthLayout>
               <LazyWrapper>
                 <SeasonRegistration />
               </LazyWrapper>
-            </MainLayout>
+            </MainFullWidthLayout>
           </ProtectedRoute>
         ),
       },

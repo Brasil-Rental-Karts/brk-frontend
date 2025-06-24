@@ -31,11 +31,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { ModeToggle } from "@/components/mode-toggle";
 
-interface MainLayoutProps {
+interface MainFullWidthProps {
   children?: ReactNode;
 }
 
-export const MainLayout = ({ children }: MainLayoutProps = {}) => {
+export const MainFullWidthLayout = ({ children }: MainFullWidthLayoutProps = {}) => {
   const [isOpen, setIsOpen] = useState(false);
   const { logout, user } = useAuth();
   const navigate = useNavigate();
