@@ -31,7 +31,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { ModeToggle } from "@/components/mode-toggle";
 
-interface MainFullWidthProps {
+interface MainFullWidthLayoutProps {
   children?: ReactNode;
 }
 
