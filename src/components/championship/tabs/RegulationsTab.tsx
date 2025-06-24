@@ -5,7 +5,6 @@ import { Card, CardHeader, CardContent } from "brk-design-system";
 import { Badge } from "brk-design-system";
 import { 
   Edit2, 
-  FileText, 
   Plus, 
   Trash2, 
   Eye, 
@@ -32,6 +31,7 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toast } from "sonner";
+
 
 interface RegulationsTabProps {
   championshipId: string;
@@ -76,6 +76,8 @@ export const RegulationsTab = ({
   const [currentSeasonId, setCurrentSeasonId] = useState<string | null>(
     selectedSeasonId || (seasons.length > 0 ? seasons[0].id : null)
   );
+
+  const currentSeason = seasons.find(s => s.id === currentSeasonId);
 
   // Load regulation when season changes
   useEffect(() => {
@@ -267,7 +269,7 @@ export const RegulationsTab = ({
   if (seasons.length === 0) {
     return (
       <EmptyState
-        icon={FileText}
+        icon={Globe}
         title="Nenhuma temporada encontrada"
         description="Crie uma temporada primeiro para poder gerenciar regulamentos."
       />
@@ -283,7 +285,7 @@ export const RegulationsTab = ({
         </div>
         
         <EmptyState
-          icon={FileText}
+          icon={Globe}
           title="Nenhum regulamento encontrado"
           description="Crie o primeiro regulamento para esta temporada."
           action={{
@@ -462,6 +464,8 @@ export const RegulationsTab = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+
     </div>
   );
 }; 
