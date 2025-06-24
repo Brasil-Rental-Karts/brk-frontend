@@ -228,7 +228,7 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
       </header>
 
       {/* Main content */}
-      <main className="flex-1 w-full px-6 py-8">
+      <main className="container flex-1 px-6 py-8">
         {children || <Outlet />}
       </main>
 
