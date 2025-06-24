@@ -31,6 +31,7 @@ const GoogleCallback = lazy(() => import('@/pages/GoogleCallback'));
 const LoginSuccess = lazy(() => import('@/pages/LoginSuccess'));
 const ConfirmEmailInfo = lazy(() => import('@/pages/ConfirmEmailInfo').then(module => ({ default: module.ConfirmEmailInfo })));
 const ConfirmEmail = lazy(() => import('@/pages/ConfirmEmail').then(module => ({ default: module.ConfirmEmail })));
+const EditRegulationSection = lazy(() => import('@/pages/EditRegulationSection').then(module => ({ default: module.EditRegulationSection })));
 
 // Route metadata interface
 export interface RouteMetadata {
@@ -294,6 +295,30 @@ export const router = createBrowserRouter([
             <MainFullWidthLayout>
               <LazyWrapper>
                 <CreateStage />
+              </LazyWrapper>
+            </MainFullWidthLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "championship/:championshipId/season/:seasonId/regulation/section/new",
+        element: (
+          <ProtectedRoute requiredRoles={['Manager', 'Administrator']}>
+            <MainFullWidthLayout>
+              <LazyWrapper>
+                <EditRegulationSection />
+              </LazyWrapper>
+            </MainFullWidthLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "championship/:championshipId/season/:seasonId/regulation/section/edit",
+        element: (
+          <ProtectedRoute requiredRoles={['Manager', 'Administrator']}>
+            <MainFullWidthLayout>
+              <LazyWrapper>
+                <EditRegulationSection />
               </LazyWrapper>
             </MainFullWidthLayout>
           </ProtectedRoute>

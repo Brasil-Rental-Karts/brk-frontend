@@ -130,3 +130,26 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom styles for Markdown tables */
+@layer components {
+  .prose table {
+    @apply w-full border-collapse border border-border my-4;
+  }
+  
+  .prose th {
+    @apply border border-border bg-muted px-4 py-2 text-left font-semibold;
+  }
+  
+  .prose td {
+    @apply border border-border px-4 py-2;
+  }
+  
+  .prose tbody tr:nth-child(even) {
+    @apply bg-muted/50;
+  }
+  
+  .prose tbody tr:hover {
+    @apply bg-muted/70;
+  }
+}
