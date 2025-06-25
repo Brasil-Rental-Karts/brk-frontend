@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
+import { Card, CardContent, CardHeader, CardTitle, Button } from 'brk-design-system';
 import { DynamicForm, FormSectionConfig } from '@/components/ui/dynamic-form';
 import { SeasonService, Season } from '@/lib/services/season.service';
 import { CategoryService, Category } from '@/lib/services/category.service';
@@ -12,12 +12,51 @@ import { formatCurrency } from '@/utils/currency';
 import { masks } from '@/utils/masks';
 import { useFormScreen } from '@/hooks/use-form-screen';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserRegistrations } from '@/hooks/use-user-registrations';
 
 interface SeasonRegistrationFormProps {
   seasonId: string;
   onSuccess?: (registrationId: string) => void;
   onCancel?: () => void;
 }
+
+// Função para traduzir status de inscrição
+const translateRegistrationStatus = (status: string): string => {
+  switch (status) {
+    case 'pending':
+      return 'Pendente';
+    case 'payment_pending':
+      return 'Pagamento Pendente';
+    case 'confirmed':
+      return 'Confirmado';
+    case 'cancelled':
+      return 'Cancelado';
+    case 'expired':
+      return 'Expirado';
+    default:
+      return status;
+  }
+};
+
+// Função para traduzir status de pagamento
+const translatePaymentStatus = (status: string): string => {
+  switch (status) {
+    case 'pending':
+      return 'Pendente';
+    case 'paid':
+      return 'Pago';
+    case 'processing':
+      return 'Processando';
+    case 'failed':
+      return 'Falhou';
+    case 'cancelled':
+      return 'Cancelado';
+    case 'overdue':
+      return 'Vencido';
+    default:
+      return status;
+  }
+};
 
 export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   seasonId,
@@ -479,12 +518,13 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
                 </div>
               </div>
               {onCancel && (
-                <button 
+                <Button 
                   onClick={onCancel}
-                  className="mt-4 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                  variant="outline"
+                  className="mt-4"
                 >
                   Voltar
-                </button>
+                </Button>
               )}
             </div>
           </CardContent>
@@ -505,23 +545,23 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
           <CardContent className="p-6">
             <div className="text-center">
               <div className="mb-4">
-                <div className="inline-flex items-center px-4 py-2 rounded-full bg-blue-100 text-blue-800 font-medium">
+                <div className="inline-flex items-center px-4 py-2 rounded-full bg-green-100 text-green-800 font-medium">
                   <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                   Já Inscrito
                 </div>
               </div>
               <h3 className="text-lg font-semibold mb-2">Você já está inscrito nesta temporada</h3>
               <p className="text-muted-foreground mb-4">
-                Sua inscrição está com status: <strong className="capitalize">{userRegistration.status}</strong>
+                Sua inscrição foi realizada com sucesso e está sendo processada.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-left bg-gray-50 p-4 rounded-lg">
                 <div>
-                  <strong>Status da inscrição:</strong> <span className="capitalize">{userRegistration.status}</span>
+                  <strong>Status da inscrição:</strong> <span className="capitalize">{translateRegistrationStatus(userRegistration.status)}</span>
                 </div>
                 <div>
-                  <strong>Status do pagamento:</strong> <span className="capitalize">{userRegistration.paymentStatus}</span>
+                  <strong>Status do pagamento:</strong> <span className="capitalize">{translatePaymentStatus(userRegistration.paymentStatus)}</span>
                 </div>
                 <div>
                   <strong>Valor pago:</strong> {formatCurrency(userRegistration.amount)}
@@ -531,12 +571,13 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
                 </div>
               </div>
               {onCancel && (
-                <button 
+                <Button 
                   onClick={onCancel}
-                  className="mt-4 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                  variant="outline"
+                  className="mt-4"
                 >
                   Voltar
-                </button>
+                </Button>
               )}
             </div>
           </CardContent>
@@ -547,6 +588,53 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
 
   // Verificar se é inscrição por etapa mas não há etapas disponíveis
   if (season.inscriptionType === 'por_etapa' && filteredStages.length === 0 && stages.length > 0) {
+    // Determinar o motivo específico
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Verificar se há etapas futuras
+    const futureStages = stages.filter(stage => {
+      const stageDate = new Date(stage.date);
+      stageDate.setHours(0, 0, 0, 0);
+      return stageDate > today;
+    });
+    
+    // Verificar se o usuário está inscrito na temporada
+    const userRegistration = userRegistrations.find(reg => reg.seasonId === season.id);
+    
+    let reason = '';
+    let title = '';
+    let description = '';
+    let badgeText = '';
+    let badgeColor = '';
+    let badgeIcon = '';
+    
+    if (futureStages.length === 0) {
+      // Todas as etapas já passaram
+      reason = 'temporada_encerrada';
+      title = 'Temporada Encerrada';
+      description = 'Todas as etapas desta temporada já foram realizadas.';
+      badgeText = 'Temporada Encerrada';
+      badgeColor = 'bg-red-100 text-red-800';
+      badgeIcon = 'M6 18L18 6M6 6l12 12';
+    } else if (userRegistration) {
+      // Usuário está inscrito em todas as etapas disponíveis
+      reason = 'ja_inscrito_todas_etapas';
+      title = 'Você já está inscrito em todas as etapas disponíveis';
+      description = 'Você já se inscreveu em todas as etapas futuras desta temporada.';
+      badgeText = 'Já Inscrito';
+      badgeColor = 'bg-green-100 text-green-800';
+      badgeIcon = 'M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z';
+    } else {
+      // Outro motivo (não deveria acontecer, mas por segurança)
+      reason = 'outro';
+      title = 'Não há etapas disponíveis para inscrição';
+      description = 'Não foi possível determinar o motivo específico.';
+      badgeText = 'Etapas Indisponíveis';
+      badgeColor = 'bg-orange-100 text-orange-800';
+      badgeIcon = 'M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z';
+    }
+    
     return (
       <div className="w-full max-w-4xl mx-auto px-6 py-6">
         <Card>
@@ -556,38 +644,49 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
           <CardContent className="p-6">
             <div className="text-center">
               <div className="mb-4">
-                <div className="inline-flex items-center px-4 py-2 rounded-full bg-orange-100 text-orange-800 font-medium">
+                <div className={`inline-flex items-center px-4 py-2 rounded-full ${badgeColor} font-medium`}>
                   <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d={badgeIcon} clipRule="evenodd" />
                   </svg>
-                  Etapas Encerradas
+                  {badgeText}
                 </div>
               </div>
-              <h3 className="text-lg font-semibold mb-2">Não há etapas disponíveis para inscrição</h3>
+              <h3 className="text-lg font-semibold mb-2">{title}</h3>
               <p className="text-muted-foreground mb-4">
-                Todas as etapas desta temporada já foram realizadas ou você já está inscrito em todas elas.
+                {description}
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-left bg-gray-50 p-4 rounded-lg">
                 <div>
                   <strong>Total de etapas:</strong> {stages.length}
                 </div>
                 <div>
-                  <strong>Etapas disponíveis:</strong> {filteredStages.length}
+                  <strong>Etapas futuras:</strong> {futureStages.length}
+                </div>
+                <div>
+                  <strong>Etapas passadas:</strong> {stages.length - futureStages.length}
                 </div>
                 <div>
                   <strong>Valor por categoria:</strong> {formatCurrency(Number(season.inscriptionValue))}
                 </div>
-                <div>
-                  <strong>Tipo de inscrição:</strong> Por Etapa
-                </div>
+                {userRegistration && (
+                  <>
+                    <div>
+                      <strong>Status da inscrição:</strong> <span className="capitalize">{translateRegistrationStatus(userRegistration.status)}</span>
+                    </div>
+                    <div>
+                      <strong>Status do pagamento:</strong> <span className="capitalize">{translatePaymentStatus(userRegistration.paymentStatus)}</span>
+                    </div>
+                  </>
+                )}
               </div>
               {onCancel && (
-                <button 
+                <Button 
                   onClick={onCancel}
-                  className="mt-4 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                  variant="outline"
+                  className="mt-4"
                 >
                   Voltar
-                </button>
+                </Button>
               )}
             </div>
           </CardContent>
