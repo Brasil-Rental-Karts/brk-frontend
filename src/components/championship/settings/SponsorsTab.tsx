@@ -4,13 +4,17 @@ import { DynamicForm, FormSectionConfig } from "@/components/ui/dynamic-form";
 import { useFormScreen } from '@/hooks/use-form-screen';
 import { ChampionshipService, Championship } from "@/lib/services/championship.service";
 import { Button } from "brk-design-system";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
+import { toast } from "sonner";
 
 interface SponsorsTabProps {
   championshipId: string;
 }
 
 export const SponsorsTab = ({ championshipId }: SponsorsTabProps) => {
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const formConfig: FormSectionConfig[] = [
     {
       section: "Patrocinadores",
@@ -31,40 +35,48 @@ export const SponsorsTab = ({ championshipId }: SponsorsTabProps) => {
     return ChampionshipService.getById(championshipId);
   }, [championshipId]);
 
-  const updateData = useCallback((_id: string, data: { sponsors: any[] }) => {
-    return ChampionshipService.update(championshipId, data);
+  const saveSponsors = useCallback(async (sponsors: any[]) => {
+    setIsSaving(true);
+    setError(null);
+    
+    try {
+      await ChampionshipService.update(championshipId, { sponsors });
+      toast.success("Patrocinador salvo com sucesso!");
+    } catch (err: any) {
+      const message = err.message || "Erro ao salvar patrocinador";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsSaving(false);
+    }
   }, [championshipId]);
 
   const transformInitialData = useCallback((data: Championship) => ({
     sponsors: data.sponsors || []
   }), []);
 
-  const transformSubmitData = useCallback((formData: Record<string, any>) => ({
-    sponsors: formData.sponsors || []
-  }), []);
-
-  const onSuccess = useCallback(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
-
   const {
     isLoading,
-    isSaving,
-    error,
     initialData,
     onFormReady,
-    handleSubmit,
   } = useFormScreen<Championship, { sponsors: any[] }>({
     id: championshipId,
     fetchData: fetchData,
-    updateData: updateData,
     transformInitialData: transformInitialData,
-    transformSubmitData: transformSubmitData,
-    onSuccess: onSuccess,
-    onCancel: () => {}, // Not used in this tab-based form
-    successMessage: "Patrocinadores atualizados com sucesso!",
+    onSuccess: () => {},
+    onCancel: () => {},
   });
 
+  // Função que será passada para o SponsorListField para salvar automaticamente
+  const handleSponsorsChange = useCallback((sponsors: any[]) => {
+    // Verificar se os dados realmente mudaram para evitar salvamento desnecessário
+    const currentSponsors = initialData?.sponsors || [];
+    const hasChanged = JSON.stringify(currentSponsors) !== JSON.stringify(sponsors);
+    
+    if (hasChanged) {
+      saveSponsors(sponsors);
+    }
+  }, [saveSponsors, initialData?.sponsors]);
 
   if (isLoading) {
     return (
@@ -95,13 +107,11 @@ export const SponsorsTab = ({ championshipId }: SponsorsTabProps) => {
             Gerencie os patrocinadores do seu campeonato
           </p>
         </div>
-        <Button
-          type="submit"
-          form="sponsors-form"
-          disabled={isSaving}
-        >
-          {isSaving ? "Salvando..." : "Salvar Alterações"}
-        </Button>
+        {isSaving && (
+          <div className="text-sm text-muted-foreground">
+            Salvando...
+          </div>
+        )}
       </div>
 
       {error && (
@@ -115,24 +125,19 @@ export const SponsorsTab = ({ championshipId }: SponsorsTabProps) => {
       {initialData && (
         <DynamicForm
           config={formConfig}
-          onSubmit={handleSubmit}
+          onSubmit={() => {}}
           onFormReady={onFormReady}
           showButtons={false}
           className="space-y-6"
           formId="sponsors-form"
           initialValues={initialData}
+          onFieldChange={(fieldId, value) => {
+            if (fieldId === 'sponsors') {
+              handleSponsorsChange(value);
+            }
+          }}
         />
       )}
-
-      <div className="flex justify-end pt-4 mt-4 border-t">
-        <Button
-          type="submit"
-          form="sponsors-form"
-          disabled={isSaving}
-        >
-          {isSaving ? "Salvando..." : "Salvar Alterações"}
-        </Button>
-      </div>
     </div>
   );
 }; 

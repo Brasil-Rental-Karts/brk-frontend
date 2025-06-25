@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from 'brk-design-system';
 import { Input } from 'brk-design-system';
 import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
@@ -33,6 +33,7 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
     logoImage: '',
     website: ''
   });
+  const formRef = useRef<HTMLDivElement>(null);
 
   const resetForm = () => {
     setFormData({
@@ -63,6 +64,18 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
     });
     setIsAdding(true);
   };
+
+  // Scroll to form when editing starts
+  useEffect(() => {
+    if (isAdding && editingIndex !== null && formRef.current) {
+      setTimeout(() => {
+        formRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }, 100);
+    }
+  }, [isAdding, editingIndex]);
 
   const handleSave = () => {
     if (!formData.name.trim() || !formData.logoImage.trim()) {
@@ -166,7 +179,7 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
 
       {/* Add/Edit Form */}
       {isAdding ? (
-        <Card>
+        <Card ref={formRef}>
           <CardHeader>
             <CardTitle className="text-lg">
               {editingIndex !== null ? 'Editar Patrocinador' : 'Adicionar Patrocinador'}
