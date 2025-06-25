@@ -7,11 +7,9 @@ export interface ScoringPosition {
 
 export interface ScoringSystemData {
   name: string;
-  description?: string;
   positions: ScoringPosition[];
   polePositionPoints?: number;
   fastestLapPoints?: number;
-  leaderLapPoints?: number;
   isActive?: boolean;
   isDefault?: boolean;
 }

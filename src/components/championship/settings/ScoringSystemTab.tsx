@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "brk-design-system";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "brk-design-system";
 import { Badge } from "brk-design-system";
@@ -22,6 +22,39 @@ interface ScoringSystemTabProps {
   championshipId: string;
 }
 
+const SCORING_TEMPLATES = [
+  {
+    label: 'Kart Brasileiro',
+    positions: [
+      { position: 1, points: 20 },
+      { position: 2, points: 17 },
+      { position: 3, points: 15 },
+      { position: 4, points: 13 },
+      { position: 5, points: 11 },
+      { position: 6, points: 10 },
+      { position: 7, points: 9 },
+      { position: 8, points: 8 },
+      { position: 9, points: 7 },
+      { position: 10, points: 6 },
+      { position: 11, points: 5 },
+      { position: 12, points: 4 },
+      { position: 13, points: 3 },
+      { position: 14, points: 2 },
+      { position: 15, points: 1 }
+    ]
+  },
+  {
+    label: 'Top 5',
+    positions: [
+      { position: 1, points: 5 },
+      { position: 2, points: 4 },
+      { position: 3, points: 3 },
+      { position: 4, points: 2 },
+      { position: 5, points: 1 }
+    ]
+  }
+];
+
 /**
  * Aba de gerenciamento de sistemas de pontuação do campeonato
  */
@@ -35,11 +68,9 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
   const [editingSystem, setEditingSystem] = useState<ScoringSystem | null>(null);
   const [formData, setFormData] = useState<ScoringSystemData>({
     name: '',
-    description: '',
     positions: [{ position: 1, points: 25 }],
     polePositionPoints: 0,
     fastestLapPoints: 0,
-    leaderLapPoints: 0,
     isActive: true,
     isDefault: false
   });
@@ -48,6 +79,26 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingSystem, setDeletingSystem] = useState<ScoringSystem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Estados para modal de escolha de template
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+
+  // Ref para o container de posições
+  const positionsContainerRef = useRef<HTMLDivElement>(null);
+  const [previousPositionsCount, setPreviousPositionsCount] = useState(0);
+
+  // Scroll automático quando adicionar posições
+  useEffect(() => {
+    if (formData.positions.length > previousPositionsCount && positionsContainerRef.current) {
+      setTimeout(() => {
+        positionsContainerRef.current?.scrollTo({
+          top: positionsContainerRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+    setPreviousPositionsCount(formData.positions.length);
+  }, [formData.positions.length, previousPositionsCount]);
 
   // Buscar sistemas de pontuação
   const fetchScoringSystems = useCallback(async () => {
@@ -145,11 +196,9 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
   const handleCreateNew = () => {
     setFormData({
       name: '',
-      description: '',
       positions: [{ position: 1, points: 25 }],
       polePositionPoints: 0,
       fastestLapPoints: 0,
-      leaderLapPoints: 0,
       isActive: true,
       isDefault: false
     });
@@ -160,11 +209,9 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
   const handleEdit = (system: ScoringSystem) => {
     setFormData({
       name: system.name,
-      description: system.description || '',
       positions: system.positions,
       polePositionPoints: system.polePositionPoints,
       fastestLapPoints: system.fastestLapPoints,
-      leaderLapPoints: system.leaderLapPoints,
       isActive: system.isActive,
       isDefault: system.isDefault
     });
@@ -280,9 +327,6 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
                       <Badge variant="secondary">Inativo</Badge>
                     )}
                   </div>
-                  {system.description && (
-                    <CardDescription>{system.description}</CardDescription>
-                  )}
                 </div>
                 <div className="flex items-center gap-1">
                   <TooltipProvider>
@@ -343,10 +387,6 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
                     <span className="font-medium">Volta Mais Rápida: </span>
                     <span className="text-muted-foreground">{system.fastestLapPoints} pts</span>
                   </div>
-                  <div>
-                    <span className="font-medium">Liderança: </span>
-                    <span className="text-muted-foreground">{system.leaderLapPoints} pts/volta</span>
-                  </div>
                 </div>
 
                 {/* Controles */}
@@ -394,129 +434,101 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
           
           <div className="space-y-6">
             {/* Informações básicas */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Nome *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Ex: Fórmula 1, Kart Brasileiro, etc."
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Descrição</label>
-                <input
-                  type="text"
-                  value={formData.description || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Descrição opcional do sistema"
-                />
-              </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nome *</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Ex: Fórmula 1, Kart Brasileiro, etc."
+              />
             </div>
 
             {/* Pontuação por posição */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Pontuação por Posição *</label>
-                <Button 
-                  type="button" 
-                  size="sm" 
+                <h4 className="text-sm font-medium">Pontuação por posição</h4>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => {
-                    const nextPosition = formData.positions.length + 1;
+                    const prevPositions = formData.positions;
+                    const lastPoints = prevPositions.length > 0 ? prevPositions[prevPositions.length - 1].points : 0;
+                    const newPoints = Math.max(0, lastPoints - 1);
                     setFormData(prev => ({
                       ...prev,
-                      positions: [...prev.positions, { position: nextPosition, points: 0 }]
+                      positions: [...prev.positions, { position: prev.positions.length + 1, points: newPoints }]
                     }));
                   }}
                 >
-                  <Plus className="h-4 w-4 mr-1" />
                   Adicionar Posição
                 </Button>
               </div>
               
-              <div className="border rounded-lg p-4 max-h-60 overflow-y-auto">
-                <div className="grid grid-cols-12 gap-2 mb-2 text-xs font-medium text-gray-600">
-                  <div className="col-span-2">Posição</div>
-                  <div className="col-span-2">Pontos</div>
-                  <div className="col-span-6"></div>
-                  <div className="col-span-2 text-center">Ações</div>
-                </div>
-                <div className="space-y-2">
-                  {formData.positions.map((pos, index) => (
-                    <div key={index} className="grid grid-cols-12 gap-2 items-center">
-                      <div className="col-span-2">
-                        <input
-                          type="number"
-                          value={pos.position}
-                          onChange={(e) => {
-                            const newPositions = [...formData.positions];
-                            newPositions[index] = { ...newPositions[index], position: parseInt(e.target.value) || 1 };
-                            setFormData(prev => ({ ...prev, positions: newPositions }));
-                          }}
-                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
-                          min="1"
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <input
-                          type="number"
-                          value={pos.points}
-                          onChange={(e) => {
-                            const newPositions = [...formData.positions];
-                            newPositions[index] = { ...newPositions[index], points: parseInt(e.target.value) || 0 };
-                            setFormData(prev => ({ ...prev, positions: newPositions }));
-                          }}
-                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
-                          min="0"
-                        />
-                      </div>
-                      <div className="col-span-6 text-xs text-gray-500">
-                        {pos.position}º lugar = {pos.points} pontos
-                      </div>
-                      <div className="col-span-2 text-center">
+              <div className="grid grid-cols-4 gap-4 max-h-60 overflow-y-auto" ref={positionsContainerRef}>
+                {formData.positions.map((pos, index) => (
+                  <div key={index} className="flex items-center gap-2 p-2 border rounded">
+                    <div className="w-8 text-center font-medium text-sm">
+                      {index + 1}º
+                    </div>
+                    <div className="flex-1">
+                      <input
+                        type="number"
+                        value={pos.points}
+                        onChange={(e) => {
+                          const newPositions = [...formData.positions];
+                          newPositions[index] = { ...newPositions[index], points: parseInt(e.target.value) || 0 };
+                          setFormData(prev => ({ ...prev, positions: newPositions }));
+                        }}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                        min="0"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="w-6">
+                      {formData.positions.length > 1 && (
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            const newPositions = formData.positions.filter((_, i) => i !== index);
+                            const newPositions = formData.positions
+                              .filter((_, i) => i !== index)
+                              .map((pos, newIndex) => ({
+                                ...pos,
+                                position: newIndex + 1
+                              }));
                             setFormData(prev => ({ ...prev, positions: newPositions }));
                           }}
-                          disabled={formData.positions.length <= 1}
-                          className="h-6 w-6 p-0"
+                          className="text-destructive hover:text-destructive h-5 w-5 p-0"
                         >
                           <X className="h-3 w-3" />
                         </Button>
-                      </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-                {formData.positions.length === 0 && (
-                  <div className="text-center text-gray-500 text-sm py-4">
-                    Adicione pelo menos uma posição
                   </div>
-                )}
+                ))}
               </div>
             </div>
 
             {/* Pontos extras */}
             <div className="space-y-4">
               <h4 className="text-sm font-medium">Pontos Extras</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Pole Position</label>
                   <input
                     type="number"
                     value={formData.polePositionPoints || 0}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      polePositionPoints: parseInt(e.target.value) || 0 
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      polePositionPoints: parseInt(e.target.value) || 0
                     }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                     min="0"
+                    step="1"
                     placeholder="0"
                   />
                   <p className="text-xs text-gray-500">Pontos para quem faz a pole position</p>
@@ -527,31 +539,16 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
                   <input
                     type="number"
                     value={formData.fastestLapPoints || 0}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      fastestLapPoints: parseInt(e.target.value) || 0 
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      fastestLapPoints: parseInt(e.target.value) || 0
                     }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                     min="0"
+                    step="1"
                     placeholder="0"
                   />
                   <p className="text-xs text-gray-500">Pontos para a volta mais rápida da corrida</p>
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Pontos por Volta Liderada</label>
-                  <input
-                    type="number"
-                    value={formData.leaderLapPoints || 0}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      leaderLapPoints: parseInt(e.target.value) || 0 
-                    }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    min="0"
-                    placeholder="0"
-                  />
-                  <p className="text-xs text-gray-500">Pontos por cada volta liderada</p>
                 </div>
               </div>
             </div>
@@ -589,95 +586,12 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
                 </label>
               </div>
             </div>
+          </div>
 
-            {/* Templates rápidos */}
-            <div className="space-y-4 border-t pt-4">
-              <h4 className="text-sm font-medium">Templates Rápidos</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setFormData(prev => ({
-                    ...prev,
-                    positions: [
-                      { position: 1, points: 25 },
-                      { position: 2, points: 18 },
-                      { position: 3, points: 15 },
-                      { position: 4, points: 12 },
-                      { position: 5, points: 10 },
-                      { position: 6, points: 8 },
-                      { position: 7, points: 6 },
-                      { position: 8, points: 4 },
-                      { position: 9, points: 2 },
-                      { position: 10, points: 1 }
-                    ],
-                    polePositionPoints: 1,
-                    fastestLapPoints: 1
-                  }))}
-                  className="text-left justify-start h-auto p-3"
-                >
-                  <div>
-                    <div className="font-medium">Fórmula 1</div>
-                    <div className="text-xs text-gray-500">25-18-15-12-10-8-6-4-2-1</div>
-                  </div>
-                </Button>
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setFormData(prev => ({
-                    ...prev,
-                    positions: [
-                      { position: 1, points: 20 },
-                      { position: 2, points: 17 },
-                      { position: 3, points: 15 },
-                      { position: 4, points: 13 },
-                      { position: 5, points: 11 },
-                      { position: 6, points: 10 },
-                      { position: 7, points: 9 },
-                      { position: 8, points: 8 },
-                      { position: 9, points: 7 },
-                      { position: 10, points: 6 },
-                      { position: 11, points: 5 },
-                      { position: 12, points: 4 },
-                      { position: 13, points: 3 },
-                      { position: 14, points: 2 },
-                      { position: 15, points: 1 }
-                    ]
-                  }))}
-                  className="text-left justify-start h-auto p-3"
-                >
-                  <div>
-                    <div className="font-medium">Kart Brasileiro</div>
-                    <div className="text-xs text-gray-500">20-17-15-13-11... (15 pos)</div>
-                  </div>
-                </Button>
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setFormData(prev => ({
-                    ...prev,
-                    positions: [
-                      { position: 1, points: 5 },
-                      { position: 2, points: 4 },
-                      { position: 3, points: 3 },
-                      { position: 4, points: 2 },
-                      { position: 5, points: 1 }
-                    ]
-                  }))}
-                  className="text-left justify-start h-auto p-3"
-                >
-                  <div>
-                    <div className="font-medium">Simples</div>
-                    <div className="text-xs text-gray-500">5-4-3-2-1 (Top 5)</div>
-                  </div>
-                </Button>
-              </div>
-            </div>
+          <div className="flex justify-end">
+            <Button type="button" variant="outline" size="sm" onClick={() => setShowTemplateDialog(true)}>
+              Escolher Template
+            </Button>
           </div>
 
           <DialogFooter className="mt-6">
@@ -709,6 +623,32 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
               Excluir
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de escolha de template */}
+      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Escolher Template de Pontuação</DialogTitle>
+            <DialogDescription>Selecione um template para preencher rapidamente as posições.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {SCORING_TEMPLATES.map((tpl, idx) => (
+              <Button
+                key={tpl.label}
+                type="button"
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => {
+                  setFormData(prev => ({ ...prev, positions: tpl.positions }));
+                  setShowTemplateDialog(false);
+                }}
+              >
+                {tpl.label}
+              </Button>
+            ))}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
