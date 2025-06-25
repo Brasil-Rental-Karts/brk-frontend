@@ -36,7 +36,6 @@ import { Category } from "@/lib/services/category.service";
 import { Stage } from "@/lib/types/stage";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
-import { StageDetailsModal } from "@/components/championship/modals/StageDetailsModal";
 import {
   Tooltip,
   TooltipContent,
@@ -86,7 +85,7 @@ const StageCard = ({ stage, onAction, getStageStatusBadge }: { stage: StageWithS
   return (
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <div className="flex-1 cursor-pointer pr-2" onClick={() => onAction("view", stage.id)}>
+        <div className="flex-1 pr-2">
           <h3 className="text-lg font-semibold tracking-tight">{stage.name}</h3>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
@@ -98,9 +97,6 @@ const StageCard = ({ stage, onAction, getStageStatusBadge }: { stage: StageWithS
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onAction("view", stage.id)}>
-                  Ver detalhes
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onAction("edit", stage.id)}>
                   Editar
                 </DropdownMenuItem>
@@ -117,7 +113,7 @@ const StageCard = ({ stage, onAction, getStageStatusBadge }: { stage: StageWithS
             </DropdownMenu>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 cursor-pointer" onClick={() => onAction("view", stage.id)}>
+      <CardContent className="space-y-4">
         {stage.doublePoints && (
           <Badge variant="outline" className="w-fit text-xs">
             Pontos em dobro
@@ -170,10 +166,6 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
   const [stageToDelete, setStageToDelete] = useState<Stage | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  // Estados para o modal de detalhes
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [stageToView, setStageToView] = useState<Stage | null>(null);
 
   const seasonOptions = useMemo(() => [
     { value: 'all', label: 'Todas as temporadas' },
@@ -289,7 +281,7 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
   };
 
   const handleAddStage = () => {
-    navigate(`/championship/${championshipId}/create-stage`);
+    navigate(`/championship/${championshipId}/stage/new`);
   };
 
   const handleEditStage = (stageId: string) => {
@@ -302,11 +294,54 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, createdAt, updatedAt, ...stageData } = stageToDuplicate;
+
+    // Normalizar date para DD/MM/YYYY
+    console.log('Duplicando etapa, valor original de date:', stageData.date);
+    let date = stageData.date;
+    if (date) {
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
+        // já está correto
+      } else if (/^\d{4}-\d{2}-\d{2}/.test(date)) {
+        // ISO ou YYYY-MM-DD
+        const [year, month, day] = date.split('T')[0].split('-');
+        date = `${day}/${month}/${year}`;
+      } else {
+        // fallback para Date
+        const d = new Date(date);
+        if (!isNaN(d.getTime())) {
+          const day = String(d.getDate()).padStart(2, '0');
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const year = d.getFullYear();
+          date = `${day}/${month}/${year}`;
+        } else {
+          date = '';
+        }
+      }
+    } else {
+      date = '';
+    }
+
+    // Garantir que categoryIds seja array de strings
+    let categoryIds = Array.isArray(stageData.categoryIds)
+      ? stageData.categoryIds.map((c: any) => typeof c === 'string' ? c : c.id)
+      : [];
+
+    console.log('Duplicando etapa, valor final de date para o formulário:', date);
+
     const duplicatedStageData = {
-      ...stageData,
       name: `${stageData.name} (Cópia)`,
+      date: '',
+      time: stageData.time || '',
+      kartodrome: stageData.kartodrome || '',
+      kartodromeAddress: stageData.kartodromeAddress || '',
+      streamLink: stageData.streamLink || '',
+      seasonId: stageData.seasonId || '',
+      categoryIds,
+      doublePoints: !!stageData.doublePoints,
+      briefing: stageData.briefing || '',
+      briefingTime: stageData.briefingTime || '',
     };
-    navigate(`/championship/${championshipId}/create-stage`, {
+    navigate(`/championship/${championshipId}/stage/new`, {
       state: { initialData: duplicatedStageData },
     });
   };
@@ -346,10 +381,6 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
     if (!stage) return;
 
     switch (action) {
-      case "view":
-        setStageToView(stage);
-        setShowDetailsModal(true);
-        break;
       case "edit":
         handleEditStage(stageId);
         break;
@@ -625,9 +656,6 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleStageAction("view", stage.id)}>
-                              Ver detalhes
-                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleStageAction("edit", stage.id)}>
                               Editar
                             </DropdownMenuItem>
@@ -667,16 +695,6 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
         </Card>
       )}
 
-
-      {/* Modal de detalhes da etapa */}
-      <StageDetailsModal
-        stage={stageToView}
-        isOpen={showDetailsModal}
-        onClose={() => {
-          setShowDetailsModal(false);
-          setStageToView(null);
-        }}
-      />
 
       {/* Modal de confirmação de exclusão */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

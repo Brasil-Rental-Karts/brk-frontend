@@ -205,7 +205,9 @@ export const CreateStage = () => {
           stageDataToSet = {
             ...STAGE_INITIAL_VALUES,
             ...duplicatedData,
-            date: formatISOToDate(duplicatedData.date),
+            date: /^\d{2}\/\d{2}\/\d{4}$/.test(duplicatedData.date) 
+              ? duplicatedData.date 
+              : formatISOToDate(duplicatedData.date),
           };
 
           if (duplicatedData.seasonId) {
@@ -261,12 +263,29 @@ export const CreateStage = () => {
       transformedData.streamLink = null;
     }
 
+    // Garantir que doublePoints seja boolean
+    if (transformedData.doublePoints === undefined || transformedData.doublePoints === null) {
+      transformedData.doublePoints = false;
+    } else {
+      transformedData.doublePoints = Boolean(transformedData.doublePoints);
+    }
+
+    // Garantir que categoryIds seja um array válido
+    if (!Array.isArray(transformedData.categoryIds) || transformedData.categoryIds.length === 0) {
+      throw new Error("Selecione pelo menos uma categoria");
+    }
+
+    // Converter data de DD/MM/YYYY para objeto Date
+    const dateISO = formatDateToISO(data.date);
+    if (!dateISO) {
+      throw new Error("Data inválida");
+    }
+
     return {
       ...transformedData,
-      date: formatDateToISO(data.date)!,
-      championshipId: championshipId!,
+      date: dateISO, // Enviar como string ISO que será convertida para Date pelo backend
     }
-  }, [championshipId, allSeasons]);
+  }, [allSeasons]);
   
   // Event handlers
   const onFieldChange = useCallback(async (fieldId: string, value: any, _formData: any, formActions: { setValue: (name: string, value: any) => void }) => {
@@ -285,6 +304,29 @@ export const CreateStage = () => {
   const onCancel = useCallback(() => {
     navigate(`/championship/${championshipId}?tab=etapas`);
   }, [navigate, championshipId]);
+
+  // Wrappers para interceptar erro 409
+  const createStageWithErrorHandling = useCallback(async (data: any) => {
+    try {
+      return await StageService.create(data);
+    } catch (error: any) {
+      if (error.response?.status === 409) {
+        throw new Error("Já existe uma etapa cadastrada para esta data nesta temporada. Por favor, escolha outra data.");
+      }
+      throw error;
+    }
+  }, []);
+
+  const updateStageWithErrorHandling = useCallback(async (id: string, data: any) => {
+    try {
+      return await StageService.update(id, data);
+    } catch (error: any) {
+      if (error.response?.status === 409) {
+        throw new Error("Já existe uma etapa cadastrada para esta data nesta temporada. Por favor, escolha outra data.");
+      }
+      throw error;
+    }
+  }, []);
 
   if (isLoading || !initialValues) {
     return (
@@ -311,8 +353,8 @@ export const CreateStage = () => {
       formId="stage-form"
       formConfig={formConfig}
       id={stageId}
-      createData={StageService.create}
-      updateData={StageService.update}
+      createData={createStageWithErrorHandling}
+      updateData={updateStageWithErrorHandling}
       onFieldChange={onFieldChange}
       transformSubmitData={transformSubmitData}
       onSuccess={onSuccess}

@@ -256,7 +256,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "championship/:championshipId/create-stage",
+        path: "championship/:championshipId/stage/new",
         element: (
           <ProtectedRoute>
             <MainFullWidthLayout>
@@ -268,16 +268,12 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "championship/:championshipId/create-stage",
+        element: <Navigate to="../stage/new" replace />,
+      },
+      {
         path: "championship/:championshipId/season/:seasonId/create-stage",
-        element: (
-          <ProtectedRoute>
-            <MainFullWidthLayout>
-              <LazyWrapper>
-                <CreateStage />
-              </LazyWrapper>
-            </MainFullWidthLayout>
-          </ProtectedRoute>
-        ),
+        element: <Navigate to="../../stage/new" replace />,
       },
       {
         path: "championship/:championshipId/stage/:stageId/edit",
