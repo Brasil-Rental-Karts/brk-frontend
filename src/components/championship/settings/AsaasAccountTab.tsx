@@ -409,16 +409,14 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
           )}
 
           <div className="flex flex-col sm:flex-row gap-3">
-            {canCreate && (
-              <Button 
-                onClick={handleCreateAsaasAccount}
-                disabled={creating}
-                className="flex items-center gap-2"
-              >
-                <CreditCard className="h-4 w-4" />
-                {creating ? "Verificando/criando..." : "Verificar/Criar Conta Asaas"}
-              </Button>
-            )}
+            <Button 
+              onClick={handleCreateAsaasAccount}
+              disabled={true}
+              className="flex items-center gap-2 opacity-50 cursor-not-allowed"
+            >
+              <CreditCard className="h-4 w-4" />
+              Verificar/Criar Conta Asaas
+            </Button>
 
             {isConfigured && (
               <Button 
@@ -431,6 +429,14 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
               </Button>
             )}
           </div>
+
+          <Alert variant="warning">
+            <AlertTitle>Funcionalidade em Revisão</AlertTitle>
+            <AlertDescription>
+              A funcionalidade de criação de conta Asaas está temporariamente desabilitada para revisão. 
+              Em breve estará disponível novamente.
+            </AlertDescription>
+          </Alert>
 
           {isConfigured && (
             <Alert variant="success">
