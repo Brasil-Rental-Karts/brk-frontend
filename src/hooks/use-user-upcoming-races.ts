@@ -149,8 +149,42 @@ export const useUserUpcomingRaces = () => {
         })
       );
 
-      // 6. Pegar apenas as próximas 3 corridas
-      const limitedRaces = racesWithParticipation.slice(0, 3);
+      // 6. Selecionar próximas corridas garantindo diversidade de campeonatos
+      const limitedRaces = (() => {
+        const maxRaces = 3;
+        const selectedRaces: UserUpcomingRace[] = [];
+        const championshipIds = new Set<string>();
+        
+        // Primeiro, tentar pegar uma corrida de cada campeonato diferente
+        for (const race of racesWithParticipation) {
+          if (selectedRaces.length >= maxRaces) break;
+          
+          if (!championshipIds.has(race.championship.id)) {
+            selectedRaces.push(race);
+            championshipIds.add(race.championship.id);
+          }
+        }
+        
+        // Se ainda há espaço, preencher com as próximas corridas cronologicamente
+        if (selectedRaces.length < maxRaces) {
+          for (const race of racesWithParticipation) {
+            if (selectedRaces.length >= maxRaces) break;
+            
+            // Verificar se já não foi selecionada
+            const alreadySelected = selectedRaces.some(selected => selected.stage.id === race.stage.id);
+            if (!alreadySelected) {
+              selectedRaces.push(race);
+            }
+          }
+        }
+        
+        // Ordenar novamente por data para garantir ordem cronológica
+        return selectedRaces.sort((a, b) => {
+          const dateA = new Date(`${a.stage.date}T${a.stage.time}`);
+          const dateB = new Date(`${b.stage.date}T${b.stage.time}`);
+          return dateA.getTime() - dateB.getTime();
+        });
+      })();
 
       setUpcomingRaces(limitedRaces);
     } catch (err: any) {
