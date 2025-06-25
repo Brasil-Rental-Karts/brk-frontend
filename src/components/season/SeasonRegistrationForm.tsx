@@ -388,10 +388,11 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
         fields: [
           {
             id: "cpf",
-            name: "CPF/CNPJ",
-            type: "input",
+            name: "CPF",
+            type: "inputMask",
             mandatory: true,
-            placeholder: "000.000.000-00 ou 00.000.000/0000-00"
+            mask: "cpf",
+            placeholder: "000.000.000-00"
           }
         ]
       }
