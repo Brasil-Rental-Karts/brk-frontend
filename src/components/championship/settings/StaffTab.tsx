@@ -4,8 +4,17 @@ import { Button } from "brk-design-system";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "brk-design-system";
 import { Badge } from "brk-design-system";
 import { Input } from "brk-design-system";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle 
+} from "brk-design-system";
 import { AlertTriangle, Mail, Plus, Trash2, Users, Calendar, Crown } from "lucide-react";
 import { ChampionshipStaffService, StaffMember } from "@/lib/services/championship-staff.service";
+import { toast } from "sonner";
 
 interface StaffTabProps {
   championshipId: string;
@@ -15,10 +24,11 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [memberToDelete, setMemberToDelete] = useState<StaffMember | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Carregar membros do staff
   const loadStaffMembers = async () => {
@@ -44,56 +54,64 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
     e.preventDefault();
     
     if (!newMemberEmail.trim()) {
-      setError('Por favor, informe o email do usuário');
+      toast.error('Por favor, informe o email do usuário');
       return;
     }
 
     try {
       setIsAddingMember(true);
       setError(null);
-      setSuccess(null);
 
       await ChampionshipStaffService.addStaffMember(championshipId, { email: newMemberEmail.trim() });
       
-      setSuccess('Membro adicionado à equipe com sucesso!');
+      toast.success('Membro adicionado à equipe com sucesso!');
       setNewMemberEmail('');
-      setShowAddForm(false);
-      
-      // Limpar mensagem de sucesso após 5 segundos
-      setTimeout(() => setSuccess(null), 5000);
       
       // Recarregar lista
       await loadStaffMembers();
     } catch (err) {
       console.error('Erro ao adicionar membro:', err);
-      setError(err instanceof Error ? err.message : 'Erro ao adicionar membro à equipe');
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao adicionar membro à equipe';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsAddingMember(false);
     }
   };
 
-  const handleRemoveMember = async (memberId: string, memberName: string) => {
-    if (!confirm(`Tem certeza que deseja remover ${memberName} da equipe?`)) {
-      return;
-    }
+  const handleRemoveMember = (member: StaffMember) => {
+    setMemberToDelete(member);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmRemoveMember = async () => {
+    if (!memberToDelete) return;
 
     try {
+      setIsDeleting(true);
       setError(null);
-      setSuccess(null);
 
-      await ChampionshipStaffService.removeStaffMember(championshipId, memberId);
+      await ChampionshipStaffService.removeStaffMember(championshipId, memberToDelete.id);
       
-      setSuccess('Membro removido da equipe com sucesso!');
-      
-      // Limpar mensagem de sucesso após 5 segundos
-      setTimeout(() => setSuccess(null), 5000);
+      toast.success('Membro removido da equipe com sucesso!');
       
       // Recarregar lista
       await loadStaffMembers();
     } catch (err) {
       console.error('Erro ao remover membro:', err);
-      setError(err instanceof Error ? err.message : 'Erro ao remover membro da equipe');
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao remover membro da equipe';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+      setMemberToDelete(null);
     }
+  };
+
+  const cancelRemoveMember = () => {
+    setShowDeleteDialog(false);
+    setMemberToDelete(null);
   };
 
   const formatDate = (date: string) => {
@@ -121,32 +139,15 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Users className="h-6 w-6" />
-            Equipe do Campeonato
-          </h2>
-          <p className="text-muted-foreground">
-            Gerencie os usuários que podem editar dados do campeonato
-          </p>
-        </div>
-        <Button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Adicionar Membro
-        </Button>
+      <div>
+        <h2 className="text-2xl font-bold flex items-center gap-2">
+          <Users className="h-6 w-6" />
+          Equipe do Campeonato
+        </h2>
+        <p className="text-muted-foreground">
+          Gerencie os usuários que podem editar dados do campeonato
+        </p>
       </div>
-
-      {/* Success message */}
-      {success && (
-        <Alert>
-          <AlertTitle>Sucesso!</AlertTitle>
-          <AlertDescription>{success}</AlertDescription>
-        </Alert>
-      )}
 
       {/* Error message */}
       {error && (
@@ -157,55 +158,41 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
         </Alert>
       )}
 
-      {/* Add Member Form */}
-      {showAddForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Adicionar Membro à Equipe</CardTitle>
-            <CardDescription>
-              Informe o email do usuário que deve ter acesso para editar dados do campeonato
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleAddMember} className="space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium mb-2">
-                  Email do usuário
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={newMemberEmail}
-                  onChange={(e) => setNewMemberEmail(e.target.value)}
-                  placeholder="usuario@exemplo.com"
-                  disabled={isAddingMember}
-                  required
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  disabled={isAddingMember}
-                >
-                  {isAddingMember ? 'Adicionando...' : 'Adicionar'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setNewMemberEmail('');
-                    setError(null);
-                  }}
-                  disabled={isAddingMember}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+      {/* Add Member Form - Always Visible */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Adicionar Membro à Equipe</CardTitle>
+          <CardDescription>
+            Informe o email do usuário que deve ter acesso para editar dados do campeonato
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleAddMember} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium mb-2">
+                Email do usuário
+              </label>
+              <Input
+                id="email"
+                type="email"
+                value={newMemberEmail}
+                onChange={(e) => setNewMemberEmail(e.target.value)}
+                placeholder="usuario@exemplo.com"
+                disabled={isAddingMember}
+                required
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="submit"
+                disabled={isAddingMember}
+              >
+                {isAddingMember ? 'Adicionando...' : 'Adicionar'}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
       {/* Staff Members List */}
       <div className="space-y-4">
@@ -218,10 +205,6 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
               <p className="text-muted-foreground text-center mb-4">
                 Adicione usuários à equipe para que possam editar dados do campeonato
               </p>
-              <Button onClick={() => setShowAddForm(true)} className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                Adicionar Primeiro Membro
-              </Button>
             </CardContent>
           </Card>
         ) : null}
@@ -263,7 +246,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleRemoveMember(member.id, member.user.name)}
+                        onClick={() => handleRemoveMember(member)}
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -299,6 +282,44 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
           </p>
         </CardContent>
       </Card>
+
+      {/* Modal de confirmação de exclusão */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar remoção</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja remover <strong>"{memberToDelete?.user.name}"</strong> da equipe?
+              <br />
+              Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {error && (
+            <Alert variant="destructive">
+              <AlertTitle>Erro ao remover</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={cancelRemoveMember}
+              disabled={isDeleting}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={confirmRemoveMember}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Removendo..." : "Remover da Equipe"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }; 
