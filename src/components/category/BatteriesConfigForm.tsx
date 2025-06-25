@@ -153,7 +153,7 @@ export const BatteriesConfigForm = forwardRef<HTMLDivElement, BatteriesConfigFor
             size="sm"
             onClick={() => setShowTemplateDialog(true)}
             disabled={disabled}
-            className="flex-1 sm:flex-none text-xs sm:text-sm"
+            className="flex-1 sm:flex-none text-xs sm:text-sm min-w-[80px]"
           >
             <Settings2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
             Templates
@@ -167,9 +167,8 @@ export const BatteriesConfigForm = forwardRef<HTMLDivElement, BatteriesConfigFor
               setShowBatteryForm(true);
             }}
             disabled={disabled}
-            className="flex-1 sm:flex-none text-xs sm:text-sm"
+            className="flex-1 sm:flex-none text-xs sm:text-sm min-w-[80px]"
           >
-            <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
             Adicionar
           </Button>
         </div>

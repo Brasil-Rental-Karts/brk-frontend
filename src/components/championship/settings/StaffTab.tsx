@@ -187,7 +187,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                 type="submit"
                 disabled={isAddingMember}
               >
-                {isAddingMember ? 'Adicionando...' : 'Adicionar'}
+                {isAddingMember ? 'Adicionando...' : 'Adicionar Membro'}
               </Button>
             </div>
           </form>

@@ -165,7 +165,7 @@ export const GridTypeForm = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-4xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-lg">
             {isEditing ? "Editar Tipo de Grid" : "Novo Tipo de Grid"}

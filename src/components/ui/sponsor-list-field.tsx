@@ -247,7 +247,6 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
           disabled={disabled}
           className="w-full"
         >
-          <Plus className="w-4 h-4 mr-2" />
           Adicionar Patrocinador
         </Button>
       )}

@@ -294,8 +294,7 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
         </div>
         <div className="flex gap-2">
           <Button onClick={handleCreateNew}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Sistema
+            Adicionar Sistema de Pontuação
           </Button>
         </div>
       </div>

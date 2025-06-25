@@ -227,9 +227,8 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
             Configure como as posições de largada serão determinadas
           </p>
         </div>
-        <Button onClick={handleCreateNew} size="sm" className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Tipo
+        <Button onClick={handleCreateNew} className="w-full sm:w-auto">
+          Adicionar Tipo de Grid
         </Button>
       </div>
 
