@@ -88,7 +88,6 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
     championshipImage: championship.championshipImage || "",
     shortDescription: championship.shortDescription || "",
     fullDescription: championship.fullDescription || "",
-    rules: championship.rules || "",
     personType: championship.personType?.toString() || "0",
     document: championship.document || "",
     socialReason: championship.socialReason || "",
@@ -116,7 +115,6 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
       championshipImage: data.championshipImage || "",
       shortDescription: data.shortDescription || "",
       fullDescription: data.fullDescription || "",
-      rules: data.rules || "",
     };
 
     if (!asaasStatus?.configured) {
@@ -281,13 +279,6 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
             placeholder:
               "Descrição detalhada com informações gerais, categorias, premiação, etc.",
           },
-          {
-            id: "rules",
-            name: "Link para o regulamento",
-            type: "input" as const,
-            mandatory: true,
-            placeholder: "https://seusite.com/regulamento.pdf",
-          },
         ],
       },
       ...(asaasStatus.configured
@@ -423,7 +414,7 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
                   id: "complement",
                   name: "Complemento",
                   type: "input" as const,
-                  mandatory: true,
+                  mandatory: false,
                   placeholder: "Apto, sala, bloco",
                   inline: true,
                   inlineGroup: "address",

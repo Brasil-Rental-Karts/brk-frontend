@@ -296,12 +296,30 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
     defaultValues,
   });
 
+  // Create a wrapper form that always validates on setValue
+  const formWithValidation = React.useMemo(() => {
+    const originalSetValue = form.setValue;
+    
+    return {
+      ...form,
+      setValue: (name: string, value: any, options?: any) => {
+        // Always call the original setValue
+        originalSetValue(name, value, options);
+        
+        // Always trigger validation for the field that was set
+        setTimeout(() => {
+          form.trigger(name);
+        }, 0);
+      }
+    };
+  }, [form]);
+
   // Expose form reference when ready
   useEffect(() => {
     if (onFormReady) {
-      onFormReady(form);
+      onFormReady(formWithValidation);
     }
-  }, [form, onFormReady]);
+  }, [formWithValidation, onFormReady]);
 
   // Watch all form values for conditional fields
   const watchedValues = form.watch();

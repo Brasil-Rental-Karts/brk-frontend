@@ -53,11 +53,10 @@ export const CreateChampionship = () => {
         formRef.setValue("state", addressData.uf);
         formRef.setValue("fullAddress", addressData.logradouro);
         formRef.setValue("province", addressData.bairro);
-        formRef.clearErrors(["state", "city", "fullAddress", "province"]);
         await loadCities(addressData.uf);
         setTimeout(() => {
           formRef.setValue("city", addressData.localidade);
-        }, 500);
+        }, 100);
       }
     }
 
@@ -104,16 +103,11 @@ export const CreateChampionship = () => {
           if (mainEmail && !formData.isResponsible) {
             formRef.setValue("responsibleEmail", mainEmail);
           }
-          
-          formRef.clearErrors([
-            "socialReason", "cep", "state", "city", "fullAddress", "number",
-            "province", "responsiblePhone", "responsibleEmail"
-          ]);
-          
+
           await loadCities(companyData.address.state);
           setTimeout(() => {
             formRef.setValue("city", companyData.address.city);
-          }, 500);
+          }, 100);
         }
       }
     }
@@ -125,7 +119,6 @@ export const CreateChampionship = () => {
       championshipImage: data.championshipImage || '',
       shortDescription: data.shortDescription || '',
       fullDescription: data.fullDescription || '',
-      rules: data.rules || '',
       personType: parseInt(data.personType || '0'),
       document: data.document,
       socialReason: data.socialReason || '',
@@ -196,13 +189,6 @@ export const CreateChampionship = () => {
             mandatory: true,
             max_char: 290,
             placeholder: "Descrição detalhada com informações gerais, categorias, premiação, etc."
-          },
-          {
-            id: "rules",
-            name: "Link para o regulamento",
-            type: "input",
-            mandatory: true,
-            placeholder: "https://seusite.com/regulamento.pdf"
           }
         ]
       },
@@ -318,7 +304,7 @@ export const CreateChampionship = () => {
             id: "complement",
             name: "Complemento",
             type: "input",
-            mandatory: true,
+            mandatory: false,
             placeholder: "Apto, sala, bloco",
             inline: true,
             inlineGroup: "address"
