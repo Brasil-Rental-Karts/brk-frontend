@@ -450,26 +450,39 @@ export const Financial: React.FC = () => {
   const renderDesktopTable = () => (
     <div className="rounded-md border overflow-hidden">
       {/* Header */}
-      <div className="grid grid-cols-12 gap-4 p-4 bg-muted/50 border-b font-medium text-sm">
-        <div className="col-span-3">Campeonato / Temporada</div>
-        <div className="col-span-2">Categorias</div>
-        <div className="col-span-2">Pagamento</div>
+      <div className="grid grid-cols-6 gap-4 p-4 bg-muted/50 border-b font-medium text-sm">
+        <div className="col-span-2">Campeonato / Temporada</div>
+        <div className="col-span-1">Categorias</div>
+        <div className="col-span-1">Pagamento</div>
         <div className="col-span-1">Status</div>
-        <div className="col-span-1">Total</div>
-        <div className="col-span-1">Pago</div>
-        <div className="col-span-1">Pendente</div>
         <div className="col-span-1">Ações</div>
       </div>
       
       {/* Rows */}
       <div className="divide-y">
         {processedRegistrations.map((registration) => (
-          <div key={registration.id} className="grid grid-cols-12 gap-4 p-4 hover:bg-muted/25 transition-colors items-center">
-            <div className="col-span-3">
+          <div key={registration.id} className="grid grid-cols-6 gap-4 p-4 hover:bg-muted/25 transition-colors items-center">
+            <div className="col-span-2">
               <div className="font-medium text-sm truncate">{registration.season.championship?.name || 'Campeonato'}</div>
               <div className="text-xs text-muted-foreground truncate">{registration.season.name}</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Total: {formatCurrency(registration.amount)}
+                {registration.paymentDetails && (
+                  <>
+                    {registration.paymentDetails.paidAmount > 0 && (
+                      <span className="text-green-600 ml-2">• Pago: {formatCurrency(registration.paymentDetails.paidAmount)}</span>
+                    )}
+                    {registration.paymentDetails.pendingAmount > 0 && (
+                      <span className="text-yellow-600 ml-2">• Pendente: {formatCurrency(registration.paymentDetails.pendingAmount)}</span>
+                    )}
+                    {registration.paymentDetails.overdueAmount > 0 && (
+                      <span className="text-red-600 ml-2">• Vencido: {formatCurrency(registration.paymentDetails.overdueAmount)}</span>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1">
               {registration.categories && registration.categories.length > 0 ? (
                 <div className="flex flex-wrap gap-1 max-w-full">
                   {registration.categories.slice(0, 2).map((regCategory) => (
@@ -487,14 +500,14 @@ export const Financial: React.FC = () => {
                 <span className="text-muted-foreground text-sm">-</span>
               )}
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1">
               <div className="flex items-center gap-2">
                 {getPaymentMethodIcon(registration.paymentMethod)}
                 <div className="flex flex-col min-w-0">
                   <span className="text-sm truncate">{getPaymentMethodLabel(registration.paymentMethod)}</span>
                   {registration.paymentDetails && registration.paymentDetails.totalInstallments > 1 && (
                     <span className="text-xs text-muted-foreground">
-                      {registration.paymentDetails.totalInstallments} parcelas
+                      {registration.paymentDetails.totalInstallments}x
                     </span>
                   )}
                 </div>
@@ -502,31 +515,6 @@ export const Financial: React.FC = () => {
             </div>
             <div className="col-span-1">
               {getPaymentStatusBadge(registration)}
-            </div>
-            <div className="col-span-1 font-medium text-sm">
-              {formatCurrency(registration.amount)}
-            </div>
-            <div className="col-span-1">
-              {registration.paymentDetails && registration.paymentDetails.paidAmount > 0 ? (
-                <span className="text-green-600 font-medium text-sm">
-                  {formatCurrency(registration.paymentDetails.paidAmount)}
-                </span>
-              ) : (
-                <span className="text-muted-foreground text-sm">-</span>
-              )}
-            </div>
-            <div className="col-span-1">
-              {registration.paymentDetails && registration.paymentDetails.pendingAmount > 0 ? (
-                <span className="text-yellow-600 font-medium text-sm">
-                  {formatCurrency(registration.paymentDetails.pendingAmount)}
-                </span>
-              ) : registration.paymentDetails && registration.paymentDetails.overdueAmount > 0 ? (
-                <span className="text-red-600 font-medium text-sm">
-                  {formatCurrency(registration.paymentDetails.overdueAmount)}
-                </span>
-              ) : (
-                <span className="text-muted-foreground text-sm">-</span>
-              )}
             </div>
             <div className="col-span-1 flex justify-center">
               <Button
@@ -723,20 +711,17 @@ export const Financial: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="min-w-[200px]">Campeonato / Temporada</TableHead>
+                    <TableHead className="min-w-[300px]">Campeonato / Temporada</TableHead>
                     <TableHead className="min-w-[120px]">Categorias</TableHead>
                     <TableHead className="min-w-[120px]">Pagamento</TableHead>
                     <TableHead className="min-w-[100px]">Status</TableHead>
-                    <TableHead className="min-w-[100px]">Total</TableHead>
-                    <TableHead className="min-w-[100px]">Pago</TableHead>
-                    <TableHead className="min-w-[100px]">Pendente</TableHead>
                     <TableHead className="min-w-[80px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {processedRegistrations.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                         Nenhuma inscrição encontrada
                       </TableCell>
                     </TableRow>
@@ -746,6 +731,22 @@ export const Financial: React.FC = () => {
                         <TableCell>
                           <div className="font-medium text-sm truncate">{registration.season.championship?.name || 'Campeonato'}</div>
                           <div className="text-xs text-muted-foreground truncate">{registration.season.name}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Total: {formatCurrency(registration.amount)}
+                            {registration.paymentDetails && (
+                              <>
+                                {registration.paymentDetails.paidAmount > 0 && (
+                                  <span className="text-green-600 ml-2">• Pago: {formatCurrency(registration.paymentDetails.paidAmount)}</span>
+                                )}
+                                {registration.paymentDetails.pendingAmount > 0 && (
+                                  <span className="text-yellow-600 ml-2">• Pendente: {formatCurrency(registration.paymentDetails.pendingAmount)}</span>
+                                )}
+                                {registration.paymentDetails.overdueAmount > 0 && (
+                                  <span className="text-red-600 ml-2">• Vencido: {formatCurrency(registration.paymentDetails.overdueAmount)}</span>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           {registration.categories && registration.categories.length > 0 ? (
@@ -772,36 +773,13 @@ export const Financial: React.FC = () => {
                               <span className="text-sm truncate">{getPaymentMethodLabel(registration.paymentMethod)}</span>
                               {registration.paymentDetails && registration.paymentDetails.totalInstallments > 1 && (
                                 <span className="text-xs text-muted-foreground">
-                                  {registration.paymentDetails.totalInstallments} parcelas
+                                  {registration.paymentDetails.totalInstallments}x
                                 </span>
                               )}
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>{getPaymentStatusBadge(registration)}</TableCell>
-                        <TableCell className="font-medium text-sm">{formatCurrency(registration.amount)}</TableCell>
-                        <TableCell>
-                          {registration.paymentDetails && registration.paymentDetails.paidAmount > 0 ? (
-                            <span className="text-green-600 font-medium text-sm">
-                              {formatCurrency(registration.paymentDetails.paidAmount)}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {registration.paymentDetails && registration.paymentDetails.pendingAmount > 0 ? (
-                            <span className="text-yellow-600 font-medium text-sm">
-                              {formatCurrency(registration.paymentDetails.pendingAmount)}
-                            </span>
-                          ) : registration.paymentDetails && registration.paymentDetails.overdueAmount > 0 ? (
-                            <span className="text-red-600 font-medium text-sm">
-                              {formatCurrency(registration.paymentDetails.overdueAmount)}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">-</span>
-                          )}
-                        </TableCell>
                         <TableCell>
                           <Button
                             variant="outline"
