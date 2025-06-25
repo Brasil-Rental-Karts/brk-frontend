@@ -60,7 +60,13 @@ const filterFields: FilterField[] = [
   }
 ];
 
-const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod }: { season: Season, onAction: (action: string, seasonId: string) => void, getStatusBadge: (status: string) => JSX.Element, formatPeriod: (startDate: string, endDate: string) => string }) => {
+const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod, formatInscriptionType }: { 
+  season: Season, 
+  onAction: (action: string, seasonId: string) => void, 
+  getStatusBadge: (status: string) => JSX.Element, 
+  formatPeriod: (startDate: string, endDate: string) => string,
+  formatInscriptionType: (inscriptionType: string) => string
+}) => {
   return (
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -77,6 +83,9 @@ const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod }: { season
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onAction("edit", season.id)}>
               Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onAction("duplicate", season.id)}>
+              Duplicar
             </DropdownMenuItem>
             <DropdownMenuItem 
               onClick={() => onAction("delete", season.id)}
@@ -108,7 +117,7 @@ const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod }: { season
           </div>
           <div className="flex flex-col">
             <span className="text-muted-foreground">Condições de pagamento</span>
-            <span className="font-medium capitalize">{season.inscriptionType}</span>
+            <span className="font-medium capitalize">{formatInscriptionType(season.inscriptionType)}</span>
           </div>
         </div>
       </CardContent>
@@ -255,6 +264,21 @@ export const SeasonsTab = ({
     navigate(`/championship/${championshipId}/season/${seasonId}`);
   };
 
+  const handleDuplicateSeason = (seasonId: string) => {
+    const seasonToDuplicate = initialSeasons.find((s) => s.id === seasonId);
+    if (!seasonToDuplicate) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, createdAt, updatedAt, ...seasonData } = seasonToDuplicate;
+    const duplicatedSeasonData = {
+      ...seasonData,
+      name: `${seasonData.name} (Cópia)`,
+    };
+    navigate(`/championship/${championshipId}/season/new`, {
+      state: { initialData: duplicatedSeasonData },
+    });
+  };
+
   const handleDeleteSeason = (season: Season) => {
     setSeasonToDelete(season);
     setDeleteError(null);
@@ -294,18 +318,17 @@ export const SeasonsTab = ({
     if (!season) return;
 
     switch (action) {
-      case "view":
-        // TODO: Implementar visualização de detalhes da temporada
-
-        break;
       case "edit":
         handleEditSeason(seasonId);
+        break;
+      case "duplicate":
+        handleDuplicateSeason(seasonId);
         break;
       case "delete":
         handleDeleteSeason(season);
         break;
       default:
-
+        console.warn(`Unknown action: ${action}`);
     }
   };
 
@@ -327,7 +350,20 @@ export const SeasonsTab = ({
   };
 
   const formatPeriod = (startDate: string, endDate: string) => {
-    return `${formatDateToBrazilian(startDate)} - ${formatDateToBrazilian(endDate)}`;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    return `${start.toLocaleDateString('pt-BR')} - ${end.toLocaleDateString('pt-BR')}`;
+  };
+
+  const formatInscriptionType = (inscriptionType: string) => {
+    switch (inscriptionType) {
+      case 'por_temporada':
+        return 'Por Temporada';
+      case 'por_etapa':
+        return 'Por Etapa';
+      default:
+        return inscriptionType;
+    }
   };
 
   const handleFiltersChange = useCallback((newFilters: FilterValues) => {
@@ -425,6 +461,7 @@ export const SeasonsTab = ({
                   onAction={handleSeasonAction}
                   getStatusBadge={getStatusBadge}
                   formatPeriod={formatPeriod}
+                  formatInscriptionType={formatInscriptionType}
                 />
               </div>
             ))}
@@ -536,7 +573,7 @@ export const SeasonsTab = ({
                           {formatCurrency(parseFloat(season.inscriptionValue?.toString() || '0'))}
                         </div>
                         <div className="text-xs text-muted-foreground capitalize">
-                          {season.inscriptionType}
+                          {formatInscriptionType(season.inscriptionType)}
                         </div>
                       </TableCell>
                       <TableCell className="text-center py-4">
@@ -547,11 +584,11 @@ export const SeasonsTab = ({
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleSeasonAction("view", season.id)}>
-                              Ver detalhes
-                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleSeasonAction("edit", season.id)}>
                               Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleSeasonAction("duplicate", season.id)}>
+                              Duplicar
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => handleSeasonAction("delete", season.id)}

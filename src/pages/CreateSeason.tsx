@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { FormScreen } from "@/components/ui/FormScreen";
 import { FormSectionConfig } from "@/components/ui/dynamic-form";
 import { SeasonData, SeasonService } from "@/lib/services/season.service";
@@ -7,9 +7,11 @@ import { useCallback } from "react";
 
 export const CreateSeason = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { championshipId, seasonId } = useParams<{ championshipId: string; seasonId?: string }>();
   const isEditMode = seasonId !== 'new';
   const currentSeasonId = isEditMode ? seasonId : undefined;
+  const duplicatedData = location.state?.initialData;
 
   const createInstallmentOptions = () => {
     return Array.from({ length: 12 }, (_, i) => ({
@@ -117,16 +119,23 @@ export const CreateSeason = () => {
           name: "Parcelas PIX",
           type: "select",
           mandatory: false,
-          options: createInstallmentOptions()
+          options: createInstallmentOptions(),
+          conditionalField: {
+            dependsOn: "paymentMethods",
+            showWhen: (value: any) => Array.isArray(value) && value.includes("pix")
+          }
         },
         {
           id: "creditCardInstallments",
           name: "Parcelas Cartão de Crédito", 
           type: "select",
           mandatory: false,
-          options: createInstallmentOptions()
+          options: createInstallmentOptions(),
+          conditionalField: {
+            dependsOn: "paymentMethods",
+            showWhen: (value: any) => Array.isArray(value) && value.includes("cartao_credito")
+          }
         },
-
       ]
     }
   ];
@@ -196,7 +205,7 @@ export const CreateSeason = () => {
       transformSubmitData={transformSubmitData}
       onSuccess={onSuccess}
       onCancel={onCancel}
-      initialValues={SEASON_INITIAL_VALUES}
+      initialValues={duplicatedData ? transformInitialData(duplicatedData) : SEASON_INITIAL_VALUES}
       successMessage={isEditMode ? "Temporada atualizada com sucesso!" : "Temporada criada com sucesso!"}
       errorMessage={isEditMode ? "Erro ao atualizar temporada." : "Erro ao criar temporada."}
     />
@@ -213,8 +222,8 @@ const SEASON_INITIAL_VALUES = {
   inscriptionValue: "",
   inscriptionType: "por_temporada",
   paymentMethods: [],
-  pixInstallments: 1,
-  creditCardInstallments: 1
+  pixInstallments: "1",
+  creditCardInstallments: "1"
 };
 
 export default CreateSeason; 
