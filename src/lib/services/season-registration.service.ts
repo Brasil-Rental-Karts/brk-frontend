@@ -213,7 +213,26 @@ export class SeasonRegistrationService {
       console.error('Error checking championship split status:', error);
       throw new Error(
         error.response?.data?.message || 
-        'Erro ao verificar status de split do campeonato.'
+        'Erro ao verificar status de configuração do campeonato.'
+      );
+    }
+  }
+
+  /**
+   * Contar inscrições confirmadas de uma categoria
+   */
+  static async getCategoryRegistrationCount(categoryId: string): Promise<number> {
+    try {
+      const response = await api.get<{
+        message: string;
+        data: { count: number };
+      }>(`${SeasonRegistrationService.BASE_URL}/category/${categoryId}/count`);
+      return response.data.data.count;
+    } catch (error: any) {
+      console.error('Error getting category registration count:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao contar inscrições da categoria.'
       );
     }
   }

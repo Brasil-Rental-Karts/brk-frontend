@@ -33,87 +33,36 @@ export type BatteriesConfig = BatteryConfig[];
  * Templates pré-definidos de configurações de bateria
  */
 export const BATTERY_TEMPLATES = {
-  SINGLE: [
+  SINGLE_25MIN: [
     {
       name: "Bateria 1",
       gridType: "",
       scoringSystemId: "",
       order: 1,
       isRequired: true,
-      description: "Bateria principal"
+      description: "Bateria única de 25 minutos",
+      duration: 25
     }
   ] as BatteriesConfig,
   
-  QUALIFYING_RACE: [
+  TWO_BATTERIES: [
     {
-      name: "Classificação",
+      name: "Bateria 1",
       gridType: "",
       scoringSystemId: "",
       order: 1,
       isRequired: true,
-      description: "Bateria de classificação"
+      description: "Primeira bateria com grid padrão",
+      duration: 15
     },
     {
-      name: "Corrida",
+      name: "Bateria 2",
       gridType: "",
       scoringSystemId: "",
       order: 2,
       isRequired: true,
-      description: "Bateria principal"
-    }
-  ] as BatteriesConfig,
-  
-  QUALIFYING_SEMI_FINAL: [
-    {
-      name: "Classificação",
-      gridType: "",
-      scoringSystemId: "",
-      order: 1,
-      isRequired: true,
-      description: "Bateria de classificação"
-    },
-    {
-      name: "Semifinal",
-      gridType: "",
-      scoringSystemId: "",
-      order: 2,
-      isRequired: true,
-      description: "Bateria semifinal"
-    },
-    {
-      name: "Final",
-      gridType: "",
-      scoringSystemId: "",
-      order: 3,
-      isRequired: true,
-      description: "Bateria final"
-    }
-  ] as BatteriesConfig,
-  
-  PRACTICE_QUALIFYING_RACE: [
-    {
-      name: "Treino",
-      gridType: "",
-      scoringSystemId: "",
-      order: 1,
-      isRequired: false,
-      description: "Bateria de treino"
-    },
-    {
-      name: "Classificação",
-      gridType: "",
-      scoringSystemId: "",
-      order: 2,
-      isRequired: true,
-      description: "Bateria de classificação"
-    },
-    {
-      name: "Corrida",
-      gridType: "",
-      scoringSystemId: "",
-      order: 3,
-      isRequired: true,
-      description: "Bateria principal"
+      description: "Segunda bateria com grid invertido",
+      duration: 15
     }
   ] as BatteriesConfig
 } as const;

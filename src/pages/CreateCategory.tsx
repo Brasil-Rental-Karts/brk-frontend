@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { FormScreen } from "@/components/ui/FormScreen";
 import { FormSectionConfig } from "@/components/ui/dynamic-form";
 import { CategoryData, CategoryService } from "@/lib/services/category.service";
@@ -11,9 +11,9 @@ import { GridType } from "@/lib/types/grid-type";
 
 export const CreateCategory = () => {
   const navigate = useNavigate();
-  const { championshipId, seasonId: routeSeasonId, categoryId } = useParams<{
+  const location = useLocation();
+  const { championshipId, categoryId } = useParams<{
     championshipId: string;
-    seasonId?: string;
     categoryId?: string;
   }>();
 
@@ -22,8 +22,10 @@ export const CreateCategory = () => {
   const [allSeasons, setAllSeasons] = useState<Season[]>([]);
   const [gridTypes, setGridTypes] = useState<GridType[]>([]);
   const [scoringSystems, setScoringSystems] = useState<ScoringSystem[]>([]);
+  const duplicatedData = location.state?.initialData;
 
-  const isEditMode = !!categoryId;
+  const isEditMode = categoryId !== 'new';
+  const currentCategoryId = isEditMode ? categoryId : undefined;
 
   useEffect(() => {
     const loadDependencies = async () => {
@@ -187,7 +189,7 @@ export const CreateCategory = () => {
     navigate(`/championship/${championshipId}?tab=categories`);
   }, [navigate, championshipId]);
 
-  const fetchData = useCallback(() => CategoryService.getById(categoryId!), [categoryId]);
+  const fetchData = useCallback(() => CategoryService.getById(currentCategoryId!), [currentCategoryId]);
   const createData = useCallback((data: CategoryData) => CategoryService.create(data), []);
   const updateData = useCallback((id: string, data: CategoryData) => CategoryService.update(id, data), []);
 
@@ -196,7 +198,7 @@ export const CreateCategory = () => {
       title={isEditMode ? "Editar Categoria" : "Criar Categoria"}
       formId="category-form"
       formConfig={formConfig}
-      id={categoryId}
+      id={currentCategoryId}
       fetchData={isEditMode ? fetchData : undefined}
       createData={createData}
       updateData={updateData}
@@ -204,12 +206,12 @@ export const CreateCategory = () => {
       transformSubmitData={transformSubmitData}
       onSuccess={onSuccess}
       onCancel={onCancel}
-      initialValues={{
+      initialValues={duplicatedData ? transformInitialData(duplicatedData) : {
         name: "",
         ballast: "",
         maxPilots: "",
         minimumAge: "",
-        seasonId: routeSeasonId || "",
+        seasonId: "",
         batteriesConfig: [],
       }}
       successMessage={isEditMode ? "Categoria atualizada com sucesso!" : "Categoria criada com sucesso!"}

@@ -87,9 +87,16 @@ export const BatteriesConfigForm = forwardRef<HTMLDivElement, BatteriesConfigFor
 
   const applyTemplate = (templateKey: keyof typeof BATTERY_TEMPLATES) => {
     const template = BATTERY_TEMPLATES[templateKey];
+    
+    // Encontrar grid padrão e grid invertido
+    const defaultGrid = gridTypes.find(gt => gt.isDefault)?.id || gridTypes[0]?.id || "";
+    const invertedGrid = gridTypes.find(gt => gt.name === 'Invertido')?.id || defaultGrid;
+    
     const templatedBatteries = template.map((battery, index) => ({
       ...battery,
-      gridType: gridTypes.find(gt => gt.isDefault)?.id || gridTypes[0]?.id || "",
+      gridType: templateKey === 'TWO_BATTERIES' && battery.name === 'Bateria 2' 
+        ? invertedGrid 
+        : defaultGrid,
       scoringSystemId: scoringSystems.find(ss => ss.isDefault)?.id || scoringSystems[0]?.id || "",
       order: index + 1
     }));
@@ -346,7 +353,7 @@ export const BatteriesConfigForm = forwardRef<HTMLDivElement, BatteriesConfigFor
 
       {/* Dialog de templates */}
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
-        <DialogContent className="w-[95vw] max-w-md">
+        <DialogContent className="w-[95vw] max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-lg">Escolher Template</DialogTitle>
             <DialogDescription className="text-sm">
@@ -358,12 +365,12 @@ export const BatteriesConfigForm = forwardRef<HTMLDivElement, BatteriesConfigFor
               type="button"
               variant="ghost"
               className="w-full justify-start h-auto p-4"
-              onClick={() => applyTemplate('SINGLE')}
+              onClick={() => applyTemplate('SINGLE_25MIN')}
             >
               <div className="text-left">
-                <div className="font-medium">Bateria Única</div>
+                <div className="font-medium">Bateria Única (25 min)</div>
                 <div className="text-sm text-muted-foreground">
-                  Uma única "Bateria 1" principal
+                  Uma única bateria de 25 minutos com grid e pontuação padrão
                 </div>
               </div>
             </Button>
@@ -371,38 +378,12 @@ export const BatteriesConfigForm = forwardRef<HTMLDivElement, BatteriesConfigFor
               type="button"
               variant="ghost"
               className="w-full justify-start h-auto p-4"
-              onClick={() => applyTemplate('QUALIFYING_RACE')}
+              onClick={() => applyTemplate('TWO_BATTERIES')}
             >
               <div className="text-left">
-                <div className="font-medium">Classificação + Corrida</div>
+                <div className="font-medium">Duas Baterias (15 min cada)</div>
                 <div className="text-sm text-muted-foreground">
-                  Bateria de classificação seguida da corrida principal
-                </div>
-              </div>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full justify-start h-auto p-4"
-              onClick={() => applyTemplate('QUALIFYING_SEMI_FINAL')}
-            >
-              <div className="text-left">
-                <div className="font-medium">Classificação + Semifinal + Final</div>
-                <div className="text-sm text-muted-foreground">
-                  Formato completo com eliminatórias
-                </div>
-              </div>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full justify-start h-auto p-4"
-              onClick={() => applyTemplate('PRACTICE_QUALIFYING_RACE')}
-            >
-              <div className="text-left">
-                <div className="font-medium">Treino + Classificação + Corrida</div>
-                <div className="text-sm text-muted-foreground">
-                  Formato completo com treino opcional
+                  Bateria 1 com grid padrão + Bateria 2 com grid invertido
                 </div>
               </div>
             </Button>

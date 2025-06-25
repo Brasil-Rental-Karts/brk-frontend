@@ -229,6 +229,10 @@ export const router = createBrowserRouter([
       },
       {
         path: "championship/:championshipId/create-category",
+        element: <Navigate to="../category/new" replace />,
+      },
+      {
+        path: "championship/:championshipId/category/:categoryId",
         element: (
           <ProtectedRoute>
             <MainFullWidthLayout>
@@ -241,18 +245,6 @@ export const router = createBrowserRouter([
       },
       {
         path: "championship/:championshipId/season/:seasonId/create-category",
-        element: (
-          <ProtectedRoute>
-            <MainFullWidthLayout>
-              <LazyWrapper>
-                <CreateCategory />
-              </LazyWrapper>
-            </MainFullWidthLayout>
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: "championship/:championshipId/category/:categoryId/edit",
         element: (
           <ProtectedRoute>
             <MainFullWidthLayout>

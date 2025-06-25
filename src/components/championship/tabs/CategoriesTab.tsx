@@ -32,6 +32,7 @@ import { Pagination } from "brk-design-system";
 import { usePagination } from "@/hooks/usePagination";
 import { CategoryService, Category } from "@/lib/services/category.service";
 import { Season as BaseSeason } from "@/lib/services/season.service";
+import { SeasonRegistrationService } from "@/lib/services/season-registration.service";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import {
@@ -67,14 +68,43 @@ const createFilterFields = (seasonOptions: { value: string; label: string }[] = 
 // Tipo local para incluir o nome da temporada
 type CategoryWithSeasonName = Category & { seasonName: string };
 
-const CategoryCard = ({ category }: { category: CategoryWithSeasonName }) => {
+const CategoryCard = ({ category, onAction, registrationCount }: { 
+  category: CategoryWithSeasonName;
+  onAction: (action: string, categoryId: string) => void;
+  registrationCount: number;
+}) => {
   return (
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <h3 className="text-lg font-semibold tracking-tight">{category.name}</h3>
-        <Badge variant="outline">{category.seasonName}</Badge>
+        <div className="flex-1 cursor-pointer pr-2" onClick={() => onAction("edit", category.id)}>
+          <h3 className="text-lg font-semibold tracking-tight">{category.name}</h3>
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-2">
+          <Badge variant="outline">{category.seasonName}</Badge>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onAction("edit", category.id)}>
+                Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAction("duplicate", category.id)}>
+                Duplicar
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => onAction("delete", category.id)}
+                className="text-destructive"
+              >
+                Excluir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 cursor-pointer" onClick={() => onAction("edit", category.id)}>
         <div className="text-sm text-muted-foreground">
           Idade mínima: {category.minimumAge} anos
         </div>
@@ -85,7 +115,7 @@ const CategoryCard = ({ category }: { category: CategoryWithSeasonName }) => {
           </div>
           <div className="flex flex-col">
             <span className="text-muted-foreground">Máx. Pilotos</span>
-            <span className="font-medium">{category.maxPilots}</span>
+            <span className="font-medium">{registrationCount} / {category.maxPilots}</span>
           </div>
           <div className="flex flex-col">
             <span className="text-muted-foreground">Baterias</span>
@@ -108,6 +138,7 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortBy, setSortBy] = useState<keyof Category>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [registrationCounts, setRegistrationCounts] = useState<Record<string, number>>({});
 
   // Estados para o modal de exclusão
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -123,6 +154,36 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
   const filterFields = useMemo(() => createFilterFields(seasonOptions), [seasonOptions]);
   
   const canCreateCategory = useMemo(() => seasons.some((s) => s.status !== 'cancelado'), [seasons]);
+
+  // Buscar contagens de inscrições por categoria
+  useEffect(() => {
+    const fetchRegistrationCounts = async () => {
+      const allCategories = seasons.flatMap(season => season.categories || []);
+      const counts: Record<string, number> = {};
+      
+      try {
+        await Promise.all(
+          allCategories.map(async (category) => {
+            try {
+              const count = await SeasonRegistrationService.getCategoryRegistrationCount(category.id);
+              counts[category.id] = count;
+            } catch (error) {
+              console.error(`Erro ao buscar contagem para categoria ${category.id}:`, error);
+              counts[category.id] = 0;
+            }
+          })
+        );
+        
+        setRegistrationCounts(counts);
+      } catch (error) {
+        console.error('Erro ao buscar contagens de inscrições:', error);
+      }
+    };
+
+    if (seasons.length > 0) {
+      fetchRegistrationCounts();
+    }
+  }, [seasons]);
 
   // Aplicar filtros e ordenação aos dados
   const filteredCategories = useMemo(() => {
@@ -218,11 +279,26 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
   };
 
   const handleAddCategory = () => {
-    navigate(`/championship/${championshipId}/create-category`);
+    navigate(`/championship/${championshipId}/category/new`);
   };
 
   const handleEditCategory = (categoryId: string) => {
-    navigate(`/championship/${championshipId}/category/${categoryId}/edit`);
+    navigate(`/championship/${championshipId}/category/${categoryId}`);
+  };
+
+  const handleDuplicateCategory = (categoryId: string) => {
+    const categoryToDuplicate = filteredCategories.find((c) => c.id === categoryId);
+    if (!categoryToDuplicate) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, createdAt, updatedAt, ...categoryData } = categoryToDuplicate;
+    const duplicatedCategoryData = {
+      ...categoryData,
+      name: `${categoryData.name} (Cópia)`,
+    };
+    navigate(`/championship/${championshipId}/category/new`, {
+      state: { initialData: duplicatedCategoryData },
+    });
   };
 
   const handleDeleteCategory = (category: Category) => {
@@ -268,6 +344,9 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
         break;
       case "delete":
         handleDeleteCategory(category);
+        break;
+      case "duplicate":
+        handleDuplicateCategory(categoryId);
         break;
       default:
     }
@@ -375,8 +454,8 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
         <>
           <div className="space-y-4">
             {processedCategories.map((category, index) => (
-              <div key={category.id} ref={processedCategories.length === index + 1 ? lastCategoryElementRef : null} onClick={() => handleEditCategory(category.id)}>
-                 <CategoryCard category={category as CategoryWithSeasonName} />
+              <div key={category.id} ref={processedCategories.length === index + 1 ? lastCategoryElementRef : null}>
+                 <CategoryCard category={category as CategoryWithSeasonName} onAction={handleCategoryAction} registrationCount={registrationCounts[category.id] || 0} />
               </div>
             ))}
           </div>
@@ -474,7 +553,7 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
                       </TableCell>
                       <TableCell className="text-center py-4">
                         <div className="text-sm font-medium">
-                          {category.maxPilots}
+                          {registrationCounts[category.id] || 0} / {category.maxPilots}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           pilotos
@@ -496,11 +575,11 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleCategoryAction("view", category.id)}>
-                              Ver detalhes
-                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleCategoryAction("edit", category.id)}>
                               Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleCategoryAction("duplicate", category.id)}>
+                              Duplicar
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => handleCategoryAction("delete", category.id)}
