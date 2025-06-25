@@ -168,13 +168,14 @@ export const RegulationsTab = ({
     setError(null);
     
     try {
-      // Filter out the section to delete and only send necessary fields
+      // Filter out the section to delete and re-order the rest
       const updatedSections = (regulation.sections || [])
         .filter(s => s.id !== sectionToDelete)
-        .map(s => ({
+        .map((s, index) => ({
+          id: s.id, // Keep the ID
           title: s.title,
           markdownContent: s.markdownContent,
-          order: s.order
+          order: index + 1 // Re-calculate order
         }));
       
       const updatedRegulation = await RegulationService.update(regulation.id, {
@@ -182,10 +183,12 @@ export const RegulationsTab = ({
       });
       
       setRegulation(updatedRegulation);
+      toast.success("Seção excluída com sucesso!");
       setShowDeleteDialog(false);
       setSectionToDelete(null);
     } catch (err: any) {
       setError(err.message || 'Erro ao excluir seção');
+      toast.error("Erro ao excluir seção.");
     } finally {
       setSaving(false);
     }
