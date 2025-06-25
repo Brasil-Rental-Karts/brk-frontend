@@ -5,6 +5,7 @@ import {
 import { Badge } from 'brk-design-system';
 import { AsaasPaymentStatus, PaymentMethod } from '../../../lib/enums/payment';
 import { format } from 'date-fns';
+import { CheckCircle, Clock, XCircle, AlertCircle, CreditCard, QrCode } from 'lucide-react';
 
 interface PaymentInfoProps {
   registration: SeasonRegistration;
@@ -29,14 +30,60 @@ const getStatusVariant = (status: AsaasPaymentStatus) => {
   switch (status) {
     case AsaasPaymentStatus.CONFIRMED:
     case AsaasPaymentStatus.RECEIVED:
+    case AsaasPaymentStatus.RECEIVED_IN_CASH:
       return 'success';
     case AsaasPaymentStatus.PENDING:
       return 'warning';
     case AsaasPaymentStatus.OVERDUE:
     case AsaasPaymentStatus.REFUNDED:
+    case AsaasPaymentStatus.REFUND_REQUESTED:
+    case AsaasPaymentStatus.REFUND_IN_PROGRESS:
+      return 'destructive';
+    case AsaasPaymentStatus.AWAITING_RISK_ANALYSIS:
+      return 'secondary';
+    default:
+      return 'default';
+  }
+};
+
+const getRegistrationStatusVariant = (status: string) => {
+  switch (status) {
+    case 'confirmed':
+      return 'success';
+    case 'pending':
+    case 'payment_pending':
+      return 'warning';
+    case 'cancelled':
+    case 'expired':
       return 'destructive';
     default:
       return 'default';
+  }
+};
+
+const getRegistrationStatusIcon = (status: string) => {
+  switch (status) {
+    case 'confirmed':
+      return <CheckCircle className="h-3 w-3" />;
+    case 'pending':
+    case 'payment_pending':
+      return <Clock className="h-3 w-3" />;
+    case 'cancelled':
+    case 'expired':
+      return <XCircle className="h-3 w-3" />;
+    default:
+      return <AlertCircle className="h-3 w-3" />;
+  }
+};
+
+const getPaymentMethodIcon = (method: string) => {
+  switch (method) {
+    case 'cartao_credito':
+      return <CreditCard className="h-3 w-3" />;
+    case 'pix':
+      return <QrCode className="h-3 w-3" />;
+    default:
+      return null;
   }
 };
 
@@ -47,32 +94,59 @@ const PaymentInfo = ({ registration }: PaymentInfoProps) => {
 
   const isInstallment = registration.payments.length > 1;
 
+  // Status da inscrição
+  const registrationStatusVariant = getRegistrationStatusVariant(registration.status);
+  const registrationStatusIcon = getRegistrationStatusIcon(registration.status);
+
+  // Status do pagamento
+  const paymentStatusVariant = getStatusVariant(registration.paymentStatus as AsaasPaymentStatus);
+
   if (isInstallment) {
     const totalPaid = registration.payments.filter(
       (p: RegistrationPaymentData) =>
         [
           AsaasPaymentStatus.CONFIRMED,
           AsaasPaymentStatus.RECEIVED,
+          AsaasPaymentStatus.RECEIVED_IN_CASH,
         ].includes(p.status as AsaasPaymentStatus),
     ).length;
     const totalInstallments = registration.payments.length;
 
     if (totalPaid === totalInstallments) {
-      return <Badge variant="success">Carnê quitado</Badge>;
+      return (
+        <div className="flex flex-col items-start gap-1">
+          <Badge variant="success" className="flex items-center gap-1">
+            {registrationStatusIcon}
+            Parcelamento quitado
+          </Badge>
+          <Badge variant={registrationStatusVariant} className="text-xs">
+            Inscrição confirmada
+          </Badge>
+        </div>
+      );
     }
 
     const nextPayment = getNextPayment(registration);
 
     return (
-      <div className="flex flex-col items-start">
-        <Badge variant="outline" className="mb-1">
-          Carnê {totalPaid}/{totalInstallments} pago
+      <div className="flex flex-col items-start gap-1">
+        <Badge variant="outline" className="flex items-center gap-1">
+          {getPaymentMethodIcon(registration.paymentMethod)}
+          Parcelamento {totalPaid}/{totalInstallments} pago
         </Badge>
         {nextPayment && (
-          <Badge variant={getStatusVariant(nextPayment.status as AsaasPaymentStatus)}>
+          <Badge variant={getStatusVariant(nextPayment.status as AsaasPaymentStatus)} className="text-xs">
             Próximo venc: {format(new Date(nextPayment.dueDate), 'dd/MM/yy')}
           </Badge>
         )}
+        <Badge variant={registrationStatusVariant} className="text-xs flex items-center gap-1">
+          {registrationStatusIcon}
+          {registration.status === 'confirmed' ? 'Confirmado' : 
+           registration.status === 'payment_pending' ? 'Aguardando pagamento' :
+           registration.status === 'pending' ? 'Pendente' :
+           registration.status === 'cancelled' ? 'Cancelado' :
+           registration.status === 'expired' ? 'Expirado' : registration.status}
+        </Badge>
       </div>
     );
   }
@@ -108,7 +182,22 @@ const PaymentInfo = ({ registration }: PaymentInfoProps) => {
     [AsaasPaymentStatus.UNKNOWN]: 'Desconhecido',
   };
 
-  return <Badge variant={variant}>{statusMap[payment.status as AsaasPaymentStatus]}</Badge>;
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <Badge variant={variant} className="flex items-center gap-1">
+        {getPaymentMethodIcon(registration.paymentMethod)}
+        {statusMap[payment.status as AsaasPaymentStatus]}
+      </Badge>
+      <Badge variant={registrationStatusVariant} className="text-xs flex items-center gap-1">
+        {registrationStatusIcon}
+        {registration.status === 'confirmed' ? 'Confirmado' : 
+         registration.status === 'payment_pending' ? 'Aguardando pagamento' :
+         registration.status === 'pending' ? 'Pendente' :
+         registration.status === 'cancelled' ? 'Cancelado' :
+         registration.status === 'expired' ? 'Expirado' : registration.status}
+      </Badge>
+    </div>
+  );
 };
 
 export default PaymentInfo; 

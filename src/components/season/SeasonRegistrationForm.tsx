@@ -109,7 +109,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
         const installmentValue = total / i;
         
         if (paymentMethod === 'pix') {
-                        // Para PIX, explicar que é carnê (PIX parcelado)
+                        // Para PIX, explicar que é parcelamento (PIX parcelado)
           options.push({
             value: i.toString(),
             description: `${i}x de ${formatCurrency(installmentValue)}`

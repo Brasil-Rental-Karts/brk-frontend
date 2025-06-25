@@ -53,7 +53,7 @@ const InstallmentList: React.FC<{ payments: RegistrationPaymentData[] }> = ({ pa
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Plano de Pagamento (Carnê)</CardTitle>
+        <CardTitle>Plano de Pagamento (Parcelamento)</CardTitle>
       </CardHeader>
       <CardContent>
         <ul className="space-y-3">

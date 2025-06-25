@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "brk-design-system";
 import { Card } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { Users, Mail, Phone, Calendar, MoreVertical, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Users, Mail, Phone, Calendar, MoreVertical } from "lucide-react";
 import { EmptyState } from "brk-design-system";
 import {
   DropdownMenu,
@@ -18,11 +18,20 @@ import {
   TableHeader,
   TableRow,
 } from "brk-design-system";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "brk-design-system";
 import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
 import { Pagination } from "brk-design-system";
 
 import { SeasonRegistrationService, SeasonRegistration } from "@/lib/services/season-registration.service";
 import { SeasonService } from "@/lib/services/season.service";
+import { CategoryService, Category } from "@/lib/services/category.service";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { formatDateToBrazilian } from "@/utils/date";
@@ -49,9 +58,25 @@ const createFilterFields = (seasonOptions: { value: string; label: string }[] = 
     options: [
       { value: 'all', label: 'Todos os status' },
       { value: 'pending', label: 'Pendente' },
+      { value: 'payment_pending', label: 'Aguardando pagamento' },
       { value: 'confirmed', label: 'Confirmado' },
       { value: 'cancelled', label: 'Cancelado' },
       { value: 'expired', label: 'Expirado' }
+    ]
+  },
+  {
+    key: 'paymentStatus',
+    label: 'Status do Pagamento',
+    type: 'combobox',
+    placeholder: 'Todos os status de pagamento',
+    options: [
+      { value: 'all', label: 'Todos os status de pagamento' },
+      { value: 'pending', label: 'Pendente' },
+      { value: 'processing', label: 'Processando' },
+      { value: 'paid', label: 'Pago' },
+      { value: 'failed', label: 'Falhou' },
+      { value: 'cancelled', label: 'Cancelado' },
+      { value: 'refunded', label: 'Reembolsado' }
     ]
   }
 ];
@@ -71,6 +96,14 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
   const [, setSeasons] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Estados para o modal de edição de categorias
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [selectedRegistration, setSelectedRegistration] = useState<SeasonRegistration | null>(null);
+  const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [updatingCategories, setUpdatingCategories] = useState(false);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
 
   // Memoizar a configuração dos filtros para evitar re-renders
   const filterFields = useMemo(() => createFilterFields(seasonOptions), [seasonOptions]);
@@ -144,8 +177,6 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     };
   }, [championshipId]);
 
-
-
   // Aplicar filtros e ordenação aos dados
   const processedRegistrations = useMemo(() => {
     let result = [...registrations];
@@ -157,8 +188,13 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         return false;
       }
 
-      // Filtro por status
+      // Filtro por status da inscrição
       if (filters.status && filters.status !== 'all' && registration.status !== filters.status) {
+        return false;
+      }
+
+      // Filtro por status do pagamento
+      if (filters.paymentStatus && filters.paymentStatus !== 'all' && registration.paymentStatus !== filters.paymentStatus) {
         return false;
       }
 
@@ -238,51 +274,73 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     setCurrentPage(1); // Reset para primeira página
   }, []);
 
-  const getStatusBadge = (status: string) => {
-    const statusMap = {
-      pending: {
-        color: 'bg-yellow-100 text-yellow-800',
-        label: 'Pendente',
-        icon: Clock,
-      },
-      confirmed: {
-        color: 'bg-green-100 text-green-800',
-        label: 'Confirmado',
-        icon: CheckCircle,
-      },
-      cancelled: {
-        color: 'bg-gray-200 text-gray-800',
-        label: 'Cancelado',
-        icon: XCircle,
-      },
-      expired: {
-        color: 'bg-red-200 text-red-800',
-        label: 'Expirado',
-        icon: XCircle,
-      },
-    };
-
-    const statusInfo =
-      statusMap[status as keyof typeof statusMap] ||
-      ({
-        color: 'bg-gray-100 text-gray-800',
-        label: status,
-        icon: Users,
-      } as const);
-
-    const Icon = statusInfo.icon;
-
-    return (
-      <Badge className={`${statusInfo.color} flex items-center gap-1`}>
-        <Icon className="w-3 h-3" />
-        <span>{statusInfo.label}</span>
-      </Badge>
-    );
+  const handleRegistrationAction = async (action: string, registrationId: string) => {
+    if (action === "changeCategories") {
+      try {
+        // Buscar a inscrição completa
+        const registration = await SeasonRegistrationService.getById(registrationId);
+        setSelectedRegistration(registration);
+        
+        // Buscar categorias disponíveis da temporada
+        const categories = await CategoryService.getBySeasonId(registration.seasonId);
+        setAvailableCategories(categories);
+        
+        // Definir categorias atuais como selecionadas
+        const currentCategoryIds = registration.categories?.map(cat => cat.category.id) || [];
+        setSelectedCategoryIds(currentCategoryIds);
+        
+        setCategoryError(null);
+        setShowCategoryModal(true);
+      } catch (error: any) {
+        console.error('Error opening category modal:', error);
+        setCategoryError(error.message || 'Erro ao abrir modal de categorias');
+      }
+    }
   };
 
-  const handleRegistrationAction = (action: string, registrationId: string) => {
-    // Ações como "ver detalhes", "cancelar", "confirmar pagamento"
-    console.log(`Ação: ${action} para Inscrição: ${registrationId}`);
+  const handleCategoryToggle = (categoryId: string) => {
+    setSelectedCategoryIds(prev => {
+      if (prev.includes(categoryId)) {
+        return prev.filter(id => id !== categoryId);
+      } else {
+        return [...prev, categoryId];
+      }
+    });
+  };
+
+  const handleUpdateCategories = async () => {
+    if (!selectedRegistration) return;
+
+    try {
+      setUpdatingCategories(true);
+      setCategoryError(null);
+
+      await SeasonRegistrationService.updateCategories(selectedRegistration.id, {
+        categoryIds: selectedCategoryIds
+      });
+
+      // Atualizar a lista de inscrições
+      await fetchRegistrations();
+      
+      // Fechar modal
+      setShowCategoryModal(false);
+      setSelectedRegistration(null);
+      setSelectedCategoryIds([]);
+      setAvailableCategories([]);
+    } catch (error: any) {
+      console.error('Error updating categories:', error);
+      setCategoryError(error.message || 'Erro ao atualizar categorias');
+    } finally {
+      setUpdatingCategories(false);
+    }
+  };
+
+  const handleCloseCategoryModal = () => {
+    setShowCategoryModal(false);
+    setSelectedRegistration(null);
+    setSelectedCategoryIds([]);
+    setAvailableCategories([]);
+    setCategoryError(null);
   };
 
   const isPilotConfirmed = (registration: SeasonRegistration) => {
@@ -351,57 +409,6 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         </div>
       </div>
 
-      {/* Estatísticas rápidas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 text-green-600 rounded-lg">
-              <CheckCircle className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold">
-                {registrations.filter(r => isPilotConfirmed(r)).length}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Confirmados
-              </div>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-yellow-100 text-yellow-600 rounded-lg">
-              <Clock className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold">
-                {registrations.filter(r => r.status === 'payment_pending').length}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Pagamento Pendente
-              </div>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-              <Users className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold">
-                {registrations.length}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Total Inscritos
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
-
       {/* Tabela de pilotos */}
       <Card className="w-full flex flex-col min-h-[600px]">
         <div className="flex-1 overflow-auto">
@@ -418,11 +425,11 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                 <TableHead className="text-center">Categorias</TableHead>
                 <TableHead 
                   className="cursor-pointer hover:bg-muted/50 text-center"
-                  onClick={() => handleSort("status")}
+                  onClick={() => handleSort("paymentStatus")}
                 >
                   <div className="flex items-center justify-center gap-2">
-                    Status
-                    {sortBy === "status" && (
+                    <span>Status</span>
+                    {sortBy === "paymentStatus" && (
                       <span className="text-xs">
                         {sortOrder === "asc" ? "↑" : "↓"}
                       </span>
@@ -458,7 +465,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                 paginatedRegistrations.map((registration) => (
                   <TableRow key={registration.id} className="hover:bg-muted/50">
                     <TableCell className="py-4">
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         <div className="font-medium">{registration.user.name}</div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Mail className="h-3 w-3" />
@@ -470,6 +477,18 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                             {registration.user.phone}
                           </div>
                         )}
+                        <div className="text-xs text-muted-foreground">
+                          <span className="font-medium">Valor:</span> R$ {Number(registration.amount).toFixed(2).replace('.', ',')}
+                        </div>
+                        {registration.paymentMethod && (
+                          <div className="text-xs text-muted-foreground">
+                            <span className="font-medium">Método:</span> {
+                              registration.paymentMethod === 'pix' ? 'PIX' : 
+                              registration.paymentMethod === 'cartao_credito' ? 'Cartão de Crédito' : 
+                              registration.paymentMethod
+                            }
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-center py-4">
@@ -478,33 +497,69 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                       </div>
                     </TableCell>
                     <TableCell className="text-center py-4">
-                      <div className="flex flex-wrap gap-1 justify-center">
-                        {registration.categories && registration.categories.length > 0 ? (
-                          registration.categories.map((regCategory) => (
-                            <Badge key={regCategory.id} variant="outline" className="text-xs">
-                              {regCategory.category.name}
-                            </Badge>
-                          ))
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Sem categorias</span>
-                        )}
+                      <div className="space-y-2">
+                        <div className="text-xs text-muted-foreground">
+                          {registration.categories?.length || 0} categoria{(registration.categories?.length || 0) !== 1 ? 's' : ''}
+                        </div>
+                        <div className="flex flex-wrap gap-1 justify-center">
+                          {registration.categories && registration.categories.length > 0 ? (
+                            registration.categories.map((regCategory) => (
+                              <Badge key={regCategory.id} variant="outline" className="text-xs">
+                                <div className="flex flex-col items-center">
+                                  <span>{regCategory.category.name}</span>
+                                  <span className="text-xs opacity-75">
+                                    {regCategory.category.ballast}kg
+                                  </span>
+                                </div>
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Sem categorias</span>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-center py-4">
-                      {getStatusBadge(registration.status)}
+                      <Badge 
+                        variant={
+                          registration.status === 'confirmed' ? 'success' :
+                          registration.status === 'pending' || registration.status === 'payment_pending' ? 'warning' :
+                          registration.status === 'cancelled' || registration.status === 'expired' ? 'destructive' :
+                          'default'
+                        }
+                        className="text-xs"
+                      >
+                        {registration.status === 'confirmed' ? 'Confirmado' : 
+                         registration.status === 'payment_pending' ? 'Aguardando pagamento' :
+                         registration.status === 'pending' ? 'Pendente' :
+                         registration.status === 'cancelled' ? 'Cancelado' :
+                         registration.status === 'expired' ? 'Expirado' : registration.status}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-center py-4">
                       <PaymentInfo registration={registration} />
                     </TableCell>
                     <TableCell className="text-center py-4">
-                      <div className="text-sm">
-                        {formatDateToBrazilian(registration.createdAt)}
-                      </div>
-                      {registration.confirmedAt && (
-                        <div className="text-xs text-muted-foreground">
-                          Confirmado em {formatDateToBrazilian(registration.confirmedAt)}
+                      <div className="space-y-1">
+                        <div className="text-sm font-medium">
+                          {formatDateToBrazilian(registration.createdAt)}
                         </div>
-                      )}
+                        {registration.confirmedAt && (
+                          <div className="text-xs text-green-600">
+                            ✓ Confirmado em {formatDateToBrazilian(registration.confirmedAt)}
+                          </div>
+                        )}
+                        {registration.paymentDate && (
+                          <div className="text-xs text-blue-600">
+                            💳 Pago em {formatDateToBrazilian(registration.paymentDate)}
+                          </div>
+                        )}
+                        {registration.cancelledAt && (
+                          <div className="text-xs text-red-600">
+                            ✗ Cancelado em {formatDateToBrazilian(registration.cancelledAt)}
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-center py-4">
                       <DropdownMenu>
@@ -515,19 +570,9 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem 
-                            onClick={() => handleRegistrationAction("view", registration.id)}
+                            onClick={() => handleRegistrationAction("changeCategories", registration.id)}
                           >
-                            Ver detalhes
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleRegistrationAction("contact", registration.id)}
-                          >
-                            Entrar em contato
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleRegistrationAction("payment", registration.id)}
-                          >
-                            Ver pagamento
+                            Trocar categorias
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -558,42 +603,62 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         )}
       </Card>
 
-      <div className="mt-8">
-        <h3 className="text-xl font-bold mb-4">Inscrições com Pagamento Pendente</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {registrations
-            .filter((r) => {
-              if (!r.payments || r.payments.length === 0) return false;
-              const paidCount = r.payments.filter(
-                (p) =>
-                  p.status === 'CONFIRMED' || p.status === 'RECEIVED',
-              ).length;
-              return paidCount < r.payments.length;
-            })
-            .map((registration) => (
-              <Card key={registration.id}>
-                <div className="p-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="font-bold">{registration.user.name}</h4>
-                    <PaymentInfo registration={registration} />
+      {/* Modal de Edição de Categorias */}
+      <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Trocar Categorias</DialogTitle>
+            <DialogDescription>
+              Selecione as novas categorias para {selectedRegistration?.user.name}. 
+              A quantidade deve ser a mesma da inscrição original ({selectedRegistration?.categories?.length || 0} categoria{selectedRegistration?.categories?.length !== 1 ? 's' : ''}).
+            </DialogDescription>
+          </DialogHeader>
+
+          {categoryError && (
+            <Alert variant="destructive">
+              <AlertTitle>Erro</AlertTitle>
+              <AlertDescription>{categoryError}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="space-y-4">
+            <div className="text-sm font-medium">
+              Categorias selecionadas: {selectedCategoryIds.length} de {selectedRegistration?.categories?.length || 0}
+            </div>
+            
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {availableCategories.map((category) => (
+                <label key={category.id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedCategoryIds.includes(category.id)}
+                    onChange={() => handleCategoryToggle(category.id)}
+                    className="rounded"
+                  />
+                  <div className="flex-1">
+                    <div className="font-medium">{category.name}</div>
+                    <div className="text-sm text-muted-foreground">
+                      Lastro: {category.ballast}kg | Max. Pilotos: {category.maxPilots} | Idade mín.: {category.minimumAge} anos
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-500 mt-2">
-                    <p>Temporada: {registration.season.name}</p>
-                    <p>Inscrito em: {formatDateToBrazilian(registration.createdAt)}</p>
-                  </div>
-                  <Button 
-                    variant="link" 
-                    className="mt-4"
-                    onClick={() => handleRegistrationAction('view', registration.id)}
-                  >
-                    Ver detalhes
-                  </Button>
-                </div>
-              </Card>
-            ))
-          }
-        </div>
-      </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseCategoryModal} disabled={updatingCategories}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleUpdateCategories} 
+              disabled={updatingCategories || selectedCategoryIds.length !== (selectedRegistration?.categories?.length || 0)}
+            >
+              {updatingCategories ? 'Atualizando...' : 'Atualizar Categorias'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }; 

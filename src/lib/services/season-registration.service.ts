@@ -30,6 +30,10 @@ export interface CreateRegistrationData {
   installments?: number;
 }
 
+export interface UpdateCategoriesData {
+  categoryIds: string[];
+}
+
 export interface RegistrationPaymentData {
   id: string;
   registrationId: string;
@@ -252,6 +256,25 @@ export class SeasonRegistrationService {
       throw new Error(
         error.response?.data?.message || 
         'Erro ao contar inscrições da categoria.'
+      );
+    }
+  }
+
+  /**
+   * Atualizar categorias de uma inscrição (apenas para organizadores/staff)
+   */
+  static async updateCategories(registrationId: string, data: UpdateCategoriesData): Promise<SeasonRegistration> {
+    try {
+      const response = await api.put<{
+        message: string;
+        data: SeasonRegistration;
+      }>(`${SeasonRegistrationService.BASE_URL}/${registrationId}/categories`, data);
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Error updating registration categories:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao atualizar categorias da inscrição.'
       );
     }
   }
