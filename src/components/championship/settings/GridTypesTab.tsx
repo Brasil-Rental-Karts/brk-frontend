@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "brk-design-system";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "brk-design-system";
 import { Badge } from "brk-design-system";
@@ -17,7 +18,6 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "brk-design-system";
 import { GridType, GridTypeEnum } from "@/lib/types/grid-type";
 import { GridTypeService } from "@/lib/services/grid-type.service";
-import { GridTypeForm } from "./GridTypeForm";
 import { GridTypeIcon } from "@/lib/icons/grid-type-icons";
 
 interface GridTypesTabProps {
@@ -28,13 +28,10 @@ interface GridTypesTabProps {
  * Aba de gerenciamento de tipos de grid do campeonato
  */
 export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
+  const navigate = useNavigate();
   const [gridTypes, setGridTypes] = useState<GridType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Estados para modal de criação/edição
-  const [showForm, setShowForm] = useState(false);
-  const [editingGridType, setEditingGridType] = useState<GridType | null>(null);
   
   // Estados para modal de confirmação de exclusão
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -116,24 +113,11 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
 
   // Handlers do formulário
   const handleCreateNew = () => {
-    setEditingGridType(null);
-    setShowForm(true);
+    navigate(`/championship/${championshipId}/grid-type/new`);
   };
 
   const handleEdit = (gridType: GridType) => {
-    setEditingGridType(gridType);
-    setShowForm(true);
-  };
-
-  const handleFormClose = () => {
-    setShowForm(false);
-    setEditingGridType(null);
-  };
-
-  const handleFormSuccess = async () => {
-    setShowForm(false);
-    setEditingGridType(null);
-    await fetchGridTypes();
+    navigate(`/championship/${championshipId}/grid-type/${gridType.id}/edit`);
   };
 
   const handleDeleteClick = (gridType: GridType) => {
@@ -469,15 +453,6 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
           </Card>
         ))}
       </div>
-
-      {/* Modal de criação/edição */}
-      <GridTypeForm
-        championshipId={championshipId}
-        gridType={editingGridType}
-        open={showForm}
-        onOpenChange={handleFormClose}
-        onSuccess={handleFormSuccess}
-      />
 
       {/* Modal de confirmação de exclusão */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

@@ -19,6 +19,7 @@ const ChangePassword = lazy(() => import('@/pages/ChangePassword'));
 const CreateChampionship = lazy(() => import('@/pages/CreateChampionship'));
 const CreateSeason = lazy(() => import('@/pages/CreateSeason'));
 const CreateCategory = lazy(() => import('@/pages/CreateCategory'));
+const CreateGridType = lazy(() => import('@/pages/CreateGridType').then(module => ({ default: module.CreateGridType })));
 const CreateStage = lazy(() => import('@/pages/CreateStage').then(module => ({ default: module.CreateStage })));
 const SeasonRegistration = lazy(() => import('@/pages/SeasonRegistration').then(module => ({ default: module.SeasonRegistration })));
 const RegistrationPayment = lazy(() => import('@/pages/RegistrationPayment').then(module => ({ default: module.RegistrationPayment })));
@@ -282,6 +283,30 @@ export const router = createBrowserRouter([
             <MainFullWidthLayout>
               <LazyWrapper>
                 <CreateStage />
+              </LazyWrapper>
+            </MainFullWidthLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "championship/:championshipId/grid-type/new",
+        element: (
+          <ProtectedRoute>
+            <MainFullWidthLayout>
+              <LazyWrapper>
+                <CreateGridType />
+              </LazyWrapper>
+            </MainFullWidthLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "championship/:championshipId/grid-type/:gridTypeId/edit",
+        element: (
+          <ProtectedRoute>
+            <MainFullWidthLayout>
+              <LazyWrapper>
+                <CreateGridType />
               </LazyWrapper>
             </MainFullWidthLayout>
           </ProtectedRoute>
