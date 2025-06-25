@@ -331,13 +331,6 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         icon={Users}
         title="Nenhum piloto inscrito"
         description="Ainda não há pilotos inscritos nas temporadas deste campeonato"
-        action={{
-          label: "Ver Temporadas",
-          onClick: () => {
-            // TODO: Navegar para aba de temporadas
-            console.log("Navegar para temporadas");
-          }
-        }}
       />
     );
   }

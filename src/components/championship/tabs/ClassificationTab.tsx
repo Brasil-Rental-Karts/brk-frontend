@@ -357,13 +357,6 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
         icon={Trophy}
         title="Nenhuma temporada encontrada"
         description="Não há temporadas disponíveis para exibir a classificação"
-        action={{
-          label: "Ver Temporadas",
-          onClick: () => {
-            // TODO: Implementar navegação para aba de temporadas
-            console.log("Navegar para temporadas");
-          }
-        }}
       />
     );
   }

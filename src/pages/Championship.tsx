@@ -13,7 +13,6 @@ import { AsaasAccountTab } from "@/components/championship/settings/AsaasAccount
 import { EditChampionshipTab } from "@/components/championship/settings/EditChampionshipTab";
 import { SponsorsTab } from "@/components/championship/settings/SponsorsTab";
 import { StaffTab } from "@/components/championship/settings/StaffTab";
-import { ClassificationTab } from "@/components/championship/tabs/ClassificationTab";
 import { useChampionship } from "@/hooks/use-championship";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription } from "brk-design-system";
@@ -59,7 +58,6 @@ export const Championship = () => {
     'config-scoring': 'config-scoring',
     'asaas-account': 'config-asaas',
     'config-asaas': 'config-asaas',
-    'classificacao': 'classificacao'
   };
 
   const {
@@ -78,8 +76,8 @@ export const Championship = () => {
     const hasCategories = hasSeasons && (championship.seasons as Season[]).some(s => s.categories && s.categories.length > 0);
     const hasStages = hasSeasons && (championship.seasons as Season[]).some(s => s.stages && s.stages.length > 0);
 
-    const disabledTabsWithoutSeasons = ['categorias', 'etapas', 'pilotos', 'classificacao'];
-    const disabledTabsWithoutCategories = ['etapas', 'pilotos', 'classificacao'];
+    const disabledTabsWithoutSeasons = ['categorias', 'etapas', 'pilotos'];
+    const disabledTabsWithoutCategories = ['etapas', 'pilotos'];
 
     if (tabFromUrl) {
       const mappedTab = tabMapping[tabFromUrl.toLowerCase()];
@@ -185,13 +183,6 @@ export const Championship = () => {
               >
                 Pilotos
               </TabsTrigger>
-              <TabsTrigger 
-                value="classificacao" 
-                disabled={!hasCategories}
-                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-              >
-                Classificação
-              </TabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -234,10 +225,6 @@ export const Championship = () => {
         
                   <TabsContent value="pilotos" className="mt-0 ring-0 focus-visible:outline-none">
                     <PilotsTab championshipId={id} />
-                  </TabsContent>
-        
-                  <TabsContent value="classificacao" className="mt-0 ring-0 focus-visible:outline-none">
-                    <ClassificationTab championshipId={id} />
                   </TabsContent>
                 </>
               ) : (
