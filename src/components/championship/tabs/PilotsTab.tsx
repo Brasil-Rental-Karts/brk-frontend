@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "brk-design-system";
 import { Card } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { Users, Mail, Phone, Calendar, MoreVertical } from "lucide-react";
+import { Users, Mail, Phone, Calendar, MoreVertical, Eye } from "lucide-react";
 import { EmptyState } from "brk-design-system";
 import {
   DropdownMenu,
@@ -36,6 +36,7 @@ import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { formatDateToBrazilian } from "@/utils/date";
 import PaymentInfo from "../pilots/PaymentInfo";
+import { PilotDetailsModal } from "../pilots/PilotDetailsModal";
 
 interface PilotsTabProps {
   championshipId: string;
@@ -104,6 +105,10 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [updatingCategories, setUpdatingCategories] = useState(false);
   const [categoryError, setCategoryError] = useState<string | null>(null);
+
+  // Estados para o modal de detalhes do piloto
+  const [showPilotDetailsModal, setShowPilotDetailsModal] = useState(false);
+  const [selectedPilotRegistrationId, setSelectedPilotRegistrationId] = useState<string | null>(null);
 
   // Memoizar a configuração dos filtros para evitar re-renders
   const filterFields = useMemo(() => createFilterFields(seasonOptions), [seasonOptions]);
@@ -540,25 +545,8 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                       <PaymentInfo registration={registration} />
                     </TableCell>
                     <TableCell className="text-center py-4">
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium">
-                          {formatDateToBrazilian(registration.createdAt)}
-                        </div>
-                        {registration.confirmedAt && (
-                          <div className="text-xs text-green-600">
-                            ✓ Confirmado em {formatDateToBrazilian(registration.confirmedAt)}
-                          </div>
-                        )}
-                        {registration.paymentDate && (
-                          <div className="text-xs text-blue-600">
-                            💳 Pago em {formatDateToBrazilian(registration.paymentDate)}
-                          </div>
-                        )}
-                        {registration.cancelledAt && (
-                          <div className="text-xs text-red-600">
-                            ✗ Cancelado em {formatDateToBrazilian(registration.cancelledAt)}
-                          </div>
-                        )}
+                      <div className="text-sm font-medium">
+                        {formatDateToBrazilian(registration.createdAt)}
                       </div>
                     </TableCell>
                     <TableCell className="text-center py-4">
@@ -569,6 +557,14 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              setSelectedPilotRegistrationId(registration.id);
+                              setShowPilotDetailsModal(true);
+                            }}
+                          >
+                            Ver detalhes
+                          </DropdownMenuItem>
                           <DropdownMenuItem 
                             onClick={() => handleRegistrationAction("changeCategories", registration.id)}
                           >
@@ -659,6 +655,18 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Detalhes do Piloto */}
+      {selectedPilotRegistrationId && (
+        <PilotDetailsModal
+          isOpen={showPilotDetailsModal}
+          onClose={() => {
+            setShowPilotDetailsModal(false);
+            setSelectedPilotRegistrationId(null);
+          }}
+          registrationId={selectedPilotRegistrationId}
+        />
+      )}
     </div>
   );
 }; 

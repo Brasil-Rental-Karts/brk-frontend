@@ -52,6 +52,13 @@ export interface RegistrationPaymentData {
   pixCopyPaste?: string | null;
 }
 
+export interface PilotDetails {
+  registration: SeasonRegistration;
+  user: any;
+  profile: any;
+  payments: RegistrationPaymentData[];
+}
+
 export class SeasonRegistrationService {
   private static readonly BASE_URL = '/season-registrations';
 
@@ -261,7 +268,7 @@ export class SeasonRegistrationService {
   }
 
   /**
-   * Atualizar categorias de uma inscrição (apenas para organizadores/staff)
+   * Atualizar categorias de uma inscrição
    */
   static async updateCategories(registrationId: string, data: UpdateCategoriesData): Promise<SeasonRegistration> {
     try {
@@ -275,6 +282,25 @@ export class SeasonRegistrationService {
       throw new Error(
         error.response?.data?.message || 
         'Erro ao atualizar categorias da inscrição.'
+      );
+    }
+  }
+
+  /**
+   * Buscar detalhes completos do piloto inscrito
+   */
+  static async getPilotDetails(registrationId: string): Promise<PilotDetails> {
+    try {
+      const response = await api.get<{
+        message: string;
+        data: PilotDetails;
+      }>(`${SeasonRegistrationService.BASE_URL}/${registrationId}/pilot-details`);
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Error fetching pilot details:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao buscar detalhes do piloto.'
       );
     }
   }
