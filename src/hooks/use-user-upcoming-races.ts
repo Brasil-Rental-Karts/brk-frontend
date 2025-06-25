@@ -149,8 +149,8 @@ export const useUserUpcomingRaces = () => {
         })
       );
 
-      // 6. Pegar apenas as próximas 10 corridas
-      const limitedRaces = racesWithParticipation.slice(0, 10);
+      // 6. Pegar apenas as próximas 3 corridas
+      const limitedRaces = racesWithParticipation.slice(0, 3);
 
       setUpcomingRaces(limitedRaces);
     } catch (err: any) {
