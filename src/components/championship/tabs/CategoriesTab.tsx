@@ -80,7 +80,6 @@ const CategoryCard = ({ category, onAction, registrationCount }: {
           <h3 className="text-lg font-semibold tracking-tight">{category.name}</h3>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
-          <Badge variant="outline">{category.seasonName}</Badge>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -120,6 +119,10 @@ const CategoryCard = ({ category, onAction, registrationCount }: {
           <div className="flex flex-col">
             <span className="text-muted-foreground">Baterias</span>
             <span className="font-medium">{category.batteriesConfig?.length || 0}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-muted-foreground">Temporada</span>
+            <Badge variant="outline" className="w-fit mt-1 text-xs">{category.seasonName}</Badge>
           </div>
         </div>
       </CardContent>

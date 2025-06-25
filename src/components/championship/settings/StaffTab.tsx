@@ -15,12 +15,14 @@ import {
 import { AlertTriangle, Mail, Plus, Trash2, Users, Calendar, Crown } from "lucide-react";
 import { ChampionshipStaffService, StaffMember } from "@/lib/services/championship-staff.service";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface StaffTabProps {
   championshipId: string;
 }
 
 export const StaffTab = ({ championshipId }: StaffTabProps) => {
+  const isMobile = useIsMobile();
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -186,6 +188,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
               <Button
                 type="submit"
                 disabled={isAddingMember}
+                className={isMobile ? 'w-full' : ''}
               >
                 {isAddingMember ? 'Adicionando...' : 'Adicionar Membro'}
               </Button>

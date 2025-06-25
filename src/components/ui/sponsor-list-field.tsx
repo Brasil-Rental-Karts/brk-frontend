@@ -3,9 +3,10 @@ import { Button } from 'brk-design-system';
 import { Input } from 'brk-design-system';
 import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
 import { Badge } from 'brk-design-system';
-import { Trash2, Plus, Globe, Building2 } from 'lucide-react';
+import { Trash2, Plus, Globe, Building2, Edit } from 'lucide-react';
 import { Sponsor } from '@/lib/services/championship.service';
 import { FileUpload } from '@/components/ui/file-upload';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface SponsorListFieldProps {
   value?: Sponsor[];
@@ -26,6 +27,7 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
   disabled = false,
   placeholder = "Adicione patrocinadores ao seu campeonato"
 }) => {
+  const isMobile = useIsMobile();
   const [isAdding, setIsAdding] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [formData, setFormData] = useState<SponsorFormData>({
@@ -160,7 +162,7 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
                     onClick={() => handleEdit(index)}
                     disabled={disabled}
                   >
-                    Editar
+                    <Edit className="w-4 h-4" />
                   </Button>
                   <Button
                     variant="outline"
@@ -222,17 +224,19 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
               />
             </div>
 
-            <div className="flex justify-end space-x-2">
+            <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'justify-end space-x-2'}`}>
               <Button
                 variant="outline"
                 onClick={resetForm}
                 disabled={disabled}
+                className={isMobile ? 'w-full' : ''}
               >
                 Cancelar
               </Button>
               <Button
                 onClick={handleSave}
                 disabled={disabled || !formData.name.trim() || !formData.logoImage.trim()}
+                className={isMobile ? 'w-full' : ''}
               >
                 {editingIndex !== null ? 'Salvar Alterações' : 'Adicionar Patrocinador'}
               </Button>
