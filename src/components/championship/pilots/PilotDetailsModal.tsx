@@ -415,6 +415,21 @@ export function PilotDetailsModal({ isOpen, onClose, registrationId }: PilotDeta
                   </div>
                 )}
 
+                {/* Etapas Pagas */}
+                {pilotDetails.registration.stages && pilotDetails.registration.stages.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Etapas Pagas</label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {pilotDetails.registration.stages.map((regStage) => (
+                        <Badge key={regStage.id} variant="secondary" className="flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3" />
+                          {regStage.stage?.name || regStage.stageName}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Detalhes de Pagamento */}
                 {pilotDetails.payments && pilotDetails.payments.length > 0 && (
                   <div>
