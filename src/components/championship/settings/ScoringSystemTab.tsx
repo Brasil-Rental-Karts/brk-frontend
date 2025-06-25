@@ -17,6 +17,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "brk-design-system";
 import { ScoringSystemService, ScoringSystem, ScoringSystemData } from "@/lib/services/scoring-system.service";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ScoringSystemTabProps {
   championshipId: string;
@@ -62,6 +63,7 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
   const [scoringSystems, setScoringSystems] = useState<ScoringSystem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isMobile = useIsMobile();
   
   // Estados para modal de criação/edição
   const [showForm, setShowForm] = useState(false);
@@ -285,15 +287,15 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
   return (
     <div className="space-y-6">
       {/* Header com ações */}
-      <div className="flex items-center justify-between">
+      <div className={isMobile ? "space-y-4" : "flex items-center justify-between"}>
         <div>
           <h2 className="text-2xl font-bold">Sistemas de Pontuação</h2>
           <p className="text-muted-foreground">
             Configure como os pontos serão distribuídos nas corridas do campeonato
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={handleCreateNew}>
+        <div className={isMobile ? "w-full" : "flex gap-2"}>
+          <Button onClick={handleCreateNew} className={isMobile ? "w-full" : ""}>
             Adicionar Sistema de Pontuação
           </Button>
         </div>
@@ -377,7 +379,7 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
                 </div>
 
                 {/* Pontos extras */}
-                <div className="grid grid-cols-3 gap-4 text-sm">
+                <div className={`${isMobile ? 'space-y-2' : 'grid grid-cols-2 gap-4'} text-sm`}>
                   <div>
                     <span className="font-medium">Pole Position: </span>
                     <span className="text-muted-foreground">{system.polePositionPoints} pts</span>

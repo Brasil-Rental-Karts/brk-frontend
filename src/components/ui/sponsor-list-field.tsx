@@ -121,7 +121,7 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
           <h4 className="text-sm font-medium">Patrocinadores Adicionados ({value.length})</h4>
           {value.map((sponsor, index) => (
             <Card key={sponsor.id || `temp-${index}`} className="p-4">
-              <div className="flex items-center justify-between">
+              <div className={`${isMobile ? 'space-y-3' : 'flex items-center justify-between'}`}>
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center overflow-hidden">
                     {sponsor.logoImage ? (
@@ -155,12 +155,13 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
                   </div>
                 </div>
                 
-                <div className="flex items-center space-x-2">
+                <div className={`flex items-center ${isMobile ? 'justify-end' : 'space-x-2'}`}>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleEdit(index)}
                     disabled={disabled}
+                    className={isMobile ? 'mr-2' : ''}
                   >
                     <Edit className="w-4 h-4" />
                   </Button>

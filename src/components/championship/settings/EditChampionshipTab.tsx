@@ -21,6 +21,7 @@ import { masks } from "@/utils/masks";
 import { ChampionshipService, Championship, ChampionshipData, AsaasStatus } from "@/lib/services/championship.service";
 import { AlertTriangle } from "lucide-react";
 import { useFormScreen } from "@/hooks/use-form-screen";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface EditChampionshipTabProps {
   championshipId: string;
@@ -61,6 +62,7 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
   const [asaasStatus, setAsaasStatus] = useState<AsaasStatus | null>(null);
   const [cities, setCities] = useState<City[]>([]);
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
+  const isMobile = useIsMobile();
 
   const loadCities = useCallback(async (uf: string) => {
     const citiesData = await fetchCitiesByState(uf);
@@ -527,14 +529,14 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className={isMobile ? "space-y-4" : "flex items-center justify-between"}>
         <div>
           <h2 className="text-2xl font-bold">Editar Dados do Campeonato</h2>
           <p className="text-muted-foreground">
             Atualize as informações do seu campeonato
           </p>
         </div>
-        <div>
+        <div className={isMobile ? "w-full" : ""}>
           <Button
             onClick={() => {
               const form = document.getElementById("edit-championship-form") as HTMLFormElement;
@@ -543,6 +545,7 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
               }
             }}
             disabled={isSaving}
+            className={isMobile ? "w-full" : ""}
           >
             {isSaving ? "Salvando..." : "Salvar Alterações"}
           </Button>
