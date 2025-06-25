@@ -135,6 +135,25 @@ export class SeasonRegistrationService {
   }
 
   /**
+   * Sincronizar status de pagamento com o Asaas
+   */
+  static async syncPaymentStatus(registrationId: string): Promise<RegistrationPaymentData[]> {
+    try {
+      const response = await api.post<{
+        message: string;
+        data: RegistrationPaymentData[];
+      }>(`/season-registrations/${registrationId}/sync-payment`);
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Error syncing payment status:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao sincronizar status de pagamento.'
+      );
+    }
+  }
+
+  /**
    * Cancelar inscrição
    */
   static async cancel(id: string, reason: string): Promise<SeasonRegistration> {

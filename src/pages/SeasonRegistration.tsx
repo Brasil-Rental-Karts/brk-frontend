@@ -42,6 +42,7 @@ export const SeasonRegistration: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [registrationResult, setRegistrationResult] = useState<any>(null);
+  const [paymentData, setPaymentData] = useState<any>(null);
 
   // Estados do formulário
   const [formData, setFormData] = useState<FormData>({
@@ -276,6 +277,14 @@ export const SeasonRegistration: React.FC = () => {
             onPaymentComplete={() => {
               toast.success('Pagamento confirmado!');
               navigate('/dashboard');
+            }}
+            onPaymentUpdate={(updatedPayment) => {
+              // Atualizar o estado local do pagamento
+              setPaymentData(updatedPayment);
+              if (updatedPayment.status === 'CONFIRMED' || updatedPayment.status === 'RECEIVED') {
+                toast.success('Pagamento confirmado!');
+                navigate('/dashboard');
+              }
             }}
           />
         );

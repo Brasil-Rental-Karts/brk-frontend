@@ -407,6 +407,14 @@ export const RegistrationPayment: React.FC = () => {
             paymentData={paymentToRender}
             registration={registration}
             onPaymentComplete={() => loadData(true)}
+            onPaymentUpdate={(updatedPayment) => {
+              // Atualizar o estado local dos pagamentos
+              setPayments(prevPayments => 
+                prevPayments.map(p => 
+                  p.id === updatedPayment.id ? updatedPayment : p
+                )
+              );
+            }}
           />
         );
 
@@ -512,12 +520,6 @@ export const RegistrationPayment: React.FC = () => {
             label: "Voltar",
             onClick: handleBack,
             variant: "outline"
-          },
-          {
-            label: refreshing ? "Atualizando..." : "Atualizar Status",
-            onClick: handleRefresh,
-            disabled: refreshing,
-            variant: "default"
           }
         ]}
       />

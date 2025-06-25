@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
@@ -6,18 +6,29 @@ import { Badge } from 'brk-design-system';
 import { Button } from 'brk-design-system';
 import { Alert, AlertDescription } from 'brk-design-system';
 import { Skeleton } from 'brk-design-system';
+import { Pagination } from 'brk-design-system';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from 'brk-design-system';
 
 import { SeasonRegistrationService, SeasonRegistration } from '@/lib/services/season-registration.service';
 import { formatCurrency } from '@/utils/currency';
 import { formatDateToBrazilian } from '@/utils/date';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { usePagination } from '@/hooks/usePagination';
 import { 
   CreditCard, 
   Smartphone, 
   CheckCircle, 
   Clock, 
   XCircle, 
-  Eye
+  Eye,
+  Loader2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -44,6 +55,7 @@ export const Financial: React.FC = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [financialData, setFinancialData] = useState<FinancialData>({
     registrations: [],
@@ -51,6 +63,54 @@ export const Financial: React.FC = () => {
     totalPending: 0,
     totalOverdue: 0
   });
+
+  // --- Estados para paginação desktop ---
+  const pagination = usePagination(financialData.registrations.length, 5, 1);
+  const paginatedDesktopRegistrations = useMemo(() => {
+    if (isMobile) return [];
+    return financialData.registrations.slice(pagination.info.startIndex, pagination.info.endIndex);
+  }, [isMobile, financialData.registrations, pagination.info.startIndex, pagination.info.endIndex]);
+
+  // --- Estados para scroll infinito mobile ---
+  const [visibleMobileRegistrations, setVisibleMobileRegistrations] = useState<RegistrationWithPayments[]>([]);
+  const [mobilePage, setMobilePage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const observer = useRef<IntersectionObserver>();
+  const itemsPerPage = 5;
+
+  // Resetar scroll infinito quando os dados mudam
+  useEffect(() => {
+    if (isMobile) {
+      setVisibleMobileRegistrations(financialData.registrations.slice(0, itemsPerPage));
+      setMobilePage(2);
+      setHasMore(financialData.registrations.length > itemsPerPage);
+    }
+  }, [isMobile, financialData.registrations]);
+
+  // Intersection Observer para carregar mais no mobile
+  const lastRegistrationElementRef = useCallback((node: HTMLElement | null) => {
+    if (loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setLoadingMore(true);
+        setTimeout(() => {
+          const newRegistrations = financialData.registrations.slice(0, mobilePage * itemsPerPage);
+          setVisibleMobileRegistrations(newRegistrations);
+          setHasMore(newRegistrations.length < financialData.registrations.length);
+          setMobilePage(prev => prev + 1);
+          setLoadingMore(false);
+        }, 300);
+      }
+    });
+
+    if (node) observer.current.observe(node);
+  }, [loadingMore, hasMore, mobilePage, financialData.registrations]);
+
+  // Define os dados a serem processados com base no dispositivo
+  const processedRegistrations = isMobile ? visibleMobileRegistrations : paginatedDesktopRegistrations;
 
   const loadFinancialData = async () => {
     try {
@@ -64,6 +124,24 @@ export const Financial: React.FC = () => {
       // Buscar todas as inscrições do usuário
       const registrations = await SeasonRegistrationService.getMyRegistrations();
       
+      // Verificar se há inscrições com pagamentos pendentes
+      const registrationsWithPendingPayments = [];
+      for (const reg of registrations) {
+        try {
+          const payments = await SeasonRegistrationService.getPaymentData(reg.id);
+          if (payments && payments.some(p => ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(p.status))) {
+            registrationsWithPendingPayments.push(reg.id);
+          }
+        } catch (error) {
+          console.warn(`Erro ao verificar pagamentos pendentes da inscrição ${reg.id}:`, error);
+        }
+      }
+      
+      // Se há pagamentos pendentes, mostrar indicador de sincronização
+      if (registrationsWithPendingPayments.length > 0) {
+        setSyncing(true);
+      }
+      
       // Buscar detalhes de pagamento para cada inscrição
       const registrationsWithPayments: RegistrationWithPayments[] = await Promise.all(
         registrations.map(async (reg) => {
@@ -71,6 +149,30 @@ export const Financial: React.FC = () => {
             const payments = await SeasonRegistrationService.getPaymentData(reg.id);
             
             if (payments && payments.length > 0) {
+              // Verificar se há pagamentos pendentes que precisam ser sincronizados
+              const pendingPaymentsToSync = payments.filter(p => 
+                ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(p.status)
+              );
+              
+              // Sincronizar pagamentos pendentes com o Asaas
+              if (pendingPaymentsToSync.length > 0) {
+                try {
+                  console.log(`🔄 Sincronizando ${pendingPaymentsToSync.length} pagamentos pendentes da inscrição ${reg.id}`);
+                  await SeasonRegistrationService.syncPaymentStatus(reg.id);
+                  
+                  // Buscar dados atualizados após a sincronização
+                  const updatedPayments = await SeasonRegistrationService.getPaymentData(reg.id);
+                  if (updatedPayments) {
+                    console.log(`✅ Sincronização concluída para inscrição ${reg.id}`);
+                    // Usar os dados atualizados
+                    payments.splice(0, payments.length, ...updatedPayments);
+                  }
+                } catch (syncError) {
+                  console.warn(`⚠️ Erro ao sincronizar pagamentos da inscrição ${reg.id}:`, syncError);
+                  // Continuar com os dados originais em caso de erro
+                }
+              }
+              
               // Status que indicam pagamento completo
               const paidStatusList = ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'];
               
@@ -156,6 +258,7 @@ export const Financial: React.FC = () => {
       setError(err.message || 'Erro ao carregar dados financeiros');
     } finally {
       setLoading(false);
+      setSyncing(false);
     }
   };
 
@@ -229,102 +332,125 @@ export const Financial: React.FC = () => {
 
   const renderMobileCards = () => (
     <div className="space-y-4">
-      {financialData.registrations.map((registration) => (
-        <Card key={registration.id} className="hover:shadow-md transition-shadow">
-          <CardContent className="p-4">
-            <div className="space-y-3">
-              {/* Header */}
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-sm">
-                    {registration.season.championship?.name || 'Campeonato'}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    {registration.season.name}
-                  </p>
+      {processedRegistrations.map((registration, index) => (
+        <div key={registration.id} ref={processedRegistrations.length === index + 1 ? lastRegistrationElementRef : null}>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="space-y-3">
+                {/* Header */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm truncate">
+                      {registration.season.championship?.name || 'Campeonato'}
+                    </h3>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {registration.season.name}
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0">
+                    {getPaymentStatusBadge(registration)}
+                  </div>
                 </div>
-                {getPaymentStatusBadge(registration)}
-              </div>
 
-              {/* Payment Info */}
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                {getPaymentMethodIcon(registration.paymentMethod)}
-                <span>{getPaymentMethodLabel(registration.paymentMethod)}</span>
-                {registration.paymentDetails && registration.paymentDetails.totalInstallments > 1 && (
-                  <span>• {registration.paymentDetails.totalInstallments}x</span>
+                {/* Payment Info */}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {getPaymentMethodIcon(registration.paymentMethod)}
+                  <span className="truncate">{getPaymentMethodLabel(registration.paymentMethod)}</span>
+                  {registration.paymentDetails && registration.paymentDetails.totalInstallments > 1 && (
+                    <span className="flex-shrink-0">• {registration.paymentDetails.totalInstallments}x</span>
+                  )}
+                </div>
+
+                {/* Values */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span>Total:</span>
+                    <span className="font-medium">{formatCurrency(registration.amount)}</span>
+                  </div>
+                  
+                  {registration.paymentDetails && (
+                    <>
+                      {registration.paymentDetails.paidAmount > 0 && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>Pago:</span>
+                          <span className="font-medium">{formatCurrency(registration.paymentDetails.paidAmount)}</span>
+                        </div>
+                      )}
+                      {registration.paymentDetails.pendingAmount > 0 && (
+                        <div className="flex justify-between text-sm text-yellow-600">
+                          <span>Pendente:</span>
+                          <span className="font-medium">{formatCurrency(registration.paymentDetails.pendingAmount)}</span>
+                        </div>
+                      )}
+                      {registration.paymentDetails.overdueAmount > 0 && (
+                        <div className="flex justify-between text-sm text-red-600">
+                          <span>Vencido:</span>
+                          <span className="font-medium">{formatCurrency(registration.paymentDetails.overdueAmount)}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Categories */}
+                {registration.categories && registration.categories.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {registration.categories.slice(0, 3).map((regCategory) => (
+                      <Badge key={regCategory.id} variant="outline" className="text-xs truncate">
+                        {regCategory.category.name}
+                      </Badge>
+                    ))}
+                    {registration.categories.length > 3 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{registration.categories.length - 3}
+                      </Badge>
+                    )}
+                  </div>
                 )}
-              </div>
 
-              {/* Values */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span>Total:</span>
-                  <span className="font-medium">{formatCurrency(registration.amount)}</span>
+                {/* Date */}
+                <div className="text-xs text-muted-foreground">
+                  Inscrição: {formatDateToBrazilian(registration.createdAt)}
                 </div>
-                
-                {registration.paymentDetails && (
-                  <>
-                    {registration.paymentDetails.paidAmount > 0 && (
-                      <div className="flex justify-between text-sm text-green-600">
-                        <span>Pago:</span>
-                        <span className="font-medium">{formatCurrency(registration.paymentDetails.paidAmount)}</span>
-                      </div>
-                    )}
-                    {registration.paymentDetails.pendingAmount > 0 && (
-                      <div className="flex justify-between text-sm text-yellow-600">
-                        <span>Pendente:</span>
-                        <span className="font-medium">{formatCurrency(registration.paymentDetails.pendingAmount)}</span>
-                      </div>
-                    )}
-                    {registration.paymentDetails.overdueAmount > 0 && (
-                      <div className="flex justify-between text-sm text-red-600">
-                        <span>Vencido:</span>
-                        <span className="font-medium">{formatCurrency(registration.paymentDetails.overdueAmount)}</span>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
 
-              {/* Categories */}
-              {registration.categories && registration.categories.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {registration.categories.map((regCategory) => (
-                    <Badge key={regCategory.id} variant="outline" className="text-xs">
-                      {regCategory.category.name}
-                    </Badge>
-                  ))}
+                {/* Action Button */}
+                <div className="pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewPaymentDetails(registration.id)}
+                    className="w-full"
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    Ver Detalhes
+                  </Button>
                 </div>
-              )}
-
-              {/* Date */}
-              <div className="text-xs text-muted-foreground">
-                Inscrição: {formatDateToBrazilian(registration.createdAt)}
               </div>
-
-              {/* Action Button */}
-              <div className="pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleViewPaymentDetails(registration.id)}
-                  className="w-full"
-                >
-                  <Eye className="w-4 h-4 mr-2" />
-                  Ver Detalhes
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       ))}
+      
+      {/* Loading indicator */}
+      {loadingMore && (
+        <div className="flex justify-center items-center py-4">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      )}
+      
+      {/* End of results indicator */}
+      {!loadingMore && !hasMore && processedRegistrations.length > 0 && (
+        <div className="text-center text-sm text-muted-foreground py-4">
+          Fim dos resultados.
+        </div>
+      )}
     </div>
   );
 
   const renderDesktopTable = () => (
     <div className="rounded-md border overflow-hidden">
       {/* Header */}
-      <div className="grid grid-cols-12 gap-3 p-4 bg-muted/50 border-b font-medium text-sm">
+      <div className="grid grid-cols-12 gap-4 p-4 bg-muted/50 border-b font-medium text-sm">
         <div className="col-span-3">Campeonato / Temporada</div>
         <div className="col-span-2">Categorias</div>
         <div className="col-span-2">Pagamento</div>
@@ -337,20 +463,25 @@ export const Financial: React.FC = () => {
       
       {/* Rows */}
       <div className="divide-y">
-        {financialData.registrations.map((registration) => (
-          <div key={registration.id} className="grid grid-cols-12 gap-3 p-4 hover:bg-muted/25 transition-colors items-center">
+        {processedRegistrations.map((registration) => (
+          <div key={registration.id} className="grid grid-cols-12 gap-4 p-4 hover:bg-muted/25 transition-colors items-center">
             <div className="col-span-3">
-              <div className="font-medium text-sm">{registration.season.championship?.name || 'Campeonato'}</div>
-              <div className="text-xs text-muted-foreground">{registration.season.name}</div>
+              <div className="font-medium text-sm truncate">{registration.season.championship?.name || 'Campeonato'}</div>
+              <div className="text-xs text-muted-foreground truncate">{registration.season.name}</div>
             </div>
             <div className="col-span-2">
               {registration.categories && registration.categories.length > 0 ? (
-                <div className="flex flex-wrap gap-1">
-                  {registration.categories.map((regCategory) => (
-                    <Badge key={regCategory.id} variant="outline" className="text-xs">
+                <div className="flex flex-wrap gap-1 max-w-full">
+                  {registration.categories.slice(0, 2).map((regCategory) => (
+                    <Badge key={regCategory.id} variant="outline" className="text-xs truncate">
                       {regCategory.category.name}
                     </Badge>
                   ))}
+                  {registration.categories.length > 2 && (
+                    <Badge variant="outline" className="text-xs">
+                      +{registration.categories.length - 2}
+                    </Badge>
+                  )}
                 </div>
               ) : (
                 <span className="text-muted-foreground text-sm">-</span>
@@ -359,8 +490,8 @@ export const Financial: React.FC = () => {
             <div className="col-span-2">
               <div className="flex items-center gap-2">
                 {getPaymentMethodIcon(registration.paymentMethod)}
-                <div className="flex flex-col">
-                  <span className="text-sm">{getPaymentMethodLabel(registration.paymentMethod)}</span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm truncate">{getPaymentMethodLabel(registration.paymentMethod)}</span>
                   {registration.paymentDetails && registration.paymentDetails.totalInstallments > 1 && (
                     <span className="text-xs text-muted-foreground">
                       {registration.paymentDetails.totalInstallments} parcelas
@@ -476,8 +607,28 @@ export const Financial: React.FC = () => {
     <div className="min-h-screen bg-background">
       <PageHeader
         title="Financeiro"
-        subtitle="Acompanhe seus pagamentos e inscrições"
+        subtitle={syncing ? "Sincronizando status dos pagamentos..." : "Acompanhe seus pagamentos e inscrições"}
+        actions={[
+          {
+            label: syncing ? "Sincronizando..." : "Atualizar",
+            onClick: () => loadFinancialData(),
+            disabled: syncing,
+            variant: "default"
+          }
+        ]}
       />
+      
+      {/* Indicador de Sincronização */}
+      {syncing && (
+        <div className="w-full max-w-6xl mx-auto px-6">
+          <Alert className="border-blue-200 bg-blue-50">
+            <Clock className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800">
+              <strong>Sincronizando pagamentos...</strong> Verificando status atualizado com o sistema de pagamentos.
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
       
       <div className="w-full max-w-6xl mx-auto px-6 py-6 space-y-6">
         {/* Resumo Financeiro */}
@@ -564,22 +715,125 @@ export const Financial: React.FC = () => {
         </div>
 
         {/* Lista de Inscrições */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Histórico de Inscrições</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {financialData.registrations.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">Nenhuma inscrição encontrada</p>
-              </div>
-            ) : (
-              <>
-                {isMobile ? renderMobileCards() : renderDesktopTable()}
-              </>
-            )}
-          </CardContent>
-        </Card>
+        {isMobile ? (
+          renderMobileCards()
+        ) : (
+          <Card className="w-full flex flex-col">
+            <div className="flex-1 overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[200px]">Campeonato / Temporada</TableHead>
+                    <TableHead className="min-w-[120px]">Categorias</TableHead>
+                    <TableHead className="min-w-[120px]">Pagamento</TableHead>
+                    <TableHead className="min-w-[100px]">Status</TableHead>
+                    <TableHead className="min-w-[100px]">Total</TableHead>
+                    <TableHead className="min-w-[100px]">Pago</TableHead>
+                    <TableHead className="min-w-[100px]">Pendente</TableHead>
+                    <TableHead className="min-w-[80px]">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {processedRegistrations.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        Nenhuma inscrição encontrada
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    processedRegistrations.map((registration) => (
+                      <TableRow key={registration.id}>
+                        <TableCell>
+                          <div className="font-medium text-sm truncate">{registration.season.championship?.name || 'Campeonato'}</div>
+                          <div className="text-xs text-muted-foreground truncate">{registration.season.name}</div>
+                        </TableCell>
+                        <TableCell>
+                          {registration.categories && registration.categories.length > 0 ? (
+                            <div className="flex flex-wrap gap-1 max-w-full">
+                              {registration.categories.slice(0, 2).map((regCategory) => (
+                                <Badge key={regCategory.id} variant="outline" className="text-xs truncate">
+                                  {regCategory.category.name}
+                                </Badge>
+                              ))}
+                              {registration.categories.length > 2 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{registration.categories.length - 2}
+                                </Badge>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getPaymentMethodIcon(registration.paymentMethod)}
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-sm truncate">{getPaymentMethodLabel(registration.paymentMethod)}</span>
+                              {registration.paymentDetails && registration.paymentDetails.totalInstallments > 1 && (
+                                <span className="text-xs text-muted-foreground">
+                                  {registration.paymentDetails.totalInstallments} parcelas
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{getPaymentStatusBadge(registration)}</TableCell>
+                        <TableCell className="font-medium text-sm">{formatCurrency(registration.amount)}</TableCell>
+                        <TableCell>
+                          {registration.paymentDetails && registration.paymentDetails.paidAmount > 0 ? (
+                            <span className="text-green-600 font-medium text-sm">
+                              {formatCurrency(registration.paymentDetails.paidAmount)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {registration.paymentDetails && registration.paymentDetails.pendingAmount > 0 ? (
+                            <span className="text-yellow-600 font-medium text-sm">
+                              {formatCurrency(registration.paymentDetails.pendingAmount)}
+                            </span>
+                          ) : registration.paymentDetails && registration.paymentDetails.overdueAmount > 0 ? (
+                            <span className="text-red-600 font-medium text-sm">
+                              {formatCurrency(registration.paymentDetails.overdueAmount)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewPaymentDetails(registration.id)}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            {/* Paginação sempre fixada na parte inferior */}
+            <div className="flex-shrink-0">
+              <Pagination
+                currentPage={pagination.state.currentPage}
+                totalPages={pagination.info.totalPages}
+                itemsPerPage={pagination.state.itemsPerPage}
+                totalItems={pagination.state.totalItems}
+                startIndex={pagination.info.startIndex}
+                endIndex={pagination.info.endIndex}
+                hasNextPage={pagination.info.hasNextPage}
+                hasPreviousPage={pagination.info.hasPreviousPage}
+                onPageChange={pagination.actions.setCurrentPage}
+                onItemsPerPageChange={pagination.actions.setItemsPerPage}
+              />
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );

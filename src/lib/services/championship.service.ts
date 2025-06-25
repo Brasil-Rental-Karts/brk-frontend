@@ -56,21 +56,11 @@ export interface ChampionshipBasicInfo {
 export interface AsaasStatus {
   championshipId: string;
   splitEnabled: boolean;
-  asaasCustomerId: string | null;
   asaasWalletId: string | null;
   configured: boolean;
   canRetry: boolean;
   document: string;
   personType: number;
-}
-
-export interface CreateAsaasAccountResponse {
-  message: string;
-  asaasCustomerId: string;
-  asaasWalletId: string;
-  wasExisting: boolean;
-  foundBy?: 'cpfCnpj' | 'email';
-  updatedFields?: string[];
 }
 
 export class ChampionshipService {
@@ -204,17 +194,19 @@ export class ChampionshipService {
   }
 
   /**
-   * Criar subconta Asaas manualmente
+   * Atualizar Wallet ID do Asaas
    */
-  static async createAsaasAccount(id: string): Promise<CreateAsaasAccountResponse> {
+  static async updateAsaasWalletId(id: string, walletId: string): Promise<Championship> {
     try {
-      const response = await api.post<CreateAsaasAccountResponse>(`${ChampionshipService.BASE_URL}/${id}/create-asaas-account`);
+      const response = await api.put<Championship>(`${ChampionshipService.BASE_URL}/${id}/asaas-wallet`, {
+        walletId: walletId
+      });
       return response.data;
     } catch (error: any) {
-      console.error('Error creating Asaas account:', error);
+      console.error('Error updating Asaas wallet ID:', error);
       throw new Error(
         error.response?.data?.message || 
-        'Erro ao criar conta Asaas. Tente novamente.'
+        'Erro ao atualizar Wallet ID. Tente novamente.'
       );
     }
   }

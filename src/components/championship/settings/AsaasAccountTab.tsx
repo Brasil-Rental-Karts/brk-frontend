@@ -4,43 +4,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "brk-d
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { Badge } from "brk-design-system";
 import { Skeleton } from "brk-design-system";
+import { Input } from "brk-design-system";
+import { Label } from "brk-design-system";
 import { 
   CreditCard, 
   CheckCircle, 
   XCircle, 
   ExternalLink,
-  User,
-  Building,
-  MapPin,
-  Phone,
-  Mail,
-  FileText,
-  Calendar
+  Save,
+  Wallet
 } from "lucide-react";
-import { Championship, ChampionshipService } from "@/lib/services/championship.service";
-import { getAsaasRequiredFields, formatFieldName } from "@/utils/asaas-fields";
+import { Championship, ChampionshipService, AsaasStatus } from "@/lib/services/championship.service";
 
 interface AsaasAccountTabProps {
   championshipId: string;
-}
-
-interface AsaasStatus {
-  championshipId: string;
-  splitEnabled: boolean;
-  asaasCustomerId: string | null;
-  asaasWalletId: string | null;
-  configured: boolean;
-  canRetry: boolean;
-  document: string;
-  personType: number;
 }
 
 export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
   const [championship, setChampionship] = useState<Championship | null>(null);
   const [asaasStatus, setAsaasStatus] = useState<AsaasStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [walletId, setWalletId] = useState<string>("");
 
   // Carregar dados do campeonato e status Asaas
   useEffect(() => {
@@ -56,6 +42,7 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
         
         setChampionship(championshipData);
         setAsaasStatus(statusData);
+        setWalletId(statusData?.asaasWalletId || "");
       } catch (err: any) {
         setError(err.message || 'Erro ao carregar dados');
       } finally {
@@ -66,41 +53,25 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
     loadData();
   }, [championshipId]);
 
-  const handleCreateAsaasAccount = async () => {
+  const handleSaveWalletId = async () => {
     try {
-      setCreating(true);
+      setSaving(true);
       setError(null);
       
-      const result = await ChampionshipService.createAsaasAccount(championshipId);
+      // Atualizar o campeonato com o novo Wallet ID
+      await ChampionshipService.updateAsaasWalletId(championshipId, walletId.trim());
       
-      // Recarregar status após criação/vinculação
+      // Recarregar status após salvar
       const updatedStatus = await ChampionshipService.getAsaasStatus(championshipId);
       setAsaasStatus(updatedStatus);
       
-      // Recarregar dados do campeonato para refletir possíveis atualizações
-      const updatedChampionshipData = await ChampionshipService.getById(championshipId);
-      setChampionship(updatedChampionshipData);
-      
-      // Mostrar mensagem de sucesso baseada no tipo de operação
-      const successMessage = result.wasExisting 
-        ? `🎉 ${result.message}` 
-        : `✅ ${result.message}`;
-        
-      console.log(successMessage, result);
-      
-      // Mostrar detalhes sobre campos atualizados se houver
-      if (result.wasExisting && result.updatedFields && result.updatedFields.length > 0) {
-        console.log(`📋 Campos atualizados: ${result.updatedFields.join(', ')}`);
-        console.log('🔄 Os dados do campeonato foram atualizados com as informações da conta existente do Asaas.');
-      }
-      
-      // TODO: Você pode adicionar um toast aqui para mostrar a mensagem
-      // toast.success(successMessage);
+      console.log('✅ Wallet ID salvo com sucesso!');
+      // TODO: Adicionar toast de sucesso
       
     } catch (err: any) {
-      setError(err.message || 'Erro ao criar/vincular conta Asaas');
+      setError(err.message || 'Erro ao salvar Wallet ID');
     } finally {
-      setCreating(false);
+      setSaving(false);
     }
   };
 
@@ -123,7 +94,7 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
   }
 
   const isConfigured = asaasStatus?.configured || false;
-  const canCreate = asaasStatus?.splitEnabled && asaasStatus?.document && !isConfigured;
+  const hasWalletId = Boolean(asaasStatus?.asaasWalletId);
 
   return (
     <div className="space-y-6">
@@ -139,245 +110,44 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="font-medium">Status da Configuração:</span>
-            <Badge variant={isConfigured ? "default" : "secondary"} className="flex items-center gap-1">
-              {isConfigured ? (
-                <>
-                  <CheckCircle className="h-3 w-3" />
-                  Configurada
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-3 w-3" />
-                  Não Configurada
-                </>
-              )}
-            </Badge>
-          </div>
+          {/* Mensagem de Status da Conta */}
+          {isConfigured ? (
+            <Alert variant="success">
+              <AlertTitle>Conta Configurada</AlertTitle>
+              <AlertDescription>
+                Conta Asaas configurada com sucesso! Agora você pode receber pagamentos com split automático.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert variant="warning">
+              <AlertTitle>Conta Não Configurada</AlertTitle>
+              <AlertDescription>
+                Para receber pagamentos com split automático, você precisa configurar o Wallet ID da sua conta Asaas.
+              </AlertDescription>
+            </Alert>
+          )}
 
-          <div className="flex items-center justify-between">
-            <span className="font-medium">Split Payment:</span>
-            <Badge variant={asaasStatus?.splitEnabled ? "default" : "secondary"}>
-              {asaasStatus?.splitEnabled ? "Habilitado" : "Desabilitado"}
-            </Badge>
-          </div>
-
-          {isConfigured && (
-            <>
-              <div className="flex items-center justify-between">
-                <span className="font-medium">Customer ID:</span>
-                <code className="text-sm bg-muted px-2 py-1 rounded">
-                  {asaasStatus?.asaasCustomerId}
-                </code>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="font-medium">Wallet ID:</span>
-                <code className="text-sm bg-muted px-2 py-1 rounded">
-                  {asaasStatus?.asaasWalletId}
-                </code>
-              </div>
-            </>
+          {!asaasStatus?.splitEnabled && (
+            <Alert variant="warning">
+              <AlertTitle>Split Payment Desabilitado</AlertTitle>
+              <AlertDescription>
+                O Split Payment não está habilitado para este campeonato. 
+                Habilite o Split Payment nas configurações básicas do campeonato para poder configurar o Wallet ID.
+              </AlertDescription>
+            </Alert>
           )}
         </CardContent>
       </Card>
 
-      {/* Dados Necessários para Criação */}
-      {championship && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Dados para Criação da Conta Asaas
-            </CardTitle>
-                      <CardDescription>
-            Informações que serão utilizadas para verificar se já existe uma conta ou criar uma nova subconta no Asaas. 
-            O sistema primeiro verifica por CPF/CNPJ, depois por e-mail. Campos com asterisco (*) são obrigatórios na API do Asaas.
-          </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(() => {
-                const requiredFields = getAsaasRequiredFields(championship.personType);
-                return (
-                  <>
-                    <div className="flex items-center gap-3">
-                      {championship.personType === 0 ? (
-                        <User className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <Building className="h-4 w-4 text-muted-foreground" />
-                      )}
-                      <div>
-                        <p className="font-medium">
-                          {formatFieldName("Tipo de Pessoa", requiredFields.name)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {championship.personType === 0 ? "Pessoa Física" : "Pessoa Jurídica"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">
-                          {formatFieldName("Documento", requiredFields.cpfCnpj)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {championship.document || "Não informado"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">
-                          {formatFieldName("Nome/Razão Social", requiredFields.name)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {championship.personType === 0 
-                            ? (championship.responsibleName || "Organizador")
-                            : (championship.socialReason || championship.name)
-                          }
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">
-                          {formatFieldName("E-mail", requiredFields.email)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {championship.responsibleEmail || `organizador-${championship.document}@brk.com.br`}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">
-                          {formatFieldName("Telefone", requiredFields.phone)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {championship.responsiblePhone || "Não informado"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {championship.personType === 0 && championship.responsibleBirthDate && (
-                      <div className="flex items-center gap-3">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">
-                            {formatFieldName("Data de Nascimento", requiredFields.birthDate)}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(championship.responsibleBirthDate).toLocaleDateString('pt-BR')}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {championship.personType === 1 && championship.companyType && (
-                      <div className="flex items-center gap-3">
-                        <Building className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">
-                            {formatFieldName("Tipo de Empresa", requiredFields.companyType)}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {championship.companyType === 'MEI' && 'MEI - Microempreendedor Individual'}
-                            {championship.companyType === 'LIMITED' && 'Limited - Sociedade Limitada'}
-                            {championship.companyType === 'INDIVIDUAL' && 'Individual - Empresário Individual'}
-                            {championship.companyType === 'ASSOCIATION' && 'Association - Associação'}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {championship.incomeValue && (
-                      <div className="flex items-center gap-3">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">
-                            {formatFieldName("Faturamento/Renda Mensal", requiredFields.incomeValue)}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            R$ {championship.incomeValue.toLocaleString('pt-BR')}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-3">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">
-                          {formatFieldName("Endereço", requiredFields.address)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {championship.fullAddress}, {championship.number}
-                          {championship.complement && `, ${championship.complement}`}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">
-                          {formatFieldName("Cidade/Estado", requiredFields.city)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {championship.city}, {championship.state}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">
-                          {formatFieldName("CEP", requiredFields.postalCode)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {championship.cep}
-                        </p>
-                      </div>
-                    </div>
-
-                    {championship.province && (
-                      <div className="flex items-center gap-3">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">
-                            {formatFieldName("Bairro", requiredFields.province)}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {championship.province}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-                         </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Ações */}
+      {/* Configuração do Wallet ID */}
       <Card>
         <CardHeader>
-          <CardTitle>Ações</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Wallet className="h-5 w-5" />
+            Configuração do Wallet ID
+          </CardTitle>
           <CardDescription>
-            Gerencie a configuração da conta Asaas
+            Adicione o Wallet ID da sua conta Asaas para habilitar o split de pagamentos
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -388,64 +158,65 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
             </Alert>
           )}
 
-          {!asaasStatus?.splitEnabled && (
-            <Alert variant="warning">
-              <AlertTitle>Split Payment Desabilitado</AlertTitle>
-              <AlertDescription>
-                O Split Payment não está habilitado para este campeonato. 
-                Habilite o Split Payment nas configurações básicas do campeonato para poder criar a conta Asaas.
-              </AlertDescription>
-            </Alert>
-          )}
+          {asaasStatus?.splitEnabled && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="walletId">Wallet ID</Label>
+                <Input
+                  id="walletId"
+                  type="text"
+                  placeholder="Digite o Wallet ID da sua conta Asaas"
+                  value={walletId}
+                  onChange={(e) => setWalletId(e.target.value)}
+                  disabled={saving}
+                />
+                <p className="text-sm text-muted-foreground">
+                  O Wallet ID pode ser encontrado no painel administrativo do Asaas, 
+                  na seção de configurações da sua conta.
+                </p>
+              </div>
 
-          {!asaasStatus?.document && (
-            <Alert variant="warning">
-              <AlertTitle>Documento Não Informado</AlertTitle>
-              <AlertDescription>
-                O documento (CPF/CNPJ) não foi informado. 
-                Adicione o documento nas informações básicas do campeonato.
-              </AlertDescription>
-            </Alert>
+              <Button 
+                onClick={handleSaveWalletId}
+                disabled={saving || !walletId.trim()}
+                className="flex items-center gap-2 w-full sm:w-auto"
+              >
+                <Save className="h-4 w-4" />
+                {saving ? "Salvando..." : "Salvar Wallet ID"}
+              </Button>
+            </div>
           )}
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Button 
-              onClick={handleCreateAsaasAccount}
-              disabled={true}
-              className="flex items-center gap-2 opacity-50 cursor-not-allowed"
+              variant="outline" 
+              onClick={() => window.open("https://www.asaas.com", "_blank")}
+              className="flex items-center gap-2 w-full sm:w-auto"
             >
-              <CreditCard className="h-4 w-4" />
-              Verificar/Criar Conta Asaas
+              <ExternalLink className="h-4 w-4" />
+              Acessar Asaas
             </Button>
-
-            {isConfigured && (
-              <Button 
-                variant="outline" 
-                onClick={() => window.open("https://www.asaas.com", "_blank")}
-                className="flex items-center gap-2"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Acessar Asaas
-              </Button>
-            )}
           </div>
+        </CardContent>
+      </Card>
 
-          <Alert variant="warning">
-            <AlertTitle>Funcionalidade em Revisão</AlertTitle>
+      {/* Informações Adicionais */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Informações Importantes</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert>
+            <AlertTitle>Como encontrar o Wallet ID</AlertTitle>
             <AlertDescription>
-              A funcionalidade de criação de conta Asaas está temporariamente desabilitada para revisão. 
-              Em breve estará disponível novamente.
+              <ol className="list-decimal list-inside space-y-1 mt-2">
+                <li>Acesse sua conta no Asaas</li>
+                <li>Vá para Configurações da Conta</li>
+                <li>Procure pela seção "Wallet" ou "Carteira"</li>
+                <li>Copie o ID da carteira principal</li>
+              </ol>
             </AlertDescription>
           </Alert>
-
-          {isConfigured && (
-            <Alert variant="success">
-              <AlertTitle>Conta Configurada</AlertTitle>
-              <AlertDescription>
-                Conta Asaas configurada com sucesso! Agora você pode receber pagamentos com split automático.
-              </AlertDescription>
-            </Alert>
-          )}
         </CardContent>
       </Card>
     </div>
