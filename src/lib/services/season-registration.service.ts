@@ -18,6 +18,7 @@ export interface SeasonRegistration {
   user: any; // Simplified for now
   season: any; // Simplified for now
   categories: any[]; // Simplified for now
+  stages?: any[]; // Simplified for now
   payments: RegistrationPaymentData[];
 }
 
@@ -25,6 +26,7 @@ export interface CreateRegistrationData {
   userId: string;
   seasonId: string;
   categoryIds: string[];
+  stageIds?: string[]; // Array de IDs das etapas selecionadas (opcional)
   paymentMethod: 'pix' | 'cartao_credito';
   userDocument: string;
   installments?: number;

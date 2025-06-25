@@ -124,6 +124,19 @@ export const Financial: React.FC = () => {
       // Buscar todas as inscrições do usuário
       const registrations = await SeasonRegistrationService.getMyRegistrations();
       
+      // Debug: verificar se as etapas estão sendo retornadas
+      console.log('🔍 [FINANCIAL] Inscrições carregadas:', registrations.length);
+      registrations.forEach((reg, index) => {
+        console.log(`🔍 [FINANCIAL] Inscrição ${index + 1}:`, {
+          id: reg.id,
+          seasonName: reg.season?.name,
+          inscriptionType: reg.season?.inscriptionType,
+          hasStages: !!reg.stages,
+          stagesCount: reg.stages?.length || 0,
+          stages: reg.stages?.map(s => ({ id: s.id, stageName: s.stage?.name }))
+        });
+      });
+      
       // Verificar se há inscrições com pagamentos pendentes
       const registrationsWithPendingPayments = [];
       for (const reg of registrations) {
@@ -408,6 +421,25 @@ export const Financial: React.FC = () => {
                   </div>
                 )}
 
+                {/* Stages (se for inscrição por etapa) */}
+                {registration.season.inscriptionType === 'por_etapa' && registration.stages && registration.stages.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium text-muted-foreground">Etapas Inscritas:</div>
+                    <div className="flex flex-wrap gap-1">
+                      {registration.stages.slice(0, 3).map((regStage) => (
+                        <Badge key={regStage.id} variant="secondary" className="text-xs truncate">
+                          {regStage.stage.name}
+                        </Badge>
+                      ))}
+                      {registration.stages.length > 3 && (
+                        <Badge variant="secondary" className="text-xs">
+                          +{registration.stages.length - 3}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Date */}
                 <div className="text-xs text-muted-foreground">
                   Inscrição: {formatDateToBrazilian(registration.createdAt)}
@@ -498,6 +530,25 @@ export const Financial: React.FC = () => {
                 </div>
               ) : (
                 <span className="text-muted-foreground text-sm">-</span>
+              )}
+              
+              {/* Stages (se for inscrição por etapa) */}
+              {registration.season.inscriptionType === 'por_etapa' && registration.stages && registration.stages.length > 0 && (
+                <div className="mt-2">
+                  <div className="text-xs text-muted-foreground mb-1">Etapas:</div>
+                  <div className="flex flex-wrap gap-1">
+                    {registration.stages.slice(0, 2).map((regStage) => (
+                      <Badge key={regStage.id} variant="secondary" className="text-xs truncate">
+                        {regStage.stage.name}
+                      </Badge>
+                    ))}
+                    {registration.stages.length > 2 && (
+                      <Badge variant="secondary" className="text-xs">
+                        +{registration.stages.length - 2}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
             <div className="col-span-1">
@@ -667,7 +718,7 @@ export const Financial: React.FC = () => {
                   if (totalPendingInstallments > 0) {
                     return `${totalPendingInstallments} parcela${totalPendingInstallments > 1 ? 's' : ''} pendente${totalPendingInstallments > 1 ? 's' : ''}`;
                   }
-                  return 'Nenhuma parcela pendente';
+                  return '';
                 })()}
               </div>
             </CardContent>

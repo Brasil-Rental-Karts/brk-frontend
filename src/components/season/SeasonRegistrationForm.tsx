@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
 import { DynamicForm, FormSectionConfig } from '@/components/ui/dynamic-form';
 import { SeasonService, Season } from '@/lib/services/season.service';
 import { CategoryService, Category } from '@/lib/services/category.service';
+import { StageService, Stage } from '@/lib/services/stage.service';
 import { SeasonRegistrationService, CreateRegistrationData } from '@/lib/services/season-registration.service';
 import { formatCurrency } from '@/utils/currency';
 import { masks } from '@/utils/masks';
@@ -27,38 +28,109 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   const { user } = useAuth();
   const [season, setSeason] = useState<Season | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [stages, setStages] = useState<Stage[]>([]);
   const [total, setTotal] = useState(0);
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    const [seasonData, categoriesData] = await Promise.all([
-      SeasonService.getById(seasonId),
-      CategoryService.getBySeasonId(seasonId)
-    ]);
-    setSeason(seasonData);
-    setCategories(categoriesData);
-    return { season: seasonData, categories: categoriesData };
+  // Carregar dados diretamente no useEffect
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        console.log('🔄 [FRONTEND] Iniciando carregamento de dados para temporada:', seasonId);
+        
+        // Primeiro, carregar a temporada para obter o ID real
+        const seasonData = await SeasonService.getById(seasonId);
+        console.log('✅ [FRONTEND] Temporada carregada:', {
+          id: seasonData.id,
+          name: seasonData.name,
+          inscriptionType: seasonData.inscriptionType,
+          registrationOpen: seasonData.registrationOpen
+        });
+        
+        // Agora carregar categorias e etapas usando o ID real da temporada
+        const [categoriesData, stagesData] = await Promise.all([
+          CategoryService.getBySeasonId(seasonData.id),
+          StageService.getBySeasonId(seasonData.id)
+        ]);
+        
+        console.log('✅ [FRONTEND] Dados carregados com sucesso:', {
+          season: {
+            id: seasonData.id,
+            name: seasonData.name,
+            inscriptionType: seasonData.inscriptionType,
+            registrationOpen: seasonData.registrationOpen
+          },
+          categories: categoriesData.map(c => ({ id: c.id, name: c.name })),
+          stages: stagesData.map(s => ({ id: s.id, name: s.name, date: s.date }))
+        });
+        
+        setSeason(seasonData);
+        setCategories(categoriesData);
+        setStages(stagesData);
+        
+        // Verificar se é inscrição por etapa e se há etapas
+        if (seasonData.inscriptionType === 'por_etapa') {
+          console.log('📋 [FRONTEND] Temporada é por etapa, etapas encontradas:', stagesData.length);
+          if (stagesData.length === 0) {
+            console.warn('⚠️ [FRONTEND] Temporada é por etapa mas não há etapas cadastradas!');
+          }
+        } else {
+          console.log('📋 [FRONTEND] Temporada é por temporada');
+        }
+        
+      } catch (err: any) {
+        console.error('❌ [FRONTEND] Erro ao carregar dados:', err);
+        setError(err.message || 'Erro ao carregar dados da temporada');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
   }, [seasonId]);
 
   const {
-    isLoading,
     isSaving,
-    error,
-    handleSubmit,
+    handleSubmit: useFormScreenSubmit,
     handleFormChange: useFormScreenChange,
   } = useFormScreen<any, CreateRegistrationData>({
-    id: seasonId,
-    fetchData: fetchData,
     createData: (data) => SeasonRegistrationService.create(data),
-    transformSubmitData: (data) => ({
-      userId: user?.id || '',
-      seasonId: seasonId,
-      categoryIds: data.categorias || [],
-      paymentMethod: data.pagamento,
-      userDocument: data.cpf,
-      installments: data.installments ? parseInt(data.installments, 10) : 1,
-    }),
+    transformSubmitData: (data) => {
+      console.log('🔄 [FRONTEND] transformSubmitData - Dados do formulário:', {
+        categorias: data.categorias,
+        etapas: data.etapas,
+        pagamento: data.pagamento,
+        cpf: data.cpf,
+        installments: data.installments
+      });
+      
+      const transformedData = {
+        userId: user?.id || '',
+        seasonId: season?.id || '',
+        categoryIds: data.categorias || [],
+        stageIds: data.etapas || [],
+        paymentMethod: data.pagamento,
+        userDocument: data.cpf,
+        installments: data.installments ? parseInt(data.installments, 10) : 1,
+      };
+      
+      console.log('📤 [FRONTEND] transformSubmitData - Dados transformados:', {
+        userId: transformedData.userId,
+        seasonId: transformedData.seasonId,
+        categoryIds: transformedData.categoryIds,
+        stageIds: transformedData.stageIds,
+        paymentMethod: transformedData.paymentMethod,
+        userDocument: transformedData.userDocument,
+        installments: transformedData.installments
+      });
+      
+      return transformedData;
+    },
     onSuccess: (result) => {
       toast.success('Inscrição realizada com sucesso!');
       if (onSuccessProp) {
@@ -129,6 +201,13 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   useEffect(() => {
     if (!season || !categories.length) return;
 
+    console.log('🔧 [FRONTEND] Configurando formulário:', {
+      seasonInscriptionType: season.inscriptionType,
+      categoriesCount: categories.length,
+      stagesCount: stages.length,
+      stages: stages.map(s => ({ id: s.id, name: s.name }))
+    });
+
     const paymentFields: any[] = [
       {
         id: "pagamento",
@@ -174,7 +253,35 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
             }))
           }
         ]
-      },
+      }
+    ];
+
+    // Adicionar seção de etapas se for inscrição por etapa
+    if (season.inscriptionType === 'por_etapa' && stages.length > 0) {
+      console.log('✅ [FRONTEND] Adicionando seção de etapas ao formulário');
+      config.push({
+        section: "Seleção de Etapas",
+        detail: "Escolha as etapas que deseja participar",
+        fields: [
+          {
+            id: "etapas",
+            name: "Etapas Disponíveis",
+            type: "checkbox-group",
+            mandatory: true,
+            options: stages.map(stage => ({
+              value: stage.id,
+              description: `${stage.name} - ${new Date(stage.date).toLocaleDateString('pt-BR')} às ${stage.time} | ${stage.kartodrome}`
+            }))
+          }
+        ]
+      });
+    } else if (season.inscriptionType === 'por_etapa' && stages.length === 0) {
+      console.warn('⚠️ [FRONTEND] Temporada é por etapa mas não há etapas para adicionar ao formulário');
+    } else {
+      console.log('📋 [FRONTEND] Temporada não é por etapa, não adicionando seção de etapas');
+    }
+
+    config.push(
       {
         section: "Forma de Pagamento",
         detail: "Selecione como deseja pagar",
@@ -187,33 +294,37 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
           {
             id: "cpf",
             name: "CPF/CNPJ",
-            type: "text",
+            type: "input",
             mandatory: true,
-            placeholder: "000.000.000-00 ou 00.000.000/0000-00",
-            maxLength: 18,
-            transform: (value: string) => {
-              const numbers = value.replace(/\D/g, '');
-              if (numbers.length <= 11) {
-                return masks.cpf(value);
-              } else {
-                return masks.cnpj(value);
-              }
-            }
+            placeholder: "000.000.000-00 ou 00.000.000/0000-00"
           }
         ]
       }
-    ];
+    );
+
+    console.log('📝 [FRONTEND] Configuração final do formulário:', {
+      sectionsCount: config.length,
+      sections: config.map(s => ({ section: s.section, fieldsCount: s.fields.length }))
+    });
 
     setFormConfig(config);
-  }, [season, categories, selectedPaymentMethod, total]);
+  }, [season, categories, stages, selectedPaymentMethod, total]);
 
-  const calculateTotal = (selectedCategories: string[]) => {
+  const calculateTotal = (selectedCategories: string[], selectedStages: string[]) => {
     if (!season || !selectedCategories.length) {
       setTotal(0);
       return;
     }
     
-    const newTotal = selectedCategories.length * Number(season.inscriptionValue);
+    let newTotal: number;
+    if (season.inscriptionType === 'por_etapa' && selectedStages.length > 0) {
+      // Por etapa: quantidade de categorias x quantidade de etapas x valor da inscrição
+      newTotal = selectedCategories.length * selectedStages.length * Number(season.inscriptionValue);
+    } else {
+      // Por temporada: quantidade de categorias x valor da inscrição
+      newTotal = selectedCategories.length * Number(season.inscriptionValue);
+    }
+    
     setTotal(newTotal);
   };
 
@@ -227,7 +338,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     
     // Calcular total baseado nas categorias selecionadas
     if (data.categorias && Array.isArray(data.categorias)) {
-      calculateTotal(data.categorias);
+      calculateTotal(data.categorias, data.etapas || []);
     }
   };
 
@@ -386,7 +497,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
 
       <DynamicForm
         config={formConfig}
-        onSubmit={handleSubmit}
+        onSubmit={useFormScreenSubmit}
         onChange={handleFormChange}
         onCancel={onCancel}
         submitLabel={isSaving ? "Finalizando..." : "Finalizar Inscrição"}

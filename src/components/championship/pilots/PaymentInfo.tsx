@@ -58,6 +58,14 @@ const getPaymentMethodIcon = (method: string) => {
 };
 
 const PaymentInfo = ({ registration }: PaymentInfoProps) => {
+  // Debug: verificar se os pagamentos estão chegando
+  console.log('🔍 [PAYMENT INFO] Registration:', {
+    id: registration.id,
+    hasPayments: !!registration.payments,
+    paymentsCount: registration.payments?.length || 0,
+    payments: registration.payments?.map(p => ({ id: p.id, status: p.status, value: p.value }))
+  });
+
   if (!registration.payments || registration.payments.length === 0) {
     return <Badge variant="secondary">Sem pagamento</Badge>;
   }

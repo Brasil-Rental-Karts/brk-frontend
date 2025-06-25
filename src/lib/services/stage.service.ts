@@ -27,8 +27,25 @@ export class StageService {
    * Buscar etapas por temporada
    */
   static async getBySeasonId(seasonId: string): Promise<Stage[]> {
-    const response = await api.get<Stage[]>(`${StageService.BASE_URL}/season/${seasonId}`);
-    return response.data;
+    console.log('🔍 [STAGE SERVICE] Buscando etapas para temporada:', seasonId);
+    console.log('🔍 [STAGE SERVICE] URL da requisição:', `${StageService.BASE_URL}/season/${seasonId}`);
+    
+    try {
+      const response = await api.get<Stage[]>(`${StageService.BASE_URL}/season/${seasonId}`);
+      console.log('✅ [STAGE SERVICE] Resposta recebida:', {
+        status: response.status,
+        dataLength: response.data?.length || 0,
+        data: response.data
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ [STAGE SERVICE] Erro ao buscar etapas:', {
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+      throw error;
+    }
   }
 
   /**

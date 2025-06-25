@@ -107,6 +107,14 @@ export const RegistrationPayment: React.FC = () => {
 
       // Carregar dados da inscrição
       const registrationData = await SeasonRegistrationService.getById(registrationId);
+      console.log('📊 [FRONTEND] Dados da inscrição recebidos:', {
+        id: registrationData.id,
+        seasonInscriptionType: registrationData.season.inscriptionType,
+        categoriesCount: registrationData.categories?.length || 0,
+        stagesCount: registrationData.stages?.length || 0,
+        stages: registrationData.stages?.map(s => ({ id: s.id, stageName: s.stage?.name, stageDate: s.stage?.date })),
+        amount: registrationData.amount
+      });
       setRegistration(registrationData);
 
       // Tentar carregar dados de pagamento
@@ -160,6 +168,18 @@ export const RegistrationPayment: React.FC = () => {
       return () => clearInterval(interval);
     }
   }, [registration, payments]);
+
+  // Debug log para etapas
+  useEffect(() => {
+    if (registration && registration.season.inscriptionType === 'por_etapa') {
+      console.log('🔍 [FRONTEND] Renderizando etapas:', {
+        inscriptionType: registration.season.inscriptionType,
+        hasStages: !!registration.stages,
+        stagesCount: registration.stages?.length || 0,
+        stages: registration.stages?.map(s => ({ id: s.id, name: s.stage?.name, date: s.stage?.date }))
+      });
+    }
+  }, [registration]);
 
   const handleBack = () => {
     navigate(-1);
@@ -572,6 +592,24 @@ export const RegistrationPayment: React.FC = () => {
               </div>
             </div>
 
+            {/* Etapas Selecionadas (se for inscrição por etapa) */}
+            {registration.season.inscriptionType === 'por_etapa' && (
+              <div>
+                <h4 className="font-semibold text-sm text-muted-foreground mb-2">Etapas</h4>
+                {registration.stages && registration.stages.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {registration.stages.map((regStage) => (
+                      <Badge key={regStage.id} variant="outline">
+                        {regStage.stage.name} - {new Date(regStage.stage.date).toLocaleDateString('pt-BR')}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">Nenhuma etapa selecionada</span>
+                )}
+              </div>
+            )}
+            
             {/* Valor Total */}
             <div className="pt-4 border-t">
               <div className="flex justify-between items-center">
