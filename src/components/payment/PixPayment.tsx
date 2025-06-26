@@ -208,7 +208,7 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
       )}
 
       {/* QR Code e Código PIX Copia e Cola */}
-      {!isExpired() && !isPaymentConfirmed() && (
+      {!isExpired() && !isPaymentConfirmed() && paymentData.pixCopyPaste && (
         <div className="grid md:grid-cols-2 gap-6">
           {/* QR Code */}
           <Card>
@@ -221,7 +221,7 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
             <CardContent className="text-center">
               <div className="bg-white p-4 rounded-lg inline-block shadow-sm border">
                 <QRCode
-                  value={paymentData.pixQrCode || ''}
+                  value={paymentData.pixCopyPaste}
                   size={200}
                   level="M"
                 />
@@ -276,34 +276,46 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
               </div>
 
               {/* Código PIX Copia e Cola */}
-              {(paymentData.pixQrCode || paymentData.pixCopyPaste) && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Código PIX Copia e Cola:</label>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 p-3 bg-muted rounded-lg font-mono text-xs break-all max-h-20 overflow-y-auto">
-                      {paymentData.pixCopyPaste || paymentData.pixQrCode}
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleCopy(paymentData.pixCopyPaste || paymentData.pixQrCode || '', 'pixCode')}
-                      className="shrink-0"
-                    >
-                      {copySuccess === 'pixCode' ? (
-                        <Check className="w-4 h-4 text-green-600" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </Button>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Código PIX Copia e Cola:</label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 p-3 bg-muted rounded-lg font-mono text-xs break-all max-h-20 overflow-y-auto">
+                    {paymentData.pixCopyPaste}
                   </div>
-                  {copySuccess === 'pixCode' && (
-                    <p className="text-xs text-green-600">Código PIX copiado!</p>
-                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleCopy(paymentData.pixCopyPaste || '', 'pixCode')}
+                    className="shrink-0"
+                  >
+                    {copySuccess === 'pixCode' ? (
+                      <Check className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
                 </div>
-              )}
+                {copySuccess === 'pixCode' && (
+                  <p className="text-xs text-green-600">Código PIX copiado!</p>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Mensagem de erro se não há payload PIX */}
+      {!isExpired() && !isPaymentConfirmed() && !paymentData.pixCopyPaste && (
+        <Card>
+          <CardContent className="pt-6">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Erro: Código PIX não disponível. Entre em contato com o suporte.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
       )}
 
       {/* Mensagem de Sucesso quando Pago */}
