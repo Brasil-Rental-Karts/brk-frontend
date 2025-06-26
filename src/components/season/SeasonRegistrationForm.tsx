@@ -8,11 +8,18 @@ import { SeasonService, Season } from '@/lib/services/season.service';
 import { CategoryService, Category } from '@/lib/services/category.service';
 import { StageService, Stage } from '@/lib/services/stage.service';
 import { SeasonRegistrationService, CreateRegistrationData, SeasonRegistration } from '@/lib/services/season-registration.service';
+import { ChampionshipService, Championship } from '@/lib/services/championship.service';
 import { formatCurrency } from '@/utils/currency';
 import { masks } from '@/utils/masks';
 import { useFormScreen } from '@/hooks/use-form-screen';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRegistrations } from '@/hooks/use-user-registrations';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "brk-design-system";
 
 interface SeasonRegistrationFormProps {
   seasonId: string;
@@ -70,6 +77,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   const [stages, setStages] = useState<Stage[]>([]);
   const [filteredStages, setFilteredStages] = useState<Stage[]>([]);
   const [userRegistrations, setUserRegistrations] = useState<SeasonRegistration[]>([]);
+  const [championship, setChampionship] = useState<Championship | null>(null);
   const [total, setTotal] = useState(0);
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
@@ -137,10 +145,11 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
         });
         
         // Carregar dados em paralelo
-        const [categoriesData, stagesData, userRegistrationsData] = await Promise.all([
+        const [categoriesData, stagesData, userRegistrationsData, championshipData] = await Promise.all([
           CategoryService.getBySeasonId(seasonData.id),
           StageService.getBySeasonId(seasonData.id),
-          SeasonRegistrationService.getMyRegistrations()
+          SeasonRegistrationService.getMyRegistrations(),
+          ChampionshipService.getById(seasonData.championshipId)
         ]);
         
         console.log('✅ [FRONTEND] Dados carregados com sucesso:', {
@@ -152,13 +161,20 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
           },
           categories: categoriesData.map(c => ({ id: c.id, name: c.name })),
           stages: stagesData.map(s => ({ id: s.id, name: s.name, date: s.date })),
-          userRegistrations: userRegistrationsData.length
+          userRegistrations: userRegistrationsData.length,
+          championship: {
+            id: championshipData.id,
+            name: championshipData.name,
+            platformCommissionPercentage: championshipData.platformCommissionPercentage,
+            commissionAbsorbedByChampionship: championshipData.commissionAbsorbedByChampionship
+          }
         });
         
         setSeason(seasonData);
         setCategories(categoriesData);
         setStages(stagesData);
         setUserRegistrations(userRegistrationsData);
+        setChampionship(championshipData);
         
         // Verificar se é inscrição por etapa e se há etapas
         if (seasonData.inscriptionType === 'por_etapa') {
@@ -419,6 +435,21 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     } else {
       // Por temporada: quantidade de categorias x valor da inscrição
       newTotal = selectedCategories.length * Number(season.inscriptionValue);
+    }
+    
+    // Aplicar comissão da plataforma se ela deve ser cobrada do piloto
+    if (championship && !championship.commissionAbsorbedByChampionship) {
+      const platformCommission = Number(championship.platformCommissionPercentage) || 10;
+      const commissionAmount = newTotal * (platformCommission / 100);
+      newTotal += commissionAmount;
+      
+      console.log('=== [FRONTEND] COMISSÃO COBRADA DO PILOTO ===');
+      console.log('Valor original:', newTotal - commissionAmount);
+      console.log(`Comissão (${platformCommission}%):`, commissionAmount);
+      console.log('Valor final:', newTotal);
+    } else {
+      console.log('=== [FRONTEND] COMISSÃO ABSORVIDA PELO CAMPEONATO ===');
+      console.log('Valor da inscrição:', newTotal);
     }
     
     setTotal(newTotal);
@@ -718,8 +749,29 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
             <div>
               <strong>Tipo:</strong> {season.inscriptionType === 'por_temporada' ? 'Por Temporada' : 'Por Etapa'}
             </div>
-            <div>
-              <strong>Total calculado:</strong> <span className="text-lg font-bold text-primary">{formatCurrency(total)}</span>
+            <div className="flex items-center gap-2">
+              <strong>Total calculado:</strong> 
+              <span className="text-lg font-bold text-primary">{formatCurrency(total)}</span>
+              {championship && !championship.commissionAbsorbedByChampionship && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <svg className="w-4 h-4 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <div className="text-sm">
+                        <p className="font-semibold mb-1">Taxa de Serviço</p>
+                        <p>Uma taxa de {Math.round(championship.platformCommissionPercentage || 10)}% corresponde ao serviço destinado à manutenção e ao aprimoramento da plataforma BRK.</p>
+                        <p className="mt-1">Ela nos permite manter o sistema estável, lançar novas funcionalidades e garantir que todos os pilotos tenham uma experiência cada vez mais completa dentro e fora das pistas.</p>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
           </div>
           

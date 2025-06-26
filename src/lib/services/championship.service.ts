@@ -32,6 +32,8 @@ export interface ChampionshipData {
   companyType?: string; // Tipo de empresa para pessoa jurídica
   incomeValue?: number; // Faturamento/Renda mensal
   sponsors?: Sponsor[];
+  platformCommissionPercentage?: number; // Percentual de comissão da plataforma
+  commissionAbsorbedByChampionship?: boolean; // Indica se a comissão é absorvida pelo campeonato (true) ou cobrada do piloto (false)
 }
 
 export interface Championship extends ChampionshipData {

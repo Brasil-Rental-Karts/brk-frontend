@@ -108,7 +108,8 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
       ? convertISOToDate(championship.responsibleBirthDate)
       : "",
     companyType: championship.companyType || "",
-    incomeValue: championship.incomeValue?.toString() || ""
+    incomeValue: championship.incomeValue?.toString() || "",
+    commissionAbsorbedByChampionship: championship.commissionAbsorbedByChampionship?.toString() || "true"
   }), []);
 
   const transformSubmitData = useCallback((data: any) => {
@@ -138,7 +139,8 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
         ? convertDateToISO(data.responsibleBirthDate)
         : undefined;
       championshipData.companyType = data.companyType || undefined;
-      championshipData.incomeValue = data.incomeValue ? parseFloat(data.incomeValue.replace(/[^\d]/g, '')) / 100 : undefined
+      championshipData.incomeValue = data.incomeValue ? parseFloat(data.incomeValue.replace(/[^\d]/g, '')) / 100 : undefined;
+      championshipData.commissionAbsorbedByChampionship = data.commissionAbsorbedByChampionship !== "false";
     }
     return championshipData;
   }, [asaasStatus]);
@@ -428,6 +430,16 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
                   mandatory: true,
                   mask: "currency" as const,
                   placeholder: "R$ 0,00",
+                },
+                {
+                  id: "commissionAbsorbedByChampionship",
+                  name: "Comissão da plataforma",
+                  type: "select" as const,
+                  mandatory: true,
+                  options: [
+                    { value: "true", description: "Absorvida pelo campeonato (percentual descontado do valor recebido)" },
+                    { value: "false", description: "Cobrada do piloto (percentual adicionado ao valor da inscrição)" }
+                  ],
                 },
                 {
                   id: "isResponsible",

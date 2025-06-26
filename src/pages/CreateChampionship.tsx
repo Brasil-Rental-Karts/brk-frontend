@@ -135,7 +135,8 @@ export const CreateChampionship = () => {
       responsibleEmail: data.responsibleEmail || '',
       responsibleBirthDate: data.responsibleBirthDate ? convertDateToISO(data.responsibleBirthDate) : undefined,
       companyType: data.companyType || undefined,
-      incomeValue: data.incomeValue ? parseFloat(data.incomeValue.replace(/[^\d]/g, '')) / 100 : undefined
+      incomeValue: data.incomeValue ? parseFloat(data.incomeValue.replace(/[^\d]/g, '')) / 100 : undefined,
+      commissionAbsorbedByChampionship: data.commissionAbsorbedByChampionship !== false
     };
   }, []);
 
@@ -318,6 +319,16 @@ export const CreateChampionship = () => {
             placeholder: "R$ 0,00"
           },
           {
+            id: "commissionAbsorbedByChampionship",
+            name: "Comissão da plataforma",
+            type: "select",
+            mandatory: true,
+            options: [
+              { value: "true", description: "Absorvida pelo campeonato (percentual descontado do valor recebido)" },
+              { value: "false", description: "Cobrada do piloto (percentual adicionado ao valor da inscrição)" }
+            ]
+          },
+          {
             id: "isResponsible",
             name: "Sou o responsável do campeonato",
             type: "checkbox",
@@ -388,6 +399,7 @@ export const CreateChampionship = () => {
       initialValues={{
         personType: "0",
         isResponsible: true,
+        commissionAbsorbedByChampionship: "true",
       }}
       successMessage="Campeonato criado com sucesso!"
       errorMessage="Erro ao criar campeonato."
