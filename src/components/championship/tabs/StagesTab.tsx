@@ -296,7 +296,6 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
     const { id, createdAt, updatedAt, ...stageData } = stageToDuplicate;
 
     // Normalizar date para DD/MM/YYYY
-    console.log('Duplicando etapa, valor original de date:', stageData.date);
     let date = stageData.date;
     if (date) {
       if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
@@ -325,8 +324,6 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
     let categoryIds = Array.isArray(stageData.categoryIds)
       ? stageData.categoryIds.map((c: any) => typeof c === 'string' ? c : c.id)
       : [];
-
-    console.log('Duplicando etapa, valor final de date para o formulário:', date);
 
     const duplicatedStageData = {
       name: `${stageData.name} (Cópia)`,

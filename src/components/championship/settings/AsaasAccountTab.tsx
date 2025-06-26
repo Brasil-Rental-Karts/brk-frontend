@@ -65,7 +65,6 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
       const updatedStatus = await ChampionshipService.getAsaasStatus(championshipId);
       setAsaasStatus(updatedStatus);
       
-      console.log('✅ Wallet ID salvo com sucesso!');
       // TODO: Adicionar toast de sucesso
       
     } catch (err: any) {

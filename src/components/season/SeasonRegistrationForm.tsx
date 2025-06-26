@@ -93,7 +93,6 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     
     // Para temporadas por temporada, se o usuário já está inscrito, não mostrar nenhuma etapa
     if (season?.inscriptionType === 'por_temporada' && userRegistration) {
-      console.log('🚫 [FRONTEND] Usuário já inscrito na temporada (por temporada), não mostrando etapas');
       return [];
     }
     
@@ -101,7 +100,6 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     let userRegisteredStageIds: string[] = [];
     if (season?.inscriptionType === 'por_etapa' && userRegistration && userRegistration.stages) {
       userRegisteredStageIds = userRegistration.stages.map(stage => stage.stageId);
-      console.log('🔍 [FRONTEND] Usuário inscrito nas etapas:', userRegisteredStageIds);
     }
     
     // Filtrar etapas que já passaram e que o usuário já está inscrito
@@ -110,19 +108,8 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       const isFutureStage = stageDate > now;
       const isNotRegistered = !userRegisteredStageIds.includes(stage.id);
       
-      if (!isFutureStage) {
-        console.log(`🚫 [FRONTEND] Etapa "${stage.name}" já passou (${stage.date})`);
-      }
-      
-      if (!isNotRegistered) {
-        console.log(`🚫 [FRONTEND] Usuário já inscrito na etapa "${stage.name}"`);
-      }
-      
       return isFutureStage && isNotRegistered;
     });
-    
-    console.log(`✅ [FRONTEND] Etapas disponíveis após filtragem: ${availableStages.length}/${allStages.length}`);
-    console.log(`📊 [FRONTEND] Resumo: ${allStages.length} total, ${userRegisteredStageIds.length} já inscrito, ${availableStages.length} disponível`);
     
     return availableStages;
   }, [season?.id, season?.inscriptionType]);
@@ -133,16 +120,8 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       setIsLoading(true);
       setError(null);
       try {
-        console.log('🔄 [FRONTEND] Iniciando carregamento de dados para temporada:', seasonId);
-        
         // Primeiro, carregar a temporada para obter o ID real
         const seasonData = await SeasonService.getById(seasonId);
-        console.log('✅ [FRONTEND] Temporada carregada:', {
-          id: seasonData.id,
-          name: seasonData.name,
-          inscriptionType: seasonData.inscriptionType,
-          registrationOpen: seasonData.registrationOpen
-        });
         
         // Carregar dados em paralelo
         const [categoriesData, stagesData, userRegistrationsData, championshipData] = await Promise.all([
@@ -152,24 +131,6 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
           ChampionshipService.getById(seasonData.championshipId)
         ]);
         
-        console.log('✅ [FRONTEND] Dados carregados com sucesso:', {
-          season: {
-            id: seasonData.id,
-            name: seasonData.name,
-            inscriptionType: seasonData.inscriptionType,
-            registrationOpen: seasonData.registrationOpen
-          },
-          categories: categoriesData.map(c => ({ id: c.id, name: c.name })),
-          stages: stagesData.map(s => ({ id: s.id, name: s.name, date: s.date })),
-          userRegistrations: userRegistrationsData.length,
-          championship: {
-            id: championshipData.id,
-            name: championshipData.name,
-            platformCommissionPercentage: championshipData.platformCommissionPercentage,
-            commissionAbsorbedByChampionship: championshipData.commissionAbsorbedByChampionship
-          }
-        });
-        
         setSeason(seasonData);
         setCategories(categoriesData);
         setStages(stagesData);
@@ -178,12 +139,9 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
         
         // Verificar se é inscrição por etapa e se há etapas
         if (seasonData.inscriptionType === 'por_etapa') {
-          console.log('📋 [FRONTEND] Temporada é por etapa, etapas encontradas:', stagesData.length);
           if (stagesData.length === 0) {
             console.warn('⚠️ [FRONTEND] Temporada é por etapa mas não há etapas cadastradas!');
           }
-        } else {
-          console.log('📋 [FRONTEND] Temporada é por temporada');
         }
         
       } catch (err: any) {
@@ -212,14 +170,6 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   } = useFormScreen<any, CreateRegistrationData>({
     createData: (data) => SeasonRegistrationService.create(data),
     transformSubmitData: (data) => {
-      console.log('🔄 [FRONTEND] transformSubmitData - Dados do formulário:', {
-        categorias: data.categorias,
-        etapas: data.etapas,
-        pagamento: data.pagamento,
-        cpf: data.cpf,
-        installments: data.installments
-      });
-      
       const transformedData = {
         userId: user?.id || '',
         seasonId: season?.id || '',
@@ -229,16 +179,6 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
         userDocument: data.cpf,
         installments: data.installments ? parseInt(data.installments, 10) : 1,
       };
-      
-      console.log('📤 [FRONTEND] transformSubmitData - Dados transformados:', {
-        userId: transformedData.userId,
-        seasonId: transformedData.seasonId,
-        categoryIds: transformedData.categoryIds,
-        stageIds: transformedData.stageIds,
-        paymentMethod: transformedData.paymentMethod,
-        userDocument: transformedData.userDocument,
-        installments: transformedData.installments
-      });
       
       return transformedData;
     },
@@ -292,7 +232,6 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
         const installmentValue = total / i;
         
         if (paymentMethod === 'pix') {
-                        // Para PIX, explicar que é parcelamento (PIX parcelado)
           options.push({
             value: i.toString(),
             description: `${i}x de ${formatCurrency(installmentValue)}`
@@ -311,13 +250,6 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
 
   useEffect(() => {
     if (!season || !categories.length) return;
-
-    console.log('🔧 [FRONTEND] Configurando formulário:', {
-      seasonInscriptionType: season.inscriptionType,
-      categoriesCount: categories.length,
-      stagesCount: filteredStages.length,
-      stages: filteredStages.map(s => ({ id: s.id, name: s.name }))
-    });
 
     const paymentFields: any[] = [
       {
@@ -369,7 +301,6 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
 
     // Adicionar seção de etapas se for inscrição por etapa
     if (season.inscriptionType === 'por_etapa' && filteredStages.length > 0) {
-      console.log('✅ [FRONTEND] Adicionando seção de etapas ao formulário');
       config.push({
         section: "Seleção de Etapas",
         detail: "Escolha as etapas que deseja participar",
@@ -388,8 +319,6 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       });
     } else if (season.inscriptionType === 'por_etapa' && filteredStages.length === 0) {
       console.warn('⚠️ [FRONTEND] Temporada é por etapa mas não há etapas disponíveis para inscrição');
-    } else {
-      console.log('📋 [FRONTEND] Temporada não é por etapa, não adicionando seção de etapas');
     }
 
     config.push(
@@ -414,11 +343,6 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       }
     );
 
-    console.log('📝 [FRONTEND] Configuração final do formulário:', {
-      sectionsCount: config.length,
-      sections: config.map(s => ({ section: s.section, fieldsCount: s.fields.length }))
-    });
-
     setFormConfig(config);
   }, [season, categories, filteredStages, selectedPaymentMethod, total]);
 
@@ -442,14 +366,6 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       const platformCommission = Number(championship.platformCommissionPercentage) || 10;
       const commissionAmount = newTotal * (platformCommission / 100);
       newTotal += commissionAmount;
-      
-      console.log('=== [FRONTEND] COMISSÃO COBRADA DO PILOTO ===');
-      console.log('Valor original:', newTotal - commissionAmount);
-      console.log(`Comissão (${platformCommission}%):`, commissionAmount);
-      console.log('Valor final:', newTotal);
-    } else {
-      console.log('=== [FRONTEND] COMISSÃO ABSORVIDA PELO CAMPEONATO ===');
-      console.log('Valor da inscrição:', newTotal);
     }
     
     setTotal(newTotal);

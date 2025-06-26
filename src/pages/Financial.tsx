@@ -124,19 +124,6 @@ export const Financial: React.FC = () => {
       // Buscar todas as inscrições do usuário
       const registrations = await SeasonRegistrationService.getMyRegistrations();
       
-      // Debug: verificar se as etapas estão sendo retornadas
-      console.log('🔍 [FINANCIAL] Inscrições carregadas:', registrations.length);
-      registrations.forEach((reg, index) => {
-        console.log(`🔍 [FINANCIAL] Inscrição ${index + 1}:`, {
-          id: reg.id,
-          seasonName: reg.season?.name,
-          inscriptionType: reg.season?.inscriptionType,
-          hasStages: !!reg.stages,
-          stagesCount: reg.stages?.length || 0,
-          stages: reg.stages?.map(s => ({ id: s.id, stageName: s.stage?.name }))
-        });
-      });
-      
       // Verificar se há inscrições com pagamentos pendentes
       const registrationsWithPendingPayments = [];
       for (const reg of registrations) {
@@ -170,13 +157,11 @@ export const Financial: React.FC = () => {
               // Sincronizar pagamentos pendentes com o Asaas
               if (pendingPaymentsToSync.length > 0) {
                 try {
-                  console.log(`🔄 Sincronizando ${pendingPaymentsToSync.length} pagamentos pendentes da inscrição ${reg.id}`);
                   await SeasonRegistrationService.syncPaymentStatus(reg.id);
                   
                   // Buscar dados atualizados após a sincronização
                   const updatedPayments = await SeasonRegistrationService.getPaymentData(reg.id);
                   if (updatedPayments) {
-                    console.log(`✅ Sincronização concluída para inscrição ${reg.id}`);
                     // Usar os dados atualizados
                     payments.splice(0, payments.length, ...updatedPayments);
                   }

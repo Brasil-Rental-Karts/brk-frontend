@@ -50,14 +50,7 @@ export const PaymentDetails: React.FC = () => {
       }
 
       // Buscar dados de pagamento do nosso banco de dados
-      console.log('=== CARREGANDO DADOS DE PAGAMENTO DO BANCO ===');
       const payments = await SeasonRegistrationService.getPaymentData(registrationId);
-
-      console.log('Dados de pagamento carregados:', {
-        registrationId,
-        paymentsCount: payments?.length || 0,
-        payments: payments
-      });
 
       // Verificar se há dados de pagamento
       if (!payments || payments.length === 0) {
@@ -105,7 +98,7 @@ export const PaymentDetails: React.FC = () => {
 
       // Debug log apenas se houver discrepâncias ou parcelas não mapeadas
       if (unmappedPayments.length > 0 || Math.abs((paidAmount + pendingAmount + overdueAmount) - registration.amount) > 0.01) {
-        console.log(`[PAYMENT DETAILS] ⚠️ Atenção - Inscrição ${registrationId}:`, {
+        console.warn(`[PAYMENT DETAILS] ⚠️ Atenção - Inscrição ${registrationId}:`, {
           totalPayments: payments.length,
           unmappedCount: unmappedPayments.length,
           paidAmount: paidAmount,
@@ -125,8 +118,6 @@ export const PaymentDetails: React.FC = () => {
         totalInstallments: payments.length || 1,
         paidInstallments: paidPayments.length
       };
-
-      console.log('Resumo calculado:', summary);
 
       setData({
         registration,
@@ -239,14 +230,7 @@ export const PaymentDetails: React.FC = () => {
 
     // Log para debug
     if (nextPayment) {
-      console.log('🎯 Redirecionando para pagamento da parcela:', {
-        id: nextPayment.id,
-        installmentNumber: nextPayment.installmentNumber,
-        value: nextPayment.value,
-        dueDate: nextPayment.dueDate,
-        status: nextPayment.status,
-        billingType: nextPayment.billingType
-      });
+      // Removed console.log statement
     }
 
     navigate(`/registration/${registrationId}/payment`);
