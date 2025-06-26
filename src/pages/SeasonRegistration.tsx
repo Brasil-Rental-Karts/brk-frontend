@@ -9,7 +9,7 @@ export const SeasonRegistration: React.FC = () => {
   }>();
   const navigate = useNavigate();
 
-  // Determina o identificador da temporada (slug ou ID)
+  // Determina o identificador da temporada
   const seasonIdentifier = seasonSlug || seasonId;
 
   if (!seasonIdentifier) {
@@ -17,7 +17,12 @@ export const SeasonRegistration: React.FC = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-destructive">Erro</h1>
-          <p className="text-muted-foreground">ID da temporada não fornecido</p>
+          <p className="text-muted-foreground">
+            {seasonSlug 
+              ? 'Slug da temporada não fornecido na URL. Use: /registration/{seasonSlug}'
+              : 'ID da temporada não fornecido'
+            }
+          </p>
         </div>
       </div>
     );

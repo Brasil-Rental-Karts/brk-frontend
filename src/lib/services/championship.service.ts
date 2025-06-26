@@ -116,6 +116,22 @@ export class ChampionshipService {
   }
 
   /**
+   * Buscar campeonato por slug ou ID (rota pública para inscrições)
+   */
+  static async getPublicById(slugOrId: string): Promise<Championship> {
+    try {
+      const response = await api.get<Championship>(`${ChampionshipService.BASE_URL}/public/${slugOrId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching championship:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao buscar campeonato. Tente novamente.'
+      );
+    }
+  }
+
+  /**
    * Buscar informações básicas do campeonato (otimizado para cache)
    */
   static async getBasicInfo(id: string): Promise<ChampionshipBasicInfo> {

@@ -349,6 +349,19 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+      // Nova rota simplificada para inscrições
+      {
+        path: "registration/:seasonSlug",
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <LazyWrapper>
+                <SeasonRegistration />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
       // Rota legacy para compatibilidade
       {
         path: "season/:seasonId/register",

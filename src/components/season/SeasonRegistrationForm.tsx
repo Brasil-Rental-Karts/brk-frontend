@@ -128,7 +128,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
           CategoryService.getBySeasonId(seasonData.id),
           StageService.getBySeasonId(seasonData.id),
           SeasonRegistrationService.getMyRegistrations(),
-          ChampionshipService.getById(seasonData.championshipId)
+          ChampionshipService.getPublicById(seasonData.championshipId)
         ]);
         
         setSeason(seasonData);
