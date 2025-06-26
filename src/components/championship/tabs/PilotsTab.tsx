@@ -1,8 +1,8 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Button } from "brk-design-system";
-import { Card } from "brk-design-system";
+import { Card, CardHeader, CardContent } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { Users, Mail, Phone, Calendar, MoreVertical, Eye } from "lucide-react";
+import { Users, Mail, Phone, Calendar, MoreVertical, Eye, Loader2 } from "lucide-react";
 import { EmptyState } from "brk-design-system";
 import {
   DropdownMenu,
@@ -28,6 +28,7 @@ import {
 } from "brk-design-system";
 import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
 import { Pagination } from "brk-design-system";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 import { SeasonRegistrationService, SeasonRegistration } from "@/lib/services/season-registration.service";
 import { SeasonService } from "@/lib/services/season.service";
@@ -82,11 +83,120 @@ const createFilterFields = (seasonOptions: { value: string; label: string }[] = 
   }
 ];
 
+const PilotCard = ({ registration, onAction, getStatusBadge }: { 
+  registration: SeasonRegistration, 
+  onAction: (action: string, registrationId: string) => void,
+  getStatusBadge: (registration: SeasonRegistration) => JSX.Element 
+}) => {
+  return (
+    <Card className="w-full">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <div className="flex-1 pr-2">
+          <h3 className="text-lg font-semibold tracking-tight">{registration.user.name}</h3>
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-2">
+          {getStatusBadge(registration)}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem 
+                onClick={() => onAction("viewDetails", registration.id)}
+              >
+                Ver detalhes
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => onAction("changeCategories", registration.id)}
+              >
+                Trocar categorias
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 text-sm">
+          <div className="flex flex-col">
+            <span className="text-muted-foreground">Email</span>
+            <span className="font-medium flex items-center gap-1">
+              <Mail className="h-3 w-3" />
+              {registration.user.email}
+            </span>
+          </div>
+          {registration.user.phone && (
+            <div className="flex flex-col">
+              <span className="text-muted-foreground">Telefone</span>
+              <span className="font-medium flex items-center gap-1">
+                <Phone className="h-3 w-3" />
+                {registration.user.phone}
+              </span>
+            </div>
+          )}
+          <div className="flex flex-col">
+            <span className="text-muted-foreground">Temporada</span>
+            <Badge variant="outline" className="w-fit mt-1">{registration.season.name}</Badge>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-muted-foreground">Valor</span>
+            <span className="font-medium">R$ {Number(registration.amount).toFixed(2).replace('.', ',')}</span>
+          </div>
+          {registration.paymentMethod && (
+            <div className="flex flex-col">
+              <span className="text-muted-foreground">Método de Pagamento</span>
+              <span className="font-medium">
+                {registration.paymentMethod === 'pix' ? 'PIX' : 
+                 registration.paymentMethod === 'cartao_credito' ? 'Cartão de Crédito' : 
+                 registration.paymentMethod}
+              </span>
+            </div>
+          )}
+          <div className="flex flex-col">
+            <span className="text-muted-foreground">Data de Inscrição</span>
+            <span className="font-medium flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {formatDateToBrazilian(registration.createdAt)}
+            </span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-muted-foreground">Categorias</span>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {registration.categories && registration.categories.length > 0 ? (
+                registration.categories.map((regCategory) => (
+                  <Badge key={regCategory.id} variant="outline" className="text-xs">
+                    <div className="flex flex-col items-center">
+                      <span>{regCategory.category.name}</span>
+                      <span className="text-xs opacity-75">
+                        {regCategory.category.ballast}kg
+                      </span>
+                    </div>
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-xs text-muted-foreground">Sem categorias</span>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-muted-foreground">Status do Pagamento</span>
+            <div className="mt-1">
+              <PaymentInfo registration={registration} />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 /**
  * Tab de pilotos inscritos no campeonato
  * Exibe lista de todos os pilotos inscritos nas temporadas do campeonato
  */
 export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
+  const isMobile = useIsMobile();
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortBy, setSortBy] = useState<keyof SeasonRegistration>("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -109,6 +219,14 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
   // Estados para o modal de detalhes do piloto
   const [showPilotDetailsModal, setShowPilotDetailsModal] = useState(false);
   const [selectedPilotRegistrationId, setSelectedPilotRegistrationId] = useState<string | null>(null);
+
+  // --- Lógica para Mobile (Scroll Infinito) ---
+  const [visibleMobileRegistrations, setVisibleMobileRegistrations] = useState<SeasonRegistration[]>([]);
+  const [mobilePage, setMobilePage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const observer = useRef<IntersectionObserver>();
+  const mobileItemsPerPage = 5;
 
   // Memoizar a configuração dos filtros para evitar re-renders
   const filterFields = useMemo(() => createFilterFields(seasonOptions), [seasonOptions]);
@@ -211,96 +329,144 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
       let aValue: any = a[sortBy];
       let bValue: any = b[sortBy];
 
-      // Tratamento especial para diferentes tipos de dados
-      if (sortBy === 'createdAt' || sortBy === 'paymentDate' || sortBy === 'confirmedAt') {
-        aValue = aValue ? new Date(aValue).getTime() : 0;
-        bValue = bValue ? new Date(bValue).getTime() : 0;
+      if (sortBy === 'createdAt') {
+        aValue = new Date(aValue);
+        bValue = new Date(bValue);
       } else if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
 
-      if (aValue < bValue) {
-        return sortOrder === 'asc' ? -1 : 1;
-      }
-      if (aValue > bValue) {
-        return sortOrder === 'asc' ? 1 : -1;
-      }
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
       return 0;
     });
 
     return result;
   }, [registrations, filters, sortBy, sortOrder]);
 
-  // Paginação dos dados processados
-  const paginatedRegistrations = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return processedRegistrations.slice(startIndex, endIndex);
-  }, [processedRegistrations, currentPage, itemsPerPage]);
-
-  // Informações de paginação
+  // --- Lógica para Desktop (Paginação) ---
   const paginationInfo = useMemo(() => {
-    const totalPages = Math.ceil(processedRegistrations.length / itemsPerPage);
+    const totalItems = processedRegistrations.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, processedRegistrations.length);
-    
+    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+    const hasNextPage = currentPage < totalPages;
+    const hasPreviousPage = currentPage > 1;
+
     return {
       totalPages,
       startIndex,
       endIndex,
-      hasNextPage: currentPage < totalPages,
-      hasPreviousPage: currentPage > 1,
+      hasNextPage,
+      hasPreviousPage
     };
   }, [processedRegistrations.length, currentPage, itemsPerPage]);
 
+  const paginatedDesktopRegistrations = useMemo(() => {
+    if (isMobile) return [];
+    return processedRegistrations.slice(paginationInfo.startIndex, paginationInfo.endIndex);
+  }, [isMobile, processedRegistrations, paginationInfo.startIndex, paginationInfo.endIndex]);
+
+  // --- Lógica para Mobile (Scroll Infinito) ---
+  useEffect(() => {
+    if (isMobile) {
+      setVisibleMobileRegistrations(processedRegistrations.slice(0, mobileItemsPerPage));
+      setMobilePage(2);
+      setHasMore(processedRegistrations.length > mobileItemsPerPage);
+    }
+  }, [isMobile, processedRegistrations]);
+
+  const lastRegistrationElementRef = useCallback((node: HTMLElement | null) => {
+    if (loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setLoadingMore(true);
+        setTimeout(() => {
+          const newRegistrations = processedRegistrations.slice(0, mobilePage * mobileItemsPerPage);
+          setVisibleMobileRegistrations(newRegistrations);
+          setHasMore(newRegistrations.length < processedRegistrations.length);
+          setMobilePage(prev => prev + 1);
+          setLoadingMore(false);
+        }, 300);
+      }
+    });
+
+    if (node) observer.current.observe(node);
+  }, [loadingMore, hasMore, mobilePage, processedRegistrations]);
+
+  const processedRegistrationsForDisplay = isMobile ? visibleMobileRegistrations : paginatedDesktopRegistrations;
+
   const handleSort = (column: keyof SeasonRegistration) => {
-    if (sortBy === column) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(column);
-      setSortOrder("asc");
+    setSortBy(prevSortBy => {
+      if (prevSortBy === column) {
+        setSortOrder(prevOrder => (prevOrder === 'asc' ? 'desc' : 'asc'));
+      } else {
+        setSortOrder('asc');
+      }
+      return column;
+    });
+    if (!isMobile) {
+      setCurrentPage(1);
     }
   };
 
   const handleFiltersChange = useCallback((newFilters: FilterValues) => {
     setFilters(newFilters);
-    // Reset para primeira página quando filtros mudam
-    setCurrentPage(1);
-  }, []);
+    if (!isMobile) {
+      setCurrentPage(1);
+    }
+  }, [isMobile]);
 
-  // Handlers para paginação
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-  }, []);
-
-  const handleItemsPerPageChange = useCallback((newItemsPerPage: number) => {
-    setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1); // Reset para primeira página
-  }, []);
+  const handlePageChange = (page: number) => setCurrentPage(page);
+  const handleItemsPerPageChange = (items: number) => setItemsPerPage(items);
 
   const handleRegistrationAction = async (action: string, registrationId: string) => {
-    if (action === "changeCategories") {
-      try {
-        // Buscar a inscrição completa
-        const registration = await SeasonRegistrationService.getById(registrationId);
-        setSelectedRegistration(registration);
-        
-        // Buscar categorias disponíveis da temporada
-        const categories = await CategoryService.getBySeasonId(registration.seasonId);
-        setAvailableCategories(categories);
-        
-        // Definir categorias atuais como selecionadas
-        const currentCategoryIds = registration.categories?.map(cat => cat.category.id) || [];
-        setSelectedCategoryIds(currentCategoryIds);
-        
-        setCategoryError(null);
-        setShowCategoryModal(true);
-      } catch (error: any) {
-        console.error('Error opening category modal:', error);
-        setCategoryError(error.message || 'Erro ao abrir modal de categorias');
-      }
+    const registration = registrations.find(r => r.id === registrationId);
+    if (!registration) return;
+
+    switch (action) {
+      case "changeCategories":
+        try {
+          const categories = await CategoryService.getBySeasonId(registration.season.id);
+          setAvailableCategories(categories);
+          setSelectedCategoryIds(registration.categories?.map(rc => rc.category.id) || []);
+          setSelectedRegistration(registration);
+          setCategoryError(null);
+          setShowCategoryModal(true);
+        } catch (err: any) {
+          console.error('Error loading categories:', err);
+        }
+        break;
+      case "viewDetails":
+        setSelectedPilotRegistrationId(registrationId);
+        setShowPilotDetailsModal(true);
+        break;
+      default:
+        console.warn(`Unknown action: ${action}`);
     }
+  };
+
+  const getStatusBadge = (registration: SeasonRegistration) => {
+    return (
+      <Badge 
+        variant={
+          registration.status === 'confirmed' ? 'success' :
+          registration.status === 'pending' || registration.status === 'payment_pending' ? 'warning' :
+          registration.status === 'cancelled' || registration.status === 'expired' ? 'destructive' :
+          'default'
+        }
+        className="text-xs"
+      >
+        {registration.status === 'confirmed' ? 'Confirmado' : 
+         registration.status === 'payment_pending' ? 'Aguardando pagamento' :
+         registration.status === 'pending' ? 'Pendente' :
+         registration.status === 'cancelled' ? 'Cancelado' :
+         registration.status === 'expired' ? 'Expirado' : registration.status}
+      </Badge>
+    );
   };
 
   const handleCategoryToggle = (categoryId: string) => {
@@ -414,190 +580,198 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         </div>
       </div>
 
-      {/* Tabela de pilotos */}
-      <Card className="w-full flex flex-col min-h-[600px]">
-        <div className="flex-1 overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="min-w-[200px]">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Piloto
-                  </div>
-                </TableHead>
-                <TableHead className="text-center">Temporada</TableHead>
-                <TableHead className="text-center">Categorias</TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 text-center"
-                  onClick={() => handleSort("paymentStatus")}
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <span>Status</span>
-                    {sortBy === "paymentStatus" && (
-                      <span className="text-xs">
-                        {sortOrder === "asc" ? "↑" : "↓"}
-                      </span>
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead className="text-center">Pagamento</TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-muted/50 text-center"
-                  onClick={() => handleSort("createdAt")}
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Data Inscrição
-                    {sortBy === "createdAt" && (
-                      <span className="text-xs">
-                        {sortOrder === "asc" ? "↑" : "↓"}
-                      </span>
-                    )}
-                  </div>
-                </TableHead>
-                <TableHead className="text-center">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedRegistrations.length === 0 ? (
+      {isMobile ? (
+        <>
+          <div className="space-y-4">
+            {processedRegistrationsForDisplay.map((registration, index) => (
+              <div key={registration.id} ref={processedRegistrationsForDisplay.length === index + 1 ? lastRegistrationElementRef : null}>
+                <PilotCard 
+                  registration={registration} 
+                  onAction={handleRegistrationAction}
+                  getStatusBadge={getStatusBadge}
+                />
+              </div>
+            ))}
+          </div>
+          {loadingMore && (
+            <div className="flex justify-center items-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          )}
+          {!loadingMore && !hasMore && processedRegistrationsForDisplay.length > 0 && (
+            <div className="text-center text-sm text-muted-foreground py-4">
+              Fim dos resultados.
+            </div>
+          )}
+        </>
+      ) : (
+        <Card className="w-full flex flex-col min-h-[600px]">
+          <div className="flex-1 overflow-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    Nenhum piloto encontrado com os filtros aplicados
-                  </TableCell>
+                  <TableHead className="min-w-[200px]">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Piloto
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center">Temporada</TableHead>
+                  <TableHead className="text-center">Categorias</TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 text-center"
+                    onClick={() => handleSort("paymentStatus")}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <span>Status</span>
+                      {sortBy === "paymentStatus" && (
+                        <span className="text-xs">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center">Pagamento</TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 text-center"
+                    onClick={() => handleSort("createdAt")}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Data Inscrição
+                      {sortBy === "createdAt" && (
+                        <span className="text-xs">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
-              ) : (
-                paginatedRegistrations.map((registration) => (
-                  <TableRow key={registration.id} className="hover:bg-muted/50">
-                    <TableCell className="py-4">
-                      <div className="space-y-2">
-                        <div className="font-medium">{registration.user.name}</div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Mail className="h-3 w-3" />
-                          {registration.user.email}
-                        </div>
-                        {registration.user.phone && (
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Phone className="h-3 w-3" />
-                            {registration.user.phone}
-                          </div>
-                        )}
-                        <div className="text-xs text-muted-foreground">
-                          <span className="font-medium">Valor:</span> R$ {Number(registration.amount).toFixed(2).replace('.', ',')}
-                        </div>
-                        {registration.paymentMethod && (
-                          <div className="text-xs text-muted-foreground">
-                            <span className="font-medium">Método:</span> {
-                              registration.paymentMethod === 'pix' ? 'PIX' : 
-                              registration.paymentMethod === 'cartao_credito' ? 'Cartão de Crédito' : 
-                              registration.paymentMethod
-                            }
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <div className="text-sm font-medium">
-                        {registration.season.name}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <div className="space-y-2">
-                        <div className="text-xs text-muted-foreground">
-                          {registration.categories?.length || 0} categoria{(registration.categories?.length || 0) !== 1 ? 's' : ''}
-                        </div>
-                        <div className="flex flex-wrap gap-1 justify-center">
-                          {registration.categories && registration.categories.length > 0 ? (
-                            registration.categories.map((regCategory) => (
-                              <Badge key={regCategory.id} variant="outline" className="text-xs">
-                                <div className="flex flex-col items-center">
-                                  <span>{regCategory.category.name}</span>
-                                  <span className="text-xs opacity-75">
-                                    {regCategory.category.ballast}kg
-                                  </span>
-                                </div>
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className="text-xs text-muted-foreground">Sem categorias</span>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <Badge 
-                        variant={
-                          registration.status === 'confirmed' ? 'success' :
-                          registration.status === 'pending' || registration.status === 'payment_pending' ? 'warning' :
-                          registration.status === 'cancelled' || registration.status === 'expired' ? 'destructive' :
-                          'default'
-                        }
-                        className="text-xs"
-                      >
-                        {registration.status === 'confirmed' ? 'Confirmado' : 
-                         registration.status === 'payment_pending' ? 'Aguardando pagamento' :
-                         registration.status === 'pending' ? 'Pendente' :
-                         registration.status === 'cancelled' ? 'Cancelado' :
-                         registration.status === 'expired' ? 'Expirado' : registration.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <PaymentInfo registration={registration} />
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <div className="text-sm font-medium">
-                        {formatDateToBrazilian(registration.createdAt)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center py-4">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem 
-                            onClick={() => {
-                              setSelectedPilotRegistrationId(registration.id);
-                              setShowPilotDetailsModal(true);
-                            }}
-                          >
-                            Ver detalhes
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleRegistrationAction("changeCategories", registration.id)}
-                          >
-                            Trocar categorias
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+              </TableHeader>
+              <TableBody>
+                {processedRegistrationsForDisplay.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      Nenhum piloto encontrado com os filtros aplicados
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        
-        {/* Paginação sempre fixada na parte inferior */}
-        {processedRegistrations.length > 0 && (
-          <div className="flex-shrink-0">
-            <Pagination
-              currentPage={currentPage}
-              totalPages={paginationInfo.totalPages}
-              itemsPerPage={itemsPerPage}
-              totalItems={processedRegistrations.length}
-              startIndex={paginationInfo.startIndex}
-              endIndex={paginationInfo.endIndex}
-              hasNextPage={paginationInfo.hasNextPage}
-              hasPreviousPage={paginationInfo.hasPreviousPage}
-              onPageChange={handlePageChange}
-              onItemsPerPageChange={handleItemsPerPageChange}
-            />
+                ) : (
+                  processedRegistrationsForDisplay.map((registration) => (
+                    <TableRow key={registration.id} className="hover:bg-muted/50">
+                      <TableCell className="py-4">
+                        <div className="space-y-2">
+                          <div className="font-medium">{registration.user.name}</div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Mail className="h-3 w-3" />
+                            {registration.user.email}
+                          </div>
+                          {registration.user.phone && (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Phone className="h-3 w-3" />
+                              {registration.user.phone}
+                            </div>
+                          )}
+                          <div className="text-xs text-muted-foreground">
+                            <span className="font-medium">Valor:</span> R$ {Number(registration.amount).toFixed(2).replace('.', ',')}
+                          </div>
+                          {registration.paymentMethod && (
+                            <div className="text-xs text-muted-foreground">
+                              <span className="font-medium">Método:</span> {
+                                registration.paymentMethod === 'pix' ? 'PIX' : 
+                                registration.paymentMethod === 'cartao_credito' ? 'Cartão de Crédito' : 
+                                registration.paymentMethod
+                              }
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <div className="text-sm font-medium">
+                          {registration.season.name}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <div className="space-y-2">
+                          <div className="text-xs text-muted-foreground">
+                            {registration.categories?.length || 0} categoria{(registration.categories?.length || 0) !== 1 ? 's' : ''}
+                          </div>
+                          <div className="flex flex-wrap gap-1 justify-center">
+                            {registration.categories && registration.categories.length > 0 ? (
+                              registration.categories.map((regCategory) => (
+                                <Badge key={regCategory.id} variant="outline" className="text-xs">
+                                  <div className="flex flex-col items-center">
+                                    <span>{regCategory.category.name}</span>
+                                    <span className="text-xs opacity-75">
+                                      {regCategory.category.ballast}kg
+                                    </span>
+                                  </div>
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Sem categorias</span>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        {getStatusBadge(registration)}
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <PaymentInfo registration={registration} />
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <div className="text-sm font-medium">
+                          {formatDateToBrazilian(registration.createdAt)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem 
+                              onClick={() => handleRegistrationAction("viewDetails", registration.id)}
+                            >
+                              Ver detalhes
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleRegistrationAction("changeCategories", registration.id)}
+                            >
+                              Trocar categorias
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </div>
-        )}
-      </Card>
+          
+          {/* Paginação sempre fixada na parte inferior */}
+          {processedRegistrations.length > 0 && (
+            <div className="flex-shrink-0">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={paginationInfo.totalPages}
+                itemsPerPage={itemsPerPage}
+                totalItems={processedRegistrations.length}
+                startIndex={paginationInfo.startIndex}
+                endIndex={paginationInfo.endIndex}
+                hasNextPage={paginationInfo.hasNextPage}
+                hasPreviousPage={paginationInfo.hasPreviousPage}
+                onPageChange={handlePageChange}
+                onItemsPerPageChange={handleItemsPerPageChange}
+              />
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Modal de Edição de Categorias */}
       <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
