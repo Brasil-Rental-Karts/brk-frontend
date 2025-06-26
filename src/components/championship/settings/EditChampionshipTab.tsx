@@ -18,7 +18,7 @@ import {
   formatFullAddress 
 } from "@/utils/cnpj";
 import { masks } from "@/utils/masks";
-import { ChampionshipService, Championship, ChampionshipData, AsaasStatus } from "@/lib/services/championship.service";
+import { ChampionshipService, Championship, ChampionshipData } from "@/lib/services/championship.service";
 import { AlertTriangle } from "lucide-react";
 import { useFormScreen } from "@/hooks/use-form-screen";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -59,7 +59,6 @@ const convertISOToDate = (isoString: string): string => {
 };
 
 export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps) => {
-  const [asaasStatus, setAsaasStatus] = useState<AsaasStatus | null>(null);
   const [cities, setCities] = useState<City[]>([]);
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const isMobile = useIsMobile();
@@ -70,11 +69,7 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
   }, []);
 
   const fetchData = useCallback(async (id: string) => {
-    const [championshipData, statusData] = await Promise.all([
-      ChampionshipService.getById(id),
-      ChampionshipService.getAsaasStatus(id),
-    ]);
-    setAsaasStatus(statusData);
+    const championshipData = await ChampionshipService.getById(id);
     if (championshipData.state) {
       await loadCities(championshipData.state);
     }
@@ -108,7 +103,6 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
       ? convertISOToDate(championship.responsibleBirthDate)
       : "",
     companyType: championship.companyType || "",
-    incomeValue: championship.incomeValue?.toString() || "",
     commissionAbsorbedByChampionship: championship.commissionAbsorbedByChampionship?.toString() || "true"
   }), []);
 
@@ -118,32 +112,28 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
       championshipImage: data.championshipImage || "",
       shortDescription: data.shortDescription || "",
       fullDescription: data.fullDescription || "",
-    };
-
-    if (!asaasStatus?.configured) {
-      championshipData.personType = parseInt(data.personType || "0");
-      championshipData.document = data.document;
-      championshipData.socialReason = data.socialReason || "";
-      championshipData.cep = data.cep;
-      championshipData.state = data.state;
-      championshipData.city = data.city;
-      championshipData.fullAddress = data.fullAddress;
-      championshipData.number = data.number;
-      championshipData.complement = data.complement || "";
-      championshipData.province = data.province || "";
-      championshipData.isResponsible = data.isResponsible !== false;
-      championshipData.responsibleName = data.responsibleName || "";
-      championshipData.responsiblePhone = data.responsiblePhone || "";
-      championshipData.responsibleEmail = data.responsibleEmail || "";
-      championshipData.responsibleBirthDate = data.responsibleBirthDate
+      personType: parseInt(data.personType || "0"),
+      document: data.document,
+      socialReason: data.socialReason || "",
+      cep: data.cep,
+      state: data.state,
+      city: data.city,
+      fullAddress: data.fullAddress,
+      number: data.number,
+      complement: data.complement || "",
+      province: data.province || "",
+      isResponsible: data.isResponsible !== false,
+      responsibleName: data.responsibleName || "",
+      responsiblePhone: data.responsiblePhone || "",
+      responsibleEmail: data.responsibleEmail || "",
+      responsibleBirthDate: data.responsibleBirthDate
         ? convertDateToISO(data.responsibleBirthDate)
-        : undefined;
-      championshipData.companyType = data.companyType || undefined;
-      championshipData.incomeValue = data.incomeValue ? parseFloat(data.incomeValue.replace(/[^\d]/g, '')) / 100 : undefined;
-      championshipData.commissionAbsorbedByChampionship = data.commissionAbsorbedByChampionship !== "false";
-    }
+        : undefined,
+      companyType: data.companyType || undefined,
+      commissionAbsorbedByChampionship: data.commissionAbsorbedByChampionship !== "false"
+    };
     return championshipData;
-  }, [asaasStatus]);
+  }, []);
 
   const onSuccess = useCallback(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -170,7 +160,7 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
   });
 
   const handleFieldChange = useCallback(async (fieldId: string, value: any, formData: any) => {
-    if (fieldId === "cep" && value && isValidCEPFormat(value) && formRef && !asaasStatus?.configured) {
+    if (fieldId === "cep" && value && isValidCEPFormat(value) && formRef) {
       try {
         const addressData = await fetchAddressByCEP(value);
         if (addressData) {
@@ -192,7 +182,7 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
       formRef.setValue("city", "");
     }
 
-    if (fieldId === "document" && value && formRef && !asaasStatus?.configured) {
+    if (fieldId === "document" && value && formRef) {
       const personType = formData.personType;
       if (personType === "1" && isValidCNPJFormat(value)) {
         try {
@@ -238,11 +228,9 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
         }
       }
     }
-  }, [asaasStatus, loadCities, formRef]);
+  }, [loadCities, formRef]);
 
   useEffect(() => {
-    if (!asaasStatus) return;
-
     const config: FormSectionConfig[] = [
       {
         section: "Sobre o Campeonato",
@@ -285,220 +273,208 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
           },
         ],
       },
-      ...(asaasStatus.configured
-        ? []
-        : [
-            {
-              section: "Dados Gerais",
-              detail: "Informações legais do campeonato",
-              fields: [
-                {
-                  id: "personType",
-                  name: "Tipo de pessoa",
-                  type: "select" as const,
-                  mandatory: true,
-                  options: [
-                    { value: "0", description: "Pessoa Física" },
-                    { value: "1", description: "Pessoa Jurídica" },
-                  ],
-                },
-                {
-                  id: "document",
-                  name: "Documento",
-                  type: "inputMask" as const,
-                  mandatory: true,
-                  mask: "cpf" as const,
-                  placeholder: "000.000.000-00",
-                  customValidation: {
-                    validate: (value: string, formData: any) => {
-                      return validateDocument(value, formData.personType || "0");
-                    },
-                    errorMessage: "Documento inválido",
-                  },
-                },
-                {
-                  id: "socialReason",
-                  name: "Razão social",
-                  type: "input" as const,
-                  mandatory: true,
-                  placeholder: "Nome oficial da empresa conforme CNPJ",
-                  conditionalField: {
-                    dependsOn: "personType",
-                    showWhen: "1",
-                  },
-                },
-                {
-                  id: "companyType",
-                  name: "Tipo de empresa",
-                  type: "select" as const,
-                  mandatory: true,
-                  options: [
-                    {
-                      value: "MEI",
-                      description: "MEI - Microempreendedor Individual",
-                    },
-                    {
-                      value: "LIMITED",
-                      description: "Limited - Sociedade Limitada",
-                    },
-                    {
-                      value: "INDIVIDUAL",
-                      description: "Individual - Empresário Individual",
-                    },
-                    {
-                      value: "ASSOCIATION",
-                      description: "Association - Associação",
-                    },
-                  ],
-                  conditionalField: {
-                    dependsOn: "personType",
-                    showWhen: "1",
-                  },
-                },
-                {
-                  id: "cep",
-                  name: "CEP",
-                  type: "inputMask" as const,
-                  mandatory: true,
-                  mask: "cep" as const,
-                  placeholder: "00000-000",
-                },
-                {
-                  id: "state",
-                  name: "Estado",
-                  type: "select" as const,
-                  mandatory: true,
-                  options: states.map((state) => ({
-                    value: state,
-                    description: state,
-                  })),
-                  inline: true,
-                  inlineGroup: "location",
-                },
-                {
-                  id: "city",
-                  name: "Cidade",
-                  type: "select" as const,
-                  mandatory: true,
-                  options: cities.map((city) => ({
-                    value: city.nome,
-                    description: city.nome,
-                  })),
-                  inline: true,
-                  inlineGroup: "location",
-                },
-                {
-                  id: "fullAddress",
-                  name: "Endereço completo",
-                  type: "input" as const,
-                  mandatory: true,
-                  placeholder: "Rua, avenida ou logradouro completo",
-                  inline: true,
-                  inlineGroup: "addressFull",
-                },
-                {
-                  id: "province",
-                  name: "Bairro",
-                  type: "input" as const,
-                  mandatory: true,
-                  placeholder: "Nome do bairro",
-                  inline: true,
-                  inlineGroup: "addressFull",
-                },
-                {
-                  id: "number",
-                  name: "Número",
-                  type: "input" as const,
-                  mandatory: true,
-                  placeholder: "Número do endereço",
-                  inline: true,
-                  inlineGroup: "address",
-                },
-                {
-                  id: "complement",
-                  name: "Complemento",
-                  type: "input" as const,
-                  mandatory: false,
-                  placeholder: "Apto, sala, bloco",
-                  inline: true,
-                  inlineGroup: "address",
-                },
-                {
-                  id: "incomeValue",
-                  name: "Faturamento/Renda mensal",
-                  type: "inputMask" as const,
-                  mandatory: true,
-                  mask: "currency" as const,
-                  placeholder: "R$ 0,00",
-                },
-                {
-                  id: "commissionAbsorbedByChampionship",
-                  name: "Comissão da plataforma",
-                  type: "select" as const,
-                  mandatory: true,
-                  options: [
-                    { value: "true", description: "Absorvida pelo campeonato (percentual descontado do valor recebido)" },
-                    { value: "false", description: "Cobrada do piloto (percentual adicionado ao valor da inscrição)" }
-                  ],
-                },
-                {
-                  id: "isResponsible",
-                  name: "Sou o responsável do campeonato",
-                  type: "checkbox" as const,
-                  mandatory: false,
-                },
-                {
-                  id: "responsibleName",
-                  name: "Nome do responsável",
-                  type: "input" as const,
-                  mandatory: true,
-                  placeholder: "Nome completo da pessoa responsável",
-                  conditionalField: {
-                    dependsOn: "isResponsible",
-                    showWhen: false,
-                  },
-                },
-                {
-                  id: "responsiblePhone",
-                  name: "Celular do responsável",
-                  type: "inputMask" as const,
-                  mandatory: true,
-                  mask: "phone" as const,
-                  placeholder: "(11) 99999-9999",
-                  conditionalField: {
-                    dependsOn: "isResponsible",
-                    showWhen: false,
-                  },
-                },
-                {
-                  id: "responsibleEmail",
-                  name: "E-mail do responsável",
-                  type: "input" as const,
-                  mandatory: true,
-                  placeholder: "email@exemplo.com",
-                  conditionalField: {
-                    dependsOn: "isResponsible",
-                    showWhen: false,
-                  },
-                },
-                {
-                  id: "responsibleBirthDate",
-                  name: "Data de nascimento do responsável",
-                  type: "inputMask" as const,
-                  mandatory: true,
-                  mask: "date" as const,
-                  placeholder: "DD/MM/AAAA",
-                  conditionalField: {
-                    dependsOn: "isResponsible",
-                    showWhen: false,
-                  },
-                },
-              ],
+      {
+        section: "Dados Gerais",
+        detail: "Informações legais do campeonato",
+        fields: [
+          {
+            id: "personType",
+            name: "Tipo de pessoa",
+            type: "select" as const,
+            mandatory: true,
+            options: [
+              { value: "0", description: "Pessoa Física" },
+              { value: "1", description: "Pessoa Jurídica" },
+            ],
+          },
+          {
+            id: "document",
+            name: "Documento",
+            type: "inputMask" as const,
+            mandatory: true,
+            mask: "cpf" as const,
+            placeholder: "000.000.000-00",
+            customValidation: {
+              validate: (value: string, formData: any) => {
+                return validateDocument(value, formData.personType || "0");
+              },
+              errorMessage: "Documento inválido",
             },
-          ]),
+          },
+          {
+            id: "socialReason",
+            name: "Razão social",
+            type: "input" as const,
+            mandatory: true,
+            placeholder: "Nome oficial da empresa conforme CNPJ",
+            conditionalField: {
+              dependsOn: "personType",
+              showWhen: "1",
+            },
+          },
+          {
+            id: "companyType",
+            name: "Tipo de empresa",
+            type: "select" as const,
+            mandatory: true,
+            options: [
+              {
+                value: "MEI",
+                description: "MEI - Microempreendedor Individual",
+              },
+              {
+                value: "LIMITED",
+                description: "Limited - Sociedade Limitada",
+              },
+              {
+                value: "INDIVIDUAL",
+                description: "Individual - Empresário Individual",
+              },
+              {
+                value: "ASSOCIATION",
+                description: "Association - Associação",
+              },
+            ],
+            conditionalField: {
+              dependsOn: "personType",
+              showWhen: "1",
+            },
+          },
+          {
+            id: "cep",
+            name: "CEP",
+            type: "inputMask" as const,
+            mandatory: true,
+            mask: "cep" as const,
+            placeholder: "00000-000",
+          },
+          {
+            id: "state",
+            name: "Estado",
+            type: "select" as const,
+            mandatory: true,
+            options: states.map((state) => ({
+              value: state,
+              description: state,
+            })),
+            inline: true,
+            inlineGroup: "location",
+          },
+          {
+            id: "city",
+            name: "Cidade",
+            type: "select" as const,
+            mandatory: true,
+            options: cities.map((city) => ({
+              value: city.nome,
+              description: city.nome,
+            })),
+            inline: true,
+            inlineGroup: "location",
+          },
+          {
+            id: "fullAddress",
+            name: "Endereço completo",
+            type: "input" as const,
+            mandatory: true,
+            placeholder: "Rua, avenida ou logradouro completo",
+            inline: true,
+            inlineGroup: "addressFull",
+          },
+          {
+            id: "province",
+            name: "Bairro",
+            type: "input" as const,
+            mandatory: true,
+            placeholder: "Nome do bairro",
+            inline: true,
+            inlineGroup: "addressFull",
+          },
+          {
+            id: "number",
+            name: "Número",
+            type: "input" as const,
+            mandatory: true,
+            placeholder: "Número do endereço",
+            inline: true,
+            inlineGroup: "address",
+          },
+          {
+            id: "complement",
+            name: "Complemento",
+            type: "input" as const,
+            mandatory: false,
+            placeholder: "Apto, sala, bloco",
+            inline: true,
+            inlineGroup: "address",
+          },
+          {
+            id: "commissionAbsorbedByChampionship",
+            name: "Comissão da plataforma",
+            type: "select" as const,
+            mandatory: true,
+            options: [
+              { value: "true", description: "Absorvida pelo campeonato (percentual descontado do valor recebido)" },
+              { value: "false", description: "Cobrada do piloto (percentual adicionado ao valor da inscrição)" }
+            ],
+          },
+          {
+            id: "isResponsible",
+            name: "Sou o responsável do campeonato",
+            type: "checkbox" as const,
+            mandatory: false,
+          },
+          {
+            id: "responsibleName",
+            name: "Nome do responsável",
+            type: "input" as const,
+            mandatory: true,
+            placeholder: "Nome completo da pessoa responsável",
+            conditionalField: {
+              dependsOn: "isResponsible",
+              showWhen: false,
+            },
+          },
+          {
+            id: "responsiblePhone",
+            name: "Celular do responsável",
+            type: "inputMask" as const,
+            mandatory: true,
+            mask: "phone" as const,
+            placeholder: "(11) 99999-9999",
+            conditionalField: {
+              dependsOn: "isResponsible",
+              showWhen: false,
+            },
+          },
+          {
+            id: "responsibleEmail",
+            name: "E-mail do responsável",
+            type: "input" as const,
+            mandatory: true,
+            placeholder: "email@exemplo.com",
+            conditionalField: {
+              dependsOn: "isResponsible",
+              showWhen: false,
+            },
+          },
+          {
+            id: "responsibleBirthDate",
+            name: "Data de nascimento do responsável",
+            type: "inputMask" as const,
+            mandatory: true,
+            mask: "date" as const,
+            placeholder: "DD/MM/AAAA",
+            conditionalField: {
+              dependsOn: "isResponsible",
+              showWhen: false,
+            },
+          },
+        ],
+      },
     ];
     setFormConfig(config);
-  }, [asaasStatus, cities]);
+  }, [cities]);
 
   if (isLoading) {
     return (
@@ -563,18 +539,6 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
           </Button>
         </div>
       </div>
-
-      {asaasStatus?.configured && (
-        <Alert variant="warning">
-          <AlertTitle>Conta Asaas Configurada</AlertTitle>
-          <AlertDescription>
-            Como já existe uma conta Asaas configurada para este campeonato, os
-            campos referente aos dados legais e financeiros não podem mais ser
-            alterados. Apenas as informações sobre o campeonato podem ser
-            editadas.
-          </AlertDescription>
-        </Alert>
-      )}
 
       {error && (
         <Alert variant="destructive">

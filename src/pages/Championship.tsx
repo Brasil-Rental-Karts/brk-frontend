@@ -153,7 +153,7 @@ export const Championship = () => {
         {/* Seção das tabs com fundo escuro - sem espaçamento do header */}
         <div className="bg-dark-900 border-b border-white/10 -mx-6">
           <div 
-            className={`container px-4 sm:px-10 ${isMobile ? 'overflow-x-auto whitespace-nowrap scrollbar-hide' : ''}`}
+            className={`container px-4 sm:px-10 ${isMobile ? 'overflow-x-auto whitespace-nowrap scrollbar-hide' : '-mx-6'}`}
           >
             <TabsList className="bg-transparent border-0 h-auto p-0 space-x-0">
               <TabsTrigger 

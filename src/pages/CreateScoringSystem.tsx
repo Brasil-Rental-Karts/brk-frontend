@@ -97,26 +97,10 @@ export const CreateScoringSystem = () => {
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={handleCancel}
-            className="mb-4 p-0 h-auto font-normal text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar para Sistemas de Pontuação
-          </Button>
-          
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold">
-              {isEditing ? 'Editar Sistema de Pontuação' : 'Novo Sistema de Pontuação'}
-            </h1>
-            <p className="text-muted-foreground">
-              {isEditing 
-                ? 'Modifique as configurações do sistema de pontuação'
-                : 'Configure um novo sistema de pontuação para o campeonato'
-              }
-            </p>
-          </div>
+          <h1 className="text-3xl font-bold">Criar Sistema de Pontuação</h1>
+          <p className="text-muted-foreground">
+            Configure como os pontos serão distribuídos nas etapas do campeonato
+          </p>
         </div>
 
         {/* Error Alert */}
@@ -128,17 +112,8 @@ export const CreateScoringSystem = () => {
           </Alert>
         )}
 
-        {/* Form */}
-        <Card className="max-w-4xl">
-          <CardHeader>
-            <CardTitle>
-              {isEditing ? 'Editar Sistema de Pontuação' : 'Criar Sistema de Pontuação'}
-            </CardTitle>
-            <CardDescription>
-              Configure como os pontos serão distribuídos nas corridas
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        <Card>
+          <CardContent className="p-6">
             <ScoringSystemFormStandalone
               initialData={scoringSystem}
               onSubmit={handleSave}

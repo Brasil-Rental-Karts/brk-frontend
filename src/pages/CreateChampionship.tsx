@@ -135,7 +135,6 @@ export const CreateChampionship = () => {
       responsibleEmail: data.responsibleEmail || '',
       responsibleBirthDate: data.responsibleBirthDate ? convertDateToISO(data.responsibleBirthDate) : undefined,
       companyType: data.companyType || undefined,
-      incomeValue: data.incomeValue ? parseFloat(data.incomeValue.replace(/[^\d]/g, '')) / 100 : undefined,
       commissionAbsorbedByChampionship: data.commissionAbsorbedByChampionship !== false
     };
   }, []);
@@ -309,14 +308,6 @@ export const CreateChampionship = () => {
             placeholder: "Apto, sala, bloco",
             inline: true,
             inlineGroup: "address"
-          },
-          {
-            id: "incomeValue",
-            name: "Faturamento/Renda mensal",
-            type: "inputMask",
-            mandatory: true,
-            mask: "currency",
-            placeholder: "R$ 0,00"
           },
           {
             id: "commissionAbsorbedByChampionship",

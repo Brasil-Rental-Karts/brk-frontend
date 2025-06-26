@@ -212,13 +212,13 @@ export const MainFullWidthLayout = ({ children }: MainFullWidthLayoutProps = {})
       </header>
 
       {/* Main content */}
-      <main className="w-full flex-1 px-6 py-8">
+      <main className="container flex-1 px-6 py-8">
         {children || <Outlet />}
       </main>
 
       {/* Footer */}
       <footer className="bg-muted py-4 px-6">
-        <div className="w-full text-center text-muted-foreground">
+        <div className="container w-full text-center text-muted-foreground">
           <p>
             &copy; {new Date().getFullYear()} BRK. Todos os direitos reservados.
           </p>

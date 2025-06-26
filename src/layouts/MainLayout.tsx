@@ -218,7 +218,7 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
 
       {/* Footer */}
       <footer className="bg-muted py-4 px-6">
-        <div className="w-full text-center text-muted-foreground">
+        <div className="container w-full text-center text-muted-foreground">
           <p>
             &copy; {new Date().getFullYear()} BRK. Todos os direitos reservados.
           </p>

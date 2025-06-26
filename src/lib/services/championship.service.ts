@@ -30,7 +30,6 @@ export interface ChampionshipData {
   responsibleEmail?: string; // E-mail do responsável (quando não é responsável)
   responsibleBirthDate?: string; // Data de nascimento do responsável (quando não é responsável) - obrigatório para pessoa física
   companyType?: string; // Tipo de empresa para pessoa jurídica
-  incomeValue?: number; // Faturamento/Renda mensal
   sponsors?: Sponsor[];
   platformCommissionPercentage?: number; // Percentual de comissão da plataforma
   commissionAbsorbedByChampionship?: boolean; // Indica se a comissão é absorvida pelo campeonato (true) ou cobrada do piloto (false)
