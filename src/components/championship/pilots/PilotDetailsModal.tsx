@@ -23,65 +23,21 @@ import {
 import { SeasonRegistrationService, type PilotDetails } from '@/lib/services/season-registration.service';
 import { formatCurrency } from '@/utils/currency';
 import { formatDateToBrazilian } from '@/utils/date';
+import { 
+  genderLabels, 
+  kartExperienceYearsLabels, 
+  raceFrequencyLabels, 
+  championshipParticipationLabels, 
+  competitiveLevelLabels, 
+  attendsEventsLabels, 
+  interestCategoryLabels 
+} from '@/lib/enums/profile';
 
 interface PilotDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   registrationId: string;
 }
-
-// Enums para tradução
-const GenderLabels = {
-  0: 'Masculino',
-  1: 'Feminino',
-  2: 'Outro',
-  3: 'Prefere não informar'
-};
-
-const ExperienceLabels = {
-  0: 'Nunca',
-  1: 'Menos de 1 ano',
-  2: '1 a 2 anos',
-  3: '3 a 5 anos',
-  4: 'Mais de 5 anos'
-};
-
-const RaceFrequencyLabels = {
-  0: 'Raramente',
-  1: 'Regularmente',
-  2: 'Semanalmente',
-  3: 'Diariamente'
-};
-
-const ChampionshipParticipationLabels = {
-  0: 'Nunca',
-  1: 'Local/Regional',
-  2: 'Estadual',
-  3: 'Nacional'
-};
-
-const CompetitiveLevelLabels = {
-  0: 'Iniciante',
-  1: 'Intermediário',
-  2: 'Competitivo',
-  3: 'Profissional'
-};
-
-const AttendsEventsLabels = {
-  0: 'Sim',
-  1: 'Não',
-  2: 'Depende da distância'
-};
-
-const InterestCategoryLabels = {
-  0: 'Kart Aluguel Leve',
-  1: 'Kart Aluguel Pesado',
-  2: 'Kart 2 Tempos',
-  3: 'Endurance',
-  4: 'Equipes',
-  5: 'Campeonatos Longos',
-  6: 'Corridas Únicas'
-};
 
 const PaymentStatusLabels = {
   pending: 'Pendente',
@@ -228,7 +184,7 @@ export function PilotDetailsModal({ isOpen, onClose, registrationId }: PilotDeta
                   <div>
                     <label className="text-sm font-medium text-gray-500">Gênero</label>
                     <p className="text-sm">
-                      {pilotDetails.profile?.gender !== undefined ? GenderLabels[pilotDetails.profile.gender as keyof typeof GenderLabels] : 'Não informado'}
+                      {pilotDetails.profile?.gender !== undefined ? genderLabels[pilotDetails.profile.gender as keyof typeof genderLabels] : 'Não informado'}
                     </p>
                   </div>
                   <div>
@@ -259,25 +215,25 @@ export function PilotDetailsModal({ isOpen, onClose, registrationId }: PilotDeta
                   <div>
                     <label className="text-sm font-medium text-gray-500">Tempo de Experiência</label>
                     <p className="text-sm">
-                      {pilotDetails.profile?.experienceTime !== undefined ? ExperienceLabels[pilotDetails.profile.experienceTime as keyof typeof ExperienceLabels] : 'Não informado'}
+                      {pilotDetails.profile?.experienceTime !== undefined ? kartExperienceYearsLabels[pilotDetails.profile.experienceTime as keyof typeof kartExperienceYearsLabels] : 'Não informado'}
                     </p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">Frequência de Corridas</label>
                     <p className="text-sm">
-                      {pilotDetails.profile?.raceFrequency !== undefined ? RaceFrequencyLabels[pilotDetails.profile.raceFrequency as keyof typeof RaceFrequencyLabels] : 'Não informado'}
+                      {pilotDetails.profile?.raceFrequency !== undefined ? raceFrequencyLabels[pilotDetails.profile.raceFrequency as keyof typeof raceFrequencyLabels] : 'Não informado'}
                     </p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">Participação em Campeonatos</label>
                     <p className="text-sm">
-                      {pilotDetails.profile?.championshipParticipation !== undefined ? ChampionshipParticipationLabels[pilotDetails.profile.championshipParticipation as keyof typeof ChampionshipParticipationLabels] : 'Não informado'}
+                      {pilotDetails.profile?.championshipParticipation !== undefined ? championshipParticipationLabels[pilotDetails.profile.championshipParticipation as keyof typeof championshipParticipationLabels] : 'Não informado'}
                     </p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">Nível Competitivo</label>
                     <p className="text-sm">
-                      {pilotDetails.profile?.competitiveLevel !== undefined ? CompetitiveLevelLabels[pilotDetails.profile.competitiveLevel as keyof typeof CompetitiveLevelLabels] : 'Não informado'}
+                      {pilotDetails.profile?.competitiveLevel !== undefined ? competitiveLevelLabels[pilotDetails.profile.competitiveLevel as keyof typeof competitiveLevelLabels] : 'Não informado'}
                     </p>
                   </div>
                 </div>
@@ -312,7 +268,7 @@ export function PilotDetailsModal({ isOpen, onClose, registrationId }: PilotDeta
                   <div>
                     <label className="text-sm font-medium text-gray-500">Frequenta Eventos</label>
                     <p className="text-sm">
-                      {pilotDetails.profile?.attendsEvents !== undefined ? AttendsEventsLabels[pilotDetails.profile.attendsEvents as keyof typeof AttendsEventsLabels] : 'Não informado'}
+                      {pilotDetails.profile?.attendsEvents !== undefined ? attendsEventsLabels[pilotDetails.profile.attendsEvents as keyof typeof attendsEventsLabels] : 'Não informado'}
                     </p>
                   </div>
                 </div>
@@ -323,7 +279,7 @@ export function PilotDetailsModal({ isOpen, onClose, registrationId }: PilotDeta
                     <div className="flex flex-wrap gap-2 mt-2">
                       {pilotDetails.profile.interestCategories.map((category: number, index: number) => (
                         <Badge key={index} variant="outline">
-                          {InterestCategoryLabels[category as keyof typeof InterestCategoryLabels]}
+                          {interestCategoryLabels[category as keyof typeof interestCategoryLabels]}
                         </Badge>
                       ))}
                     </div>
