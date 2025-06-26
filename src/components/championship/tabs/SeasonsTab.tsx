@@ -78,9 +78,6 @@ const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod, formatInsc
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onAction("view", season.id)}>
-              Ver detalhes
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onAction("edit", season.id)}>
               Editar
             </DropdownMenuItem>
