@@ -83,6 +83,30 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showMobileTooltip, setShowMobileTooltip] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detectar se é dispositivo móvel
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Função para mostrar tooltip no mobile
+  const handleMobileTooltipClick = () => {
+    setShowMobileTooltip(true);
+    
+    // Esconder após 5 segundos
+    setTimeout(() => {
+      setShowMobileTooltip(false);
+    }, 5000);
+  };
 
   // Função para filtrar etapas
   const filterStages = useCallback((allStages: Stage[], registrations: SeasonRegistration[]) => {
@@ -669,24 +693,50 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
               <strong>Total calculado:</strong> 
               <span className="text-lg font-bold text-primary">{formatCurrency(total)}</span>
               {championship && !championship.commissionAbsorbedByChampionship && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div>
+                <>
+                  {isMobile ? (
+                    <div className="relative">
+                      <button
+                        onClick={handleMobileTooltipClick}
+                        className="focus:outline-none"
+                      >
                         <svg className="w-4 h-4 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                         </svg>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <div className="text-sm">
-                        <p className="font-semibold mb-1">Taxa de Serviço</p>
-                        <p>Uma taxa de {Math.round(championship.platformCommissionPercentage || 10)}% corresponde ao serviço destinado à manutenção e ao aprimoramento da plataforma BRK.</p>
-                        <p className="mt-1">Ela nos permite manter o sistema estável, lançar novas funcionalidades e garantir que todos os pilotos tenham uma experiência cada vez mais completa dentro e fora das pistas.</p>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                      </button>
+                      {showMobileTooltip && (
+                        <div className="fixed inset-x-4 top-1/2 transform -translate-y-1/2 z-50">
+                          <div className="bg-popover text-popover-foreground border rounded-md p-4 shadow-md">
+                            <div className="text-sm">
+                              <p className="font-semibold mb-1">Taxa de Serviço</p>
+                              <p>Uma taxa de {Math.round(championship.platformCommissionPercentage || 10)}% corresponde ao serviço destinado à manutenção e ao aprimoramento da plataforma BRK.</p>
+                              <p className="mt-1">Ela nos permite manter o sistema estável, lançar novas funcionalidades e garantir que todos os pilotos tenham uma experiência cada vez mais completa dentro e fora das pistas.</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div>
+                            <svg className="w-4 h-4 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <div className="text-sm">
+                            <p className="font-semibold mb-1">Taxa de Serviço</p>
+                            <p>Uma taxa de {Math.round(championship.platformCommissionPercentage || 10)}% corresponde ao serviço destinado à manutenção e ao aprimoramento da plataforma BRK.</p>
+                            <p className="mt-1">Ela nos permite manter o sistema estável, lançar novas funcionalidades e garantir que todos os pilotos tenham uma experiência cada vez mais completa dentro e fora das pistas.</p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </>
               )}
             </div>
           </div>
