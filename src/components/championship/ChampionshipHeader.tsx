@@ -23,7 +23,7 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
 
   const handleViewPublicPage = () => {
     const siteUrl = import.meta.env.VITE_SITE_URL;
-    window.open(`${siteUrl}/campeonato/${championship.slug}`, '_blank', 'noopener,noreferrer');
+    window.location.href = `${siteUrl}/campeonato/${championship.slug}`;
   };
 
   const handleConfigurationOption = (option: 'grid-types' | 'scoring-systems' | 'asaas-account' | 'edit-data' | 'sponsors' | 'staff') => {

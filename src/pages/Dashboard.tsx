@@ -310,7 +310,7 @@ export const Dashboard = () => {
                 label: "Descobrir Campeonatos",
                 onClick: () => {
                   const siteUrl = import.meta.env.VITE_SITE_URL;
-                  window.open(`${siteUrl}/campeonatos`, '_blank', 'noopener,noreferrer');
+                  window.location.href = `${siteUrl}/campeonatos`;
                 },
               }}
             />
@@ -322,7 +322,7 @@ export const Dashboard = () => {
                   className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
                   onClick={() => {
                     const siteUrl = import.meta.env.VITE_SITE_URL;
-                    window.open(`${siteUrl}/campeonato/${participation.championship.slug}`, '_blank', 'noopener,noreferrer');
+                    window.location.href = `${siteUrl}/campeonato/${participation.championship.slug}`;
                   }}
                 >
                   <div className="flex justify-between items-start mb-2">
