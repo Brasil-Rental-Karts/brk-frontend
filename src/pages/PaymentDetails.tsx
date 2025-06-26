@@ -228,11 +228,6 @@ export const PaymentDetails: React.FC = () => {
       nextPayment = sortPayments(pendingPayments)[0];
     }
 
-    // Log para debug
-    if (nextPayment) {
-      // Removed console.log statement
-    }
-
     navigate(`/registration/${registrationId}/payment`);
   };
 

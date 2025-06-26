@@ -160,11 +160,6 @@ export const RegistrationPayment: React.FC = () => {
     }
   }, [registration, payments]);
 
-  // Debug log para etapas
-  useEffect(() => {
-    // Removed console.log statements
-  }, [registration]);
-
   const handleBack = () => {
     navigate(-1);
   };
