@@ -316,7 +316,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
             mandatory: true,
             options: categories.map(category => ({
               value: category.id,
-              description: `${category.name} - ${formatCurrency(Number(season.inscriptionValue))} | Lastro: ${category.ballast}kg | Max. Pilotos: ${category.maxPilots} | Idade mín.: ${category.minimumAge} anos`
+              description: `${category.name}`
             }))
           }
         ]
@@ -336,7 +336,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
             mandatory: true,
             options: filteredStages.map(stage => ({
               value: stage.id,
-              description: `${stage.name} - ${new Date(stage.date).toLocaleDateString('pt-BR')} às ${stage.time} | ${stage.kartodrome}`
+              description: `${stage.name}`
             }))
           }
         ]
