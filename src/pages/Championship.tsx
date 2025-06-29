@@ -7,6 +7,7 @@ import { SeasonsTab } from "@/components/championship/tabs/SeasonsTab";
 import { CategoriesTab } from "@/components/championship/tabs/CategoriesTab";
 import { PilotsTab } from "@/components/championship/tabs/PilotsTab";
 import { StagesTab } from "@/components/championship/tabs/StagesTab";
+import { RegulationTab } from "@/components/championship/tabs/RegulationTab";
 import { GridTypesTab } from "@/components/championship/settings/GridTypesTab";
 import { ScoringSystemTab } from "@/components/championship/settings/ScoringSystemTab";
 import { AsaasAccountTab } from "@/components/championship/settings/AsaasAccountTab";
@@ -46,6 +47,8 @@ export const Championship = () => {
     'etapas': 'etapas',
     'pilots': 'pilotos',
     'pilotos': 'pilotos',
+    'regulations': 'regulamento',
+    'regulamento': 'regulamento',
     'edit-data': 'config-edit',
     'config-edit': 'config-edit',
     'sponsors': 'config-sponsors',
@@ -76,7 +79,7 @@ export const Championship = () => {
     const hasCategories = hasSeasons && (championship.seasons as Season[]).some(s => s.categories && s.categories.length > 0);
     const hasStages = hasSeasons && (championship.seasons as Season[]).some(s => s.stages && s.stages.length > 0);
 
-    const disabledTabsWithoutSeasons = ['categorias', 'etapas', 'pilotos'];
+    const disabledTabsWithoutSeasons = ['categorias', 'etapas', 'pilotos', 'regulamento'];
     const disabledTabsWithoutCategories = ['etapas', 'pilotos'];
 
     if (tabFromUrl) {
@@ -183,6 +186,13 @@ export const Championship = () => {
               >
                 Pilotos
               </TabsTrigger>
+              <TabsTrigger 
+                value="regulamento" 
+                disabled={!hasSeasons}
+                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+              >
+                Regulamento
+              </TabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -228,7 +238,7 @@ export const Championship = () => {
                   </TabsContent>
                 </>
               ) : (
-                !['temporadas', 'categorias', 'config-edit', 'config-grid', 'config-scoring', 'config-sponsors', 'config-staff', 'config-asaas'].includes(activeTab) && (
+                !['temporadas', 'categorias', 'regulamento', 'config-edit', 'config-grid', 'config-scoring', 'config-sponsors', 'config-staff', 'config-asaas'].includes(activeTab) && (
                   <Alert>
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription>
@@ -237,6 +247,16 @@ export const Championship = () => {
                   </Alert>
                 )
               )}
+
+              <TabsContent value="regulamento" className="mt-0 ring-0 focus-visible:outline-none">
+                <RegulationTab 
+                  championshipId={id}
+                  seasons={championship.seasons || []}
+                  isLoading={loading}
+                  error={error}
+                  onRefresh={refresh}
+                />
+              </TabsContent>
             </>
           ) : (
             !['temporadas', 'config-edit', 'config-grid', 'config-scoring', 'config-sponsors', 'config-staff', 'config-asaas'].includes(activeTab) && (
