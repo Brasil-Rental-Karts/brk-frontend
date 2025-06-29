@@ -154,9 +154,9 @@ export const Championship = () => {
         setSearchParams({ tab: value });
       }} className="h-full">
         {/* Seção das tabs com fundo escuro - sem espaçamento do header */}
-        <div className="bg-dark-900 border-b border-white/10 -mx-6">
+        <div className="bg-dark-900 text-white w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
           <div 
-            className={`container px-4 sm:px-10 ${isMobile ? 'overflow-x-auto whitespace-nowrap scrollbar-hide' : '-mx-6'}`}
+            className={`container px-4 sm:px-10 ${isMobile ? 'overflow-x-auto whitespace-nowrap scrollbar-hide' : ''}`}
           >
             <TabsList className="bg-transparent border-0 h-auto p-0 space-x-0">
               <TabsTrigger 
