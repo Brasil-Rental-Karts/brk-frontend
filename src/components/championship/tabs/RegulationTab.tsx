@@ -4,15 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "brk-design-system";
 import { Input } from "brk-design-system";
 import { Textarea } from "brk-design-system";
 import { Alert, AlertDescription } from "brk-design-system";
-import { AlertTriangle, Plus, Edit, Trash2, GripVertical, HelpCircle, Power, PowerOff } from "lucide-react";
+import { AlertTriangle, Plus, Edit, Trash2, GripVertical, HelpCircle, Power, PowerOff, FileText } from "lucide-react";
 import { RegulationService, Regulation, CreateRegulationData, UpdateRegulationData } from "@/lib/services/regulation.service";
 import { Season, SeasonService } from "@/lib/services/season.service";
+import { ChampionshipService, Championship } from "@/lib/services/championship.service";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Label } from "brk-design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Switch } from "@radix-ui/react-switch";
+import { PDFGenerator, RegulationPDFData } from "@/utils/pdf-generator";
 
 interface RegulationTabProps {
   championshipId: string;
@@ -31,8 +33,10 @@ export const RegulationTab = ({
 }: RegulationTabProps) => {
   const [selectedSeason, setSelectedSeason] = useState<string>("");
   const [seasonData, setSeasonData] = useState<Season | null>(null);
+  const [championshipData, setChampionshipData] = useState<Championship | null>(null);
   const [regulations, setRegulations] = useState<Regulation[]>([]);
   const [loading, setLoading] = useState(false);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
   const [editingRegulation, setEditingRegulation] = useState<Regulation | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
@@ -53,6 +57,15 @@ export const RegulationTab = ({
       setSeasonData(null);
     }
   }, [selectedSeason]);
+
+  // Carregar dados do campeonato
+  useEffect(() => {
+    if (championshipId) {
+      ChampionshipService.getById(championshipId)
+        .then(setChampionshipData)
+        .catch(() => setChampionshipData(null));
+    }
+  }, [championshipId]);
 
   const loadRegulations = async (seasonId: string) => {
     try {
@@ -162,6 +175,42 @@ export const RegulationTab = ({
     setShowMarkdownHelp(false);
   };
 
+  const handleGeneratePDF = async () => {
+    if (!championshipData || !seasonData || regulations.length === 0) {
+      alert('Não é possível gerar o PDF. Verifique se há regulamentos cadastrados.');
+      return;
+    }
+
+    try {
+      setGeneratingPDF(true);
+      
+      const pdfData: RegulationPDFData = {
+        championshipName: championshipData.name,
+        seasonName: seasonData.name,
+        championshipLogo: championshipData.championshipImage || undefined,
+        regulations: regulations.map((regulation, index) => ({
+          title: regulation.title,
+          content: regulation.content,
+          order: regulation.order || index + 1
+        })),
+        generatedAt: new Date().toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      };
+
+      await PDFGenerator.generateRegulationPDF(pdfData);
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      alert('Erro ao gerar o PDF. Tente novamente.');
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -262,17 +311,30 @@ export const RegulationTab = ({
           {/* Header with Create Button */}
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Seções do Regulamento</h3>
-            <Button 
-              onClick={() => {
-                resetForm();
-                setShowCreateForm(!showCreateForm);
-              }}
-              variant={showCreateForm ? "outline" : "default"}
-              disabled={showEditForm}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {showCreateForm ? "Cancelar" : "Nova Seção"}
-            </Button>
+            <div className="flex items-center gap-2">
+              {regulations.length > 0 && (
+                <Button 
+                  onClick={handleGeneratePDF}
+                  variant="outline"
+                  disabled={generatingPDF || showCreateForm || showEditForm}
+                  className="flex items-center gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  {generatingPDF ? "Gerando PDF..." : "Gerar PDF"}
+                </Button>
+              )}
+              <Button 
+                onClick={() => {
+                  resetForm();
+                  setShowCreateForm(!showCreateForm);
+                }}
+                variant={showCreateForm ? "outline" : "default"}
+                disabled={showEditForm}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {showCreateForm ? "Cancelar" : "Nova Seção"}
+              </Button>
+            </div>
           </div>
 
           {/* Create Form */}
