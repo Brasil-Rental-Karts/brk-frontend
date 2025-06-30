@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "brk-design-system";
 import { Input } from "brk-design-system";
 import { Textarea } from "brk-design-system";
 import { Alert, AlertDescription } from "brk-design-system";
-import { AlertTriangle, Plus, Edit, Trash2, GripVertical, Eye, EyeOff } from "lucide-react";
+import { AlertTriangle, Plus, Edit, Trash2, GripVertical } from "lucide-react";
 import { RegulationService, Regulation, CreateRegulationData, UpdateRegulationData } from "@/lib/services/regulation.service";
 import { Season } from "@/lib/services/season.service";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
@@ -34,8 +34,7 @@ export const RegulationTab = ({
   const [formData, setFormData] = useState<CreateRegulationData>({
     title: "",
     content: "",
-    seasonId: "",
-    isActive: true
+    seasonId: ""
   });
 
   // Load regulations when season changes
@@ -68,7 +67,7 @@ export const RegulationTab = ({
       });
       setRegulations(prev => [...prev, newRegulation]);
       setShowCreateForm(false);
-      setFormData({ title: "", content: "", seasonId: "", isActive: true });
+      setFormData({ title: "", content: "", seasonId: "" });
     } catch (error) {
       console.error("Error creating regulation:", error);
     } finally {
@@ -83,15 +82,14 @@ export const RegulationTab = ({
       setLoading(true);
       const updatedRegulation = await RegulationService.update(editingRegulation.id, {
         title: formData.title,
-        content: formData.content,
-        isActive: formData.isActive
+        content: formData.content
       });
       setRegulations(prev => 
         prev.map(reg => reg.id === editingRegulation.id ? updatedRegulation : reg)
       );
       setShowEditForm(false);
       setEditingRegulation(null);
-      setFormData({ title: "", content: "", seasonId: "", isActive: true });
+      setFormData({ title: "", content: "", seasonId: "" });
     } catch (error) {
       console.error("Error updating regulation:", error);
     } finally {
@@ -113,20 +111,6 @@ export const RegulationTab = ({
     }
   };
 
-  const handleToggleActive = async (regulation: Regulation) => {
-    try {
-      setLoading(true);
-      const updatedRegulation = await RegulationService.toggleActive(regulation.id);
-      setRegulations(prev => 
-        prev.map(reg => reg.id === regulation.id ? updatedRegulation : reg)
-      );
-    } catch (error) {
-      console.error("Error toggling regulation:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleDragEnd = async (result: any) => {
     if (!result.destination) return;
 
@@ -138,14 +122,11 @@ export const RegulationTab = ({
 
     // Update order in backend
     try {
-      const regulationOrders = items.map((item, index) => ({
-        id: item.id,
-        order: index + 1
-      }));
+      const regulationIds = items.map(item => item.id);
 
       await RegulationService.reorder({
         seasonId: selectedSeason,
-        regulationOrders
+        regulationIds
       });
     } catch (error) {
       console.error("Error reordering regulations:", error);
@@ -159,15 +140,14 @@ export const RegulationTab = ({
     setFormData({
       title: regulation.title,
       content: regulation.content,
-      seasonId: regulation.seasonId,
-      isActive: regulation.isActive
+      seasonId: regulation.seasonId
     });
     setShowEditForm(true);
     setShowCreateForm(false);
   };
 
   const resetForm = () => {
-    setFormData({ title: "", content: "", seasonId: "", isActive: true });
+    setFormData({ title: "", content: "", seasonId: "" });
     setEditingRegulation(null);
     setShowCreateForm(false);
     setShowEditForm(false);
@@ -258,15 +238,6 @@ export const RegulationTab = ({
                     rows={6}
                   />
                 </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="isActive"
-                    checked={formData.isActive}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                  />
-                  <Label htmlFor="isActive">Ativo</Label>
-                </div>
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline" onClick={() => setShowCreateForm(false)}>
                     Cancelar
@@ -304,15 +275,6 @@ export const RegulationTab = ({
                     placeholder="Digite o conteúdo da seção"
                     rows={6}
                   />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="edit-isActive"
-                    checked={formData.isActive}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                  />
-                  <Label htmlFor="edit-isActive">Ativo</Label>
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline" onClick={() => setShowEditForm(false)}>
@@ -358,7 +320,7 @@ export const RegulationTab = ({
                             {...provided.draggableProps}
                             className={`${snapshot.isDragging ? 'opacity-50' : ''}`}
                           >
-                            <Card className={`${!regulation.isActive ? 'opacity-60' : ''}`}>
+                            <Card>
                               <CardHeader className="pb-3">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center space-x-2">
@@ -373,19 +335,6 @@ export const RegulationTab = ({
                                     </span>
                                   </div>
                                   <div className="flex items-center space-x-2">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleToggleActive(regulation)}
-                                      title={regulation.isActive ? "Desativar" : "Ativar"}
-                                      disabled={showCreateForm || showEditForm}
-                                    >
-                                      {regulation.isActive ? (
-                                        <Eye className="h-4 w-4" />
-                                      ) : (
-                                        <EyeOff className="h-4 w-4" />
-                                      )}
-                                    </Button>
                                     <Button
                                       variant="ghost"
                                       size="sm"

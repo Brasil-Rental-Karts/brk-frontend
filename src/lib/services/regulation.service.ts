@@ -5,7 +5,6 @@ export interface Regulation {
   title: string;
   content: string;
   order: number;
-  isActive: boolean;
   seasonId: string;
   createdAt: string;
   updatedAt: string;
@@ -16,22 +15,17 @@ export interface CreateRegulationData {
   content: string;
   seasonId: string;
   order?: number;
-  isActive?: boolean;
 }
 
 export interface UpdateRegulationData {
   title?: string;
   content?: string;
   order?: number;
-  isActive?: boolean;
 }
 
 export interface ReorderRegulationsData {
   seasonId: string;
-  regulationOrders: Array<{
-    id: string;
-    order: number;
-  }>;
+  regulationIds: string[];
 }
 
 export class RegulationService {
@@ -66,10 +60,5 @@ export class RegulationService {
 
   static async reorder(data: ReorderRegulationsData): Promise<void> {
     await api.post('/regulations/reorder', data);
-  }
-
-  static async toggleActive(id: string): Promise<Regulation> {
-    const response = await api.patch(`/regulations/${id}/toggle`);
-    return response.data.data;
   }
 } 
