@@ -10,6 +10,8 @@ export interface UserChampionshipParticipation {
     name: string;
     registrationStatus: string;
     paymentStatus: string;
+    totalInstallments: number;
+    paidInstallments: number;
   }[];
 }
 
@@ -45,12 +47,22 @@ export const useUserRegistrations = () => {
           reg.season?.championshipId === championship.id
         );
 
-        const seasons = championshipRegistrations.map(reg => ({
-          id: reg.season.id,
-          name: reg.season.name,
-          registrationStatus: reg.status,
-          paymentStatus: reg.paymentStatus
-        }));
+        const seasons = championshipRegistrations.map(reg => {
+          // Calculate installment information
+          const totalInstallments = reg.payments?.length || 1;
+          const paidInstallments = reg.payments?.filter(payment => 
+            ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(payment.status)
+          ).length || 0;
+
+          return {
+            id: reg.season.id,
+            name: reg.season.name,
+            registrationStatus: reg.status,
+            paymentStatus: reg.paymentStatus,
+            totalInstallments,
+            paidInstallments
+          };
+        });
 
         return {
           championship,

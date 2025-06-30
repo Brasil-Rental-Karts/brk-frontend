@@ -63,13 +63,15 @@ export const Dashboard = () => {
   const { 
     upcomingRaces, 
     loading: loadingRaces, 
-    error: racesError 
+    error: racesError,
+    refresh: refreshUpcomingRaces
   } = useUserUpcomingRaces();
   
   const {
     stats: userStats,
     loading: loadingStats,
-    error: statsError
+    error: statsError,
+    refresh: refreshUserStats
   } = useUserStats();
 
   // Função para confirmar participação
@@ -78,8 +80,11 @@ export const Dashboard = () => {
       setConfirmingParticipation(stageId);
       await StageParticipationService.confirmParticipation({ stageId, categoryId });
       toast.success('Participação confirmada com sucesso!');
-      // Refresh upcoming races to update the UI
-      window.location.reload(); // Temporary solution - ideally we'd refresh just the data
+      // Refresh data to update the UI
+      await Promise.all([
+        refreshUpcomingRaces(),
+        refreshUserStats()
+      ]);
     } catch (error: any) {
       toast.error(error.message || 'Erro ao confirmar participação');
     } finally {
@@ -348,14 +353,21 @@ export const Dashboard = () => {
                     {participation.seasons.map((season) => (
                       <div key={season.id} className="flex justify-between items-center text-xs">
                         <span className="text-muted-foreground">{season.name}</span>
-                        <Badge 
-                          variant={season.registrationStatus === 'confirmed' ? 'default' : 'secondary'}
-                          className="text-xs"
-                        >
-                          {season.registrationStatus === 'confirmed' ? 'Confirmado' : 
-                           season.registrationStatus === 'payment_pending' ? 'Pag. Pendente' : 
-                           season.registrationStatus}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          {season.totalInstallments > 1 && (
+                            <span className="text-xs text-muted-foreground">
+                              {season.paidInstallments}/{season.totalInstallments} parcelas
+                            </span>
+                          )}
+                          <Badge 
+                            variant={season.registrationStatus === 'confirmed' ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {season.registrationStatus === 'confirmed' ? 'Confirmado' : 
+                             season.registrationStatus === 'payment_pending' ? 'Pag. Pendente' : 
+                             season.registrationStatus}
+                          </Badge>
+                        </div>
                       </div>
                     ))}
                   </div>

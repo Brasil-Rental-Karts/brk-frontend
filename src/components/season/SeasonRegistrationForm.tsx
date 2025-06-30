@@ -138,44 +138,45 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     return availableStages;
   }, [season?.id, season?.inscriptionType]);
 
+  // Função para carregar dados
+  const fetchData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Primeiro, carregar a temporada para obter o ID real
+      const seasonData = await SeasonService.getById(seasonId);
+      
+      // Carregar dados em paralelo
+      const [categoriesData, stagesData, userRegistrationsData, championshipData] = await Promise.all([
+        CategoryService.getBySeasonId(seasonData.id),
+        StageService.getBySeasonId(seasonData.id),
+        SeasonRegistrationService.getMyRegistrations(),
+        ChampionshipService.getPublicById(seasonData.championshipId)
+      ]);
+      
+      setSeason(seasonData);
+      setCategories(categoriesData);
+      setStages(stagesData);
+      setUserRegistrations(userRegistrationsData);
+      setChampionship(championshipData);
+      
+      // Verificar se é inscrição por etapa e se há etapas
+      if (seasonData.inscriptionType === 'por_etapa') {
+        if (stagesData.length === 0) {
+          console.warn('⚠️ [FRONTEND] Temporada é por etapa mas não há etapas cadastradas!');
+        }
+      }
+      
+    } catch (err: any) {
+      console.error('❌ [FRONTEND] Erro ao carregar dados:', err);
+      setError(err.message || 'Erro ao carregar dados da temporada');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Carregar dados diretamente no useEffect
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        // Primeiro, carregar a temporada para obter o ID real
-        const seasonData = await SeasonService.getById(seasonId);
-        
-        // Carregar dados em paralelo
-        const [categoriesData, stagesData, userRegistrationsData, championshipData] = await Promise.all([
-          CategoryService.getBySeasonId(seasonData.id),
-          StageService.getBySeasonId(seasonData.id),
-          SeasonRegistrationService.getMyRegistrations(),
-          ChampionshipService.getPublicById(seasonData.championshipId)
-        ]);
-        
-        setSeason(seasonData);
-        setCategories(categoriesData);
-        setStages(stagesData);
-        setUserRegistrations(userRegistrationsData);
-        setChampionship(championshipData);
-        
-        // Verificar se é inscrição por etapa e se há etapas
-        if (seasonData.inscriptionType === 'por_etapa') {
-          if (stagesData.length === 0) {
-            console.warn('⚠️ [FRONTEND] Temporada é por etapa mas não há etapas cadastradas!');
-          }
-        }
-        
-      } catch (err: any) {
-        console.error('❌ [FRONTEND] Erro ao carregar dados:', err);
-        setError(err.message || 'Erro ao carregar dados da temporada');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchData();
   }, [seasonId]);
 
@@ -429,7 +430,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
             <div className="text-center text-red-600">
               <p>Erro: {error}</p>
               <button 
-                onClick={() => window.location.reload()}
+                onClick={fetchData}
                 className="mt-2 text-blue-600 hover:underline"
               >
                 Tentar novamente

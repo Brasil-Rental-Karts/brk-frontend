@@ -159,6 +159,17 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
     successMessage: "Dados do campeonato atualizados com sucesso!",
   });
 
+  // Função para recarregar dados
+  const handleRetry = async () => {
+    try {
+      // Recarregar a página para garantir que todos os dados sejam atualizados
+      // Isso é necessário porque o useFormScreen não expõe uma função de refresh
+      window.location.reload();
+    } catch (error) {
+      console.error('Erro ao recarregar dados:', error);
+    }
+  };
+
   const handleFieldChange = useCallback(async (fieldId: string, value: any, formData: any) => {
     if (fieldId === "cep" && value && isValidCEPFormat(value) && formRef) {
       try {
@@ -494,7 +505,7 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
           <AlertTitle>Erro ao carregar dados</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
-        <Button onClick={() => window.location.reload()} variant="outline">
+        <Button onClick={handleRetry} variant="outline">
           Tentar novamente
         </Button>
       </div>
