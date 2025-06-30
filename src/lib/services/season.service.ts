@@ -13,6 +13,7 @@ export interface SeasonData {
   championshipId: string;
   pixInstallments?: number;
   creditCardInstallments?: number;
+  regulationsEnabled?: boolean;
 }
 
 export interface Season extends SeasonData {

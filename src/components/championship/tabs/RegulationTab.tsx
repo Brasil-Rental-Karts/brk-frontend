@@ -4,14 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "brk-design-system";
 import { Input } from "brk-design-system";
 import { Textarea } from "brk-design-system";
 import { Alert, AlertDescription } from "brk-design-system";
-import { AlertTriangle, Plus, Edit, Trash2, GripVertical, HelpCircle } from "lucide-react";
+import { AlertTriangle, Plus, Edit, Trash2, GripVertical, HelpCircle, Power, PowerOff } from "lucide-react";
 import { RegulationService, Regulation, CreateRegulationData, UpdateRegulationData } from "@/lib/services/regulation.service";
-import { Season } from "@/lib/services/season.service";
+import { Season, SeasonService } from "@/lib/services/season.service";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Label } from "brk-design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Switch } from "@radix-ui/react-switch";
 
 interface RegulationTabProps {
   championshipId: string;
@@ -29,6 +30,7 @@ export const RegulationTab = ({
   onRefresh 
 }: RegulationTabProps) => {
   const [selectedSeason, setSelectedSeason] = useState<string>("");
+  const [seasonData, setSeasonData] = useState<Season | null>(null);
   const [regulations, setRegulations] = useState<Regulation[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingRegulation, setEditingRegulation] = useState<Regulation | null>(null);
@@ -41,12 +43,14 @@ export const RegulationTab = ({
   });
   const [showMarkdownHelp, setShowMarkdownHelp] = useState(false);
 
-  // Load regulations when season changes
+  // Carregar dados da temporada selecionada
   useEffect(() => {
     if (selectedSeason) {
+      SeasonService.getById(selectedSeason).then(setSeasonData).catch(() => setSeasonData(null));
       loadRegulations(selectedSeason);
     } else {
       setRegulations([]);
+      setSeasonData(null);
     }
   }, [selectedSeason]);
 
@@ -198,6 +202,60 @@ export const RegulationTab = ({
           ))}
         </select>
       </div>
+
+      {selectedSeason && seasonData && (
+        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
+          <div className="flex items-center gap-3">
+            {seasonData.regulationsEnabled ? (
+              <Power className="h-5 w-5 text-primary" />
+            ) : (
+              <PowerOff className="h-5 w-5 text-gray-400" />
+            )}
+            <div>
+              <Label htmlFor="regulations-enabled-switch" className="text-sm font-medium">
+                Regulamento da Temporada
+              </Label>
+              <p className="text-xs text-gray-500">
+                {seasonData.regulationsEnabled 
+                  ? "Ativo - Os pilotos podem visualizar o regulamento" 
+                  : "Inativo - Os pilotos não podem visualizar o regulamento"
+                }
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="regulations-enabled-switch"
+              checked={!!seasonData.regulationsEnabled}
+              onCheckedChange={async (checked) => {
+                if (!seasonData) return;
+                setSeasonData({ ...seasonData, regulationsEnabled: checked });
+                try {
+                  await SeasonService.update(seasonData.id, { regulationsEnabled: checked });
+                } catch (e) {
+                  // rollback visual se erro
+                  setSeasonData({ ...seasonData, regulationsEnabled: !checked });
+                  alert('Erro ao atualizar status do regulamento.');
+                }
+              }}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
+                seasonData.regulationsEnabled ? 'bg-primary' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  seasonData.regulationsEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </Switch>
+            <span className={`text-sm font-medium ${
+              seasonData.regulationsEnabled ? 'text-primary' : 'text-gray-500'
+            }`}>
+              {seasonData.regulationsEnabled ? 'ATIVO' : 'INATIVO'}
+            </span>
+          </div>
+        </div>
+      )}
 
       {selectedSeason && (
         <>
