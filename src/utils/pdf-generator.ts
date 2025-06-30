@@ -34,7 +34,9 @@ export class PDFGenerator {
     await this.generateContentPages(pdf, data);
 
     // Salvar o PDF
-    const fileName = `regulamento_${data.championshipName.replace(/[^a-zA-Z0-9]/g, '_')}_${data.seasonName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    const fileName = `${data.championshipName} - ${data.seasonName}.pdf`
+      .replace(/[\\/:*?"<>|]+/g, '') // remove caracteres inválidos para nome de arquivo
+      .trim();
     pdf.save(fileName);
   }
 
@@ -134,21 +136,27 @@ export class PDFGenerator {
 
     // Conteúdo detalhado
     data.regulations.forEach((regulation, index) => {
-      // Verificar se precisa de nova página
-      if (currentY > pageHeight - 60) {
+      // Calcular altura da seção
+      const cleanTitle = this.cleanMarkdownFromTitle(regulation.title);
+      const sectionHeight = this.estimateSectionHeight(
+        pdf,
+        `${index + 1}. ${cleanTitle}`,
+        regulation.content,
+        margin,
+        contentWidth,
+        pageHeight
+      );
+      // Se não couber, nova página
+      if (currentY + sectionHeight > pageHeight - 20) {
         pdf.addPage();
         currentY = margin;
         pageNumber++;
       }
-
       // Título da seção (processado com markdown)
-      const cleanTitle = this.cleanMarkdownFromTitle(regulation.title);
       currentY = this.renderMarkdownTitle(pdf, `${index + 1}. ${cleanTitle}`, margin, currentY, contentWidth, pageHeight);
-
       // Conteúdo da seção (processado com markdown)
       currentY = this.renderMarkdownContent(pdf, regulation.content, margin, currentY, contentWidth, pageHeight, pageNumber);
-
-      currentY += 15; // Espaçamento entre seções
+      currentY += 8; // Espaçamento entre seções (mais compacto)
     });
 
     // Adicionar números de página
@@ -206,7 +214,7 @@ export class PDFGenerator {
       });
     });
 
-    return currentY + 12; // Espaçamento extra após título
+    return currentY + 4; // Espaçamento extra após título (mais compacto)
   }
 
   /**
@@ -769,5 +777,22 @@ export class PDFGenerator {
       img.onerror = reject;
       img.src = url;
     });
+  }
+
+  // Estima a altura de uma seção (título + conteúdo)
+  private static estimateSectionHeight(
+    pdf: jsPDF,
+    title: string,
+    content: string,
+    x: number,
+    maxWidth: number,
+    pageHeight: number
+  ): number {
+    // Clonar pdf para simular sem desenhar
+    const pdfClone = new jsPDF({ unit: 'mm', format: 'a4' });
+    let y = 0;
+    y = this.renderMarkdownTitle(pdfClone, title, x, y, maxWidth, pageHeight);
+    y = this.renderMarkdownContent(pdfClone, content, x, y, maxWidth, pageHeight, 1);
+    return y;
   }
 } 
