@@ -336,7 +336,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
             mandatory: true,
             options: filteredStages.map(stage => ({
               value: stage.id,
-              description: `${stage.name}`
+              description: `${stage.name} - ${new Date(stage.date).toLocaleDateString('pt-BR')} - ${stage.time}`
             }))
           }
         ]
