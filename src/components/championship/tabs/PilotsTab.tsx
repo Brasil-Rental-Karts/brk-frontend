@@ -169,7 +169,7 @@ const PilotCard = ({ registration, onAction, getStatusBadge }: {
                     <div className="flex flex-col items-center">
                       <span>{regCategory.category.name}</span>
                       <span className="text-xs opacity-75">
-                        {regCategory.category.ballast}kg
+                        Lastro: {regCategory.category.ballast}kg
                       </span>
                     </div>
                   </Badge>
@@ -703,7 +703,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                                   <div className="flex flex-col items-center">
                                     <span>{regCategory.category.name}</span>
                                     <span className="text-xs opacity-75">
-                                      {regCategory.category.ballast}kg
+                                      Lastro: {regCategory.category.ballast}kg
                                     </span>
                                   </div>
                                 </Badge>

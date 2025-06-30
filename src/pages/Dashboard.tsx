@@ -12,6 +12,7 @@ import {
   Check,
   Clock,
   X,
+  Users,
 } from "lucide-react";
 import { useState } from "react";
 import { Alert, AlertTitle, AlertDescription } from "brk-design-system";
@@ -560,66 +561,121 @@ export const Dashboard = () => {
 
       {/* Modal de detalhes da corrida */}
       <Dialog open={!!selectedRace} onOpenChange={() => setSelectedRace(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{selectedRace?.stage?.name}</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Trophy className="h-6 w-6 text-primary" />
+              <DialogTitle className="text-2xl font-bold">{selectedRace?.stage?.name}</DialogTitle>
+            </div>
+            <DialogDescription className="text-lg font-medium text-primary/80">
               {selectedRace?.season?.name}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <span>{selectedRace?.stage?.kartodrome}</span>
+          
+          {/* Informações principais em cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {/* Card de localização */}
+            <div className="bg-card border border-border p-4 rounded-xl shadow-sm">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-primary rounded-lg">
+                  <MapPin className="h-5 w-5 text-primary-foreground" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-card-foreground">Local</h3>
+                  <p className="text-sm text-muted-foreground">{selectedRace?.stage?.kartodrome}</p>
+                </div>
+              </div>
+              {selectedRace?.stage?.kartodromeAddress && (
+                <p className="text-xs text-muted-foreground pl-11">
+                  {selectedRace.stage.kartodromeAddress}
+                </p>
+              )}
             </div>
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                <span>{formatDateToBrazilian(selectedRace?.stage?.date || "")} às {selectedRace?.stage?.time}</span>
+
+            {/* Card de data e hora */}
+            <div className="bg-card border border-border p-4 rounded-xl shadow-sm">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-primary rounded-lg">
+                  <Calendar className="h-5 w-5 text-primary-foreground" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-card-foreground">Data & Hora</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {formatDateToBrazilian(selectedRace?.stage?.date || "")}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    às {selectedRace?.stage?.time}
+                  </p>
+                </div>
               </div>
             </div>
-            {selectedRace?.stage?.kartodromeAddress && (
-              <div className="flex items-start space-x-2">
-                <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <span className="text-sm text-muted-foreground">{selectedRace.stage.kartodromeAddress}</span>
-              </div>
-            )}
+          </div>
+
+          {/* Badges de status */}
+          <div className="flex flex-wrap gap-2 mb-6">
             {selectedRace?.stage?.doublePoints && (
-              <div className="flex items-center space-x-2">
-                <Trophy className="h-4 w-4 text-muted-foreground" />
-                <span>Pontuação em dobro</span>
-              </div>
+              <Badge variant="secondary" className="px-3 py-1">
+                <Trophy className="h-3 w-3 mr-1" />
+                Pontuação em Dobro
+              </Badge>
+            )}
+            {selectedRace?.isOrganizer && (
+              <Badge variant="default" className="px-3 py-1">
+                <Settings className="h-3 w-3 mr-1" />
+                Organizador
+              </Badge>
+            )}
+            {selectedRace?.hasConfirmedParticipation && (
+              <Badge variant="default" className="px-3 py-1">
+                <Check className="h-3 w-3 mr-1" />
+                Participação Confirmada
+              </Badge>
             )}
           </div>
           
-          {/* Seção de confirmação de participação */}
+          {/* Seção de gerenciamento de participação */}
           {selectedRace && selectedRace.availableCategories && selectedRace.availableCategories.length > 0 && (
-            <div className="border-t pt-4">
-              <h4 className="font-medium mb-3">
-                Gerenciar Participação
-                {selectedRace.isOrganizer && (
-                  <Badge variant="outline" className="ml-2 text-xs">
-                    Organizador & Piloto
-                  </Badge>
-                )}
-              </h4>
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-lg">Gerenciar Participação</h4>
+                  {selectedRace.isOrganizer && (
+                    <Badge variant="secondary" className="text-xs mt-1">
+                      {selectedRace.hasConfirmedParticipation ? 'Organizador & Piloto' : 'Organizador'}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              
               {selectedRace.hasConfirmedParticipation ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-green-600">
-                    <Check className="h-4 w-4" />
-                    <span className="text-sm">Participação confirmada</span>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-xl">
+                    <div className="p-2 bg-primary rounded-lg">
+                      <Check className="h-4 w-4 text-primary-foreground" />
+                    </div>
+                    <div>
+                      <h5 className="font-semibold text-card-foreground">Participação Confirmada</h5>
+                      <p className="text-sm text-muted-foreground">Sua inscrição está ativa para esta etapa</p>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">
-                      Categoria confirmada:
-                    </p>
+                  
+                  <div className="space-y-3">
+                    <h6 className="font-medium text-gray-700 dark:text-gray-300">Categoria confirmada:</h6>
                     {selectedRace.availableCategories
                       .filter((category: any) => category.isConfirmed)
                       .map((category: any) => (
-                        <div key={category.id} className="flex items-center justify-between p-3 border rounded-lg bg-green-50">
-                          <div className="flex items-center gap-2">
-                            <Check className="h-3 w-3 text-green-500" />
-                            <span className="text-sm font-medium">{category.name} - {category.ballast}</span>
+                        <div key={category.id} className="flex items-center justify-between p-4 bg-card border border-border rounded-xl">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-primary rounded-lg">
+                              <Check className="h-4 w-4 text-primary-foreground" />
+                            </div>
+                            <div>
+                              <span className="font-semibold text-card-foreground">{category.name}</span>
+                              <p className="text-sm text-muted-foreground">Lastro: {category.ballast}</p>
+                            </div>
                           </div>
                           <Button
                             variant="outline"
@@ -633,7 +689,7 @@ export const Dashboard = () => {
                               });
                               setSelectedRace(null);
                             }}
-                            className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                            className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
                           >
                             {cancellingParticipation === selectedRace.stage.id ? (
                               <>
@@ -651,17 +707,24 @@ export const Dashboard = () => {
                       ))}
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    Selecione uma categoria para confirmar sua participação:
-                  </p>
-                  <div className="grid gap-2">
+                              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-xl">
+                    <div className="p-2 bg-primary rounded-lg">
+                      <Users className="h-4 w-4 text-primary-foreground" />
+                    </div>
+                    <div>
+                      <h5 className="font-semibold text-card-foreground">Confirmar Participação</h5>
+                      <p className="text-sm text-muted-foreground">Selecione uma categoria para participar</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid gap-3">
                     {selectedRace.availableCategories.map((category: any) => (
                       <Button
                         key={category.id}
                         variant="outline"
-                        size="sm"
+                        size="lg"
                         disabled={confirmingParticipation === selectedRace.stage.id || category.isConfirmed}
                         onClick={() => {
                           setShowConfirmConfirmation({
@@ -671,21 +734,32 @@ export const Dashboard = () => {
                           });
                           setSelectedRace(null);
                         }}
-                        className="justify-start"
+                        className="justify-start h-auto p-4 border-2 hover:border-primary hover:bg-primary/5 transition-all duration-200"
                       >
-                        {category.isConfirmed ? (
-                          <Check className="h-3 w-3 mr-2 text-green-500" />
-                        ) : confirmingParticipation === selectedRace.stage.id ? (
-                          <Clock className="h-3 w-3 mr-2" />
-                        ) : (
-                          <div className="h-3 w-3 mr-2" />
-                        )}
-                        {category.name} - {category.ballast}
-                        {category.isConfirmed && (
-                          <Badge variant="default" className="ml-auto text-xs bg-green-500">
-                            Confirmado
-                          </Badge>
-                        )}
+                        <div className="flex items-center w-full">
+                          {category.isConfirmed ? (
+                            <div className="p-2 bg-primary rounded-lg mr-3">
+                              <Check className="h-4 w-4 text-primary-foreground" />
+                            </div>
+                          ) : confirmingParticipation === selectedRace.stage.id ? (
+                            <div className="p-2 bg-primary rounded-lg mr-3">
+                              <Clock className="h-4 w-4 text-primary-foreground" />
+                            </div>
+                          ) : (
+                            <div className="p-2 bg-muted rounded-lg mr-3">
+                              <Users className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div className="text-left flex-1">
+                            <div className="font-semibold">{category.name}</div>
+                            <div className="text-sm text-muted-foreground">Lastro: {category.ballast}</div>
+                          </div>
+                          {category.isConfirmed && (
+                            <Badge variant="default">
+                              Confirmado
+                            </Badge>
+                          )}
+                        </div>
                       </Button>
                     ))}
                   </div>
@@ -694,8 +768,12 @@ export const Dashboard = () => {
             </div>
           )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedRace(null)}>
+          <DialogFooter className="pt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setSelectedRace(null)}
+              className="px-6 py-2"
+            >
               Fechar
             </Button>
           </DialogFooter>

@@ -110,7 +110,7 @@ const CategoryCard = ({ category, onAction, registrationCount }: {
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex flex-col">
             <span className="text-muted-foreground">Lastro</span>
-            <span className="font-medium capitalize">{category.ballast}</span>
+            <span className="font-medium capitalize">Lastro: {category.ballast}</span>
           </div>
           <div className="flex flex-col">
             <span className="text-muted-foreground">Máx. Pilotos</span>
@@ -551,7 +551,7 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
                       </TableCell>
                       <TableCell className="text-center py-4">
                         <div className="text-sm font-medium">
-                          {category.ballast}
+                          Lastro: {category.ballast}
                         </div>
                       </TableCell>
                       <TableCell className="text-center py-4">

@@ -207,7 +207,7 @@ export const StageDetailsModal = ({ stage, isOpen, onClose }: StageDetailsModalP
                       <h4 className="font-semibold flex items-center gap-2">
                         {category.name}
                         <Badge variant="outline" className="text-xs">
-                          {category.ballast}kg
+                          Lastro: {category.ballast}kg
                         </Badge>
                       </h4>
                       <Badge variant="secondary" className="text-xs">

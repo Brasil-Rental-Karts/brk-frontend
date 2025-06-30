@@ -66,39 +66,44 @@ export const useUserUpcomingRaces = () => {
         allRaces.push(...participantRaces.flat());
       }
 
-      // 2. Buscar corridas onde o usuário é organizador
+      // 2. Buscar corridas onde o usuário é organizador (owner ou staff)
       try {
         const myChampionships = await ChampionshipService.getMy();
         
         for (const championship of myChampionships) {
-          try {
-            // Buscar todas as temporadas do campeonato (buscar todas as páginas)
-            const seasonsResult = await SeasonService.getByChampionshipId(championship.id, 1, 100);
-            
-            for (const season of seasonsResult.data) {
-              try {
-                const upcomingStages = await StageService.getUpcomingBySeasonId(season.id);
-                
-                const organizerRaces = upcomingStages.map(stage => ({
-                  stage,
-                  championship: {
-                    id: championship.id,
-                    name: championship.name
-                  },
-                  season: {
-                    id: season.id,
-                    name: season.name
-                  },
-                  isOrganizer: true
-                }));
-                
-                allRaces.push(...organizerRaces);
-              } catch (error) {
-                console.error(`Erro ao buscar etapas da temporada ${season.id}:`, error);
+          // Verificar se o usuário é realmente organizador (owner ou staff), não apenas piloto
+          const isOrganizer = championship.isOwner || championship.isStaff;
+          
+          if (isOrganizer) {
+            try {
+              // Buscar todas as temporadas do campeonato (buscar todas as páginas)
+              const seasonsResult = await SeasonService.getByChampionshipId(championship.id, 1, 100);
+              
+              for (const season of seasonsResult.data) {
+                try {
+                  const upcomingStages = await StageService.getUpcomingBySeasonId(season.id);
+                  
+                  const organizerRaces = upcomingStages.map(stage => ({
+                    stage,
+                    championship: {
+                      id: championship.id,
+                      name: championship.name
+                    },
+                    season: {
+                      id: season.id,
+                      name: season.name
+                    },
+                    isOrganizer: true
+                  }));
+                  
+                  allRaces.push(...organizerRaces);
+                } catch (error) {
+                  console.error(`Erro ao buscar etapas da temporada ${season.id}:`, error);
+                }
               }
+            } catch (error) {
+              console.error(`Erro ao buscar temporadas do campeonato ${championship.id}:`, error);
             }
-          } catch (error) {
-            console.error(`Erro ao buscar temporadas do campeonato ${championship.id}:`, error);
           }
         }
       } catch (error) {

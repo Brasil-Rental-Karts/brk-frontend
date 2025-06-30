@@ -397,7 +397,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
                   <SelectItem key={category.id} value={category.id}>
                     <div className="flex items-center gap-2">
                       {category.name}
-                      <Badge variant="outline" className="text-xs">{category.ballast}</Badge>
+                      <Badge variant="outline" className="text-xs">Lastro: {category.ballast}</Badge>
                     </div>
                   </SelectItem>
                 ))}
@@ -454,7 +454,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{entry.category.name}</span>
-                          <Badge variant="outline" className="text-xs">{entry.category.ballast}</Badge>
+                          <Badge variant="outline" className="text-xs">Lastro: {entry.category.ballast}</Badge>
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
@@ -493,7 +493,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
                   <div className="p-4 border-b">
                     <div className="flex items-center gap-3">
                       <h3 className="text-lg font-semibold">{category.name}</h3>
-                      <Badge variant="outline">{category.ballast}</Badge>
+                      <Badge variant="outline">Lastro: {category.ballast}</Badge>
                       <Badge variant="secondary">{entries.length} piloto{entries.length !== 1 ? 's' : ''}</Badge>
                     </div>
                   </div>
