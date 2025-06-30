@@ -6,7 +6,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "brk-design-system";
+} from "@/components/ui/dialog";
 import { Button } from "brk-design-system";
 import { Input } from "brk-design-system";
 import { Label } from "brk-design-system";

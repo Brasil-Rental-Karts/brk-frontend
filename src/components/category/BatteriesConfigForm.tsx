@@ -20,7 +20,7 @@ import {
   DialogFooter, 
   DialogHeader, 
   DialogTitle 
-} from "brk-design-system";
+} from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "brk-design-system";
 import { Plus, Trash2, GripVertical, Settings2 } from "lucide-react";
 import { BatteryConfig, BatteriesConfig, BATTERY_TEMPLATES, validateBatteriesConfig } from "@/lib/types/battery.types";

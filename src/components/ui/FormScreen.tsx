@@ -11,7 +11,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "brk-design-system";
+} from "@/components/ui/dialog";
 import { PageHeader } from "@/components/ui/page-header";
 import {
   useFormScreen,

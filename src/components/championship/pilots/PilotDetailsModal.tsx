@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from 'brk-design-system';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from 'brk-design-system';
 import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
 import { Badge } from 'brk-design-system';

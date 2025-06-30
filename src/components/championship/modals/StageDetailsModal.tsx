@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "brk-design-system";
+} from "@/components/ui/dialog";
 import { Badge } from "brk-design-system";
 import { Card } from "brk-design-system";
 import { Skeleton } from "brk-design-system";

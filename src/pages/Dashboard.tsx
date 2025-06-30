@@ -24,7 +24,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "brk-design-system";
+} from "@/components/ui/dialog";
 import { useNavigation } from "@/router";
 import { useDashboardChampionships } from "@/hooks/use-dashboard-championships";
 import { useChampionshipContext } from "@/contexts/ChampionshipContext";

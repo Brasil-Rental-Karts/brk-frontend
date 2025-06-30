@@ -20,7 +20,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "brk-design-system";
+} from "@/components/ui/dialog";
 import { StageService, CreateStageData, Stage } from "@/lib/services/stage.service";
 import { SeasonService } from "@/lib/services/season.service";
 import { CategoryService, Category } from "@/lib/services/category.service";
