@@ -17,15 +17,15 @@ export const SponsorsTab = ({ championshipId }: SponsorsTabProps) => {
 
   const formConfig: FormSectionConfig[] = [
     {
-      section: "Patrocinadores",
-      detail: "Gerenciar patrocinadores do campeonato",
+      section: "Patrocinadores e Apoiadores",
+      detail: "Gerenciar patrocinadores e apoiadores do campeonato",
       fields: [
         {
           id: "sponsors",
-          name: "Lista de patrocinadores",
+          name: "Lista de patrocinadores e apoiadores",
           type: "sponsor-list" as const,
           mandatory: false,
-          placeholder: "Adicione patrocinadores ao seu campeonato"
+          placeholder: "Adicione patrocinadores e apoiadores ao seu campeonato"
         }
       ]
     }
@@ -41,9 +41,9 @@ export const SponsorsTab = ({ championshipId }: SponsorsTabProps) => {
     
     try {
       await ChampionshipService.update(championshipId, { sponsors });
-      toast.success("Patrocinador salvo com sucesso!");
+      toast.success("Patrocinadores e apoiadores salvos com sucesso!");
     } catch (err: any) {
-      const message = err.message || "Erro ao salvar patrocinador";
+      const message = err.message || "Erro ao salvar patrocinadores e apoiadores";
       setError(message);
       toast.error(message);
     } finally {
@@ -81,7 +81,7 @@ export const SponsorsTab = ({ championshipId }: SponsorsTabProps) => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="text-sm text-muted-foreground">Carregando patrocinadores...</div>
+        <div className="text-sm text-muted-foreground">Carregando patrocinadores e apoiadores...</div>
       </div>
     );
   }
@@ -102,9 +102,9 @@ export const SponsorsTab = ({ championshipId }: SponsorsTabProps) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Patrocinadores</h2>
+          <h2 className="text-2xl font-bold">Patrocinadores e Apoiadores</h2>
           <p className="text-muted-foreground">
-            Gerencie os patrocinadores do seu campeonato
+            Gerencie os patrocinadores e apoiadores do seu campeonato
           </p>
         </div>
         {isSaving && (

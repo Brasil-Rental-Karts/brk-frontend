@@ -3,7 +3,8 @@ import { Button } from 'brk-design-system';
 import { Input } from 'brk-design-system';
 import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
 import { Badge } from 'brk-design-system';
-import { Trash2, Plus, Globe, Building2, Edit } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'brk-design-system';
+import { Trash2, Plus, Globe, Building2, Edit, Star, Heart } from 'lucide-react';
 import { Sponsor } from '@/lib/services/championship.service';
 import { FileUpload } from '@/components/ui/file-upload';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -19,6 +20,7 @@ interface SponsorFormData {
   name: string;
   logoImage: string;
   website: string;
+  type: 'sponsor' | 'supporter';
 }
 
 export const SponsorListField: React.FC<SponsorListFieldProps> = ({
@@ -33,7 +35,8 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
   const [formData, setFormData] = useState<SponsorFormData>({
     name: '',
     logoImage: '',
-    website: ''
+    website: '',
+    type: 'sponsor'
   });
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -41,7 +44,8 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
     setFormData({
       name: '',
       logoImage: '',
-      website: ''
+      website: '',
+      type: 'sponsor'
     });
     setIsAdding(false);
     setEditingIndex(null);
@@ -52,7 +56,8 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
     setFormData({
       name: '',
       logoImage: '',
-      website: ''
+      website: '',
+      type: 'sponsor'
     });
   };
 
@@ -62,7 +67,8 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
     setFormData({
       name: sponsor.name,
       logoImage: sponsor.logoImage,
-      website: sponsor.website || ''
+      website: sponsor.website || '',
+      type: sponsor.type
     });
     setIsAdding(true);
   };
@@ -87,7 +93,8 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
     const newSponsor: Omit<Sponsor, 'id'> & { id?: string } = {
       name: formData.name.trim(),
       logoImage: formData.logoImage.trim(),
-      website: formData.website.trim() || undefined
+      website: formData.website.trim() || undefined,
+      type: formData.type
     };
 
     let updatedSponsors: Sponsor[];
@@ -113,12 +120,30 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
     onChange(updatedSponsors);
   };
 
+  const getTypeBadge = (type: 'sponsor' | 'supporter') => {
+    if (type === 'sponsor') {
+      return (
+        <Badge variant="default" className="text-xs bg-blue-100 text-blue-800">
+          <Star className="w-3 h-3 mr-1" />
+          Patrocinador
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge variant="default" className="text-xs bg-green-100 text-green-800">
+          <Heart className="w-3 h-3 mr-1" />
+          Apoiador
+        </Badge>
+      );
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Existing Sponsors */}
       {value.length > 0 && (
         <div className="space-y-3">
-          <h4 className="text-sm font-medium">Patrocinadores Adicionados ({value.length})</h4>
+          <h4 className="text-sm font-medium">Patrocinadores e Apoiadores ({value.length})</h4>
           {value.map((sponsor, index) => (
             <Card key={sponsor.id || `temp-${index}`} className="p-4">
               <div className={`${isMobile ? 'space-y-3' : 'flex items-center justify-between'}`}>
@@ -145,6 +170,7 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
                   <div className="flex-1">
                     <h5 className="font-medium">{sponsor.name}</h5>
                     <div className="flex items-center space-x-2 mt-1">
+                      {getTypeBadge(sponsor.type)}
                       {sponsor.website && (
                         <Badge variant="outline" className="text-xs">
                           <Globe className="w-3 h-3 mr-1" />
@@ -185,13 +211,13 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
         <Card ref={formRef}>
           <CardHeader>
             <CardTitle className="text-lg">
-              {editingIndex !== null ? 'Editar Patrocinador' : 'Adicionar Patrocinador'}
+              {editingIndex !== null ? 'Editar Patrocinador/Apoiador' : 'Adicionar Patrocinador/Apoiador'}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <label className="text-sm font-medium">
-                Nome do Patrocinador <span className="text-red-500">*</span>
+                Nome <span className="text-red-500">*</span>
               </label>
               <Input
                 value={formData.name}
@@ -202,6 +228,35 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
             </div>
 
             <div>
+              <label className="text-sm font-medium">
+                Tipo <span className="text-red-500">*</span>
+              </label>
+              <Select
+                value={formData.type}
+                onValueChange={(value: 'sponsor' | 'supporter') => setFormData(prev => ({ ...prev, type: value }))}
+                disabled={disabled}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sponsor">
+                    <div className="flex items-center">
+                      <Star className="w-4 h-4 mr-2" />
+                      Patrocinador
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="supporter">
+                    <div className="flex items-center">
+                      <Heart className="w-4 h-4 mr-2" />
+                      Apoiador
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
               <FileUpload
                 value={formData.logoImage}
                 onChange={(url) => setFormData(prev => ({ ...prev, logoImage: url }))}
@@ -209,7 +264,7 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
                 placeholder="Faça upload da logo ou insira uma URL"
                 accept="image/*"
                 maxSize={5}
-                label="Logo do Patrocinador *"
+                label="Logo *"
                 showPreview={true}
               />
             </div>
@@ -239,7 +294,7 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
                 disabled={disabled || !formData.name.trim() || !formData.logoImage.trim()}
                 className={isMobile ? 'w-full' : ''}
               >
-                {editingIndex !== null ? 'Salvar Alterações' : 'Adicionar Patrocinador'}
+                {editingIndex !== null ? 'Salvar Alterações' : 'Adicionar'}
               </Button>
             </div>
           </CardContent>
@@ -252,7 +307,7 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
           disabled={disabled}
           className="w-full"
         >
-          Adicionar Patrocinador
+          Adicionar Patrocinador/Apoiador
         </Button>
       )}
 
