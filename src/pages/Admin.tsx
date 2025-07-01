@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from "brk-design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
-import { Plus, Users, CreditCard } from "lucide-react";
+import { Plus, Users, CreditCard, Trophy, TrendingUp } from "lucide-react";
 import { AdminPilotRegistration } from "@/components/admin/AdminPilotRegistration";
+import { useAdminStats } from "@/hooks/use-admin-stats";
 
 export const Admin = () => {
   const [activeTab, setActiveTab] = useState("overview");
+  const { stats, loading, error, refresh } = useAdminStats();
 
   return (
     <div className="container mx-auto py-8">
@@ -24,66 +26,145 @@ export const Admin = () => {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total de Usuários</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">--</div>
-                <p className="text-xs text-muted-foreground">
-                  Usuários registrados no sistema
-                </p>
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-muted-foreground">Carregando estatísticas...</div>
+            </div>
+          )}
+
+          {error && (
+            <Card className="border-destructive">
+              <CardContent className="pt-6">
+                <div className="text-destructive text-center">
+                  <p className="font-medium">Erro ao carregar estatísticas</p>
+                  <p className="text-sm mt-1">{error}</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={refresh}
+                    className="mt-3"
+                  >
+                    Tentar novamente
+                  </Button>
+                </div>
               </CardContent>
             </Card>
+          )}
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Inscrições Ativas</CardTitle>
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">--</div>
-                <p className="text-xs text-muted-foreground">
-                  Inscrições confirmadas
-                </p>
-              </CardContent>
-            </Card>
+          {stats && (
+            <>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total de Usuários</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-600">{stats.totalUsers}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Usuários registrados no sistema
+                    </p>
+                  </CardContent>
+                </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Campeonatos Ativos</CardTitle>
-                <Plus className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">--</div>
-                <p className="text-xs text-muted-foreground">
-                  Campeonatos em andamento
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Usuários com Inscrições</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-emerald-600">{stats.totalUsersWithRegistrations}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Usuários únicos com pelo menos uma inscrição
+                    </p>
+                  </CardContent>
+                </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Bem-vindo ao Painel de Administração</CardTitle>
-              <CardDescription>
-                Esta área está em desenvolvimento. Em breve você encontrará aqui as ferramentas de administração do sistema.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Funcionalidades em desenvolvimento:
-              </p>
-              <ul className="list-disc list-inside mt-2 text-sm text-muted-foreground space-y-1">
-                <li>Gerenciamento de usuários</li>
-                <li>Configurações do sistema</li>
-                <li>Relatórios e estatísticas</li>
-                <li>Monitoramento de atividades</li>
-              </ul>
-            </CardContent>
-          </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Pilotos Confirmados</CardTitle>
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">{stats.totalConfirmedRegistrations}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Soma de pilotos confirmados em todos os campeonatos
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Campeonatos</CardTitle>
+                    <Trophy className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-purple-600">{stats.championshipsStats.length}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Total de campeonatos no sistema
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Estatísticas por Campeonato</CardTitle>
+                  <CardDescription>
+                    Detalhamento de inscrições e usuários por campeonato
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {stats.championshipsStats.map((championship) => (
+                      <div key={championship.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-semibold text-lg">{championship.name}</h3>
+                          <div className="text-sm text-muted-foreground">
+                            {championship.totalUsers} usuários
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <div className="text-2xl font-bold text-blue-600">{championship.pilotsEnrolled}</div>
+                            <div className="text-muted-foreground">Pilotos Inscritos</div>
+                          </div>
+                          <div>
+                            <div className="text-2xl font-bold text-green-600">{championship.pilotsConfirmed}</div>
+                            <div className="text-muted-foreground">Pilotos Confirmados</div>
+                          </div>
+                          <div>
+                            <div className="text-2xl font-bold text-yellow-600">{championship.pilotsPending}</div>
+                            <div className="text-muted-foreground">Pilotos Pendentes</div>
+                          </div>
+                          <div>
+                            <div className="text-2xl font-bold text-red-600">{championship.pilotsOverdue}</div>
+                            <div className="text-muted-foreground">Pilotos Atrasados</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Legenda das Categorias</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm text-muted-foreground space-y-2">
+                    <p><strong>Pilotos Inscritos:</strong> Todos que se inscreveram no campeonato</p>
+                    <p><strong>Pilotos Confirmados:</strong> Pagaram tudo, pelo menos uma parcela, são isentos ou têm pagamento direto</p>
+                    <p><strong>Pilotos Pendentes:</strong> Ainda não pagaram nenhuma parcela, mas as parcelas estão pendentes</p>
+                    <p><strong>Pilotos Atrasados:</strong> Deixaram vencer a parcela</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+
         </TabsContent>
 
         <TabsContent value="pilot-registration" className="space-y-6">
@@ -117,5 +198,5 @@ export const Admin = () => {
         </TabsContent>
       </Tabs>
     </div>
-  );
-}; 
+      );
+  }; 
