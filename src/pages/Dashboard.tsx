@@ -36,6 +36,7 @@ import { useUserUpcomingRaces } from "@/hooks/use-user-upcoming-races";
 import { useUserStats } from "@/hooks/use-user-stats";
 import { StageParticipationService } from "@/lib/services/stage-participation.service";
 import { toast } from "sonner";
+import { differenceInHours, parseISO } from "date-fns";
 
 export const Dashboard = () => {
   const nav = useNavigation();
@@ -114,6 +115,32 @@ export const Dashboard = () => {
       toast.error(error.message || 'Erro ao cancelar participação');
     } finally {
       setCancellingParticipation(null);
+    }
+  };
+
+  // Função utilitária para saber se está no prazo de confirmação/cancelamento
+  const isParticipationAllowed = (stage: any) => {
+    if (!stage?.date || !stage?.time) return false;
+    try {
+      let datePart = stage.date;
+      // Se vier com T e Z, extrai só a parte da data
+      if (datePart.includes('T')) {
+        datePart = datePart.split('T')[0];
+      }
+      // Monta string ISO correta
+      const dateTimeStr = `${datePart}T${stage.time}`;
+      const eventDate = new Date(dateTimeStr);
+      const now = new Date();
+      if (isNaN(eventDate.getTime())) {
+        console.error('Invalid event date:', stage.date, stage.time);
+        return false;
+      }
+      const timeDifference = eventDate.getTime() - now.getTime();
+      const hoursDifference = timeDifference / (1000 * 60 * 60);
+      return hoursDifference > 48;
+    } catch (error) {
+      console.error('Error calculating participation deadline:', error);
+      return false;
     }
   };
 
@@ -491,7 +518,7 @@ export const Dashboard = () => {
                         <Button
                           size="default"
                           variant="default"
-                          disabled={confirmingParticipation === race.stage.id}
+                          disabled={confirmingParticipation === race.stage.id || !isParticipationAllowed(race.stage)}
                           onClick={(e) => {
                             e.stopPropagation();
                             if (race.availableCategories!.length === 1) {
@@ -522,9 +549,12 @@ export const Dashboard = () => {
                         <Button
                           size="default"
                           variant="outline"
-                          disabled={cancellingParticipation === race.stage.id}
+                          disabled={cancellingParticipation === race.stage.id || !isParticipationAllowed(race.stage)}
                           onClick={(e) => {
                             e.stopPropagation();
+                            // Log extra para debug
+                            const allowed = isParticipationAllowed(race.stage);
+                            if (!allowed) return;
                             // Encontrar a categoria confirmada
                             const confirmedCategory = race.availableCategories!.find(cat => cat.isConfirmed);
                             if (confirmedCategory) {
@@ -661,7 +691,11 @@ export const Dashboard = () => {
                       <p className="text-sm text-muted-foreground">Sua inscrição está ativa para esta etapa</p>
                     </div>
                   </div>
-                  
+                  {!isParticipationAllowed(selectedRace.stage) && (
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800 dark:bg-yellow-900 dark:border-yellow-700 dark:text-yellow-100 text-sm">
+                      O prazo para cancelar participação expirou. Entre em contato com o organizador do campeonato para alterações.
+                    </div>
+                  )}
                   <div className="space-y-3">
                     <h6 className="font-medium text-gray-700 dark:text-gray-300">Categoria confirmada:</h6>
                     {selectedRace.availableCategories
@@ -680,7 +714,7 @@ export const Dashboard = () => {
                           <Button
                             variant="outline"
                             size="sm"
-                            disabled={cancellingParticipation === selectedRace.stage.id}
+                            disabled={cancellingParticipation === selectedRace.stage.id || !isParticipationAllowed(selectedRace.stage)}
                             onClick={() => {
                               setShowCancelConfirmation({
                                 stageId: selectedRace.stage.id,
@@ -718,14 +752,18 @@ export const Dashboard = () => {
                       <p className="text-sm text-muted-foreground">Selecione uma categoria para participar</p>
                     </div>
                   </div>
-                  
+                  {!isParticipationAllowed(selectedRace.stage) && (
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800 dark:bg-yellow-900 dark:border-yellow-700 dark:text-yellow-100 text-sm">
+                      O prazo para confirmar participação expirou. Entre em contato com o organizador do campeonato para alterações.
+                    </div>
+                  )}
                   <div className="grid gap-3">
                     {selectedRace.availableCategories.map((category: any) => (
                       <Button
                         key={category.id}
                         variant="outline"
                         size="lg"
-                        disabled={confirmingParticipation === selectedRace.stage.id || category.isConfirmed}
+                        disabled={confirmingParticipation === selectedRace.stage.id || category.isConfirmed || !isParticipationAllowed(selectedRace.stage)}
                         onClick={() => {
                           setShowConfirmConfirmation({
                             stageId: selectedRace.stage.id,
