@@ -23,6 +23,7 @@ import {
 import { SeasonRegistrationService, type PilotDetails } from '@/lib/services/season-registration.service';
 import { formatCurrency } from '@/utils/currency';
 import { formatDateToBrazilian } from '@/utils/date';
+import { Loading } from '@/components/ui/loading';
 import { 
   genderLabels, 
   kartExperienceYearsLabels, 
@@ -130,7 +131,7 @@ export function PilotDetailsModal({ isOpen, onClose, registrationId }: PilotDeta
 
         {loading && (
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <Loading type="spinner" size="md" />
           </div>
         )}
 

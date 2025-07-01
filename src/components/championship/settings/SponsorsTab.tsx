@@ -6,6 +6,7 @@ import { ChampionshipService, Championship } from "@/lib/services/championship.s
 import { Button } from "brk-design-system";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { Loading } from '@/components/ui/loading';
 
 interface SponsorsTabProps {
   championshipId: string;
@@ -81,7 +82,7 @@ export const SponsorsTab = ({ championshipId }: SponsorsTabProps) => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="text-sm text-muted-foreground">Carregando patrocinadores e apoiadores...</div>
+        <Loading type="spinner" size="sm" message="Carregando patrocinadores e apoiadores..." />
       </div>
     );
   }

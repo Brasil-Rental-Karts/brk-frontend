@@ -3,6 +3,7 @@ import { Button } from 'brk-design-system';
 import { Input } from 'brk-design-system';
 import { Card, CardContent } from 'brk-design-system';
 import { Upload, File, X, ExternalLink, Loader2 } from 'lucide-react';
+import { Loading } from '@/components/ui/loading';
 
 interface FileUploadProps {
   value?: string;
@@ -188,7 +189,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             >
               {isUploading ? (
                 <div className="flex flex-col items-center space-y-2">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <Loading type="spinner" size="md" />
                   <p className="text-sm text-muted-foreground">Fazendo upload...</p>
                 </div>
               ) : (

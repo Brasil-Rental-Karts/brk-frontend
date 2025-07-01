@@ -35,6 +35,8 @@ import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { formatDateToBrazilian, getYearFromDate, compareDates, formatCurrency } from "@/utils/date";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { InlineLoader } from '@/components/ui/loading';
+import { Loading } from '@/components/ui/loading';
 
 interface SeasonsTabProps {
   championshipId: string;
@@ -386,8 +388,8 @@ export const SeasonsTab = ({
       <Card className="w-full">
         <div className="p-6 space-y-4">
           <div className="flex justify-between items-center">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-10 w-32" />
+            <div className="h-8 bg-muted rounded w-48 animate-pulse" />
+            <div className="h-10 bg-muted rounded w-32 animate-pulse" />
           </div>
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
@@ -465,7 +467,7 @@ export const SeasonsTab = ({
           </div>
           {loadingMore && (
             <div className="flex justify-center items-center py-4">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <InlineLoader size="sm" />
             </div>
           )}
           {!loadingMore && !hasMore && processedSeasons.length > 0 && (

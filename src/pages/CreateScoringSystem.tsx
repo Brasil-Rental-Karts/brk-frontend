@@ -3,7 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "brk-design-system";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
-import { ArrowLeft, AlertTriangle, Loader2 } from "lucide-react";
+import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { PageLoader } from "@/components/ui/loading";
 import { ScoringSystem, ScoringSystemData } from "@/lib/services/scoring-system.service";
 import { ScoringSystemService } from "@/lib/services/scoring-system.service";
 import { toast } from "sonner";
@@ -79,16 +80,7 @@ export const CreateScoringSystem = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-center py-8">
-            <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-              <div className="text-sm text-muted-foreground">Carregando sistema de pontuação...</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PageLoader message="Carregando sistema de pontuação..." />
     );
   }
 

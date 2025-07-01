@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
 import { Badge } from 'brk-design-system';
 import { Button } from 'brk-design-system';
 import { Alert, AlertDescription } from 'brk-design-system';
-import { Skeleton } from 'brk-design-system';
+import { CardSkeleton, InlineLoader } from '@/components/ui/loading';
 import { Pagination } from 'brk-design-system';
 import {
   Table,
@@ -451,7 +451,7 @@ export const Financial: React.FC = () => {
       {/* Loading indicator */}
       {loadingMore && (
         <div className="flex justify-center items-center py-4">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <InlineLoader size="sm" />
         </div>
       )}
       
@@ -576,27 +576,16 @@ export const Financial: React.FC = () => {
         />
         <div className="w-full max-w-6xl mx-auto px-6 py-6 space-y-6">
           {/* Resumo Skeleton */}
-          <div className="grid md:grid-cols-3 gap-6">
-            {[1, 2, 3].map(i => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-4 w-1/2" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-8 w-3/4" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <CardSkeleton cards={3} />
           
           {/* Lista Skeleton */}
           <Card>
             <CardHeader>
-              <Skeleton className="h-6 w-1/3" />
+              <div className="h-6 bg-muted rounded w-1/3 animate-pulse" />
             </CardHeader>
             <CardContent className="space-y-4">
               {[1, 2, 3].map(i => (
-                <Skeleton key={i} className="h-16 w-full" />
+                <div key={i} className="h-16 bg-muted rounded w-full animate-pulse" />
               ))}
             </CardContent>
           </Card>

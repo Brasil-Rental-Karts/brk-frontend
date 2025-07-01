@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { Loading } from "@/components/ui/loading";
 
 export const GoogleCallback = () => {
   const { isAuthenticated } = useAuth();
@@ -78,7 +79,7 @@ export const GoogleCallback = () => {
       <div className="bg-card p-6 rounded-lg shadow-md text-center">
         <h1 className="text-xl font-bold mb-2">Autenticando...</h1>
         <p className="mb-4">Aguarde enquanto completamos seu login com Google.</p>
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <Loading type="spinner" size="sm" />
       </div>
     </div>
   );

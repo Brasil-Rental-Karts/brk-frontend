@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { Loading } from "@/components/ui/loading";
 
 export const LoginSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -25,7 +26,7 @@ export const LoginSuccess = () => {
       <div className="bg-card p-6 rounded-lg shadow-md text-center">
         <h1 className="text-xl font-bold mb-2">Login Successful</h1>
         <p className="mb-4">Redirecting you to the appropriate page...</p>
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <Loading type="spinner" size="sm" />
       </div>
     </div>
   );

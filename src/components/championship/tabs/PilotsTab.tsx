@@ -38,6 +38,8 @@ import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { formatDateToBrazilian } from "@/utils/date";
 import PaymentInfo from "../pilots/PaymentInfo";
 import { PilotDetailsModal } from "../pilots/PilotDetailsModal";
+import { InlineLoader } from '@/components/ui/loading';
+import { Loading } from '@/components/ui/loading';
 
 interface PilotsTabProps {
   championshipId: string;
@@ -523,8 +525,8 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
       <Card className="w-full">
         <div className="p-6 space-y-4">
           <div className="flex justify-between items-center">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-10 w-32" />
+            <div className="h-8 bg-muted rounded w-48 animate-pulse" />
+            <div className="h-10 bg-muted rounded w-32 animate-pulse" />
           </div>
           <div className="space-y-3">
             {[...Array(10)].map((_, i) => (
@@ -595,7 +597,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
           </div>
           {loadingMore && (
             <div className="flex justify-center items-center py-4">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <InlineLoader size="sm" />
             </div>
           )}
           {!loadingMore && !hasMore && processedRegistrationsForDisplay.length > 0 && (

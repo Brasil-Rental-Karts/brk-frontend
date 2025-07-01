@@ -11,7 +11,7 @@ import { Button } from "brk-design-system";
 import { Input } from "brk-design-system";
 import { Label } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
-import { Loader2 } from "lucide-react";
+import { ButtonLoader } from "@/components/ui/loading";
 
 interface DeleteAccountModalProps {
   isOpen: boolean;
@@ -98,7 +98,7 @@ export const DeleteAccountModal = ({ isOpen, onClose, onConfirm }: DeleteAccount
             onClick={handleConfirm}
             disabled={!isConfirmationTextCorrect || isLoading}
           >
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isLoading && <ButtonLoader size="sm" />}
             Excluir permanentemente
           </Button>
         </DialogFooter>

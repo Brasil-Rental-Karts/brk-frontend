@@ -19,6 +19,7 @@ import { ScoringSystemService, ScoringSystem, ScoringSystemData } from "@/lib/se
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
+import { Loading } from '@/components/ui/loading';
 
 interface ScoringSystemTabProps {
   championshipId: string;
@@ -180,7 +181,7 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="text-sm text-muted-foreground">Carregando sistemas de pontuação...</div>
+        <Loading type="spinner" size="sm" message="Carregando sistemas de pontuação..." />
       </div>
     );
   }

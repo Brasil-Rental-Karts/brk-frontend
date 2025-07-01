@@ -20,6 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "brk-design-system";
+import { PageLoader } from '@/components/ui/loading';
 
 interface SeasonRegistrationFormProps {
   seasonId: string;
@@ -411,15 +412,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   };
 
   if (isLoading) {
-    return (
-      <div className="w-full max-w-4xl mx-auto px-6 py-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">Carregando dados da temporada...</div>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <PageLoader message="Carregando dados da temporada..." />;
   }
 
   if (error) {

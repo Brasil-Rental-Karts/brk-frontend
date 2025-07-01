@@ -27,6 +27,7 @@ import { SeasonService, Season } from "@/lib/services/season.service";
 import { CategoryService, Category } from "@/lib/services/category.service";
 import { StageService, Stage } from "@/lib/services/stage.service";
 import { SeasonRegistrationService } from "@/lib/services/season-registration.service";
+import { Loading } from '@/components/ui/loading';
 
 interface ClassificationTabProps {
   championshipId: string;
@@ -320,8 +321,8 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
       <Card className="w-full">
         <div className="p-6 space-y-4">
           <div className="flex justify-between items-center">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-10 w-32" />
+            <div className="h-8 bg-muted rounded w-48 animate-pulse" />
+            <div className="h-10 bg-muted rounded w-32 animate-pulse" />
           </div>
           <div className="space-y-3">
             {[...Array(10)].map((_, i) => (

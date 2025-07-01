@@ -9,10 +9,12 @@ import { Alert, AlertDescription } from 'brk-design-system';
 import { Skeleton } from 'brk-design-system';
 import { Separator } from 'brk-design-system';
 import { PageHeader } from '@/components/ui/page-header';
+import { PageLoader } from '@/components/ui/loading';
 
 import { SeasonRegistrationService, SeasonRegistration, RegistrationPaymentData } from '@/lib/services/season-registration.service';
 import { formatCurrency } from '@/utils/currency';
 import { formatDateToBrazilian } from '@/utils/date';
+import { Loading } from '@/components/ui/loading';
 
 interface PaymentDetailsData {
   registration: SeasonRegistration;
@@ -243,49 +245,7 @@ export const PaymentDetails: React.FC = () => {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <PageHeader
-          title="Carregando..."
-          actions={[
-            {
-              label: "Voltar",
-              onClick: handleBack,
-              variant: "outline"
-            }
-          ]}
-        />
-        
-        <div className="w-full max-w-6xl mx-auto px-6 py-6 space-y-6">
-          <div className="grid md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-6 w-1/2" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-20 w-full" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-6 w-1/2" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-20 w-full" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-6 w-1/2" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-20 w-full" />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    );
+    return <PageLoader message="Carregando detalhes do pagamento..." />;
   }
 
   if (error) {

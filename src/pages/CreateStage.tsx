@@ -30,6 +30,7 @@ import { Checkbox } from "brk-design-system";
 import { InputMask } from "@/components/ui/input-mask";
 import { FormScreen } from "@/components/ui/FormScreen";
 import { FormSectionConfig } from "@/components/ui/dynamic-form";
+import { Loading } from '@/components/ui/loading';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _unused = {
@@ -334,13 +335,13 @@ export const CreateStage = () => {
         <PageHeader title={isEditMode ? "Editar Etapa" : "Criar Etapa"} />
         <Card>
           <CardHeader>
-            <Skeleton className="h-6 w-1/4" />
-            <Skeleton className="h-4 w-1/2" />
+            <div className="h-6 bg-muted rounded w-1/4 animate-pulse" />
+            <div className="h-4 bg-muted rounded w-1/2 animate-pulse" />
           </CardHeader>
           <CardContent className="space-y-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
+            <div className="h-10 bg-muted rounded w-full animate-pulse" />
+            <div className="h-10 bg-muted rounded w-full animate-pulse" />
+            <div className="h-10 bg-muted rounded w-full animate-pulse" />
           </CardContent>
         </Card>
       </div>

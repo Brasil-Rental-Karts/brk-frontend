@@ -17,6 +17,7 @@ import { AlertTriangle, Mail, Plus, Trash2, Users, Calendar, Crown, Settings } f
 import { ChampionshipStaffService, StaffMember, StaffPermissions } from "@/lib/services/championship-staff.service";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Loading } from '@/components/ui/loading';
 
 interface StaffTabProps {
   championshipId: string;
@@ -189,7 +190,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="text-sm text-muted-foreground">Carregando equipe...</div>
+        <Loading type="spinner" size="sm" message="Carregando equipe..." />
       </div>
     );
   }

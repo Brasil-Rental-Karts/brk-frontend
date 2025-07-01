@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "brk-design-system";
 import { Card, CardHeader, CardContent } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { PlusCircle, MapPin, Clock, Users, MoreVertical, Calendar, Flag, Link as LinkIcon, Loader2 } from "lucide-react";
+import { PlusCircle, MapPin, Clock, Users, MoreVertical, Calendar, Flag, Link as LinkIcon } from "lucide-react";
+import { InlineLoader } from "@/components/ui/loading";
 import { EmptyState } from "brk-design-system";
 import {
   DropdownMenu,
@@ -34,7 +35,7 @@ import { StageService } from "@/lib/services/stage.service";
 import { Season as BaseSeason } from "@/lib/services/season.service";
 import { Category } from "@/lib/services/category.service";
 import { Stage } from "@/lib/types/stage";
-import { Skeleton } from "brk-design-system";
+import { TableSkeleton } from "@/components/ui/loading";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import {
   Tooltip,
@@ -422,16 +423,8 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
   if (isLoading) {
     return (
       <Card className="w-full">
-        <div className="p-6 space-y-4">
-          <div className="flex justify-between items-center">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-10 w-32" />
-          </div>
-          <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full" />
-            ))}
-          </div>
+        <div className="p-6">
+          <TableSkeleton rows={5} />
         </div>
       </Card>
     );
@@ -522,7 +515,7 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
           </div>
           {loadingMore && (
             <div className="flex justify-center items-center py-4">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <InlineLoader size="sm" />
             </div>
           )}
           {!loadingMore && !hasMore && processedStages.length > 0 && (

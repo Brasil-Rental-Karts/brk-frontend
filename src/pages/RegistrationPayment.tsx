@@ -12,6 +12,8 @@ import { PixPayment } from '@/components/payment/PixPayment';
 
 import { CreditCardPayment } from '@/components/payment/CreditCardPayment';
 import { formatCurrency } from '@/utils/currency';
+import { Loading } from '@/components/ui/loading';
+import { PageLoader } from '@/components/ui/loading';
 
 const InstallmentList: React.FC<{ payments: RegistrationPaymentData[] }> = ({ payments }) => {
   const getStatusBadge = (status: string) => {
@@ -379,32 +381,7 @@ export const RegistrationPayment: React.FC = () => {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <PageHeader
-          title="Carregando..."
-          actions={[
-            {
-              label: "Voltar",
-              onClick: handleBack,
-              variant: "outline"
-            }
-          ]}
-        />
-        
-        <div className="w-full max-w-4xl mx-auto px-6 py-6 space-y-6">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-1/3" />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-10 w-1/2" />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
+    return <PageLoader message="Carregando pagamento da inscrição..." />;
   }
 
   if (error) {

@@ -15,6 +15,7 @@ import {
   Wallet
 } from "lucide-react";
 import { Championship, ChampionshipService, AsaasStatus } from "@/lib/services/championship.service";
+import { Loading } from '@/components/ui/loading';
 
 interface AsaasAccountTabProps {
   championshipId: string;
@@ -77,8 +78,8 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
   if (loading) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-48 w-full" />
+        <div className="h-32 bg-muted rounded w-full animate-pulse" />
+        <div className="h-48 bg-muted rounded w-full animate-pulse" />
       </div>
     );
   }

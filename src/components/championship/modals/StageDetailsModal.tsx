@@ -23,6 +23,7 @@ import { Stage } from "@/lib/types/stage";
 import { StageParticipationService, StageParticipation } from "@/lib/services/stage-participation.service";
 import { CategoryService } from "@/lib/services/category.service";
 import { StageService } from "@/lib/services/stage.service";
+import { Loading } from '@/components/ui/loading';
 
 interface StageDetailsModalProps {
   stage: Stage | null;
@@ -177,7 +178,7 @@ export const StageDetailsModal = ({ stage, isOpen, onClose }: StageDetailsModalP
               <div className="space-y-4">
                 {[...Array(3)].map((_, i) => (
                   <Card key={i} className="p-4">
-                    <Skeleton className="h-6 w-32 mb-3" />
+                    <div className="h-6 bg-muted rounded w-32 mb-3 animate-pulse" />
                     <div className="space-y-2">
                       {[...Array(5)].map((_, j) => (
                         <Skeleton key={j} className="h-12 w-full" />

@@ -37,6 +37,7 @@ import { useUserStats } from "@/hooks/use-user-stats";
 import { StageParticipationService } from "@/lib/services/stage-participation.service";
 import { toast } from "sonner";
 import { differenceInHours, parseISO } from "date-fns";
+import { Loading } from '@/components/ui/loading';
 
 export const Dashboard = () => {
   const nav = useNavigation();
@@ -213,7 +214,7 @@ export const Dashboard = () => {
         </div>
         {loadingStats ? (
           <div className="flex items-center justify-center py-8">
-            <div className="text-sm text-muted-foreground">Carregando estatísticas...</div>
+            <Loading type="spinner" size="sm" message="Carregando estatísticas..." />
           </div>
         ) : statsError ? (
           <div className="py-4">
@@ -264,7 +265,7 @@ export const Dashboard = () => {
             
             {loadingChampionships ? (
               <div className="flex items-center justify-center py-8">
-                <div className="text-sm text-muted-foreground">Carregando campeonatos...</div>
+                <Loading type="spinner" size="sm" message="Carregando campeonatos..." />
               </div>
             ) : championshipsError ? (
               <div className="py-4">
@@ -368,7 +369,7 @@ export const Dashboard = () => {
           
           {loadingRegistrations ? (
             <div className="flex items-center justify-center py-8">
-              <div className="text-sm text-muted-foreground">Carregando inscrições...</div>
+              <Loading type="spinner" size="sm" message="Carregando inscrições..." />
             </div>
           ) : registrationsError ? (
             <div className="py-4">
@@ -458,7 +459,7 @@ export const Dashboard = () => {
           
           {loadingRaces ? (
             <div className="flex items-center justify-center py-8">
-              <div className="text-sm text-muted-foreground">Carregando corridas...</div>
+              <Loading type="spinner" size="sm" message="Carregando corridas..." />
             </div>
           ) : racesError ? (
             <div className="py-4">

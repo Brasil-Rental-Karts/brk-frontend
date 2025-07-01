@@ -1,6 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, Outlet } from "react-router-dom";
 import { ReactNode } from "react";
+import { Loading } from "@/components/ui/loading";
 
 interface ProtectedRouteProps {
   redirectPath?: string;
@@ -16,9 +17,11 @@ export const ProtectedRoute = ({
   // While checking authentication status, we can show a loading spinner
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
+      <Loading 
+        type="spinner" 
+        size="lg" 
+        message="Verificando autenticação..."
+      />
     );
   }
 

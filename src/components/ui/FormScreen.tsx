@@ -17,7 +17,7 @@ import {
   useFormScreen,
   UseFormScreenOptions,
 } from "@/hooks/use-form-screen";
-import { Loader2 } from "lucide-react";
+import { PageLoader, ButtonLoader } from "@/components/ui/loading";
 
 interface FormScreenProps<TData, TSubmit>
   extends UseFormScreenOptions<TData, TSubmit> {
@@ -61,12 +61,7 @@ export const FormScreen = <TData, TSubmit>({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Carregando...</p>
-        </div>
-      </div>
+      <PageLoader message="Carregando formulário..." />
     );
   }
 
@@ -85,7 +80,7 @@ export const FormScreen = <TData, TSubmit>({
           {
             label: isSaving ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <ButtonLoader size="sm" />
                 {savingLabel}
               </>
             ) : (
@@ -150,7 +145,7 @@ export const FormScreen = <TData, TSubmit>({
         >
           {isSaving ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <ButtonLoader size="sm" />
               {savingLabel}
             </>
           ) : (

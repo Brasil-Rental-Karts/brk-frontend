@@ -3,7 +3,7 @@ export { router, default, type RouteMetadata } from './router.tsx';
 
 // Components
 export { RouteErrorBoundary } from './components/RouteErrorBoundary';
-export { RouteLoader, PageSkeleton, FullPageLoader } from './components/RouteLoader';
+export { RouteLoader, FullPageLoader } from './components/RouteLoader';
 export { ProtectedRoute } from './components/ProtectedRoute';
 export { PublicRoute } from './components/PublicRoute';
 export { ScrollRestoration, useScrollRestoration } from './components/ScrollRestoration';

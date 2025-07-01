@@ -23,6 +23,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Category } from "@/lib/services/category.service";
 import { Season as BaseSeason } from "@/lib/services/season.service";
 import { Stage } from "@/lib/types/stage";
+import { Loading } from '@/components/ui/loading';
 
 // Estende a interface base da temporada para incluir as categorias
 type Season = BaseSeason & { categories?: Category[]; stages?: Stage[] };
@@ -143,9 +144,9 @@ export const Championship = () => {
     return (
       <div className="container mx-auto p-4 space-y-6">
         <div className="space-y-4">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-64 w-full" />
+          <div className="h-32 bg-muted rounded w-full animate-pulse" />
+          <div className="h-12 bg-muted rounded w-full animate-pulse" />
+          <div className="h-64 bg-muted rounded w-full animate-pulse" />
         </div>
       </div>
     );

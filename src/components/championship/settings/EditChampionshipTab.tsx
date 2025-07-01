@@ -22,6 +22,7 @@ import { ChampionshipService, Championship, ChampionshipData } from "@/lib/servi
 import { AlertTriangle } from "lucide-react";
 import { useFormScreen } from "@/hooks/use-form-screen";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Loading } from '@/components/ui/loading';
 
 interface EditChampionshipTabProps {
   championshipId: string;
@@ -490,9 +491,7 @@ export const EditChampionshipTab = ({ championshipId }: EditChampionshipTabProps
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="text-sm text-muted-foreground">
-          Carregando dados do campeonato...
-        </div>
+        <Loading type="spinner" size="sm" message="Carregando dados do campeonato..." />
       </div>
     );
   }
