@@ -29,6 +29,7 @@ const Championship = lazy(() => import('@/pages/Championship').then(module => ({
 const EditProfile = lazy(() => import('@/pages/EditProfile'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const Financial = lazy(() => import('@/pages/Financial').then(module => ({ default: module.Financial })));
+const Admin = lazy(() => import('@/pages/Admin').then(module => ({ default: module.Admin })));
 const GoogleCallback = lazy(() => import('@/pages/GoogleCallback'));
 const LoginSuccess = lazy(() => import('@/pages/LoginSuccess'));
 const ConfirmEmailInfo = lazy(() => import('@/pages/ConfirmEmailInfo').then(module => ({ default: module.ConfirmEmailInfo })));
@@ -406,6 +407,18 @@ export const router = createBrowserRouter([
             <MainLayout>
               <LazyWrapper>
                 <CreateChampionship />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "admin",
+        element: (
+          <ProtectedRoute requiredRoles={['Administrator']}>
+            <MainLayout>
+              <LazyWrapper>
+                <Admin />
               </LazyWrapper>
             </MainLayout>
           </ProtectedRoute>

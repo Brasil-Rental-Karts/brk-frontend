@@ -1,6 +1,6 @@
 import { Link, Outlet } from "react-router-dom";
 import { Avatar, AvatarFallback } from "brk-design-system";
-import { ChevronDown, Menu } from "lucide-react";
+import { ChevronDown, Menu, Shield } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -125,6 +125,17 @@ export const MainFullWidthLayout = ({ children }: MainFullWidthLayoutProps = {})
                 <DropdownMenuItem asChild>
                   <Link to="/profile/edit">Perfil</Link>
                 </DropdownMenuItem>
+                {user?.role === 'Administrator' && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin" className="flex items-center gap-2">
+                        <Shield className="h-4 w-4" />
+                        Painel de Administração
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={async () => { 
                   localStorage.setItem('isLogoutAction', 'true');
@@ -209,6 +220,19 @@ export const MainFullWidthLayout = ({ children }: MainFullWidthLayoutProps = {})
                     >
                       Perfil
                     </Link>
+                    {user?.role === 'Administrator' && (
+                      <>
+                        <div className="h-px bg-border my-2" />
+                        <Link
+                          to="/admin"
+                          className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors flex items-center gap-2"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <Shield className="h-4 w-4" />
+                          Painel de Administração
+                        </Link>
+                      </>
+                    )}
                     <div className="h-px bg-border my-2" />
                     <button
                       className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors text-destructive text-left"
