@@ -18,8 +18,6 @@ interface SpinnerLoadingProps extends BaseLoadingProps {
   variant?: 'default' | 'primary' | 'secondary';
 }
 
-
-
 interface FullPageLoadingProps extends BaseLoadingProps {
   type: 'full-page';
   message?: string;
@@ -46,6 +44,20 @@ const variantConfig = {
   secondary: 'text-muted-foreground'
 };
 
+// Mensagens padrão para diferentes contextos
+const defaultMessages = {
+  page: 'Carregando página...',
+  data: 'Carregando dados...',
+  form: 'Processando formulário...',
+  save: 'Salvando...',
+  delete: 'Excluindo...',
+  upload: 'Enviando arquivo...',
+  download: 'Baixando arquivo...',
+  search: 'Buscando...',
+  filter: 'Filtrando resultados...',
+  general: 'Carregando...'
+};
+
 // Componente principal de Loading
 export const Loading = (props: LoadingProps) => {
   const { type, size = 'md', className } = props;
@@ -56,14 +68,14 @@ export const Loading = (props: LoadingProps) => {
     case 'full-page':
       return <FullPageLoading {...(props as FullPageLoadingProps)} />;
     default:
-      return <SpinnerLoading type="spinner" size={size} className={className} />;
+      return <SpinnerLoading type="spinner" size={size} className={className} message={defaultMessages.general} />;
   }
 };
 
 // Componente Spinner
 const SpinnerLoading = ({ 
   size = 'md', 
-  message, 
+  message = defaultMessages.general, 
   variant = 'primary',
   className 
 }: SpinnerLoadingProps) => {
@@ -81,7 +93,7 @@ const SpinnerLoading = ({
         variantConfig[variant]
       )} />
       {message && (
-        <p className="mt-4 text-sm text-muted-foreground animate-pulse">
+        <p className="mt-4 text-sm text-muted-foreground animate-pulse text-center max-w-xs">
           {message}
         </p>
       )}
@@ -89,12 +101,10 @@ const SpinnerLoading = ({
   );
 };
 
-
-
 // Componente Full Page
 const FullPageLoading = ({ 
   size = 'lg', 
-  message, 
+  message = defaultMessages.page, 
   className 
 }: FullPageLoadingProps) => {
   const config = sizeConfig[size];
@@ -116,7 +126,9 @@ const FullPageLoading = ({
           )} />
         </div>
         {message && (
-          <p className="text-sm text-muted-foreground">{message}</p>
+          <p className="text-sm text-muted-foreground text-center max-w-xs animate-pulse">
+            {message}
+          </p>
         )}
       </div>
     </div>
@@ -124,8 +136,36 @@ const FullPageLoading = ({
 };
 
 // Componentes específicos para casos de uso comuns
-export const PageLoader = ({ message }: { message?: string }) => (
+export const PageLoader = ({ message = defaultMessages.page }: { message?: string }) => (
   <Loading type="spinner" size="lg" message={message} />
+);
+
+export const DataLoader = ({ message = defaultMessages.data }: { message?: string }) => (
+  <Loading type="spinner" size="lg" message={message} />
+);
+
+export const FormLoader = ({ message = defaultMessages.form }: { message?: string }) => (
+  <Loading type="spinner" size="md" message={message} />
+);
+
+export const SaveLoader = ({ message = defaultMessages.save }: { message?: string }) => (
+  <Loading type="spinner" size="md" message={message} />
+);
+
+export const DeleteLoader = ({ message = defaultMessages.delete }: { message?: string }) => (
+  <Loading type="spinner" size="md" message={message} />
+);
+
+export const UploadLoader = ({ message = defaultMessages.upload }: { message?: string }) => (
+  <Loading type="spinner" size="md" message={message} />
+);
+
+export const SearchLoader = ({ message = defaultMessages.search }: { message?: string }) => (
+  <Loading type="spinner" size="sm" message={message} />
+);
+
+export const FilterLoader = ({ message = defaultMessages.filter }: { message?: string }) => (
+  <Loading type="spinner" size="sm" message={message} />
 );
 
 export const ButtonLoader = ({ size = 'sm' }: { size?: LoadingSize }) => (
@@ -135,9 +175,12 @@ export const ButtonLoader = ({ size = 'sm' }: { size?: LoadingSize }) => (
   )} />
 );
 
-export const InlineLoader = ({ size = 'sm' }: { size?: LoadingSize }) => (
-  <Loading type="spinner" size={size} />
+export const InlineLoader = ({ size = 'sm', message = defaultMessages.general }: { size?: LoadingSize; message?: string }) => (
+  <Loading type="spinner" size={size} message={message} />
 );
+
+// Exportar mensagens padrão para uso customizado
+export { defaultMessages };
 
 
 
