@@ -9,16 +9,18 @@ import {
 import { Settings, CreditCard, Trophy, ChevronDown, Award, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Championship } from "@/lib/services/championship.service";
+import { UserPermissions } from "@/hooks/use-staff-permissions";
 
 interface ChampionshipHeaderProps {
   championship: Championship;
+  permissions?: UserPermissions;
 }
 
 /**
  * Header da página do campeonato
  * Exibe avatar, nome, link para página pública e botão de configurações com dropdown
  */
-export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) => {
+export const ChampionshipHeader = ({ championship, permissions }: ChampionshipHeaderProps) => {
   const navigate = useNavigate();
 
   const handleViewPublicPage = () => {
@@ -87,48 +89,60 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem 
-                  onClick={() => handleConfigurationOption('edit-data')}
-                  className="flex items-center gap-2"
-                >
-                  <Settings className="h-4 w-4" />
-                  Editar Dados
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => handleConfigurationOption('sponsors')}
-                  className="flex items-center gap-2"
-                >
-                  <Award className="h-4 w-4" />
-                  Patrocinadores
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => handleConfigurationOption('staff')}
-                  className="flex items-center gap-2"
-                >
-                  <Users className="h-4 w-4" />
-                  Equipe
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => handleConfigurationOption('grid-types')}
-                  className="flex items-center gap-2"
-                >
-                  <Settings className="h-4 w-4" />
-                  Tipos de Grid
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => handleConfigurationOption('scoring-systems')}
-                  className="flex items-center gap-2"
-                >
-                  <Trophy className="h-4 w-4" />
-                  Sistema de Pontuação
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => handleConfigurationOption('asaas-account')}
-                  className="flex items-center gap-2"
-                >
-                  <CreditCard className="h-4 w-4" />
-                  Conta Asaas
-                </DropdownMenuItem>
+                {permissions?.editChampionship && (
+                  <DropdownMenuItem 
+                    onClick={() => handleConfigurationOption('edit-data')}
+                    className="flex items-center gap-2"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Editar Dados
+                  </DropdownMenuItem>
+                )}
+                {permissions?.sponsors && (
+                  <DropdownMenuItem 
+                    onClick={() => handleConfigurationOption('sponsors')}
+                    className="flex items-center gap-2"
+                  >
+                    <Award className="h-4 w-4" />
+                    Patrocinadores
+                  </DropdownMenuItem>
+                )}
+                {permissions?.staff && (
+                  <DropdownMenuItem 
+                    onClick={() => handleConfigurationOption('staff')}
+                    className="flex items-center gap-2"
+                  >
+                    <Users className="h-4 w-4" />
+                    Equipe
+                  </DropdownMenuItem>
+                )}
+                {permissions?.gridTypes && (
+                  <DropdownMenuItem 
+                    onClick={() => handleConfigurationOption('grid-types')}
+                    className="flex items-center gap-2"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Tipos de Grid
+                  </DropdownMenuItem>
+                )}
+                {permissions?.scoringSystems && (
+                  <DropdownMenuItem 
+                    onClick={() => handleConfigurationOption('scoring-systems')}
+                    className="flex items-center gap-2"
+                  >
+                    <Trophy className="h-4 w-4" />
+                    Sistema de Pontuação
+                  </DropdownMenuItem>
+                )}
+                {permissions?.asaasAccount && (
+                  <DropdownMenuItem 
+                    onClick={() => handleConfigurationOption('asaas-account')}
+                    className="flex items-center gap-2"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Conta Asaas
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -177,48 +191,60 @@ export const ChampionshipHeader = ({ championship }: ChampionshipHeaderProps) =>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem 
-                  onClick={() => handleConfigurationOption('edit-data')}
-                  className="flex items-center gap-2"
-                >
-                  <Settings className="h-4 w-4" />
-                  Editar Dados
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => handleConfigurationOption('sponsors')}
-                  className="flex items-center gap-2"
-                >
-                  <Award className="h-4 w-4" />
-                  Patrocinadores
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => handleConfigurationOption('staff')}
-                  className="flex items-center gap-2"
-                >
-                  <Users className="h-4 w-4" />
-                  Equipe
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => handleConfigurationOption('grid-types')}
-                  className="flex items-center gap-2"
-                >
-                  <Settings className="h-4 w-4" />
-                  Tipos de Grid
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => handleConfigurationOption('scoring-systems')}
-                  className="flex items-center gap-2"
-                >
-                  <Trophy className="h-4 w-4" />
-                  Sistema de Pontuação
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => handleConfigurationOption('asaas-account')}
-                  className="flex items-center gap-2"
-                >
-                  <CreditCard className="h-4 w-4" />
-                  Conta Asaas
-                </DropdownMenuItem>
+                {permissions?.editChampionship && (
+                  <DropdownMenuItem 
+                    onClick={() => handleConfigurationOption('edit-data')}
+                    className="flex items-center gap-2"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Editar Dados
+                  </DropdownMenuItem>
+                )}
+                {permissions?.sponsors && (
+                  <DropdownMenuItem 
+                    onClick={() => handleConfigurationOption('sponsors')}
+                    className="flex items-center gap-2"
+                  >
+                    <Award className="h-4 w-4" />
+                    Patrocinadores
+                  </DropdownMenuItem>
+                )}
+                {permissions?.staff && (
+                  <DropdownMenuItem 
+                    onClick={() => handleConfigurationOption('staff')}
+                    className="flex items-center gap-2"
+                  >
+                    <Users className="h-4 w-4" />
+                    Equipe
+                  </DropdownMenuItem>
+                )}
+                {permissions?.gridTypes && (
+                  <DropdownMenuItem 
+                    onClick={() => handleConfigurationOption('grid-types')}
+                    className="flex items-center gap-2"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Tipos de Grid
+                  </DropdownMenuItem>
+                )}
+                {permissions?.scoringSystems && (
+                  <DropdownMenuItem 
+                    onClick={() => handleConfigurationOption('scoring-systems')}
+                    className="flex items-center gap-2"
+                  >
+                    <Trophy className="h-4 w-4" />
+                    Sistema de Pontuação
+                  </DropdownMenuItem>
+                )}
+                {permissions?.asaasAccount && (
+                  <DropdownMenuItem 
+                    onClick={() => handleConfigurationOption('asaas-account')}
+                    className="flex items-center gap-2"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Conta Asaas
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

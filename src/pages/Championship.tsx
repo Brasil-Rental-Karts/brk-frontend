@@ -15,6 +15,7 @@ import { EditChampionshipTab } from "@/components/championship/settings/EditCham
 import { SponsorsTab } from "@/components/championship/settings/SponsorsTab";
 import { StaffTab } from "@/components/championship/settings/StaffTab";
 import { useChampionship } from "@/hooks/use-championship";
+import { useStaffPermissions } from "@/hooks/use-staff-permissions";
 import { Skeleton } from "brk-design-system";
 import { Alert, AlertDescription } from "brk-design-system";
 import { AlertTriangle } from "lucide-react";
@@ -70,9 +71,11 @@ export const Championship = () => {
     refresh
   } = useChampionship(id);
 
+  const { permissions, loading: permissionsLoading } = useStaffPermissions(id || '');
+
   // Ler o parâmetro tab da URL ao montar o componente
   useEffect(() => {
-    if (!championship || !championship.seasons) return;
+    if (!championship || !championship.seasons || !permissions) return;
 
     const tabFromUrl = searchParams.get("tab");
     const hasSeasons = championship.seasons.length > 0;
@@ -82,11 +85,34 @@ export const Championship = () => {
     const disabledTabsWithoutSeasons = ['categorias', 'etapas', 'pilotos', 'regulamento'];
     const disabledTabsWithoutCategories = ['etapas', 'pilotos'];
 
+    // Mapeamento de tabs para permissões
+    const tabPermissions: { [key: string]: keyof typeof permissions } = {
+      'temporadas': 'seasons',
+      'categorias': 'categories',
+      'etapas': 'stages',
+      'pilotos': 'pilots',
+      'regulamento': 'regulations',
+      'config-edit': 'editChampionship',
+      'config-grid': 'gridTypes',
+      'config-scoring': 'scoringSystems',
+      'config-sponsors': 'sponsors',
+      'config-staff': 'staff',
+      'config-asaas': 'asaasAccount'
+    };
+
     if (tabFromUrl) {
       const mappedTab = tabMapping[tabFromUrl.toLowerCase()];
       
       if (mappedTab) {
         let shouldRedirect = false;
+        
+        // Verificar se o usuário tem permissão para a aba
+        const requiredPermission = tabPermissions[mappedTab];
+        if (requiredPermission && !permissions[requiredPermission]) {
+          shouldRedirect = true;
+        }
+        
+        // Verificar se há dados necessários
         if (!hasSeasons && disabledTabsWithoutSeasons.includes(mappedTab)) {
           shouldRedirect = true;
         } else if (!hasCategories && disabledTabsWithoutCategories.includes(mappedTab)) {
@@ -94,19 +120,26 @@ export const Championship = () => {
         }
 
         if (shouldRedirect) {
-          if (activeTab !== 'temporadas') {
-            setActiveTab('temporadas');
-            setSearchParams({ tab: 'temporadas' });
+          // Redirecionar para a primeira aba disponível
+          const availableTabs = Object.entries(tabPermissions)
+            .filter(([tab, permission]) => permissions[permission])
+            .map(([tab]) => tab);
+
+          const firstAvailableTab = availableTabs[0] || 'temporadas';
+          
+          if (activeTab !== firstAvailableTab) {
+            setActiveTab(firstAvailableTab);
+            setSearchParams({ tab: firstAvailableTab });
           }
         } else if (activeTab !== mappedTab) {
           setActiveTab(mappedTab);
         }
       }
     }
-  }, [searchParams, championship, activeTab, setSearchParams]);
+  }, [searchParams, championship, activeTab, setSearchParams, permissions]);
   
   // Loading state
-  if (loading) {
+  if (loading || permissionsLoading) {
     return (
       <div className="container mx-auto p-4 space-y-6">
         <div className="space-y-4">
@@ -145,7 +178,7 @@ export const Championship = () => {
     <div className="min-h-screen bg-background">
       {/* Header do campeonato - colado com as tabs */}
       <div className="-mx-6 -mt-8">
-        <ChampionshipHeader championship={championship} />
+        <ChampionshipHeader championship={championship} permissions={permissions || undefined} />
       </div>
 
       {/* Sistema de tabs unificado - colado com o header */}
@@ -159,139 +192,156 @@ export const Championship = () => {
             className={`container px-4 sm:px-10 ${isMobile ? 'overflow-x-auto whitespace-nowrap scrollbar-hide' : ''}`}
           >
             <TabsList className="bg-transparent border-0 h-auto p-0 space-x-0">
-              <TabsTrigger 
-                value="temporadas" 
-                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-              >
-                Temporadas
-              </TabsTrigger>
-              <TabsTrigger 
-                value="categorias" 
-                disabled={!hasSeasons}
-                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-              >
-                Categorias
-              </TabsTrigger>
-              <TabsTrigger 
-                value="etapas" 
-                disabled={!hasCategories}
-                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-              >
-                Etapas
-              </TabsTrigger>
-              <TabsTrigger 
-                value="pilotos" 
-                disabled={!hasCategories}
-                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-              >
-                Pilotos
-              </TabsTrigger>
-              <TabsTrigger 
-                value="regulamento" 
-                disabled={!hasSeasons}
-                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-              >
-                Regulamento
-              </TabsTrigger>
+              {permissions?.seasons && (
+                <TabsTrigger 
+                  value="temporadas" 
+                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+                >
+                  Temporadas
+                </TabsTrigger>
+              )}
+              {permissions?.categories && (
+                <TabsTrigger 
+                  value="categorias" 
+                  disabled={!hasSeasons}
+                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+                >
+                  Categorias
+                </TabsTrigger>
+              )}
+              {permissions?.stages && (
+                <TabsTrigger 
+                  value="etapas" 
+                  disabled={!hasCategories}
+                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+                >
+                  Etapas
+                </TabsTrigger>
+              )}
+              {permissions?.pilots && (
+                <TabsTrigger 
+                  value="pilotos" 
+                  disabled={!hasCategories}
+                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+                >
+                  Pilotos
+                </TabsTrigger>
+              )}
+              {permissions?.regulations && (
+                <TabsTrigger 
+                  value="regulamento" 
+                  disabled={!hasSeasons}
+                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+                >
+                  Regulamento
+                </TabsTrigger>
+              )}
             </TabsList>
           </div>
         </div>
 
         {/* Conteúdo das tabs com espaçamento fixo */}
         <div className="px-4 pt-6">
-          <TabsContent value="temporadas" className="mt-0 ring-0 focus-visible:outline-none">
-            <SeasonsTab 
-              championshipId={id} 
-              seasons={championship.seasons || []}
-              isLoading={loading}
-              error={error}
-              onRefresh={refresh}
-            />
-          </TabsContent>
-
-          {hasSeasons ? (
-            <>
-              <TabsContent value="categorias" className="mt-0 ring-0 focus-visible:outline-none">
-                <CategoriesTab 
-                  championshipId={id}
-                  seasons={championship.seasons || []}
-                  isLoading={loading}
-                  error={error}
-                  onRefresh={refresh}
-                />
-              </TabsContent>
-    
-              {hasCategories ? (
-                <>
-                  <TabsContent value="etapas" className="mt-0 ring-0 focus-visible:outline-none">
-                    <StagesTab 
-                      championshipId={id}
-                      seasons={championship.seasons || []}
-                      isLoading={loading}
-                      error={error}
-                      onRefresh={refresh}
-                    />
-                  </TabsContent>
-        
-                  <TabsContent value="pilotos" className="mt-0 ring-0 focus-visible:outline-none">
-                    <PilotsTab championshipId={id} />
-                  </TabsContent>
-                </>
-              ) : (
-                !['temporadas', 'categorias', 'regulamento', 'config-edit', 'config-grid', 'config-scoring', 'config-sponsors', 'config-staff', 'config-asaas'].includes(activeTab) && (
-                  <Alert>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      Este campeonato ainda não possui categorias. Crie uma categoria para habilitar as outras abas.
-                    </AlertDescription>
-                  </Alert>
-                )
-              )}
-
-              <TabsContent value="regulamento" className="mt-0 ring-0 focus-visible:outline-none">
-                <RegulationTab 
-                  championshipId={id}
-                  seasons={championship.seasons || []}
-                  isLoading={loading}
-                  error={error}
-                  onRefresh={refresh}
-                />
-              </TabsContent>
-            </>
-          ) : (
-            !['temporadas', 'config-edit', 'config-grid', 'config-scoring', 'config-sponsors', 'config-staff', 'config-asaas'].includes(activeTab) && (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  Este campeonato ainda não possui temporadas. Crie uma temporada para habilitar as outras abas.
-                </AlertDescription>
-              </Alert>
-            )
+          {permissions?.seasons && (
+            <TabsContent value="temporadas" className="mt-0 ring-0 focus-visible:outline-none">
+              <SeasonsTab 
+                championshipId={id} 
+                seasons={championship.seasons || []}
+                isLoading={loading}
+                error={error}
+                onRefresh={refresh}
+              />
+            </TabsContent>
           )}
 
-          <TabsContent value="config-edit" className="mt-0 ring-0 focus-visible:outline-none">
-            <EditChampionshipTab championshipId={id} />
-          </TabsContent>
+          {permissions?.categories && hasSeasons && (
+            <TabsContent value="categorias" className="mt-0 ring-0 focus-visible:outline-none">
+              <CategoriesTab 
+                championshipId={id}
+                seasons={championship.seasons || []}
+                isLoading={loading}
+                error={error}
+                onRefresh={refresh}
+              />
+            </TabsContent>
+          )}
+    
+          {permissions?.stages && hasCategories && (
+            <TabsContent value="etapas" className="mt-0 ring-0 focus-visible:outline-none">
+              <StagesTab 
+                championshipId={id}
+                seasons={championship.seasons || []}
+                isLoading={loading}
+                error={error}
+                onRefresh={refresh}
+              />
+            </TabsContent>
+          )}
+        
+          {permissions?.pilots && hasCategories && (
+            <TabsContent value="pilotos" className="mt-0 ring-0 focus-visible:outline-none">
+              <PilotsTab championshipId={id} />
+            </TabsContent>
+          )}
 
-          <TabsContent value="config-grid" className="mt-0 ring-0 focus-visible:outline-none">
-            <GridTypesTab championshipId={id} />
-          </TabsContent>
+          {permissions?.regulations && hasSeasons && (
+            <TabsContent value="regulamento" className="mt-0 ring-0 focus-visible:outline-none">
+              <RegulationTab 
+                championshipId={id}
+                seasons={championship.seasons || []}
+                isLoading={loading}
+                error={error}
+                onRefresh={refresh}
+              />
+            </TabsContent>
+          )}
 
-          <TabsContent value="config-scoring" className="mt-0 ring-0 focus-visible:outline-none">
-            <ScoringSystemTab championshipId={id} />
-          </TabsContent>
+          {permissions?.editChampionship && (
+            <TabsContent value="config-edit" className="mt-0 ring-0 focus-visible:outline-none">
+              <EditChampionshipTab championshipId={id} />
+            </TabsContent>
+          )}
 
-          <TabsContent value="config-sponsors" className="mt-0 ring-0 focus-visible:outline-none">
-            <SponsorsTab championshipId={id} />
-          </TabsContent>
+          {permissions?.gridTypes && (
+            <TabsContent value="config-grid" className="mt-0 ring-0 focus-visible:outline-none">
+              <GridTypesTab championshipId={id} />
+            </TabsContent>
+          )}
 
-          <TabsContent value="config-staff" className="mt-0 ring-0 focus-visible:outline-none">
-            <StaffTab championshipId={id} />
-          </TabsContent>
+          {permissions?.scoringSystems && (
+            <TabsContent value="config-scoring" className="mt-0 ring-0 focus-visible:outline-none">
+              <ScoringSystemTab championshipId={id} />
+            </TabsContent>
+          )}
 
-          <TabsContent value="config-asaas" className="mt-0 ring-0 focus-visible:outline-none">
-            <AsaasAccountTab championshipId={id} />
-          </TabsContent>
+          {permissions?.sponsors && (
+            <TabsContent value="config-sponsors" className="mt-0 ring-0 focus-visible:outline-none">
+              <SponsorsTab championshipId={id} />
+            </TabsContent>
+          )}
+
+          {permissions?.staff && (
+            <TabsContent value="config-staff" className="mt-0 ring-0 focus-visible:outline-none">
+              <StaffTab championshipId={id} />
+            </TabsContent>
+          )}
+
+          {permissions?.asaasAccount && (
+            <TabsContent value="config-asaas" className="mt-0 ring-0 focus-visible:outline-none">
+              <AsaasAccountTab championshipId={id} />
+            </TabsContent>
+          )}
+
+          {/* Mensagem quando usuário não tem acesso a nenhuma aba */}
+          {permissions && Object.values(permissions).every(p => !p) && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Você não tem permissão para acessar nenhuma funcionalidade deste campeonato. 
+                Entre em contato com o administrador para solicitar acesso.
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
       </Tabs>
     </div>

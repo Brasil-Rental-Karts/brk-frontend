@@ -1,6 +1,20 @@
 import api from '../axios';
 import { AxiosError } from 'axios';
 
+export interface StaffPermissions {
+  seasons?: boolean;
+  categories?: boolean;
+  stages?: boolean;
+  pilots?: boolean;
+  regulations?: boolean;
+  editChampionship?: boolean;
+  gridTypes?: boolean;
+  scoringSystems?: boolean;
+  sponsors?: boolean;
+  staff?: boolean;
+  asaasAccount?: boolean;
+}
+
 export interface StaffMember {
   id: string;
   user: {
@@ -16,10 +30,16 @@ export interface StaffMember {
     email: string;
   };
   isOwner?: boolean;
+  permissions?: StaffPermissions;
 }
 
 export interface AddStaffMemberRequest {
   email: string;
+  permissions?: StaffPermissions;
+}
+
+export interface UpdateStaffMemberRequest {
+  permissions: StaffPermissions;
 }
 
 export interface StaffMemberResponse {
@@ -80,6 +100,29 @@ export class ChampionshipStaffService {
       throw new Error(
         error.response?.data?.message || 
         'Erro ao remover membro da equipe. Tente novamente.'
+      );
+    }
+  }
+
+  /**
+   * Atualizar permissões de um membro do staff
+   */
+  static async updateStaffMemberPermissions(
+    championshipId: string, 
+    staffMemberId: string, 
+    request: UpdateStaffMemberRequest
+  ): Promise<StaffMember> {
+    try {
+      const response = await api.put<StaffMemberResponse>(
+        `${ChampionshipStaffService.BASE_URL}/${championshipId}/staff/${staffMemberId}/permissions`, 
+        request
+      );
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Error updating staff member permissions:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao atualizar permissões do membro. Tente novamente.'
       );
     }
   }
