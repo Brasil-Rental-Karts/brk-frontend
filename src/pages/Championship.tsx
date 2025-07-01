@@ -24,6 +24,7 @@ import { Category } from "@/lib/services/category.service";
 import { Season as BaseSeason } from "@/lib/services/season.service";
 import { Stage } from "@/lib/types/stage";
 import { Loading } from '@/components/ui/loading';
+import { RaceDayTab } from "@/components/championship/tabs/RaceDayTab";
 
 // Estende a interface base da temporada para incluir as categorias
 type Season = BaseSeason & { categories?: Category[]; stages?: Stage[] };
@@ -306,14 +307,7 @@ export const Championship = () => {
 
           {permissions?.raceDay && hasSeasons && (
             <TabsContent value="race-day" className="mt-0 ring-0 focus-visible:outline-none">
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold">Race Day</h2>
-                  <p className="text-muted-foreground">
-                    Funcionalidades do dia da corrida em desenvolvimento...
-                  </p>
-                </div>
-              </div>
+              <RaceDayTab seasons={championship.seasons || []} />
             </TabsContent>
           )}
 
