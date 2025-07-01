@@ -23,7 +23,6 @@ interface SpinnerLoadingProps extends BaseLoadingProps {
 interface FullPageLoadingProps extends BaseLoadingProps {
   type: 'full-page';
   message?: string;
-  showBrand?: boolean;
 }
 
 // Union type para todas as props
@@ -96,7 +95,6 @@ const SpinnerLoading = ({
 const FullPageLoading = ({ 
   size = 'lg', 
   message, 
-  showBrand = true,
   className 
 }: FullPageLoadingProps) => {
   const config = sizeConfig[size];
@@ -117,15 +115,7 @@ const FullPageLoading = ({
             config.spinner
           )} />
         </div>
-        {showBrand && (
-          <div className="text-center">
-            <h3 className="text-lg font-semibold text-foreground">BRK</h3>
-            {message && (
-              <p className="text-sm text-muted-foreground mt-1">{message}</p>
-            )}
-          </div>
-        )}
-        {!showBrand && message && (
+        {message && (
           <p className="text-sm text-muted-foreground">{message}</p>
         )}
       </div>

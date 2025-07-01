@@ -26,12 +26,11 @@ export const RouteLoader = ({
 
 
 
-// Full page loader with branding
+// Full page loader
 export const FullPageLoader = ({ message }: { message?: string }) => (
   <Loading 
     type="full-page" 
     size="lg" 
     message={message}
-    showBrand={true}
   />
 ); 
