@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet, Link } from 'react-router-dom';
 import { RouteErrorBoundary } from './components/RouteErrorBoundary';
 import { RouteLoader } from './components/RouteLoader';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -485,12 +485,20 @@ export const router = createBrowserRouter([
           <div className="flex flex-col items-center justify-center min-h-screen">
             <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">404</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-2">Página não encontrada</p>
-            <button
-              onClick={() => window.history.back()}
-              className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-            >
-              Voltar
-            </button>
+            <div className="flex gap-4 mt-4">
+              <Link
+                to="/dashboard"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+              >
+                Página Inicial
+              </Link>
+              <button
+                onClick={() => window.history.back()}
+                className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90"
+              >
+                Voltar
+              </button>
+            </div>
           </div>
         ),
       },
