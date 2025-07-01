@@ -207,11 +207,11 @@ export const PaymentDetails: React.FC = () => {
   const getPaymentMethodLabel = (billingType: string, paymentStatus?: string) => {
     // Para inscrições administrativas, mostrar texto amigável baseado no status
     if (paymentStatus === 'exempt') {
-      return 'Inscrição Administrativa - Isento';
+      return 'Isento';
     }
     
     if (paymentStatus === 'direct_payment') {
-      return 'Inscrição Administrativa - Pagamento Direto';
+      return 'Pagamento Direto';
     }
 
     switch (billingType) {
@@ -222,9 +222,9 @@ export const PaymentDetails: React.FC = () => {
       case 'BOLETO':
         return 'Boleto';
       case 'ADMIN_EXEMPT':
-        return 'Inscrição Administrativa - Isento';
+        return 'Isento';
       case 'ADMIN_DIRECT':
-        return 'Inscrição Administrativa - Pagamento Direto';
+        return 'Pagamento Direto';
       default:
         return billingType;
     }

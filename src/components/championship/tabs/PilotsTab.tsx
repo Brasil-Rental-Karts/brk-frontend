@@ -151,8 +151,8 @@ const PilotCard = ({ registration, onAction, getStatusBadge }: {
             <div className="flex flex-col">
               <span className="text-muted-foreground">Método de Pagamento</span>
               <span className="font-medium">
-                {registration.paymentStatus === 'exempt' ? 'Inscrição Administrativa - Isento' :
-                 registration.paymentStatus === 'direct_payment' ? 'Inscrição Administrativa - Pagamento Direto' :
+                {registration.paymentStatus === 'exempt' ? 'Isento' :
+                 registration.paymentStatus === 'direct_payment' ? 'Pagamento Direto' :
                  registration.paymentMethod === 'pix' ? 'PIX' : 
                  registration.paymentMethod === 'cartao_credito' ? 'Cartão de Crédito' : 
                  registration.paymentMethod}
@@ -691,8 +691,8 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                           {registration.paymentMethod && (
                             <div className="text-xs text-muted-foreground">
                               <span className="font-medium">Método:</span> {
-                                registration.paymentStatus === 'exempt' ? 'Inscrição Administrativa - Isento' :
-                                registration.paymentStatus === 'direct_payment' ? 'Inscrição Administrativa - Pagamento Direto' :
+                                registration.paymentStatus === 'exempt' ? 'Isento' :
+                                registration.paymentStatus === 'direct_payment' ? 'Pagamento Direto' :
                                 registration.paymentMethod === 'pix' ? 'PIX' : 
                                 registration.paymentMethod === 'cartao_credito' ? 'Cartão de Crédito' : 
                                 registration.paymentMethod

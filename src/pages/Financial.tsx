@@ -325,11 +325,11 @@ export const Financial: React.FC = () => {
   const getPaymentMethodLabel = (method: string, paymentStatus?: string) => {
     // Para inscrições administrativas, mostrar texto amigável
     if (paymentStatus === 'exempt') {
-      return 'Inscrição Administrativa - Isento';
+      return 'Isento';
     }
     
     if (paymentStatus === 'direct_payment') {
-      return 'Inscrição Administrativa - Pagamento Direto';
+      return 'Pagamento Direto';
     }
 
     switch (method) {
