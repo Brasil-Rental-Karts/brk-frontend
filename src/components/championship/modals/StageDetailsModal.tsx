@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "brk-design-system";
 import { Card } from "brk-design-system";
-import { Skeleton } from "brk-design-system";
+
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { 
   Calendar, 
@@ -176,16 +176,7 @@ export const StageDetailsModal = ({ stage, isOpen, onClose }: StageDetailsModalP
 
             {loading ? (
               <div className="space-y-4">
-                {[...Array(3)].map((_, i) => (
-                  <Card key={i} className="p-4">
-                    <div className="h-6 bg-muted rounded w-32 mb-3 animate-pulse" />
-                    <div className="space-y-2">
-                      {[...Array(5)].map((_, j) => (
-                        <Skeleton key={j} className="h-12 w-full" />
-                      ))}
-                    </div>
-                  </Card>
-                ))}
+                <Loading type="spinner" size="md" />
               </div>
             ) : error ? (
               <Alert variant="destructive">

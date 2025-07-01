@@ -35,7 +35,6 @@ import { StageService } from "@/lib/services/stage.service";
 import { Season as BaseSeason } from "@/lib/services/season.service";
 import { Category } from "@/lib/services/category.service";
 import { Stage } from "@/lib/types/stage";
-import { TableSkeleton } from "@/components/ui/loading";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import {
   Tooltip,
@@ -424,7 +423,7 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
     return (
       <Card className="w-full">
         <div className="p-6">
-          <TableSkeleton rows={5} />
+          <InlineLoader size="lg" />
         </div>
       </Card>
     );

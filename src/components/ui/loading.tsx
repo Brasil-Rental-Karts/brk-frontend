@@ -139,33 +139,6 @@ export const InlineLoader = ({ size = 'sm' }: { size?: LoadingSize }) => (
   <Loading type="spinner" size={size} />
 );
 
-export const TableSkeleton = ({ rows = 5 }: { rows?: number }) => (
-  <div className="animate-pulse space-y-4">
-    {/* Header */}
-    <div className="flex justify-between items-center">
-      <div className="h-8 bg-muted rounded w-48" />
-      <div className="h-10 bg-muted rounded w-32" />
-    </div>
-    
-    {/* Rows */}
-    {Array.from({ length: rows }).map((_, i) => (
-      <div key={i} className="h-16 bg-muted rounded w-full" />
-    ))}
-  </div>
-);
 
-export const CardSkeleton = ({ cards = 3 }: { cards?: number }) => (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    {Array.from({ length: cards }).map((_, i) => (
-      <div key={i} className="animate-pulse">
-        <div className="h-32 bg-muted rounded" />
-        <div className="mt-4 space-y-2">
-          <div className="h-4 bg-muted rounded w-3/4" />
-          <div className="h-4 bg-muted rounded w-1/2" />
-        </div>
-      </div>
-    ))}
-  </div>
-);
 
  

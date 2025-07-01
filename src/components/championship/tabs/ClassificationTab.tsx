@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "brk-design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
-import { Skeleton } from "brk-design-system";
+
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 
 import { SeasonService, Season } from "@/lib/services/season.service";
@@ -319,16 +319,8 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
   if (loading) {
     return (
       <Card className="w-full">
-        <div className="p-6 space-y-4">
-          <div className="flex justify-between items-center">
-            <div className="h-8 bg-muted rounded w-48 animate-pulse" />
-            <div className="h-10 bg-muted rounded w-32 animate-pulse" />
-          </div>
-          <div className="space-y-3">
-            {[...Array(10)].map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full" />
-            ))}
-          </div>
+        <div className="p-6">
+          <Loading type="spinner" size="lg" />
         </div>
       </Card>
     );

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
 import { Badge } from 'brk-design-system';
 import { Button } from 'brk-design-system';
 import { Alert, AlertDescription } from 'brk-design-system';
-import { CardSkeleton, InlineLoader } from '@/components/ui/loading';
+import { InlineLoader } from '@/components/ui/loading';
 import { Pagination } from 'brk-design-system';
 import {
   Table,
@@ -575,20 +575,7 @@ export const Financial: React.FC = () => {
           subtitle="Carregando dados financeiros..."
         />
         <div className="w-full max-w-6xl mx-auto px-6 py-6 space-y-6">
-          {/* Resumo Skeleton */}
-          <CardSkeleton cards={3} />
-          
-          {/* Lista Skeleton */}
-          <Card>
-            <CardHeader>
-              <div className="h-6 bg-muted rounded w-1/3 animate-pulse" />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-16 bg-muted rounded w-full animate-pulse" />
-              ))}
-            </CardContent>
-          </Card>
+          <InlineLoader size="lg" />
         </div>
       </div>
     );

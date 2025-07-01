@@ -3,7 +3,7 @@ import { Button } from "brk-design-system";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "brk-design-system";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { Skeleton } from "brk-design-system";
+
 import { Input } from "brk-design-system";
 import { Label } from "brk-design-system";
 import { 
@@ -78,8 +78,7 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="h-32 bg-muted rounded w-full animate-pulse" />
-        <div className="h-48 bg-muted rounded w-full animate-pulse" />
+        <Loading type="spinner" size="lg" />
       </div>
     );
   }

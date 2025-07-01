@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
 import { Badge } from 'brk-design-system';
 import { Button } from 'brk-design-system';
 import { Alert, AlertDescription } from 'brk-design-system';
-import { Skeleton } from 'brk-design-system';
+
 import { Separator } from 'brk-design-system';
 import { PageHeader } from '@/components/ui/page-header';
 import { PageLoader } from '@/components/ui/loading';

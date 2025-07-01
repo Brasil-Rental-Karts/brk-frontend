@@ -25,7 +25,7 @@ import { StageService, CreateStageData, Stage } from "@/lib/services/stage.servi
 import { SeasonService } from "@/lib/services/season.service";
 import { CategoryService, Category } from "@/lib/services/category.service";
 import { PageHeader } from "@/components/ui/page-header";
-import { Skeleton } from "brk-design-system";
+
 import { Checkbox } from "brk-design-system";
 import { InputMask } from "@/components/ui/input-mask";
 import { FormScreen } from "@/components/ui/FormScreen";
@@ -57,7 +57,7 @@ const _unused = {
   DialogHeader,
   DialogTitle,
   PageHeader,
-  Skeleton,
+
   Checkbox,
   InputMask,
 };
@@ -334,14 +334,8 @@ export const CreateStage = () => {
       <div className="p-6">
         <PageHeader title={isEditMode ? "Editar Etapa" : "Criar Etapa"} />
         <Card>
-          <CardHeader>
-            <div className="h-6 bg-muted rounded w-1/4 animate-pulse" />
-            <div className="h-4 bg-muted rounded w-1/2 animate-pulse" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="h-10 bg-muted rounded w-full animate-pulse" />
-            <div className="h-10 bg-muted rounded w-full animate-pulse" />
-            <div className="h-10 bg-muted rounded w-full animate-pulse" />
+          <CardContent>
+            <Loading type="spinner" size="lg" />
           </CardContent>
         </Card>
       </div>

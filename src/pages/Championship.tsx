@@ -16,7 +16,7 @@ import { SponsorsTab } from "@/components/championship/settings/SponsorsTab";
 import { StaffTab } from "@/components/championship/settings/StaffTab";
 import { useChampionship } from "@/hooks/use-championship";
 import { useStaffPermissions } from "@/hooks/use-staff-permissions";
-import { Skeleton } from "brk-design-system";
+
 import { Alert, AlertDescription } from "brk-design-system";
 import { AlertTriangle } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -143,11 +143,7 @@ export const Championship = () => {
   if (loading || permissionsLoading) {
     return (
       <div className="container mx-auto p-4 space-y-6">
-        <div className="space-y-4">
-          <div className="h-32 bg-muted rounded w-full animate-pulse" />
-          <div className="h-12 bg-muted rounded w-full animate-pulse" />
-          <div className="h-64 bg-muted rounded w-full animate-pulse" />
-        </div>
+        <Loading type="spinner" size="lg" />
       </div>
     );
   }

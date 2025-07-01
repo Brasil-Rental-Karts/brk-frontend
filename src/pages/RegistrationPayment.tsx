@@ -5,7 +5,7 @@ import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
 import { Alert, AlertDescription } from 'brk-design-system';
 import { Badge } from 'brk-design-system';
-import { Skeleton } from 'brk-design-system';
+
 import { PageHeader } from '@/components/ui/page-header';
 import { SeasonRegistrationService, SeasonRegistration, RegistrationPaymentData } from '@/lib/services/season-registration.service';
 import { PixPayment } from '@/components/payment/PixPayment';
