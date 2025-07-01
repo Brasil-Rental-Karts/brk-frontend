@@ -32,6 +32,16 @@ export interface CreateRegistrationData {
   installments?: number;
 }
 
+export interface CreateAdminRegistrationData {
+  userId: string;
+  seasonId: string;
+  categoryIds: string[];
+  stageIds?: string[];
+  paymentStatus: 'exempt' | 'direct_payment';
+  amount: number;
+  notes?: string;
+}
+
 export interface UpdateCategoriesData {
   categoryIds: string[];
 }
@@ -303,6 +313,26 @@ export class SeasonRegistrationService {
       throw new Error(
         error.response?.data?.message || 
         'Erro ao buscar detalhes do piloto.'
+      );
+    }
+  }
+
+  /**
+   * Criar inscrição administrativa
+   */
+  static async createAdminRegistration(data: CreateAdminRegistrationData): Promise<SeasonRegistration> {
+    try {
+      const response = await api.post<{
+        message: string;
+        data: SeasonRegistration;
+      }>(`${SeasonRegistrationService.BASE_URL}/admin`, data);
+      
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Error creating admin registration:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao criar inscrição administrativa.'
       );
     }
   }
