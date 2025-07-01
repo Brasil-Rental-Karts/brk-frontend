@@ -51,6 +51,7 @@ export const Championship = () => {
     'pilotos': 'pilotos',
     'regulations': 'regulamento',
     'regulamento': 'regulamento',
+    'race-day': 'race-day',
     'edit-data': 'config-edit',
     'config-edit': 'config-edit',
     'sponsors': 'config-sponsors',
@@ -93,6 +94,7 @@ export const Championship = () => {
       'etapas': 'stages',
       'pilotos': 'pilots',
       'regulamento': 'regulations',
+      'race-day': 'raceDay',
       'config-edit': 'editChampionship',
       'config-grid': 'gridTypes',
       'config-scoring': 'scoringSystems',
@@ -233,6 +235,15 @@ export const Championship = () => {
                   Regulamento
                 </TabsTrigger>
               )}
+              {permissions?.raceDay && (
+                <TabsTrigger 
+                  value="race-day" 
+                  disabled={!hasSeasons}
+                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+                >
+                  Race Day
+                </TabsTrigger>
+              )}
             </TabsList>
           </div>
         </div>
@@ -290,6 +301,19 @@ export const Championship = () => {
                 error={error}
                 onRefresh={refresh}
               />
+            </TabsContent>
+          )}
+
+          {permissions?.raceDay && hasSeasons && (
+            <TabsContent value="race-day" className="mt-0 ring-0 focus-visible:outline-none">
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold">Race Day</h2>
+                  <p className="text-muted-foreground">
+                    Funcionalidades do dia da corrida em desenvolvimento...
+                  </p>
+                </div>
+              </div>
             </TabsContent>
           )}
 

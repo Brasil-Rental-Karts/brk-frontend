@@ -8,6 +8,7 @@ export interface UserPermissions {
   stages: boolean;
   pilots: boolean;
   regulations: boolean;
+  raceDay: boolean;
   editChampionship: boolean;
   gridTypes: boolean;
   scoringSystems: boolean;
@@ -46,6 +47,7 @@ export const useStaffPermissions = (championshipId: string) => {
             stages: true,
             pilots: true,
             regulations: true,
+            raceDay: true,
             editChampionship: true,
             gridTypes: true,
             scoringSystems: true,
@@ -69,6 +71,7 @@ export const useStaffPermissions = (championshipId: string) => {
             stages: staffMember.permissions.stages || false,
             pilots: staffMember.permissions.pilots || false,
             regulations: staffMember.permissions.regulations || false,
+            raceDay: staffMember.permissions.raceDay || false,
             editChampionship: staffMember.permissions.editChampionship || false,
             gridTypes: staffMember.permissions.gridTypes || false,
             scoringSystems: staffMember.permissions.scoringSystems || false,
@@ -84,6 +87,7 @@ export const useStaffPermissions = (championshipId: string) => {
             stages: false,
             pilots: false,
             regulations: false,
+            raceDay: false,
             editChampionship: false,
             gridTypes: false,
             scoringSystems: false,
@@ -102,6 +106,7 @@ export const useStaffPermissions = (championshipId: string) => {
           stages: false,
           pilots: false,
           regulations: false,
+          raceDay: false,
           editChampionship: false,
           gridTypes: false,
           scoringSystems: false,
