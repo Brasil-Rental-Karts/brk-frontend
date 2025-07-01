@@ -3,6 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { Card, CardContent, CardHeader, CardTitle, Button } from 'brk-design-system';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { DynamicForm, FormSectionConfig } from '@/components/ui/dynamic-form';
 import { SeasonService, Season } from '@/lib/services/season.service';
 import { CategoryService, Category } from '@/lib/services/category.service';
@@ -12,6 +20,7 @@ import { ChampionshipService, Championship } from '@/lib/services/championship.s
 import { formatCurrency } from '@/utils/currency';
 import { masks } from '@/utils/masks';
 import { useFormScreen } from '@/hooks/use-form-screen';
+import { useExternalNavigation } from '@/hooks/use-external-navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRegistrations } from '@/hooks/use-user-registrations';
 import {
@@ -193,6 +202,11 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     isSaving,
     handleSubmit: useFormScreenSubmit,
     handleFormChange: useFormScreenChange,
+    showUnsavedChangesDialog,
+    setShowUnsavedChangesDialog,
+    handleConfirmUnsavedChanges,
+    handleCancelUnsavedChanges,
+    hasUnsavedChanges,
   } = useFormScreen<any, CreateRegistrationData>({
     createData: (data) => SeasonRegistrationService.create(data),
     transformSubmitData: (data) => {
@@ -221,6 +235,22 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     },
     errorMessage: 'Erro ao realizar inscrição'
   });
+
+  // Hook para navegação externa com verificação de alterações não salvas
+  const { navigateToExternal, confirmAndNavigate } = useExternalNavigation({
+    hasUnsavedChanges,
+    isSaving,
+    showUnsavedChangesDialog,
+    setShowUnsavedChangesDialog,
+  });
+
+  // Expor a função de navegação externa globalmente para os layouts
+  React.useEffect(() => {
+    (window as any).navigateToExternal = navigateToExternal;
+    return () => {
+      delete (window as any).navigateToExternal;
+    };
+  }, [navigateToExternal]);
 
   // Função para obter o número máximo de parcelas baseado no método de pagamento
   const getMaxInstallments = (paymentMethod: string) => {
@@ -781,6 +811,32 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
           installments: '1',
         }}
       />
+
+      {/* Dialog de confirmação de alterações não salvas */}
+      <Dialog
+        open={showUnsavedChangesDialog}
+        onOpenChange={handleCancelUnsavedChanges}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Inscrição em andamento</DialogTitle>
+            <DialogDescription>
+              Você tem uma inscrição em andamento. Tem certeza que deseja sair sem finalizar a inscrição?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelUnsavedChanges}>
+              Continuar inscrição
+            </Button>
+            <Button variant="destructive" onClick={() => {
+              handleConfirmUnsavedChanges();
+              confirmAndNavigate();
+            }}>
+              Deixar inscrição para mais tarde
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }; 

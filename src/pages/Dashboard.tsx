@@ -34,7 +34,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserRegistrations } from "@/hooks/use-user-registrations";
 import { useUserUpcomingRaces } from "@/hooks/use-user-upcoming-races";
 import { useUserStats } from "@/hooks/use-user-stats";
+import { useProfileCompletion } from "@/hooks/use-profile-completion";
 import { StageParticipationService } from "@/lib/services/stage-participation.service";
+import { CompleteProfileModal } from "@/components/profile/CompleteProfileModal";
 import { toast } from "sonner";
 import { differenceInHours, parseISO } from "date-fns";
 import { Loading } from '@/components/ui/loading';
@@ -49,6 +51,7 @@ export const Dashboard = () => {
   const [showCancelConfirmation, setShowCancelConfirmation] = useState<{stageId: string, categoryId: string, categoryName: string} | null>(null);
   const [showConfirmConfirmation, setShowConfirmConfirmation] = useState<{stageId: string, categoryId: string, categoryName: string} | null>(null);
   const [isCheckingRedirect, setIsCheckingRedirect] = useState(true);
+  const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
   
   // Check if user is manager or administrator
   const isManager = user?.role === 'Manager' || user?.role === 'Administrator';
@@ -82,6 +85,8 @@ export const Dashboard = () => {
     refresh: refreshUserStats
   } = useUserStats();
 
+  const { isProfileCompleted, loading: loadingProfile, shouldShowModal, markAsSkipped } = useProfileCompletion();
+
   useEffect(() => {
     const redirectUrl = localStorage.getItem('redirectUrl');
     if (redirectUrl) {
@@ -91,6 +96,13 @@ export const Dashboard = () => {
       setIsCheckingRedirect(false);
     }
   }, []);
+
+  // Show complete profile modal when profile is not completed and not loading
+  useEffect(() => {
+    if (!loadingProfile && shouldShowModal && !showCompleteProfileModal) {
+      setShowCompleteProfileModal(true);
+    }
+  }, [shouldShowModal, loadingProfile, showCompleteProfileModal]);
 
   // Função para confirmar participação
   const handleConfirmParticipation = async (stageId: string, categoryId: string) => {
@@ -944,6 +956,13 @@ export const Dashboard = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de perfil incompleto */}
+      <CompleteProfileModal 
+        isOpen={showCompleteProfileModal}
+        onClose={() => setShowCompleteProfileModal(false)}
+        onSkip={markAsSkipped}
+      />
     </div>
   );
 };

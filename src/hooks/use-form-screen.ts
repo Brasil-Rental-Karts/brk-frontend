@@ -117,24 +117,7 @@ export const useFormScreen = <TData, TSubmit>({
     };
   }, []);
 
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges && !isSaving) {
-        e.preventDefault();
-        e.returnValue =
-          "Você tem alterações não salvas. Tem certeza que deseja sair?";
-        return e.returnValue;
-      }
-    };
 
-    if (hasUnsavedChanges && !isSaving) {
-      window.addEventListener("beforeunload", handleBeforeUnload);
-    }
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [hasUnsavedChanges, isSaving]);
 
   const loadData = useCallback(async () => {
     if (!isEditMode || !fetchData) {
@@ -272,6 +255,7 @@ export const useFormScreen = <TData, TSubmit>({
     formRef,
     hasUnsavedChanges,
     showUnsavedChangesDialog,
+    setShowUnsavedChangesDialog,
     onFormReady,
     handleFormChange,
     handleFieldChange,

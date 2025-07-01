@@ -76,7 +76,13 @@ export const MainFullWidthLayout = ({ children }: MainFullWidthLayoutProps = {})
                     className="group inline-flex h-9 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent/30 hover:text-accent-foreground focus:bg-accent/30 focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50"
                     asChild
                   >
-                    <button onClick={() => window.location.href = `${siteUrl}/campeonatos`}>Campeonatos</button>
+                    <button onClick={() => {
+                      if ((window as any).navigateToExternal) {
+                        (window as any).navigateToExternal(`${siteUrl}/campeonatos`);
+                      } else {
+                        window.location.href = `${siteUrl}/campeonatos`;
+                      }
+                    }}>Campeonatos</button>
                   </NavigationMenuLink>
                 </NavigationMenuItem>
               </NavigationMenuList>
@@ -168,7 +174,11 @@ export const MainFullWidthLayout = ({ children }: MainFullWidthLayoutProps = {})
                     <button
                       className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors text-left"
                       onClick={() => {
-                        window.location.href = `${siteUrl}/campeonatos`;
+                        if ((window as any).navigateToExternal) {
+                          (window as any).navigateToExternal(`${siteUrl}/campeonatos`);
+                        } else {
+                          window.location.href = `${siteUrl}/campeonatos`;
+                        }
                         setIsOpen(false)
                       }}
                     >

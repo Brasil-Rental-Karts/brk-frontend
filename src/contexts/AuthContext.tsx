@@ -67,6 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     await AuthService.logout();
     setUser(null);
+    // sessionStorage is automatically cleared when session ends
   };
 
   const loginWithGoogle = async () => {
