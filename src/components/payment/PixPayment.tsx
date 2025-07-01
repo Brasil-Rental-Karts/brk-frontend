@@ -93,7 +93,10 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
   };
 
   const isPaymentConfirmed = () => {
-    return paymentData.status === 'CONFIRMED' || paymentData.status === 'RECEIVED';
+    return paymentData.status === 'CONFIRMED' || 
+           paymentData.status === 'RECEIVED' || 
+           paymentData.status === 'EXEMPT' || 
+           paymentData.status === 'DIRECT_PAYMENT';
   };
 
   const isExpired = () => {
@@ -110,6 +113,33 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
       return formatExpirationTime(paymentData.dueDate);
     }
     return '24h';
+  };
+
+  const getStatusDisplayText = (status: string) => {
+    switch (status) {
+      case 'CONFIRMED':
+        return 'Confirmado';
+      case 'RECEIVED':
+        return 'Recebido';
+      case 'EXEMPT':
+        return 'Isento';
+      case 'DIRECT_PAYMENT':
+        return 'Pagamento Direto';
+      case 'PENDING':
+        return 'Pendente';
+      case 'AWAITING_PAYMENT':
+        return 'Aguardando Pagamento';
+      case 'AWAITING_RISK_ANALYSIS':
+        return 'Aguardando Análise';
+      case 'OVERDUE':
+        return 'Vencido';
+      case 'CANCELLED':
+        return 'Cancelado';
+      case 'REFUNDED':
+        return 'Reembolsado';
+      default:
+        return status;
+    }
   };
 
   const handleCheckPayment = async () => {
@@ -133,8 +163,20 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
         }
       } else if (updatedPayment.status === 'PENDING') {
         setCheckResult('⏳ Pagamento ainda não foi identificado. Aguarde alguns minutos e tente novamente.');
+      } else if (updatedPayment.status === 'DIRECT_PAYMENT') {
+        setCheckResult('✅ Pagamento direto confirmado pelo administrador!');
+        // Atualizar o estado local do pagamento
+        if (onPaymentUpdate) {
+          onPaymentUpdate(updatedPayment);
+        }
+      } else if (updatedPayment.status === 'EXEMPT') {
+        setCheckResult('✅ Inscrição isenta confirmada pelo administrador!');
+        // Atualizar o estado local do pagamento
+        if (onPaymentUpdate) {
+          onPaymentUpdate(updatedPayment);
+        }
       } else {
-        setCheckResult(`Status atual: ${updatedPayment.status}`);
+        setCheckResult(`Status atual: ${getStatusDisplayText(updatedPayment.status)}`);
       }
     } catch (error: any) {
       console.error('Erro ao verificar pagamento:', error);
@@ -152,11 +194,31 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-[#00D4AA] rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">Pix</span>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                  paymentData.status === 'DIRECT_PAYMENT' 
+                    ? 'bg-purple-500' 
+                    : paymentData.status === 'EXEMPT'
+                    ? 'bg-blue-500'
+                    : 'bg-[#00D4AA]'
+                }`}>
+                  <span className="text-white font-bold text-sm">
+                    {paymentData.status === 'DIRECT_PAYMENT' 
+                      ? 'ADM' 
+                      : paymentData.status === 'EXEMPT'
+                      ? 'IS'
+                      : 'Pix'
+                    }
+                  </span>
                 </div>
                 <div>
-                  <div>Pagamento via PIX</div>
+                  <div>
+                    {paymentData.status === 'DIRECT_PAYMENT' 
+                      ? 'Pagamento Direto' 
+                      : paymentData.status === 'EXEMPT'
+                      ? 'Inscrição Isenta'
+                      : 'Pagamento via PIX'
+                    }
+                  </div>
                   {paymentData.installmentCount && paymentData.installmentCount > 1 && (
                     <div className="text-sm font-normal text-muted-foreground">
                       Parcelado em {paymentData.installmentCount}x
@@ -184,22 +246,47 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
                 </AlertDescription>
               </Alert>
             ) : (
-              <Alert className="border-[#00D4AA] bg-[#00D4AA]/5">
-                <AlertDescription className="text-[#00D4AA]">
+              <Alert className={`${
+                paymentData.status === 'DIRECT_PAYMENT' 
+                  ? 'border-purple-200 bg-purple-50' 
+                  : paymentData.status === 'EXEMPT'
+                  ? 'border-blue-200 bg-blue-50'
+                  : 'border-[#00D4AA] bg-[#00D4AA]/5'
+              }`}>
+                <AlertDescription className={`${
+                  paymentData.status === 'DIRECT_PAYMENT' 
+                    ? 'text-purple-800' 
+                    : paymentData.status === 'EXEMPT'
+                    ? 'text-blue-800'
+                    : 'text-[#00D4AA]'
+                }`}>
                   <strong>
-                    {paymentData.installmentCount && paymentData.installmentCount > 1 
-                      ? `Aguardando pagamento da ${paymentData.installmentNumber || 1}ª parcela via PIX`
-                      : 'Aguardando pagamento via PIX'
+                    {paymentData.status === 'DIRECT_PAYMENT'
+                      ? 'Inscrição confirmada para pagamento direto'
+                      : paymentData.status === 'EXEMPT'
+                      ? 'Inscrição isenta de pagamento'
+                      : paymentData.installmentCount && paymentData.installmentCount > 1 
+                        ? `Aguardando pagamento da ${paymentData.installmentNumber || 1}ª parcela via PIX`
+                        : 'Aguardando pagamento via PIX'
                     }
                   </strong>
                   <br />
-                  {paymentData.installmentCount && paymentData.installmentCount > 1 && (
-                    <>
-                      As próximas parcelas serão enviadas por email nas datas de vencimento.
-                      <br />
-                    </>
-                  )}
-                  Após o pagamento, a confirmação será automática em alguns minutos.
+                  {paymentData.status === 'DIRECT_PAYMENT'
+                    ? 'O administrador irá processar o pagamento diretamente. Entre em contato para mais informações.'
+                    : paymentData.status === 'EXEMPT'
+                    ? 'Sua inscrição foi aprovada sem necessidade de pagamento.'
+                    : (
+                      <>
+                        {paymentData.installmentCount && paymentData.installmentCount > 1 && (
+                          <>
+                            As próximas parcelas serão enviadas por email nas datas de vencimento.
+                            <br />
+                          </>
+                        )}
+                        Após o pagamento, a confirmação será automática em alguns minutos.
+                      </>
+                    )
+                  }
                 </AlertDescription>
               </Alert>
             )}
@@ -208,7 +295,8 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
       )}
 
       {/* QR Code e Código PIX Copia e Cola */}
-      {!isExpired() && !isPaymentConfirmed() && paymentData.pixCopyPaste && (
+      {!isExpired() && !isPaymentConfirmed() && paymentData.pixCopyPaste && 
+       paymentData.billingType !== 'ADMIN_EXEMPT' && paymentData.billingType !== 'ADMIN_DIRECT' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* QR Code */}
           <Card>
@@ -309,8 +397,31 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
         </div>
       )}
 
+      {/* Mensagem para pagamentos administrativos */}
+      {!isExpired() && !isPaymentConfirmed() && 
+       (paymentData.billingType === 'ADMIN_EXEMPT' || paymentData.billingType === 'ADMIN_DIRECT') && (
+        <Card>
+          <CardContent className="pt-6">
+            <Alert className="border-blue-200 bg-blue-50">
+              <AlertCircle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800">
+                <strong>Inscrição Administrativa</strong>
+                <br />
+                {paymentData.billingType === 'ADMIN_EXEMPT' 
+                  ? 'Esta inscrição foi marcada como isenta de pagamento pelo administrador.'
+                  : 'Esta inscrição foi marcada para pagamento direto pelo administrador.'
+                }
+                <br />
+                Entre em contato com a organização para mais informações.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Mensagem de erro se não há payload PIX */}
-      {!isExpired() && !isPaymentConfirmed() && !paymentData.pixCopyPaste && (
+      {!isExpired() && !isPaymentConfirmed() && !paymentData.pixCopyPaste && 
+       paymentData.billingType !== 'ADMIN_EXEMPT' && paymentData.billingType !== 'ADMIN_DIRECT' && (
         <Card>
           <CardContent className="pt-6">
             <Alert variant="destructive">
@@ -333,10 +444,20 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
               </div>
               <div>
                 <h3 className="text-xl font-bold text-green-800 mb-2">
-                  Pagamento Confirmado com Sucesso!
+                  {paymentData.status === 'DIRECT_PAYMENT' 
+                    ? 'Pagamento Direto Confirmado!' 
+                    : paymentData.status === 'EXEMPT'
+                    ? 'Inscrição Isenta Confirmada!'
+                    : 'Pagamento Confirmado com Sucesso!'
+                  }
                 </h3>
                 <p className="text-green-700">
-                  Seu pagamento foi processado e confirmado pelo sistema de pagamentos.
+                  {paymentData.status === 'DIRECT_PAYMENT'
+                    ? 'Sua inscrição foi confirmada para pagamento direto pelo administrador.'
+                    : paymentData.status === 'EXEMPT'
+                    ? 'Sua inscrição foi marcada como isenta de pagamento pelo administrador.'
+                    : 'Seu pagamento foi processado e confirmado pelo sistema de pagamentos.'
+                  }
                 </p>
                 {paymentData.installmentCount && paymentData.installmentCount > 1 && (
                   <p className="text-sm text-green-600 mt-2">

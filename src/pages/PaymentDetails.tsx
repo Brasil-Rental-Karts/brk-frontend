@@ -61,11 +61,11 @@ export const PaymentDetails: React.FC = () => {
         // Criar dados de fallback baseados na inscrição
         const fallbackSummary = {
           totalAmount: Number(registration.amount),
-          paidAmount: registration.paymentStatus === 'paid' ? Number(registration.amount) : 0,
+          paidAmount: ['paid', 'exempt', 'direct_payment'].includes(registration.paymentStatus) ? Number(registration.amount) : 0,
           pendingAmount: registration.paymentStatus === 'pending' ? Number(registration.amount) : 0,
           overdueAmount: registration.paymentStatus === 'overdue' ? Number(registration.amount) : 0,
           totalInstallments: 1,
-          paidInstallments: registration.paymentStatus === 'paid' ? 1 : 0
+          paidInstallments: ['paid', 'exempt', 'direct_payment'].includes(registration.paymentStatus) ? 1 : 0
         };
 
         setData({
@@ -78,7 +78,7 @@ export const PaymentDetails: React.FC = () => {
 
       // Calcular resumo dos pagamentos com lógica melhorada
       // Status que indicam pagamento completo
-      const paidStatusList = ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'];
+      const paidStatusList = ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH', 'EXEMPT', 'DIRECT_PAYMENT'];
       
       // Status que indicam pagamento pendente
       const pendingStatusList = ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'];
@@ -150,6 +150,20 @@ export const PaymentDetails: React.FC = () => {
             Pago
           </Badge>
         );
+      case 'EXEMPT':
+        return (
+          <Badge className="bg-green-100 text-green-800 border-green-200">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Isento
+          </Badge>
+        );
+      case 'DIRECT_PAYMENT':
+        return (
+          <Badge className="bg-green-100 text-green-800 border-green-200">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Pagamento Direto
+          </Badge>
+        );
       case 'PENDING':
       case 'AWAITING_PAYMENT':
       case 'AWAITING_RISK_ANALYSIS':
@@ -168,7 +182,7 @@ export const PaymentDetails: React.FC = () => {
         );
       default:
         return (
-          <Badge variant="outline">
+          <Badge className="bg-gray-100 text-gray-800 border-gray-200">
             <AlertTriangle className="w-3 h-3 mr-1" />
             {status}
           </Badge>
@@ -182,12 +196,24 @@ export const PaymentDetails: React.FC = () => {
         return <Smartphone className="w-4 h-4" />;
       case 'CREDIT_CARD':
         return <CreditCard className="w-4 h-4" />;
+      case 'ADMIN_EXEMPT':
+      case 'ADMIN_DIRECT':
+        return <Receipt className="w-4 h-4" />;
       default:
         return <Receipt className="w-4 h-4" />;
     }
   };
 
-  const getPaymentMethodLabel = (billingType: string) => {
+  const getPaymentMethodLabel = (billingType: string, paymentStatus?: string) => {
+    // Para inscrições administrativas, mostrar texto amigável baseado no status
+    if (paymentStatus === 'exempt') {
+      return 'Inscrição Administrativa - Isento';
+    }
+    
+    if (paymentStatus === 'direct_payment') {
+      return 'Inscrição Administrativa - Pagamento Direto';
+    }
+
     switch (billingType) {
       case 'PIX':
         return 'PIX';
@@ -195,6 +221,10 @@ export const PaymentDetails: React.FC = () => {
         return 'Cartão de Crédito';
       case 'BOLETO':
         return 'Boleto';
+      case 'ADMIN_EXEMPT':
+        return 'Inscrição Administrativa - Isento';
+      case 'ADMIN_DIRECT':
+        return 'Inscrição Administrativa - Pagamento Direto';
       default:
         return billingType;
     }
@@ -329,7 +359,7 @@ export const PaymentDetails: React.FC = () => {
                 <div><p className="text-xs md:text-sm text-muted-foreground">Categorias</p><div className="flex flex-wrap gap-1 mt-1">{registration.categories && registration.categories.length > 0 ? (registration.categories.map((regCategory) => (<Badge key={regCategory.id} variant="outline" className="text-xs">{regCategory.category.name}</Badge>))) : (<span className="text-xs text-muted-foreground">Nenhuma categoria</span>)}</div></div>
                 {registration.season?.inscriptionType === 'por_etapa' && registration.stages && registration.stages.length > 0 && (<div><p className="text-xs md:text-sm text-muted-foreground mt-2">Etapas Pagas</p><div className="flex flex-wrap gap-1 mt-1">{registration.stages.map((regStage) => (<Badge key={regStage.id} variant="secondary" className="text-xs">{regStage.stage?.name || regStage.stageName}</Badge>))}</div></div>)}
                 <div><p className="text-xs md:text-sm text-muted-foreground">Data da Inscrição</p><p className="font-medium text-sm md:text-base">{formatDateToBrazilian(registration.createdAt)}</p></div>
-                <div><p className="text-xs md:text-sm text-muted-foreground">Método de Pagamento</p><div className="flex items-center gap-2 mt-1">{getPaymentMethodIcon(registration.paymentMethod)}<span className="font-medium text-sm md:text-base">{getPaymentMethodLabel(registration.paymentMethod)}</span></div></div>
+                <div><p className="text-xs md:text-sm text-muted-foreground">Método de Pagamento</p><div className="flex items-center gap-2 mt-1">{getPaymentMethodIcon(registration.paymentMethod)}<span className="font-medium text-sm md:text-base">{getPaymentMethodLabel(registration.paymentMethod, registration.paymentStatus)}</span></div></div>
                 {registration.paymentDate && (<div><p className="text-xs md:text-sm text-muted-foreground">Data do Pagamento</p><p className="font-medium text-sm md:text-base">{formatDateToBrazilian(registration.paymentDate)}</p></div>)}
               </CardContent>
             </Card>
@@ -341,7 +371,38 @@ export const PaymentDetails: React.FC = () => {
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2"><Receipt className="w-5 h-5" />Histórico de Pagamentos</CardTitle></CardHeader>
               <CardContent>
-                {payments.length === 0 ? (<div className="text-center py-8"><p className="text-muted-foreground">Nenhum pagamento encontrado</p></div>) : (<div className="space-y-4">{payments.sort((a, b) => (a.installmentNumber || 1) - (b.installmentNumber || 1)).map((payment, index) => {const isPaid = payment.status === 'RECEIVED' || payment.status === 'CONFIRMED' || payment.status === 'RECEIVED_IN_CASH';const isPending = payment.status === 'PENDING' || payment.status === 'AWAITING_PAYMENT' || payment.status === 'AWAITING_RISK_ANALYSIS';const isOverdue = payment.status === 'OVERDUE';return (<div key={payment.id} className={`p-4 border rounded-lg transition-colors ${isPaid ? 'bg-green-50 border-green-200 hover:bg-green-100' : isPending ? 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100' : isOverdue ? 'bg-red-50 border-red-200 hover:bg-red-100' : 'bg-gray-50 border-gray-200 hover:bg-muted/50'}`}><div className="flex items-center justify-between mb-2"><div className="flex items-center gap-3"><div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${isPaid ? 'bg-green-100 text-green-700' : isPending ? 'bg-yellow-100 text-yellow-700' : isOverdue ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{payment.installmentNumber || (index + 1)}</div><div className="flex items-center gap-2">{isPaid && <CheckCircle className="w-4 h-4 text-green-600" />}{isPending && <Clock className="w-4 h-4 text-yellow-600" />}{isOverdue && <XCircle className="w-4 h-4 text-red-600" />}<span className="font-bold text-sm md:text-base">{formatCurrency(payment.value)}</span></div></div>{getStatusBadge(payment.status)}</div><div className="flex items-center gap-4 text-xs md:text-sm text-muted-foreground"><div className="flex items-center gap-1">{getPaymentMethodIcon(payment.billingType)}<span>{getPaymentMethodLabel(payment.billingType)}</span></div><span>•</span><span>Vencimento: {formatDateToBrazilian(payment.dueDate)}</span></div></div>);})}</div>)}
+                {payments.length === 0 ? (
+                  <div className="text-center py-8"><p className="text-muted-foreground">Nenhum pagamento encontrado</p></div>
+                ) : (
+                  <div className="space-y-4">
+                    {payments.sort((a, b) => (a.installmentNumber || 1) - (b.installmentNumber || 1)).map((payment, index) => {
+                      const isPaid = payment.status === 'RECEIVED' || payment.status === 'CONFIRMED' || payment.status === 'RECEIVED_IN_CASH' || payment.status === 'EXEMPT' || payment.status === 'DIRECT_PAYMENT';
+                      const isPending = payment.status === 'PENDING' || payment.status === 'AWAITING_PAYMENT' || payment.status === 'AWAITING_RISK_ANALYSIS';
+                      const isOverdue = payment.status === 'OVERDUE';
+                      return (
+                        <div key={payment.id} className={`p-4 border rounded-lg transition-colors ${isPaid ? 'bg-green-50 border-green-200 hover:bg-green-100' : isPending ? 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100' : isOverdue ? 'bg-red-50 border-red-200 hover:bg-red-100' : 'bg-gray-50 border-gray-200 hover:bg-muted/50'}`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-3">
+                              <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${isPaid ? 'bg-green-100 text-green-700' : isPending ? 'bg-yellow-100 text-yellow-700' : isOverdue ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{payment.installmentNumber || (index + 1)}</div>
+                              <div className="flex items-center gap-2">
+                                {isPaid && <CheckCircle className="w-4 h-4 text-green-600" />}
+                                {isPending && <Clock className="w-4 h-4 text-yellow-600" />}
+                                {isOverdue && <XCircle className="w-4 h-4 text-red-600" />}
+                                <span className="font-bold text-sm md:text-base">{formatCurrency(payment.value)}</span>
+                              </div>
+                            </div>
+                            {getStatusBadge(payment.status)}
+                          </div>
+                          <div className="flex items-center gap-4 text-xs md:text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1">{getPaymentMethodIcon(payment.billingType)}<span>{getPaymentMethodLabel(payment.billingType, payment.status)}</span></div>
+                            <span>•</span>
+                            <span>Vencimento: {formatDateToBrazilian(payment.dueDate)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

@@ -43,6 +43,20 @@ const InstallmentList: React.FC<{ payments: RegistrationPaymentData[] }> = ({ pa
             Vencido
           </Badge>
         );
+      case 'EXEMPT':
+        return (
+          <Badge className="bg-green-100 text-green-800 border-green-200">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Isento
+          </Badge>
+        );
+      case 'DIRECT_PAYMENT':
+        return (
+          <Badge className="bg-green-100 text-green-800 border-green-200">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Pagamento Direto
+          </Badge>
+        );
       default:
         return (
           <Badge variant="outline">
@@ -265,6 +279,20 @@ export const RegistrationPayment: React.FC = () => {
             Estornado
           </Badge>
         );
+      case 'exempt':
+        return (
+          <Badge className="bg-green-100 text-green-800 border-green-200">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Isento
+          </Badge>
+        );
+      case 'direct_payment':
+        return (
+          <Badge className="bg-green-100 text-green-800 border-green-200">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Pagamento Direto
+          </Badge>
+        );
       default:
         return (
           <Badge variant="outline">
@@ -358,6 +386,25 @@ export const RegistrationPayment: React.FC = () => {
             onPaymentComplete={() => loadData(true)}
           />
         );
+
+      case 'ADMIN_EXEMPT':
+      case 'ADMIN_DIRECT':
+        return (
+          <PixPayment
+            paymentData={paymentToRender}
+            registration={registration}
+            onPaymentComplete={() => loadData(true)}
+            onPaymentUpdate={(updatedPayment) => {
+              // Atualizar o estado local dos pagamentos
+              setPayments(prevPayments => 
+                prevPayments.map(p => 
+                  p.id === updatedPayment.id ? updatedPayment : p
+                )
+              );
+            }}
+          />
+        );
+
       default:
         return (
           <Alert>
@@ -527,7 +574,9 @@ export const RegistrationPayment: React.FC = () => {
           }
           
           // Para pagamento único ou todas as parcelas pagas
-          const isPaid = registration.paymentStatus === 'paid';
+          const isPaid = registration.paymentStatus === 'paid' || 
+                        registration.paymentStatus === 'exempt' || 
+                        registration.paymentStatus === 'direct_payment';
           return isPaid;
         })() ? (
           <Card>
@@ -535,10 +584,14 @@ export const RegistrationPayment: React.FC = () => {
               <div className="text-center py-8">
                 <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-green-700 mb-2">
-                  Pagamento Confirmado!
+                  {registration.paymentStatus === 'exempt' ? 'Inscrição Isenta!' : 
+                   registration.paymentStatus === 'direct_payment' ? 'Pagamento Direto Confirmado!' : 
+                   'Pagamento Confirmado!'}
                 </h3>
                 <p className="text-muted-foreground">
-                  Sua inscrição foi confirmada com sucesso.
+                  {registration.paymentStatus === 'exempt' ? 'Sua inscrição foi marcada como isenta pelo administrador.' :
+                   registration.paymentStatus === 'direct_payment' ? 'Sua inscrição foi confirmada para pagamento direto.' :
+                   'Sua inscrição foi confirmada com sucesso.'}
                 </p>
                 {registration.paymentDate && (
                   <p className="text-sm text-muted-foreground mt-2">

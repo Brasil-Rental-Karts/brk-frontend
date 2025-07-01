@@ -80,7 +80,9 @@ const createFilterFields = (seasonOptions: { value: string; label: string }[] = 
       { value: 'paid', label: 'Pago' },
       { value: 'failed', label: 'Falhou' },
       { value: 'cancelled', label: 'Cancelado' },
-      { value: 'refunded', label: 'Reembolsado' }
+      { value: 'refunded', label: 'Reembolsado' },
+      { value: 'exempt', label: 'Isento' },
+      { value: 'direct_payment', label: 'Pagamento Direto' }
     ]
   }
 ];
@@ -149,7 +151,9 @@ const PilotCard = ({ registration, onAction, getStatusBadge }: {
             <div className="flex flex-col">
               <span className="text-muted-foreground">Método de Pagamento</span>
               <span className="font-medium">
-                {registration.paymentMethod === 'pix' ? 'PIX' : 
+                {registration.paymentStatus === 'exempt' ? 'Inscrição Administrativa - Isento' :
+                 registration.paymentStatus === 'direct_payment' ? 'Inscrição Administrativa - Pagamento Direto' :
+                 registration.paymentMethod === 'pix' ? 'PIX' : 
                  registration.paymentMethod === 'cartao_credito' ? 'Cartão de Crédito' : 
                  registration.paymentMethod}
               </span>
@@ -452,21 +456,34 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
   };
 
   const getStatusBadge = (registration: SeasonRegistration) => {
+    // Se for inscrição administrativa (isenta ou pagamento direto), considerar como confirmada
+    if (registration.paymentStatus === 'exempt' || registration.paymentStatus === 'direct_payment') {
+      return (
+        <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">
+          Confirmado
+        </Badge>
+      );
+    }
+
     return (
       <Badge 
-        variant={
-          registration.status === 'confirmed' ? 'success' :
-          registration.status === 'pending' || registration.status === 'payment_pending' ? 'warning' :
-          registration.status === 'cancelled' || registration.status === 'expired' ? 'destructive' :
-          'default'
+        className={
+          registration.status === 'confirmed' ? 'bg-green-100 text-green-800 border-green-200 text-xs' :
+          registration.status === 'pending' || registration.status === 'payment_pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-200 text-xs' :
+          registration.status === 'cancelled' || registration.status === 'expired' ? 'bg-red-100 text-red-800 border-red-200 text-xs' :
+          registration.status === 'exempt' ? 'bg-green-100 text-green-800 border-green-200 text-xs' :
+          registration.status === 'direct_payment' ? 'bg-green-100 text-green-800 border-green-200 text-xs' :
+          'bg-gray-100 text-gray-800 border-gray-200 text-xs'
         }
-        className="text-xs"
       >
         {registration.status === 'confirmed' ? 'Confirmado' : 
          registration.status === 'payment_pending' ? 'Aguardando pagamento' :
          registration.status === 'pending' ? 'Pendente' :
          registration.status === 'cancelled' ? 'Cancelado' :
-         registration.status === 'expired' ? 'Expirado' : registration.status}
+         registration.status === 'expired' ? 'Expirado' : 
+         registration.status === 'exempt' ? 'Isento' :
+         registration.status === 'direct_payment' ? 'Pagamento Direto' :
+         registration.status}
       </Badge>
     );
   };
@@ -517,7 +534,9 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
   };
 
   const isPilotConfirmed = (registration: SeasonRegistration) => {
-    return registration.status === 'confirmed';
+    return registration.status === 'confirmed' || 
+           registration.paymentStatus === 'exempt' || 
+           registration.paymentStatus === 'direct_payment';
   };
 
   if (loading) {
@@ -672,6 +691,8 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                           {registration.paymentMethod && (
                             <div className="text-xs text-muted-foreground">
                               <span className="font-medium">Método:</span> {
+                                registration.paymentStatus === 'exempt' ? 'Inscrição Administrativa - Isento' :
+                                registration.paymentStatus === 'direct_payment' ? 'Inscrição Administrativa - Pagamento Direto' :
                                 registration.paymentMethod === 'pix' ? 'PIX' : 
                                 registration.paymentMethod === 'cartao_credito' ? 'Cartão de Crédito' : 
                                 registration.paymentMethod

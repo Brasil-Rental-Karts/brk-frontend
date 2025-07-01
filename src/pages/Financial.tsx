@@ -206,8 +206,8 @@ export const Financial: React.FC = () => {
               ...reg,
               paymentDetails: {
                 totalInstallments: 1,
-                paidInstallments: reg.paymentStatus === 'paid' ? 1 : 0,
-                paidAmount: reg.paymentStatus === 'paid' ? Number(reg.amount) : 0,
+                paidInstallments: ['paid', 'exempt', 'direct_payment'].includes(reg.paymentStatus) ? 1 : 0,
+                paidAmount: ['paid', 'exempt', 'direct_payment'].includes(reg.paymentStatus) ? Number(reg.amount) : 0,
                 pendingAmount: reg.paymentStatus === 'pending' || reg.paymentStatus === 'processing' ? Number(reg.amount) : 0,
                 overdueAmount: reg.paymentStatus === 'failed' || reg.paymentStatus === 'overdue' ? Number(reg.amount) : 0,
                 payments: []
@@ -220,8 +220,8 @@ export const Financial: React.FC = () => {
               ...reg,
               paymentDetails: {
                 totalInstallments: 1,
-                paidInstallments: reg.paymentStatus === 'paid' ? 1 : 0,
-                paidAmount: reg.paymentStatus === 'paid' ? reg.amount : 0,
+                paidInstallments: ['paid', 'exempt', 'direct_payment'].includes(reg.paymentStatus) ? 1 : 0,
+                paidAmount: ['paid', 'exempt', 'direct_payment'].includes(reg.paymentStatus) ? reg.amount : 0,
                 pendingAmount: reg.paymentStatus === 'pending' ? reg.amount : 0,
                 overdueAmount: reg.paymentStatus === 'overdue' ? reg.amount : 0,
                 payments: []
@@ -265,6 +265,15 @@ export const Financial: React.FC = () => {
   }, [user?.id]);
 
   const getPaymentStatusBadge = (registration: RegistrationWithPayments) => {
+    // Verificar se é inscrição administrativa
+    if (registration.paymentStatus === 'exempt') {
+      return <Badge className="bg-green-100 text-green-800 border-green-200">Isento</Badge>;
+    }
+    
+    if (registration.paymentStatus === 'direct_payment') {
+      return <Badge className="bg-green-100 text-green-800 border-green-200">Pagamento Direto</Badge>;
+    }
+
     if (!registration.paymentDetails) {
       // Fallback para status simples
       switch (registration.paymentStatus) {
@@ -313,7 +322,16 @@ export const Financial: React.FC = () => {
     }
   };
 
-  const getPaymentMethodLabel = (method: string) => {
+  const getPaymentMethodLabel = (method: string, paymentStatus?: string) => {
+    // Para inscrições administrativas, mostrar texto amigável
+    if (paymentStatus === 'exempt') {
+      return 'Inscrição Administrativa - Isento';
+    }
+    
+    if (paymentStatus === 'direct_payment') {
+      return 'Inscrição Administrativa - Pagamento Direto';
+    }
+
     switch (method) {
       case 'credit_card':
         return 'Cartão de Crédito';
@@ -353,7 +371,7 @@ export const Financial: React.FC = () => {
                 {/* Payment Info */}
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   {getPaymentMethodIcon(registration.paymentMethod)}
-                  <span className="truncate">{getPaymentMethodLabel(registration.paymentMethod)}</span>
+                  <span className="truncate">{getPaymentMethodLabel(registration.paymentMethod, registration.paymentStatus)}</span>
                   {registration.paymentDetails && registration.paymentDetails.totalInstallments > 1 && (
                     <span className="flex-shrink-0">• {registration.paymentDetails.totalInstallments}x</span>
                   )}
@@ -540,7 +558,7 @@ export const Financial: React.FC = () => {
               <div className="flex items-center gap-2">
                 {getPaymentMethodIcon(registration.paymentMethod)}
                 <div className="flex flex-col min-w-0">
-                  <span className="text-sm truncate">{getPaymentMethodLabel(registration.paymentMethod)}</span>
+                  <span className="text-sm truncate">{getPaymentMethodLabel(registration.paymentMethod, registration.paymentStatus)}</span>
                   {registration.paymentDetails && registration.paymentDetails.totalInstallments > 1 && (
                     <span className="text-xs text-muted-foreground">
                       {registration.paymentDetails.totalInstallments}x
@@ -782,7 +800,7 @@ export const Financial: React.FC = () => {
                           <div className="flex items-center gap-2">
                             {getPaymentMethodIcon(registration.paymentMethod)}
                             <div className="flex flex-col min-w-0">
-                              <span className="text-sm truncate">{getPaymentMethodLabel(registration.paymentMethod)}</span>
+                              <span className="text-sm truncate">{getPaymentMethodLabel(registration.paymentMethod, registration.paymentStatus)}</span>
                               {registration.paymentDetails && registration.paymentDetails.totalInstallments > 1 && (
                                 <span className="text-xs text-muted-foreground">
                                   {registration.paymentDetails.totalInstallments}x

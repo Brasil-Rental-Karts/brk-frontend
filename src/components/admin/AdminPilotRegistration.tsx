@@ -16,6 +16,40 @@ import { formatCurrency } from "@/utils/currency";
 import { X } from "lucide-react";
 import { ChampionshipService } from "@/lib/services/championship.service";
 
+// Função para formatar valor monetário no input
+const formatCurrencyInput = (value: string | number): string => {
+  // Se for número, formata diretamente
+  if (typeof value === 'number') {
+    return value.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+  
+  // Se for string, remove tudo que não é número
+  const numericValue = value.replace(/\D/g, '');
+  
+  // Converte para número e divide por 100 para ter centavos (apenas para input manual)
+  const floatValue = parseFloat(numericValue) / 100;
+  
+  // Formata como moeda brasileira
+  return floatValue.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+};
+
+// Função para extrair valor numérico do input formatado
+const extractNumericValue = (formattedValue: string): number => {
+  // Remove símbolos de moeda e espaços, mantém apenas números e vírgula/ponto
+  const cleanValue = formattedValue.replace(/[^\d,.-]/g, '').replace(',', '.');
+  return parseFloat(cleanValue) || 0;
+};
+
 interface User {
   id: string;
   name: string;
@@ -60,10 +94,12 @@ export const AdminPilotRegistration = () => {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [selectedChampionshipId, setSelectedChampionshipId] = useState<string>("");
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>("");
+  const [selectedSeason, setSelectedSeason] = useState<Season | null>(null);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [selectedStageIds, setSelectedStageIds] = useState<string[]>([]);
   const [paymentStatus, setPaymentStatus] = useState<'exempt' | 'direct_payment'>('exempt');
   const [amount, setAmount] = useState<number>(0);
+  const [amountDisplay, setAmountDisplay] = useState<string>("R$ 0,00");
   const [notes, setNotes] = useState<string>("");
 
   const [showUserDropdown, setShowUserDropdown] = useState(false);
@@ -80,18 +116,35 @@ export const AdminPilotRegistration = () => {
     if (selectedChampionshipId) {
       loadSeasons(selectedChampionshipId);
       setSelectedSeasonId("");
+      setSelectedSeason(null);
       setCategories([]);
       setStages([]);
+      // Zerar valor e seleções quando trocar campeonato
+      setAmount(0);
+      setAmountDisplay("R$ 0,00");
+      setSelectedCategoryIds([]);
+      setSelectedStageIds([]);
     }
   }, [selectedChampionshipId]);
 
   // Load categories when season changes
   useEffect(() => {
     if (selectedSeasonId) {
+      // Encontrar a temporada selecionada
+      const season = seasons.find(s => s.id === selectedSeasonId);
+      setSelectedSeason(season || null);
+      
       loadCategories(selectedSeasonId);
       loadStages(selectedSeasonId);
+      // Zerar valor e seleções quando trocar temporada
+      setAmount(0);
+      setAmountDisplay("R$ 0,00");
+      setSelectedCategoryIds([]);
+      setSelectedStageIds([]);
+    } else {
+      setSelectedSeason(null);
     }
-  }, [selectedSeasonId]);
+  }, [selectedSeasonId, seasons]);
 
   // Calculate amount when categories or stages change
   useEffect(() => {
@@ -104,6 +157,7 @@ export const AdminPilotRegistration = () => {
   useEffect(() => {
     if (paymentStatus === 'exempt') {
       setAmount(0);
+      setAmountDisplay("R$ 0,00");
     } else if (selectedSeasonId && selectedCategoryIds.length > 0) {
       calculateAmount();
     }
@@ -158,12 +212,18 @@ export const AdminPilotRegistration = () => {
 
       // Load seasons (will be filtered by championship later)
       const seasonsData = await SeasonService.getAll(1, 100);
-      setSeasons((seasonsData.data || []).map(season => ({
-        ...season,
-        inscriptionValue: typeof season.inscriptionValue === 'string' 
-          ? parseFloat(season.inscriptionValue) 
-          : season.inscriptionValue
-      })));
+      const processedSeasons = (seasonsData.data || []).map(season => {
+        let inscriptionValue = season.inscriptionValue;
+        if (typeof inscriptionValue === 'string') {
+          // Remove símbolos de moeda e espaços, converte vírgula para ponto
+          inscriptionValue = parseFloat(inscriptionValue.replace(/[^\d,.-]/g, '').replace(',', '.'));
+        }
+        return {
+          ...season,
+          inscriptionValue: Number(inscriptionValue) || 0
+        };
+      });
+      setSeasons(processedSeasons);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       toast.error("Erro ao carregar dados");
@@ -182,12 +242,17 @@ export const AdminPilotRegistration = () => {
       const seasonsData = await SeasonService.getAll(1, 100);
       const filteredSeasons = (seasonsData.data || []).filter(season => 
         season.championshipId === championshipId
-      ).map(season => ({
-        ...season,
-        inscriptionValue: typeof season.inscriptionValue === 'string' 
-          ? parseFloat(season.inscriptionValue) 
-          : season.inscriptionValue
-      }));
+      ).map(season => {
+        let inscriptionValue = season.inscriptionValue;
+        if (typeof inscriptionValue === 'string') {
+          // Remove símbolos de moeda e espaços, converte vírgula para ponto
+          inscriptionValue = parseFloat(inscriptionValue.replace(/[^\d,.-]/g, '').replace(',', '.'));
+        }
+        return {
+          ...season,
+          inscriptionValue: Number(inscriptionValue) || 0
+        };
+      });
       setSeasons(filteredSeasons);
     } catch (error) {
       console.error("Erro ao carregar temporadas:", error);
@@ -225,6 +290,13 @@ export const AdminPilotRegistration = () => {
     let calculatedAmount = 0;
     const baseValue = Number(selectedSeason.inscriptionValue);
 
+    console.log('Debug - Valores de cálculo:', {
+      baseValue,
+      selectedCategoryIds: selectedCategoryIds.length,
+      selectedStageIds: selectedStageIds.length,
+      inscriptionType: selectedSeason.inscriptionType
+    });
+
     if (selectedSeason.inscriptionType === 'por_etapa' && selectedStageIds.length > 0) {
       // Por etapa: quantidade de categorias x quantidade de etapas x valor da inscrição
       calculatedAmount = baseValue * selectedCategoryIds.length * selectedStageIds.length;
@@ -233,7 +305,10 @@ export const AdminPilotRegistration = () => {
       calculatedAmount = baseValue * selectedCategoryIds.length;
     }
 
+    console.log('Debug - Valor calculado:', calculatedAmount);
+
     setAmount(calculatedAmount);
+    setAmountDisplay(formatCurrencyInput(calculatedAmount));
   };
 
   const handleCategoryChange = (categoryId: string, checked: boolean) => {
@@ -260,6 +335,12 @@ export const AdminPilotRegistration = () => {
       return;
     }
 
+    // Validação específica por tipo de inscrição
+    if (selectedSeason?.inscriptionType === 'por_etapa' && selectedStageIds.length === 0) {
+      toast.error("Para inscrições por etapa, é obrigatório selecionar pelo menos uma etapa");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const registrationData = {
@@ -279,10 +360,12 @@ export const AdminPilotRegistration = () => {
       // Reset form
       setSelectedUserId("");
       setSelectedSeasonId("");
+      setSelectedSeason(null);
       setSelectedCategoryIds([]);
       setSelectedStageIds([]);
       setPaymentStatus('exempt');
       setAmount(0);
+      setAmountDisplay("R$ 0,00");
       setNotes("");
       
     } catch (error: any) {
@@ -435,10 +518,10 @@ export const AdminPilotRegistration = () => {
         </div>
       )}
 
-      {/* Etapas (se aplicável) */}
-      {selectedSeasonId && stages.length > 0 && (
+      {/* Etapas (apenas para inscrição por etapa) */}
+      {selectedSeason?.inscriptionType === 'por_etapa' && selectedSeasonId && stages.length > 0 && (
         <div className="space-y-2">
-          <Label>Etapas (opcional)</Label>
+          <Label>Etapas *</Label>
           <div className="grid gap-2 md:grid-cols-2">
             {stages?.map((stage) => (
               <div key={stage.id} className="flex items-center space-x-2">
@@ -451,6 +534,9 @@ export const AdminPilotRegistration = () => {
               </div>
             )) || []}
           </div>
+          <p className="text-sm text-gray-500">
+            Para inscrições por etapa, é obrigatório selecionar pelo menos uma etapa
+          </p>
         </div>
       )}
 
@@ -459,12 +545,23 @@ export const AdminPilotRegistration = () => {
         <Label htmlFor="amount">Valor (R$)</Label>
         <Input
           id="amount"
-          type="number"
-          step="0.01"
-          min="0"
-          value={amount}
-          onChange={(e) => setAmount(Number(e.target.value))}
-          placeholder="0,00"
+          type="text"
+          value={amountDisplay}
+          onChange={(e) => {
+            if (paymentStatus !== 'exempt') {
+              const numericValue = extractNumericValue(e.target.value);
+              setAmount(numericValue);
+              setAmountDisplay(formatCurrencyInput(e.target.value));
+            }
+          }}
+          onBlur={(e) => {
+            if (paymentStatus !== 'exempt') {
+              const numericValue = extractNumericValue(e.target.value);
+              setAmount(numericValue);
+              setAmountDisplay(formatCurrencyInput(numericValue));
+            }
+          }}
+          placeholder="R$ 0,00"
           disabled={paymentStatus === 'exempt'}
           className={paymentStatus === 'exempt' ? 'bg-gray-100 cursor-not-allowed' : ''}
         />

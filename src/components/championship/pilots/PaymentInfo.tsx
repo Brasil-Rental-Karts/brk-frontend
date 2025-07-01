@@ -26,11 +26,13 @@ const getNextPayment = (registration: SeasonRegistration) => {
   return pendingPayments[0] || null;
 };
 
-const getStatusVariant = (status: AsaasPaymentStatus) => {
+const getStatusVariant = (status: AsaasPaymentStatus | string) => {
   switch (status) {
     case AsaasPaymentStatus.CONFIRMED:
     case AsaasPaymentStatus.RECEIVED:
     case AsaasPaymentStatus.RECEIVED_IN_CASH:
+    case 'EXEMPT':
+    case 'DIRECT_PAYMENT':
       return 'success';
     case AsaasPaymentStatus.PENDING:
       return 'warning';
@@ -58,6 +60,27 @@ const getPaymentMethodIcon = (method: string) => {
 };
 
 const PaymentInfo = ({ registration }: PaymentInfoProps) => {
+  // Verificar se é isento ou pagamento direto (status administrativos)
+  if (registration.paymentStatus === 'exempt') {
+    return (
+      <div className="flex flex-col items-start gap-1">
+        <Badge variant="success" className="flex items-center gap-1">
+          Isento
+        </Badge>
+      </div>
+    );
+  }
+
+  if (registration.paymentStatus === 'direct_payment') {
+    return (
+      <div className="flex flex-col items-start gap-1">
+        <Badge variant="success" className="flex items-center gap-1">
+          Pagamento Direto
+        </Badge>
+      </div>
+    );
+  }
+
   if (!registration.payments || registration.payments.length === 0) {
     return <Badge variant="secondary">Sem pagamento</Badge>;
   }
@@ -71,6 +94,8 @@ const PaymentInfo = ({ registration }: PaymentInfoProps) => {
           AsaasPaymentStatus.CONFIRMED,
           AsaasPaymentStatus.RECEIVED,
           AsaasPaymentStatus.RECEIVED_IN_CASH,
+          'EXEMPT',
+          'DIRECT_PAYMENT',
         ].includes(p.status as AsaasPaymentStatus),
     ).length;
     const totalInstallments = registration.payments.length;
@@ -106,7 +131,7 @@ const PaymentInfo = ({ registration }: PaymentInfoProps) => {
   const payment = registration.payments[0];
   const variant = getStatusVariant(payment.status as AsaasPaymentStatus);
 
-  const statusMap: Record<AsaasPaymentStatus, string> = {
+  const statusMap: Record<AsaasPaymentStatus | string, string> = {
     [AsaasPaymentStatus.PENDING]: 'Pendente',
     [AsaasPaymentStatus.CONFIRMED]: `Pago (${
       payment.billingType === PaymentMethod.CREDIT_CARD
@@ -131,6 +156,8 @@ const PaymentInfo = ({ registration }: PaymentInfoProps) => {
     [AsaasPaymentStatus.DUNNING_RECEIVED]: 'Cobrança Recebida',
     [AsaasPaymentStatus.AWAITING_RISK_ANALYSIS]: 'Análise de Risco',
     [AsaasPaymentStatus.UNKNOWN]: 'Desconhecido',
+    'EXEMPT': 'Isento',
+    'DIRECT_PAYMENT': 'Pagamento Direto',
   };
 
   return (

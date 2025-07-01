@@ -85,6 +85,8 @@ export function PilotDetailsModal({ isOpen, onClose, registrationId }: PilotDeta
     switch (status) {
       case 'paid':
       case 'confirmed':
+      case 'exempt':
+      case 'direct_payment':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
       case 'pending':
       case 'processing':
@@ -102,6 +104,8 @@ export function PilotDetailsModal({ isOpen, onClose, registrationId }: PilotDeta
     switch (status) {
       case 'paid':
       case 'confirmed':
+      case 'exempt':
+      case 'direct_payment':
         return 'bg-green-100 text-green-800';
       case 'pending':
       case 'processing':
@@ -319,22 +323,41 @@ export function PilotDetailsModal({ isOpen, onClose, registrationId }: PilotDeta
                     <label className="text-sm font-medium text-gray-500">Status do Pagamento</label>
                     <div className="flex items-center gap-2 mt-1">
                       {getStatusIcon(pilotDetails.registration.paymentStatus)}
-                      <Badge className={getStatusColor(pilotDetails.registration.paymentStatus)}>
-                        {pilotDetails.payments && pilotDetails.payments.length > 0 ? (
-                          pilotDetails.payments.length > 1 ? (
-                            // Pagamento parcelado
-                            `${pilotDetails.payments.filter(p => ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(p.status)).length}/${pilotDetails.payments.length} parcelas pagas`
-                          ) : (
-                            // Pagamento único
-                            ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(pilotDetails.payments[0].status) ? 'Pago' : 
-                            ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(pilotDetails.payments[0].status) ? 'Pendente' : 
-                            pilotDetails.payments[0].status === 'OVERDUE' ? 'Vencido' : 
-                            PaymentStatusLabels[pilotDetails.registration.paymentStatus as keyof typeof PaymentStatusLabels]
-                          )
+                                              {pilotDetails.payments && pilotDetails.payments.length > 0 ? (
+                        pilotDetails.payments.length > 1 ? (
+                          // Pagamento parcelado
+                          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
+                            {pilotDetails.payments.filter(p => ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH', 'EXEMPT', 'DIRECT_PAYMENT'].includes(p.status)).length}/{pilotDetails.payments.length} parcelas pagas
+                          </Badge>
                         ) : (
-                          PaymentStatusLabels[pilotDetails.registration.paymentStatus as keyof typeof PaymentStatusLabels]
-                        )}
-                      </Badge>
+                          // Pagamento único
+                          <Badge 
+                            className={
+                              pilotDetails.payments[0].status === 'EXEMPT' || pilotDetails.payments[0].status === 'DIRECT_PAYMENT'
+                                ? 'bg-green-100 text-green-800 border-green-200 text-xs'
+                                : ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(pilotDetails.payments[0].status) ? 'text-xs bg-green-50 text-green-800 border-green-200' 
+                                : ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(pilotDetails.payments[0].status) ? 'text-xs bg-yellow-50 text-yellow-800 border-yellow-200' 
+                                : 'text-xs bg-gray-50 text-gray-800 border-gray-200'
+                            }
+                          >
+                            {['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(pilotDetails.payments[0].status) ? 'Pago' : 
+                             ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(pilotDetails.payments[0].status) ? 'Pendente' : 
+                             pilotDetails.payments[0].status === 'EXEMPT' ? 'Isento' : 
+                             pilotDetails.payments[0].status === 'DIRECT_PAYMENT' ? 'Pagamento Direto' : 
+                             pilotDetails.payments[0].status}
+                          </Badge>
+                        )
+                      ) : (
+                        <Badge 
+                          className={
+                            pilotDetails.registration.paymentStatus === 'EXEMPT' || pilotDetails.registration.paymentStatus === 'DIRECT_PAYMENT'
+                              ? 'bg-green-100 text-green-800 border-green-200 text-xs'
+                              : PaymentStatusLabels[pilotDetails.registration.paymentStatus as keyof typeof PaymentStatusLabels]
+                          }
+                        >
+                          {PaymentStatusLabels[pilotDetails.registration.paymentStatus as keyof typeof PaymentStatusLabels]}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   <div>
@@ -396,22 +419,39 @@ export function PilotDetailsModal({ isOpen, onClose, registrationId }: PilotDeta
                         // Pagamento parcelado
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline">
-                              {pilotDetails.payments.filter(p => ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(p.status)).length}/{pilotDetails.payments.length} parcelas pagas
+                            <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
+                              {pilotDetails.payments.filter(p => ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH', 'EXEMPT', 'DIRECT_PAYMENT'].includes(p.status)).length}/{pilotDetails.payments.length} parcelas pagas
                             </Badge>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                             {pilotDetails.payments.map((payment, index) => {
-                              const isPaid = ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(payment.status);
+                              const isPaid = ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH', 'EXEMPT', 'DIRECT_PAYMENT'].includes(payment.status);
                               const isPending = ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(payment.status);
                               const isOverdue = payment.status === 'OVERDUE';
                               
                               return (
-                                <div key={payment.id} className={`p-2 border rounded text-xs ${isPaid ? 'bg-green-50 border-green-200' : isPending ? 'bg-yellow-50 border-yellow-200' : isOverdue ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
+                                <div key={payment.id} className={`p-2 border rounded text-xs ${
+                                  payment.status === 'EXEMPT' || payment.status === 'DIRECT_PAYMENT' || isPaid 
+                                    ? 'bg-green-50 border-green-200' 
+                                    : isPending 
+                                    ? 'bg-yellow-50 border-yellow-200' 
+                                    : isOverdue 
+                                    ? 'bg-red-50 border-red-200' 
+                                    : 'bg-gray-50 border-gray-200'
+                                }`}>
                                   <div className="flex justify-between items-center">
                                     <span className="font-medium">Parcela {payment.installmentNumber || (index + 1)}</span>
-                                    <Badge variant={isPaid ? 'success' : isPending ? 'warning' : isOverdue ? 'destructive' : 'default'} className="text-xs">
-                                      {isPaid ? 'Pago' : isPending ? 'Pendente' : isOverdue ? 'Vencido' : payment.status}
+                                    <Badge 
+                                      className={
+                                        payment.status === 'EXEMPT' || payment.status === 'DIRECT_PAYMENT'
+                                          ? 'bg-green-100 text-green-800 border-green-200 text-xs'
+                                          : isPaid ? 'text-xs bg-green-50 text-green-800 border-green-200' 
+                                          : isPending ? 'text-xs bg-yellow-50 text-yellow-800 border-yellow-200' 
+                                          : isOverdue ? 'text-xs bg-red-50 text-red-800 border-red-200' 
+                                          : 'text-xs bg-gray-50 text-gray-800 border-gray-200'
+                                      }
+                                    >
+                                      {isPaid ? 'Pago' : isPending ? 'Pendente' : isOverdue ? 'Vencido' : payment.status === 'EXEMPT' ? 'Isento' : payment.status === 'DIRECT_PAYMENT' ? 'Pagamento Direto' : payment.status}
                                     </Badge>
                                   </div>
                                   <div className="text-muted-foreground mt-1">
@@ -425,11 +465,31 @@ export function PilotDetailsModal({ isOpen, onClose, registrationId }: PilotDeta
                         </div>
                       ) : (
                         // Pagamento único
-                        <div className="p-2 border rounded bg-gray-50">
+                        <div className={`p-2 border rounded ${
+                          pilotDetails.payments[0].status === 'EXEMPT' || pilotDetails.payments[0].status === 'DIRECT_PAYMENT' || ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(pilotDetails.payments[0].status)
+                            ? 'bg-green-50 border-green-200'
+                            : ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(pilotDetails.payments[0].status)
+                            ? 'bg-yellow-50 border-yellow-200'
+                            : pilotDetails.payments[0].status === 'OVERDUE'
+                            ? 'bg-red-50 border-red-200'
+                            : 'bg-gray-50 border-gray-200'
+                        }`}>
                           <div className="flex justify-between items-center">
                             <span className="font-medium">Pagamento Único</span>
-                            <Badge variant={['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(pilotDetails.payments[0].status) ? 'success' : ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(pilotDetails.payments[0].status) ? 'warning' : 'default'} className="text-xs">
-                              {['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(pilotDetails.payments[0].status) ? 'Pago' : ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(pilotDetails.payments[0].status) ? 'Pendente' : pilotDetails.payments[0].status}
+                            <Badge 
+                              className={
+                                pilotDetails.payments[0].status === 'EXEMPT' || pilotDetails.payments[0].status === 'DIRECT_PAYMENT'
+                                  ? 'bg-green-100 text-green-800 border-green-200 text-xs'
+                                  : ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(pilotDetails.payments[0].status) ? 'text-xs bg-green-50 text-green-800 border-green-200' 
+                                  : ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(pilotDetails.payments[0].status) ? 'text-xs bg-yellow-50 text-yellow-800 border-yellow-200' 
+                                  : 'text-xs bg-gray-50 text-gray-800 border-gray-200'
+                              }
+                            >
+                              {['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(pilotDetails.payments[0].status) ? 'Pago' : 
+                               ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(pilotDetails.payments[0].status) ? 'Pendente' : 
+                               pilotDetails.payments[0].status === 'EXEMPT' ? 'Isento' : 
+                               pilotDetails.payments[0].status === 'DIRECT_PAYMENT' ? 'Pagamento Direto' : 
+                               pilotDetails.payments[0].status}
                             </Badge>
                           </div>
                           <div className="text-muted-foreground mt-1">
