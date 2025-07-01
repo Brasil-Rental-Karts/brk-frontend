@@ -14,6 +14,7 @@ export interface Stage {
   doublePoints: boolean;
   briefing?: string;
   briefingTime?: string; // HH:MM format
+  schedule?: any; // JSONB field for schedule items
   createdAt: string;
   updatedAt: string;
 }

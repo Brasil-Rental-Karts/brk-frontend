@@ -24,6 +24,13 @@ export class StageService {
   }
 
   /**
+   * Buscar etapa por ID (alias para getById)
+   */
+  static async getStageById(id: string): Promise<Stage> {
+    return this.getById(id);
+  }
+
+  /**
    * Buscar etapas por temporada
    */
   static async getBySeasonId(seasonId: string): Promise<Stage[]> {
@@ -263,5 +270,13 @@ export class StageService {
     }
     
     return errors;
+  }
+
+  /**
+   * Atualizar cronograma da etapa
+   */
+  static async updateSchedule(id: string, schedule: any): Promise<Stage> {
+    const response = await api.put<Stage>(`${StageService.BASE_URL}/${id}/schedule`, { schedule });
+    return response.data;
   }
 } 
