@@ -14,7 +14,7 @@ import {
   X,
   Users,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, AlertTitle, AlertDescription } from "brk-design-system";
 import { EmptyState } from "brk-design-system";
 import { Badge } from "brk-design-system";
@@ -47,6 +47,7 @@ export const Dashboard = () => {
   const [cancellingParticipation, setCancellingParticipation] = useState<string | null>(null);
   const [showCancelConfirmation, setShowCancelConfirmation] = useState<{stageId: string, categoryId: string, categoryName: string} | null>(null);
   const [showConfirmConfirmation, setShowConfirmConfirmation] = useState<{stageId: string, categoryId: string, categoryName: string} | null>(null);
+  const [isCheckingRedirect, setIsCheckingRedirect] = useState(true);
   
   // Check if user is manager or administrator
   const isManager = user?.role === 'Manager' || user?.role === 'Administrator';
@@ -79,6 +80,16 @@ export const Dashboard = () => {
     error: statsError,
     refresh: refreshUserStats
   } = useUserStats();
+
+  useEffect(() => {
+    const redirectUrl = localStorage.getItem('redirectUrl');
+    if (redirectUrl) {
+      window.location.href = redirectUrl;
+      localStorage.removeItem('redirectUrl');
+    } else {
+      setIsCheckingRedirect(false);
+    }
+  }, []);
 
   // Função para confirmar participação
   const handleConfirmParticipation = async (stageId: string, categoryId: string) => {
@@ -143,6 +154,13 @@ export const Dashboard = () => {
       return false;
     }
   };
+
+  // Show loading while checking for redirect
+  if (isCheckingRedirect) {
+    return (
+      <></>
+    );
+  }
 
   return (
     <div className="container mx-auto p-4 space-y-6">

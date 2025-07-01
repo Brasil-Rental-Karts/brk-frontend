@@ -120,7 +120,11 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                   <Link to="/profile/edit">Perfil</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={async () => { await logout(); navigate('/'); }}>
+                <DropdownMenuItem onClick={async () => { 
+                  localStorage.setItem('isLogoutAction', 'true');
+                  await logout(); 
+                  navigate('/'); 
+                }}>
                   Sair
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -198,7 +202,12 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                     <div className="h-px bg-border my-2" />
                     <button
                       className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors text-destructive text-left"
-                      onClick={async () => { setIsOpen(false); await logout(); navigate('/'); }}
+                      onClick={async () => { 
+                        setIsOpen(false); 
+                        localStorage.setItem('isLogoutAction', 'true');
+                        await logout(); 
+                        navigate('/'); 
+                      }}
                       type="button"
                     >
                       Sair

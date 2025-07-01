@@ -26,6 +26,16 @@ export const ProtectedRoute = ({
 
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
+    // Check if this is a logout action - if so, don't save redirectUrl
+    const isLogoutAction = localStorage.getItem('isLogoutAction') === 'true';
+    
+    if (!isLogoutAction) {
+      localStorage.setItem('redirectUrl', location.pathname);
+    } else {
+      // Clear the logout flag
+      localStorage.removeItem('isLogoutAction');
+    }
+    
     return (
       <Navigate
         to={redirectPath}
