@@ -161,7 +161,7 @@ export const Dashboard = () => {
       }
       const timeDifference = eventDate.getTime() - now.getTime();
       const hoursDifference = timeDifference / (1000 * 60 * 60);
-      return hoursDifference > 48;
+      return hoursDifference > 24;
     } catch (error) {
       console.error('Error calculating participation deadline:', error);
       return false;
