@@ -1,13 +1,38 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from "brk-design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
-import { Plus, Users, CreditCard, Trophy, TrendingUp } from "lucide-react";
+import { Plus, Users, CreditCard, Trophy, TrendingUp, MapPin } from "lucide-react";
 import { AdminPilotRegistration } from "@/components/admin/AdminPilotRegistration";
+import { RaceTrackManagement } from "@/components/admin/RaceTrackManagement";
 import { useAdminStats } from "@/hooks/use-admin-stats";
 
 export const Admin = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const { stats, loading, error, refresh } = useAdminStats();
+  const navigate = useNavigate();
+
+  // Handle URL parameters for tab navigation
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    // Update URL without page reload
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', value);
+    window.history.replaceState({}, '', url.toString());
+  };
+
+  // Check URL parameters on mount
+  useState(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    if (tabParam && ['overview', 'pilot-registration', 'race-tracks', 'system'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  });
+
+  const handleCreateRaceTrack = () => {
+    navigate('/admin/race-tracks/create');
+  };
 
   return (
     <div className="container mx-auto py-8">
@@ -18,10 +43,11 @@ export const Admin = () => {
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
           <TabsTrigger value="pilot-registration">Inscrições de Pilotos</TabsTrigger>
+          <TabsTrigger value="race-tracks">Kartódromos</TabsTrigger>
           <TabsTrigger value="system">Sistema</TabsTrigger>
         </TabsList>
 
@@ -181,6 +207,22 @@ export const Admin = () => {
           </Card>
         </TabsContent>
 
+        <TabsContent value="race-tracks" className="space-y-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold">Gerenciamento de Kartódromos</h2>
+              <p className="text-muted-foreground">
+                Cadastre e gerencie os kartódromos disponíveis no sistema
+              </p>
+            </div>
+            <Button onClick={handleCreateRaceTrack}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Kartódromo
+            </Button>
+          </div>
+          <RaceTrackManagement />
+        </TabsContent>
+
         <TabsContent value="system" className="space-y-6">
           <Card>
             <CardHeader>
@@ -198,5 +240,5 @@ export const Admin = () => {
         </TabsContent>
       </Tabs>
     </div>
-      );
-  }; 
+  );
+}; 
