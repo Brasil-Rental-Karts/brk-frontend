@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { Card, CardContent, CardHeader, CardTitle, Button } from 'brk-design-system';
+import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Checkbox } from 'brk-design-system';
 import {
   Dialog,
   DialogContent,
@@ -74,6 +74,56 @@ const translatePaymentStatus = (status: string): string => {
       return status;
   }
 };
+
+// Componente para exibir categoria com badges
+const CategoryOptionBadge: React.FC<{
+  category: Category;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+}> = ({ category, checked, onChange, disabled }) => (
+  <div className={`flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors ${checked ? 'border-primary' : 'border-gray-200'}`}>
+    <div className="flex items-center space-x-3">
+      <Checkbox
+        checked={checked}
+        onCheckedChange={onChange}
+        disabled={disabled}
+        className="mt-0.5"
+      />
+      <span className="font-medium text-sm">{category.name}</span>
+    </div>
+    <div className="flex flex-wrap gap-2 sm:ml-6">
+      <Badge variant="default" className="text-xs">{category.ballast}kg</Badge>
+      <Badge variant="default" className="text-xs">{category.minimumAge} anos</Badge>
+    </div>
+  </div>
+);
+
+// Componente para exibir etapa com badges
+const StageOptionBadge: React.FC<{
+  stage: Stage;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+}> = ({ stage, checked, onChange, disabled }) => (
+  <div className={`flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors ${checked ? 'border-primary' : 'border-gray-200'}`}>
+    <div className="flex items-center space-x-3">
+      <Checkbox
+        checked={checked}
+        onCheckedChange={onChange}
+        disabled={disabled}
+        className="mt-0.5"
+      />
+      <span className="font-medium text-sm">{stage.name}</span>
+    </div>
+    <div className="flex flex-wrap gap-2 sm:ml-6">
+      <Badge variant="default" className="text-xs">
+        {new Date(stage.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+      </Badge>
+      <Badge variant="default" className="text-xs">{stage.time}</Badge>
+    </div>
+  </div>
+);
 
 export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   seasonId,
@@ -344,12 +394,26 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
           {
             id: "categorias",
             name: "Categorias Disponíveis",
-            type: "checkbox-group",
+            type: "custom",
             mandatory: true,
-            options: categories.map(category => ({
-              value: category.id,
-              description: `${category.name}`
-            }))
+            customComponent: ({ value = [], onChange, disabled }) => (
+              <div className="space-y-2">
+                {categories.map(category => (
+                  <CategoryOptionBadge
+                    key={category.id}
+                    category={category}
+                    checked={value.includes(category.id)}
+                    onChange={checked => {
+                      const newValue = checked
+                        ? [...value, category.id]
+                        : value.filter((v: string) => v !== category.id);
+                      onChange(newValue);
+                    }}
+                    disabled={disabled}
+                  />
+                ))}
+              </div>
+            )
           }
         ]
       }
@@ -364,12 +428,26 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
           {
             id: "etapas",
             name: "Etapas Disponíveis",
-            type: "checkbox-group",
+            type: "custom",
             mandatory: true,
-            options: filteredStages.map(stage => ({
-              value: stage.id,
-              description: `${stage.name} - ${new Date(stage.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} - ${stage.time}`
-            }))
+            customComponent: ({ value = [], onChange, disabled }) => (
+              <div className="space-y-2">
+                {filteredStages.map(stage => (
+                  <StageOptionBadge
+                    key={stage.id}
+                    stage={stage}
+                    checked={value.includes(stage.id)}
+                    onChange={checked => {
+                      const newValue = checked
+                        ? [...value, stage.id]
+                        : value.filter((v: string) => v !== stage.id);
+                      onChange(newValue);
+                    }}
+                    disabled={disabled}
+                  />
+                ))}
+              </div>
+            )
           }
         ]
       });
