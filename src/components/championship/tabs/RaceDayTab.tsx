@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "brk-design-system";
 import { Button, Badge } from "brk-design-system";
-import { ChevronDown, MoreHorizontal, CheckCircle, XCircle, Loader2, ChevronRight, Plus, GripVertical, Edit, Copy, Trash2, Circle } from "lucide-react";
+import { ChevronDown, MoreHorizontal, CheckCircle, XCircle, Loader2, ChevronRight, Plus, GripVertical, Edit, Copy, Trash2, Circle, X } from "lucide-react";
 import { CategoryService, Category } from '@/lib/services/category.service';
 import { SeasonRegistrationService, SeasonRegistration } from '@/lib/services/season-registration.service';
 import { Loading } from '@/components/ui/loading';
@@ -50,6 +50,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from 'brk-design-system';
+import { createPortal } from "react-dom";
 
 interface Stage {
   id: string;
@@ -185,6 +186,35 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingScheduleGeneration, setPendingScheduleGeneration] = useState(false);
   const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [showPilotConfirmationModal, setShowPilotConfirmationModal] = useState(false);
+
+  // Função para fechar o modal de confirmação de pilotos
+  const handleClosePilotConfirmationModal = () => {
+    setShowPilotConfirmationModal(false);
+    // Limpar estado de loading imediatamente
+    setPilotLoading({});
+  };
+
+  // Função para abrir o modal de confirmação de pilotos
+  const handleOpenPilotConfirmationModal = () => {
+    setShowPilotConfirmationModal(true);
+  };
+
+  // Limpar estado quando o componente for desmontado
+  useEffect(() => {
+    return () => {
+      setShowPilotConfirmationModal(false);
+      setPilotLoading({});
+    };
+  }, []);
+
+  // Limpar estado quando a etapa mudar
+  useEffect(() => {
+    if (showPilotConfirmationModal) {
+      setShowPilotConfirmationModal(false);
+      setPilotLoading({});
+    }
+  }, [selectedStageId]);
 
   // --- Frotas ---
   type Fleet = { id: string; name: string; totalKarts: number };
@@ -789,6 +819,140 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
     });
   };
 
+  // Componente Modal customizado para evitar problemas de z-index
+  const PilotConfirmationModal = () => {
+    if (!showPilotConfirmationModal) return null;
+
+    // Verificar se estamos no lado do cliente
+    if (typeof window === 'undefined') return null;
+
+    return createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
+          onClick={handleClosePilotConfirmationModal}
+        />
+        <div className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] mx-4 overflow-hidden flex flex-col z-50">
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Gerenciar Confirmações de Pilotos
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Confirme ou cancele a participação dos pilotos na etapa selecionada.
+              </p>
+            </div>
+            <button
+              onClick={handleClosePilotConfirmationModal}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-6">
+            {loading ? (
+              <Loading type="spinner" size="md" message="Carregando dados..." />
+            ) : error ? (
+              <div className="text-red-600">{error}</div>
+            ) : (
+              <div className="space-y-6">
+                {categories.map((category) => {
+                  const categoryPilots = registrations.filter(reg =>
+                    reg.categories.some((rc: any) => rc.category.id === category.id)
+                  );
+                  const confirmedPilots = categoryPilots.filter(reg =>
+                    stageParticipations.some(
+                      (part) => part.userId === reg.userId && part.categoryId === category.id && part.status === 'confirmed'
+                    )
+                  );
+                  
+                  return (
+                    <div key={category.id} className="border border-gray-200 rounded-lg">
+                      <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-base font-semibold text-gray-900">
+                            {category.name}
+                          </h4>
+                          <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2 py-1 rounded-full">
+                            {confirmedPilots.length}/{category.maxPilots}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4">
+                        <div className="space-y-3">
+                          {categoryPilots
+                            .sort((a, b) => {
+                              return (
+                                (a.user?.name || a.userId).localeCompare(b.user?.name || b.userId)
+                              );
+                            })
+                            .map((pilot) => {
+                              const isConfirmed = confirmedPilots.some(p => p.userId === pilot.userId);
+                              const isLoading = !!pilotLoading[pilot.userId + '-' + category.id];
+                              
+                              return (
+                                <div key={pilot.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
+                                  <div className="flex items-center space-x-3">
+                                    <span className="text-sm font-medium text-gray-900">
+                                      {formatName(pilot.user?.name || pilot.userId)}
+                                    </span>
+                                    {isConfirmed && (
+                                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                        Confirmado
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          onClick={() => handleToggleConfirm(pilot, category.id, isConfirmed)}
+                                          className="flex items-center space-x-1"
+                                          disabled={isLoading}
+                                        >
+                                          {isLoading ? (
+                                            <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                                          ) : isConfirmed ? (
+                                            <CheckCircle className="w-4 h-4 text-green-600" />
+                                          ) : (
+                                            <Circle className="w-4 h-4 text-gray-400" />
+                                          )}
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        {isConfirmed ? 'Cancelar participação' : 'Confirmar participação'}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
+            <Button 
+              variant="outline" 
+              onClick={handleClosePilotConfirmationModal}
+            >
+              Fechar
+            </Button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Inteligente */}
@@ -845,11 +1009,30 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Coluna 1: Pilotos Confirmados por Categoria */}
+        {/* Coluna 1: Pilotos Confirmados na Etapa */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Pilotos Confirmados por Categoria
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Pilotos Confirmados na Etapa
+            </h3>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleOpenPilotConfirmationModal}>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Gerenciar Confirmações
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           
           {loading ? (
             <Loading type="spinner" size="md" message="Carregando dados..." />
@@ -890,41 +1073,25 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                     
                     {expandedCategories.has(category.id) && (
                       <div className="border-t border-gray-200 p-3 space-y-2">
-                        {categoryPilots
-                          .sort((a, b) => {
-                            return (
-                              (a.user?.name || a.userId).localeCompare(b.user?.name || b.userId)
-                            );
-                          })
-                          .map((pilot) => (
-                            <div key={pilot.id} className="flex items-center justify-between">
-                              <span className="text-sm text-gray-900 font-medium">
-                                {formatName(pilot.user?.name || pilot.userId)}
-                              </span>
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      onClick={() => handleToggleConfirm(pilot, category.id, confirmedPilots.some(p => p.userId === pilot.userId))}
-                                      className="flex items-center space-x-1"
-                                      disabled={!!pilotLoading[pilot.userId + '-' + category.id]}
-                                    >
-                                      {confirmedPilots.some(p => p.userId === pilot.userId) ? (
-                                        <CheckCircle className="w-4 h-4 text-green-600" />
-                                      ) : (
-                                        <Circle className="w-4 h-4 text-gray-400" />
-                                      )}
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    {confirmedPilots.some(p => p.userId === pilot.userId)
-                                      ? 'Cancelar participação'
-                                      : 'Confirmar participação'}
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </div>
-                          ))}
+                        {confirmedPilots.length > 0 ? (
+                          confirmedPilots
+                            .sort((a, b) => {
+                              return (
+                                (a.user?.name || a.userId).localeCompare(b.user?.name || b.userId)
+                              );
+                            })
+                            .map((pilot) => (
+                              <div key={pilot.id} className="flex items-center">
+                                <span className="text-sm text-gray-900 font-medium">
+                                  {formatName(pilot.user?.name || pilot.userId)}
+                                </span>
+                              </div>
+                            ))
+                        ) : (
+                          <div className="text-sm text-gray-500 text-center py-2">
+                            Nenhum piloto confirmado nesta categoria
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1133,6 +1300,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Confirmação de Pilotos */}
+      <PilotConfirmationModal />
     </div>
   );
 }; 
