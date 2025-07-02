@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from "brk-design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
@@ -22,36 +22,36 @@ export const Admin = () => {
   };
 
   // Check URL parameters on mount
-  useState(() => {
+  useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
     if (tabParam && ['overview', 'pilot-registration', 'race-tracks', 'system'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
-  });
+  }, []);
 
   const handleCreateRaceTrack = () => {
     navigate('/admin/race-tracks/create');
   };
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">Painel de Administração</h1>
-        <p className="text-muted-foreground mt-2">
+    <div className="container mx-auto px-4 py-4 sm:py-8">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Painel de Administração</h1>
+        <p className="text-muted-foreground mt-2 text-sm sm:text-base">
           Área administrativa para gerenciamento do sistema
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-          <TabsTrigger value="pilot-registration">Inscrições de Pilotos</TabsTrigger>
-          <TabsTrigger value="race-tracks">Kartódromos</TabsTrigger>
-          <TabsTrigger value="system">Sistema</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4 sm:space-y-6">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto sm:h-10">
+          <TabsTrigger value="overview" className="text-xs sm:text-sm py-2 sm:py-1.5">Visão Geral</TabsTrigger>
+          <TabsTrigger value="pilot-registration" className="text-xs sm:text-sm py-2 sm:py-1.5">Inscrições</TabsTrigger>
+          <TabsTrigger value="race-tracks" className="text-xs sm:text-sm py-2 sm:py-1.5">Kartódromos</TabsTrigger>
+          <TabsTrigger value="system" className="text-xs sm:text-sm py-2 sm:py-1.5">Sistema</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-6">
+        <TabsContent value="overview" className="space-y-4 sm:space-y-6">
           {loading && (
             <div className="flex items-center justify-center py-8">
               <div className="text-muted-foreground">Carregando estatísticas...</div>
@@ -79,14 +79,14 @@ export const Admin = () => {
 
           {stats && (
             <>
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-3 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total de Usuários</CardTitle>
+                    <CardTitle className="text-xs sm:text-sm font-medium">Total de Usuários</CardTitle>
                     <Users className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-blue-600">{stats.totalUsers}</div>
+                    <div className="text-xl sm:text-2xl font-bold text-blue-600">{stats.totalUsers}</div>
                     <p className="text-xs text-muted-foreground">
                       Usuários registrados no sistema
                     </p>
@@ -95,11 +95,11 @@ export const Admin = () => {
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Usuários com Inscrições</CardTitle>
+                    <CardTitle className="text-xs sm:text-sm font-medium">Usuários com Inscrições</CardTitle>
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-emerald-600">{stats.totalUsersWithRegistrations}</div>
+                    <div className="text-xl sm:text-2xl font-bold text-emerald-600">{stats.totalUsersWithRegistrations}</div>
                     <p className="text-xs text-muted-foreground">
                       Usuários únicos com pelo menos uma inscrição
                     </p>
@@ -108,11 +108,11 @@ export const Admin = () => {
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Pilotos Confirmados</CardTitle>
+                    <CardTitle className="text-xs sm:text-sm font-medium">Pilotos Confirmados</CardTitle>
                     <CreditCard className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{stats.totalConfirmedRegistrations}</div>
+                    <div className="text-xl sm:text-2xl font-bold text-green-600">{stats.totalConfirmedRegistrations}</div>
                     <p className="text-xs text-muted-foreground">
                       Soma de pilotos confirmados em todos os campeonatos
                     </p>
@@ -121,11 +121,11 @@ export const Admin = () => {
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Campeonatos</CardTitle>
+                    <CardTitle className="text-xs sm:text-sm font-medium">Campeonatos</CardTitle>
                     <Trophy className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-purple-600">{stats.championshipsStats.length}</div>
+                    <div className="text-xl sm:text-2xl font-bold text-purple-600">{stats.championshipsStats.length}</div>
                     <p className="text-xs text-muted-foreground">
                       Total de campeonatos no sistema
                     </p>
@@ -135,37 +135,37 @@ export const Admin = () => {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Estatísticas por Campeonato</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-lg sm:text-xl">Estatísticas por Campeonato</CardTitle>
+                  <CardDescription className="text-sm">
                     Detalhamento de inscrições e usuários por campeonato
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     {stats.championshipsStats.map((championship) => (
-                      <div key={championship.id} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="font-semibold text-lg">{championship.name}</h3>
-                          <div className="text-sm text-muted-foreground">
+                      <div key={championship.id} className="border rounded-lg p-3 sm:p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-2">
+                          <h3 className="font-semibold text-base sm:text-lg">{championship.name}</h3>
+                          <div className="text-xs sm:text-sm text-muted-foreground">
                             {championship.totalUsers} usuários
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div>
-                            <div className="text-2xl font-bold text-blue-600">{championship.pilotsEnrolled}</div>
-                            <div className="text-muted-foreground">Pilotos Inscritos</div>
+                        <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
+                          <div className="text-center sm:text-left">
+                            <div className="text-lg sm:text-2xl font-bold text-blue-600">{championship.pilotsEnrolled}</div>
+                            <div className="text-muted-foreground text-xs">Pilotos Inscritos</div>
                           </div>
-                          <div>
-                            <div className="text-2xl font-bold text-green-600">{championship.pilotsConfirmed}</div>
-                            <div className="text-muted-foreground">Pilotos Confirmados</div>
+                          <div className="text-center sm:text-left">
+                            <div className="text-lg sm:text-2xl font-bold text-green-600">{championship.pilotsConfirmed}</div>
+                            <div className="text-muted-foreground text-xs">Pilotos Confirmados</div>
                           </div>
-                          <div>
-                            <div className="text-2xl font-bold text-yellow-600">{championship.pilotsPending}</div>
-                            <div className="text-muted-foreground">Pilotos Pendentes</div>
+                          <div className="text-center sm:text-left">
+                            <div className="text-lg sm:text-2xl font-bold text-yellow-600">{championship.pilotsPending}</div>
+                            <div className="text-muted-foreground text-xs">Pilotos Pendentes</div>
                           </div>
-                          <div>
-                            <div className="text-2xl font-bold text-red-600">{championship.pilotsOverdue}</div>
-                            <div className="text-muted-foreground">Pilotos Atrasados</div>
+                          <div className="text-center sm:text-left">
+                            <div className="text-lg sm:text-2xl font-bold text-red-600">{championship.pilotsOverdue}</div>
+                            <div className="text-muted-foreground text-xs">Pilotos Atrasados</div>
                           </div>
                         </div>
                       </div>
@@ -176,10 +176,10 @@ export const Admin = () => {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Legenda das Categorias</CardTitle>
+                  <CardTitle className="text-lg sm:text-xl">Legenda das Categorias</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-sm text-muted-foreground space-y-2">
+                  <div className="text-xs sm:text-sm text-muted-foreground space-y-2">
                     <p><strong>Pilotos Inscritos:</strong> Todos que se inscreveram no campeonato</p>
                     <p><strong>Pilotos Confirmados:</strong> Pagaram tudo, pelo menos uma parcela, são isentos ou têm pagamento direto</p>
                     <p><strong>Pilotos Pendentes:</strong> Ainda não pagaram nenhuma parcela, mas as parcelas estão pendentes</p>
@@ -193,11 +193,11 @@ export const Admin = () => {
 
         </TabsContent>
 
-        <TabsContent value="pilot-registration" className="space-y-6">
+        <TabsContent value="pilot-registration" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Inscrições Administrativas de Pilotos</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-lg sm:text-xl">Inscrições Administrativas de Pilotos</CardTitle>
+              <CardDescription className="text-sm">
                 Adicione pilotos a temporadas com status de pagamento administrativo (isento ou pagamento direto).
               </CardDescription>
             </CardHeader>
@@ -207,15 +207,15 @@ export const Admin = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="race-tracks" className="space-y-6">
-          <div className="flex items-center justify-between mb-6">
+        <TabsContent value="race-tracks" className="space-y-4 sm:space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-4">
             <div>
-              <h2 className="text-2xl font-bold">Gerenciamento de Kartódromos</h2>
-              <p className="text-muted-foreground">
+              <h2 className="text-xl sm:text-2xl font-bold">Gerenciamento de Kartódromos</h2>
+              <p className="text-muted-foreground text-sm">
                 Cadastre e gerencie os kartódromos disponíveis no sistema
               </p>
             </div>
-            <Button onClick={handleCreateRaceTrack}>
+            <Button onClick={handleCreateRaceTrack} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               Novo Kartódromo
             </Button>
@@ -223,16 +223,16 @@ export const Admin = () => {
           <RaceTrackManagement />
         </TabsContent>
 
-        <TabsContent value="system" className="space-y-6">
+        <TabsContent value="system" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Configurações do Sistema</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-lg sm:text-xl">Configurações do Sistema</CardTitle>
+              <CardDescription className="text-sm">
                 Configurações gerais do sistema e monitoramento.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Funcionalidades de sistema em desenvolvimento...
               </p>
             </CardContent>

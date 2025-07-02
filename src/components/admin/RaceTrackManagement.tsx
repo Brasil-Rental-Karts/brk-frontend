@@ -1,7 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Badge } from "brk-design-system";
-import { Plus, Edit, Trash2, Eye, EyeOff } from "lucide-react";
+import { Plus, MoreVertical, Eye, EyeOff } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "brk-design-system";
 import { RaceTrackService, RaceTrack } from "@/lib/services/race-track.service";
 import { toast } from "sonner";
 
@@ -57,6 +63,23 @@ export const RaceTrackManagement = () => {
     }
   };
 
+  const handleRaceTrackAction = (action: string, raceTrack: RaceTrack) => {
+    switch (action) {
+      case "edit":
+        handleEdit(raceTrack);
+        break;
+      case "toggle":
+        handleToggleActive(raceTrack.id);
+        break;
+      case "delete":
+        setDeletingId(raceTrack.id);
+        setShowDeleteDialog(true);
+        break;
+      default:
+        console.warn(`Unknown action: ${action}`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -66,69 +89,64 @@ export const RaceTrackManagement = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Race Tracks List */}
-      <div className="grid gap-4">
+      <div className="grid gap-3 sm:gap-4">
         {raceTracks.map((raceTrack) => (
           <Card key={raceTrack.id}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div>
-                    <CardTitle className="text-lg">{raceTrack.name}</CardTitle>
-                    <CardDescription>
+            <CardHeader className="pb-3 sm:pb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 gap-2">
+                  <div className="flex-1">
+                    <CardTitle className="text-base sm:text-lg">{raceTrack.name}</CardTitle>
+                    <CardDescription className="text-sm">
                       {raceTrack.city} - {raceTrack.state}
                     </CardDescription>
                   </div>
-                  <Badge variant={raceTrack.isActive ? "default" : "secondary"}>
+                  <Badge variant={raceTrack.isActive ? "default" : "secondary"} className="w-fit">
                     {raceTrack.isActive ? "Ativo" : "Inativo"}
                   </Badge>
                 </div>
-                <div className="flex items-center space-x-2 relative z-10">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleToggleActive(raceTrack.id)}
-                  >
-                    {raceTrack.isActive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEdit(raceTrack)}
-                    title="Editar kartódromo"
-                    className="cursor-pointer"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setDeletingId(raceTrack.id);
-                      setShowDeleteDialog(true);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <div className="flex items-center justify-end sm:justify-start space-x-2 relative z-10">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleRaceTrackAction("edit", raceTrack)}>
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleRaceTrackAction("toggle", raceTrack)}>
+                        {raceTrack.isActive ? "Desativar" : "Ativar"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => handleRaceTrackAction("delete", raceTrack)}
+                        className="text-destructive"
+                      >
+                        Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <CardContent className="pt-0">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-xs sm:text-sm">
                 <div>
-                  <strong>Endereço:</strong>
-                  <p className="text-muted-foreground">{raceTrack.address}</p>
+                  <strong className="text-xs sm:text-sm">Endereço:</strong>
+                  <p className="text-muted-foreground text-xs sm:text-sm mt-1">{raceTrack.address}</p>
                 </div>
                 <div>
-                  <strong>Traçados:</strong>
-                  <p className="text-muted-foreground">
+                  <strong className="text-xs sm:text-sm">Traçados:</strong>
+                  <p className="text-muted-foreground text-xs sm:text-sm mt-1">
                     {raceTrack.trackLayouts.length} traçados
                   </p>
                 </div>
                 <div>
-                  <strong>Frotas:</strong>
-                  <p className="text-muted-foreground">
+                  <strong className="text-xs sm:text-sm">Frotas:</strong>
+                  <p className="text-muted-foreground text-xs sm:text-sm mt-1">
                     {raceTrack.defaultFleets.length} frotas
                   </p>
                 </div>
@@ -141,10 +159,10 @@ export const RaceTrackManagement = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="text-center text-muted-foreground">
-                <p>Nenhum kartódromo cadastrado</p>
+                <p className="text-sm sm:text-base">Nenhum kartódromo cadastrado</p>
                 <Button 
                   variant="outline" 
-                  className="mt-2"
+                  className="mt-2 w-full sm:w-auto"
                   onClick={() => navigate('/admin/race-tracks/create')}
                 >
                   Cadastrar primeiro kartódromo
@@ -157,25 +175,27 @@ export const RaceTrackManagement = () => {
 
       {/* Delete Confirmation Dialog */}
       {showDeleteDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-background p-6 rounded-lg max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Confirmar Exclusão</h3>
-            <p className="text-muted-foreground mb-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background p-4 sm:p-6 rounded-lg max-w-md w-full mx-4">
+            <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Confirmar Exclusão</h3>
+            <p className="text-muted-foreground mb-4 sm:mb-6 text-sm sm:text-base">
               Tem certeza que deseja excluir este kartódromo? Esta ação não pode ser desfeita.
             </p>
-            <div className="flex justify-end space-x-2">
+            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
               <Button
                 variant="outline"
                 onClick={() => {
                   setShowDeleteDialog(false);
                   setDeletingId(null);
                 }}
+                className="w-full sm:w-auto"
               >
                 Cancelar
               </Button>
               <Button
                 variant="destructive"
                 onClick={handleDelete}
+                className="w-full sm:w-auto"
               >
                 Excluir
               </Button>

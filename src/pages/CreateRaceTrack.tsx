@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, Button } from "brk-design-sys
 import { Input } from "brk-design-system";
 import { Label } from "brk-design-system";
 import { Textarea } from "brk-design-system";
-import { Plus, X } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 interface TrackLayout {
   name: string;
@@ -165,10 +165,6 @@ export const CreateRaceTrack = () => {
   };
 
   const removeTrackLayout = (index: number) => {
-    if (trackLayouts.length <= 1) {
-      toast.error('Pelo menos um traçado deve ser mantido');
-      return;
-    }
     setTrackLayouts(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -187,10 +183,6 @@ export const CreateRaceTrack = () => {
   };
 
   const removeDefaultFleet = (index: number) => {
-    if (defaultFleets.length <= 1) {
-      toast.error('Pelo menos uma frota deve ser mantida');
-      return;
-    }
     setDefaultFleets(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -297,22 +289,22 @@ export const CreateRaceTrack = () => {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
+    <div className="container mx-auto px-4 py-4 sm:py-8">
+      <div className="mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
               {isEditing ? "Editar Kartódromo" : "Novo Kartódromo"}
             </h1>
-            <p className="text-muted-foreground mt-2">
+            <p className="text-muted-foreground mt-2 text-sm sm:text-base">
               {isEditing 
                 ? "Atualize as informações do kartódromo." 
                 : "Cadastre um novo kartódromo no sistema."
               }
             </p>
           </div>
-          <div className="flex space-x-2">
-            <Button variant="outline" onClick={onCancel} disabled={saving}>
+          <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2 w-full sm:w-auto">
+            <Button variant="outline" onClick={onCancel} disabled={saving} className="w-full sm:w-auto">
               Cancelar
             </Button>
             <Button 
@@ -323,6 +315,7 @@ export const CreateRaceTrack = () => {
                 }
               }}
               disabled={saving}
+              className="w-full sm:w-auto"
             >
               {saving ? "Salvando..." : (isEditing ? "Atualizar kartódromo" : "Criar kartódromo")}
             </Button>
@@ -330,7 +323,7 @@ export const CreateRaceTrack = () => {
         </div>
       </div>
 
-      <div className="space-y-8">
+      <div className="space-y-6 sm:space-y-8">
         {/* Formulário básico */}
         {initialData && (
           <DynamicForm
@@ -347,14 +340,14 @@ export const CreateRaceTrack = () => {
         {/* Seção de Traçados */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <CardTitle>Traçados</CardTitle>
+                <CardTitle className="text-lg sm:text-xl">Traçados</CardTitle>
                 <p className="text-sm text-muted-foreground">
                   Configure os traçados disponíveis no kartódromo
                 </p>
               </div>
-              <Button onClick={addTrackLayout} variant="outline" size="sm">
+              <Button onClick={addTrackLayout} variant="outline" size="sm" className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Traçado
               </Button>
@@ -366,44 +359,50 @@ export const CreateRaceTrack = () => {
                 <Card key={index} className="border">
                   <CardContent className="pt-4">
                     <div className="flex items-center justify-between mb-4">
-                      <h4 className="font-medium">Traçado {index + 1}</h4>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeTrackLayout(index)}
-                        disabled={trackLayouts.length <= 1}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <h4 className="font-medium text-sm sm:text-base">Traçado {index + 1}</h4>
+                      {trackLayouts.length > 1 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeTrackLayout(index)}
+                          className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-3"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span className="hidden sm:inline ml-2">Remover</span>
+                        </Button>
+                      )}
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Nome *</Label>
+                        <Label className="text-sm">Nome *</Label>
                         <Input
                           value={track.name}
                           onChange={(e) => updateTrackLayout(index, 'name', e.target.value)}
                           placeholder="Ex: Traçado Principal"
+                          className="text-sm"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Comprimento (metros) *</Label>
+                        <Label className="text-sm">Comprimento (metros) *</Label>
                         <Input
                           type="number"
                           value={track.length}
                           onChange={(e) => updateTrackLayout(index, 'length', parseInt(e.target.value) || 0)}
                           min="1"
                           placeholder="1000"
+                          className="text-sm"
                         />
                       </div>
                     </div>
                     
                     <div className="mt-4 space-y-2">
-                      <Label>Descrição</Label>
+                      <Label className="text-sm">Descrição</Label>
                       <Textarea
                         value={track.description}
                         onChange={(e) => updateTrackLayout(index, 'description', e.target.value)}
                         placeholder="Descrição do traçado..."
+                        className="text-sm"
                       />
                     </div>
                   </CardContent>
@@ -416,14 +415,14 @@ export const CreateRaceTrack = () => {
         {/* Seção de Frotas */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <CardTitle>Frotas Padrão</CardTitle>
+                <CardTitle className="text-lg sm:text-xl">Frotas Padrão</CardTitle>
                 <p className="text-sm text-muted-foreground">
                   Configure as frotas disponíveis no kartódromo
                 </p>
               </div>
-              <Button onClick={addDefaultFleet} variant="outline" size="sm">
+              <Button onClick={addDefaultFleet} variant="outline" size="sm" className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Frota
               </Button>
@@ -435,34 +434,39 @@ export const CreateRaceTrack = () => {
                 <Card key={index} className="border">
                   <CardContent className="pt-4">
                     <div className="flex items-center justify-between mb-4">
-                      <h4 className="font-medium">Frota {index + 1}</h4>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeDefaultFleet(index)}
-                        disabled={defaultFleets.length <= 1}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <h4 className="font-medium text-sm sm:text-base">Frota {index + 1}</h4>
+                      {defaultFleets.length > 1 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeDefaultFleet(index)}
+                          className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-3"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span className="hidden sm:inline ml-2">Remover</span>
+                        </Button>
+                      )}
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Nome *</Label>
+                        <Label className="text-sm">Nome *</Label>
                         <Input
                           value={fleet.name}
                           onChange={(e) => updateDefaultFleet(index, 'name', e.target.value)}
                           placeholder="Ex: Frota 1"
+                          className="text-sm"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Quantidade de Karts *</Label>
+                        <Label className="text-sm">Quantidade de Karts *</Label>
                         <Input
                           type="number"
                           value={fleet.kartQuantity}
                           onChange={(e) => updateDefaultFleet(index, 'kartQuantity', parseInt(e.target.value) || 0)}
                           min="1"
                           placeholder="10"
+                          className="text-sm"
                         />
                       </div>
                     </div>
@@ -474,8 +478,8 @@ export const CreateRaceTrack = () => {
         </Card>
 
         {/* Botões de ação no final */}
-        <div className="flex justify-end space-x-2 pt-4 border-t">
-          <Button variant="outline" onClick={onCancel} disabled={saving}>
+        <div className="flex flex-col sm:flex-row justify-end gap-2 sm:space-x-2 pt-4 border-t">
+          <Button variant="outline" onClick={onCancel} disabled={saving} className="w-full sm:w-auto">
             Cancelar
           </Button>
           <Button 
@@ -486,6 +490,7 @@ export const CreateRaceTrack = () => {
               }
             }}
             disabled={saving}
+            className="w-full sm:w-auto"
           >
             {saving ? "Salvando..." : (isEditing ? "Atualizar kartódromo" : "Criar kartódromo")}
           </Button>
