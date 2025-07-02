@@ -22,6 +22,7 @@ const CreateCategory = lazy(() => import('@/pages/CreateCategory'));
 const CreateGridType = lazy(() => import('@/pages/CreateGridType').then(module => ({ default: module.CreateGridType })));
 const CreateScoringSystem = lazy(() => import('@/pages/CreateScoringSystem').then(module => ({ default: module.CreateScoringSystem })));
 const CreateStage = lazy(() => import('@/pages/CreateStage').then(module => ({ default: module.CreateStage })));
+const CreateRaceTrack = lazy(() => import('@/pages/CreateRaceTrack'));
 const SeasonRegistration = lazy(() => import('@/pages/SeasonRegistration').then(module => ({ default: module.SeasonRegistration })));
 const RegistrationPayment = lazy(() => import('@/pages/RegistrationPayment').then(module => ({ default: module.RegistrationPayment })));
 const PaymentDetails = lazy(() => import('@/pages/PaymentDetails').then(module => ({ default: module.PaymentDetails })));
@@ -419,6 +420,30 @@ export const router = createBrowserRouter([
             <MainLayout>
               <LazyWrapper>
                 <Admin />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "admin/race-tracks/create",
+        element: (
+          <ProtectedRoute requiredRoles={['Administrator']}>
+            <MainLayout>
+              <LazyWrapper>
+                <CreateRaceTrack />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "admin/race-tracks/edit/:id",
+        element: (
+          <ProtectedRoute requiredRoles={['Administrator']}>
+            <MainLayout>
+              <LazyWrapper>
+                <CreateRaceTrack />
               </LazyWrapper>
             </MainLayout>
           </ProtectedRoute>

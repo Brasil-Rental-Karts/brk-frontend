@@ -372,8 +372,8 @@ export const AdminPilotRegistration = () => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid gap-6 md:grid-cols-2">
+    <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2">
         {/* Seleção de Piloto */}
         <div className="space-y-2 relative">
           <Label htmlFor="user">Piloto *</Label>
@@ -422,7 +422,7 @@ export const AdminPilotRegistration = () => {
                 return (
                   <li
                     key={user.id}
-                    className="px-3 py-2 cursor-pointer hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
+                    className="px-3 py-2 cursor-pointer hover:bg-gray-100 border-b border-gray-100 last:border-b-0 text-sm"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       setSelectedUserId(user.id);
@@ -494,7 +494,7 @@ export const AdminPilotRegistration = () => {
       {selectedSeasonId && categories.length > 0 && (
         <div className="space-y-2">
           <Label>Categorias *</Label>
-          <div className="grid gap-2 md:grid-cols-2">
+          <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
             {categories?.map((category) => (
               <div key={category.id} className="flex items-center space-x-2">
                 <Checkbox
@@ -502,7 +502,7 @@ export const AdminPilotRegistration = () => {
                   checked={selectedCategoryIds.includes(category.id)}
                   onCheckedChange={(checked) => handleCategoryChange(category.id, checked as boolean)}
                 />
-                <Label htmlFor={category.id}>{category.name}</Label>
+                <Label htmlFor={category.id} className="text-sm">{category.name}</Label>
               </div>
             )) || []}
           </div>
@@ -513,7 +513,7 @@ export const AdminPilotRegistration = () => {
       {selectedSeason?.inscriptionType === 'por_etapa' && selectedSeasonId && stages.length > 0 && (
         <div className="space-y-2">
           <Label>Etapas *</Label>
-          <div className="grid gap-2 md:grid-cols-2">
+          <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
             {stages?.map((stage) => (
               <div key={stage.id} className="flex items-center space-x-2">
                 <Checkbox
@@ -521,11 +521,11 @@ export const AdminPilotRegistration = () => {
                   checked={selectedStageIds.includes(stage.id)}
                   onCheckedChange={(checked) => handleStageChange(stage.id, checked as boolean)}
                 />
-                <Label htmlFor={stage.id}>{stage.name}</Label>
+                <Label htmlFor={stage.id} className="text-sm">{stage.name}</Label>
               </div>
             )) || []}
           </div>
-          <p className="text-sm text-gray-500">
+          <p className="text-xs sm:text-sm text-gray-500">
             Para inscrições por etapa, é obrigatório selecionar pelo menos uma etapa
           </p>
         </div>
@@ -557,7 +557,7 @@ export const AdminPilotRegistration = () => {
           className={paymentStatus === 'exempt' ? 'bg-gray-100 cursor-not-allowed' : ''}
         />
         {paymentStatus === 'exempt' && (
-          <p className="text-sm text-gray-500">Valor automaticamente definido como R$ 0,00 para inscrições isentas</p>
+          <p className="text-xs sm:text-sm text-gray-500">Valor automaticamente definido como R$ 0,00 para inscrições isentas</p>
         )}
       </div>
 
@@ -570,6 +570,7 @@ export const AdminPilotRegistration = () => {
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Observações sobre a inscrição..."
           rows={3}
+          className="text-sm"
         />
       </div>
 

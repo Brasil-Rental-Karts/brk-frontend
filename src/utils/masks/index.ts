@@ -89,5 +89,5 @@ export const maxLengths: Record<MaskType, number> = {
   date: 8,
   time: 4,
   currency: 16,
-  number: 3,
+  number: 6,
 };
