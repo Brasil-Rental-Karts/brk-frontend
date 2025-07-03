@@ -190,6 +190,19 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
   const [selectedBatteryIndex, setSelectedBatteryIndex] = useState<number>(0);
   const [pilotWeights, setPilotWeights] = useState<Record<string, boolean>>({});
   const [stageResults, setStageResults] = useState<any>({});
+  const [showKartSelectionModal, setShowKartSelectionModal] = useState(false);
+  const [selectedPilotForKartChange, setSelectedPilotForKartChange] = useState<{categoryId: string, pilotId: string, batteryIndex: number} | null>(null);
+  // Adicionar estados para seleção de posição
+  const [showPositionSelectionModal, setShowPositionSelectionModal] = useState(false);
+  const [selectedPilotForPosition, setSelectedPilotForPosition] = useState<{
+    categoryId: string;
+    pilotId: string;
+    batteryIndex: number;
+    type: 'startPosition' | 'finishPosition';
+  } | null>(null);
+  // Estado para ordenação da tabela
+  const [sortColumn, setSortColumn] = useState<string>('piloto');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Função para alternar a visibilidade do formulário de adicionar item
   const toggleAddItemForm = () => {
@@ -1106,49 +1119,53 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
     );
   };
 
-  // Carregar sorteio salvo ao abrir o modal
-  useEffect(() => {
-    if (showFleetDrawModal && selectedStageId) {
-      StageService.getKartDrawAssignments(selectedStageId)
-        .then((res) => {
-          if (res && res.data) {
-            if (res.data.results) {
-              setFleetDrawResults(res.data.results);
-            } else {
-              setFleetDrawResults(res.data);
-            }
-            if (res.data.categoryFleetAssignments) {
-              setCategoryFleetAssignments(res.data.categoryFleetAssignments);
-            }
-          }
-        })
-        .catch(() => {
-          setFleetDrawResults({});
-          setCategoryFleetAssignments({});
-        });
-    }
-  }, [showFleetDrawModal, selectedStageId]);
-
-  // Carregar sorteio salvo quando a etapa muda (para mostrar ícones na lista de pilotos)
+  // Carregar sorteio salvo quando a etapa muda (para mostrar ícones na lista de pilotos e no modal)
   useEffect(() => {
     if (selectedStageId) {
       StageService.getKartDrawAssignments(selectedStageId)
         .then((res) => {
-          if (res && res.data) {
-            if (res.data.results) {
-              setFleetDrawResults(res.data.results);
+          if (res) {
+            if (res.results) {
+              setFleetDrawResults(res.results);
             } else {
-              setFleetDrawResults(res.data);
+              setFleetDrawResults(res);
             }
-            if (res.data.categoryFleetAssignments) {
-              setCategoryFleetAssignments(res.data.categoryFleetAssignments);
+            if (res.categoryFleetAssignments) {
+              setCategoryFleetAssignments(res.categoryFleetAssignments);
             }
           }
         })
-        .catch(() => {
+        .catch((error) => {
+          console.error('Erro ao carregar dados do sorteio (etapa):', error);
           setFleetDrawResults({});
           setCategoryFleetAssignments({});
         });
+    }
+  }, [selectedStageId]);
+
+  // Carregar dados iniciais quando o componente montar
+  useEffect(() => {
+    if (selectedStageId) {
+      // Carregar dados do sorteio
+      StageService.getKartDrawAssignments(selectedStageId)
+        .then((res) => {
+          if (res) {
+            if (res.results) {
+              setFleetDrawResults(res.results);
+            } else {
+              setFleetDrawResults(res);
+            }
+            if (res.categoryFleetAssignments) {
+              setCategoryFleetAssignments(res.categoryFleetAssignments);
+            }
+          }
+        })
+        .catch((error) => {
+          console.error('Erro ao carregar dados iniciais do sorteio:', error);
+        });
+
+      // Carregar resultados da etapa
+      loadStageResults();
     }
   }, [selectedStageId]);
 
@@ -1228,6 +1245,154 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
     }
   }, [stageResults]);
 
+  // Função para abrir modal de seleção de kart
+  const openKartSelectionModal = (categoryId: string, pilotId: string, batteryIndex: number) => {
+    setSelectedPilotForKartChange({ categoryId, pilotId, batteryIndex });
+    setShowKartSelectionModal(true);
+  };
+
+  // Função para fechar modal de seleção de kart
+  const closeKartSelectionModal = () => {
+    setShowKartSelectionModal(false);
+    setSelectedPilotForKartChange(null);
+  };
+
+  // Função para alterar kart de um piloto
+  const changePilotKart = async (newKart: number) => {
+    if (!selectedPilotForKartChange) return;
+
+    const { categoryId, pilotId, batteryIndex } = selectedPilotForKartChange;
+
+    // Atualizar os resultados do sorteio
+    const updatedResults = { ...fleetDrawResults };
+    if (!updatedResults[categoryId]) {
+      updatedResults[categoryId] = {};
+    }
+    if (!updatedResults[categoryId][pilotId]) {
+      updatedResults[categoryId][pilotId] = {};
+    }
+    updatedResults[categoryId][pilotId][batteryIndex] = { kart: newKart };
+
+    setFleetDrawResults(updatedResults);
+
+    // Salvar no backend
+    try {
+      const dataWithFleetAssignments = {
+        results: updatedResults,
+        categoryFleetAssignments: categoryFleetAssignments
+      };
+      await StageService.saveKartDrawAssignments(selectedStageId, dataWithFleetAssignments);
+      
+      closeKartSelectionModal();
+      toast.success('Kart alterado com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao salvar alteração do kart');
+      console.error('Erro ao salvar kart:', error);
+    }
+  };
+
+  // Função para obter karts disponíveis para uma categoria e bateria
+  const getAvailableKarts = (categoryId: string, batteryIndex: number, currentPilotId: string) => {
+    const assignedFleetId = categoryFleetAssignments[categoryId];
+    if (!assignedFleetId) return [];
+
+    const fleet = fleets.find(f => f.id === assignedFleetId);
+    if (!fleet) return [];
+
+    // Obter karts inativos
+    const inactiveKartsForFleet = inactiveKarts[assignedFleetId] || [];
+    
+    // Obter todos os karts ativos da frota
+    const allActiveKarts = Array.from({ length: fleet.totalKarts }, (_, i) => i + 1)
+      .filter(kart => !inactiveKartsForFleet.includes(kart - 1));
+
+    // Obter karts já utilizados por outros pilotos nesta bateria
+    const usedKarts = new Set<number>();
+    Object.entries(fleetDrawResults[categoryId] || {}).forEach(([pilotId, batteryResults]) => {
+      if (pilotId !== currentPilotId && batteryResults[batteryIndex]) {
+        usedKarts.add(batteryResults[batteryIndex].kart);
+      }
+    });
+
+    // Retornar karts disponíveis
+    return allActiveKarts.filter(kart => !usedKarts.has(kart));
+  };
+
+  // Função para abrir modal de seleção de posição
+  const openPositionSelectionModal = (
+    categoryId: string,
+    pilotId: string,
+    batteryIndex: number,
+    type: 'startPosition' | 'finishPosition'
+  ) => {
+    setSelectedPilotForPosition({ categoryId, pilotId, batteryIndex, type });
+    setShowPositionSelectionModal(true);
+  };
+
+  // Função para fechar modal de seleção de posição
+  const closePositionSelectionModal = () => {
+    setShowPositionSelectionModal(false);
+    setSelectedPilotForPosition(null);
+  };
+
+  // Função para alterar posição
+  const changePilotPosition = async (position: number) => {
+    if (!selectedPilotForPosition) return;
+    const { categoryId, pilotId, batteryIndex, type } = selectedPilotForPosition;
+    const updatedResults = { ...stageResults };
+    if (!updatedResults[categoryId]) updatedResults[categoryId] = {};
+    if (!updatedResults[categoryId][pilotId]) updatedResults[categoryId][pilotId] = {};
+    if (!updatedResults[categoryId][pilotId][batteryIndex]) updatedResults[categoryId][pilotId][batteryIndex] = {};
+    updatedResults[categoryId][pilotId][batteryIndex][type] = position;
+    setStageResults(updatedResults);
+    try {
+      await StageService.saveStageResults(selectedStageId, updatedResults);
+      closePositionSelectionModal();
+      toast.success('Posição salva!');
+    } catch (error) {
+      toast.error('Erro ao salvar posição');
+    }
+  };
+
+  // Função para ordenar os pilotos por categoria
+  const getSortedPilots = (categoryPilots: any[], category: any) => {
+    const sorted = [...categoryPilots];
+    sorted.sort((a, b) => {
+      const getValue = (pilot: any, col: string) => {
+        const kart = fleetDrawResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.kart || 0;
+        const peso = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.weight;
+        const start = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.startPosition || 0;
+        const finish = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition || 0;
+        const nome = formatName(pilot.user?.name || pilot.userId);
+        switch (col) {
+          case 'kart': return kart;
+          case 'peso': return peso === false ? 0 : 1;
+          case 'classificacao': return start;
+          case 'corrida': return finish;
+          case 'piloto': return nome;
+          default: return nome;
+        }
+      };
+      let vA = getValue(a, sortColumn);
+      let vB = getValue(b, sortColumn);
+      if (typeof vA === 'string' && typeof vB === 'string') {
+        return sortDirection === 'asc' ? vA.localeCompare(vB) : vB.localeCompare(vA);
+      }
+      return sortDirection === 'asc' ? vA - vB : vB - vA;
+    });
+    return sorted;
+  };
+
+  // Função para alternar ordenação
+  const handleSort = (col: string) => {
+    if (sortColumn === col) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(col);
+      setSortDirection('asc');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Título da aba */}
@@ -1271,49 +1436,49 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
 
       {/* Filtros sempre visíveis */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Temporada */}
-        <div className="flex flex-col">
-          <label className="text-xs text-gray-500 mb-1 font-medium" htmlFor="season-select">Temporada</label>
-          <div className="relative">
-            <select
-              id="season-select"
+          {/* Temporada */}
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-500 mb-1 font-medium" htmlFor="season-select">Temporada</label>
+            <div className="relative">
+              <select
+                id="season-select"
               className="appearance-none bg-white border border-gray-300 rounded px-3 py-2 font-bold text-base pr-8 focus:outline-none focus:border-orange-500 w-full"
-              value={selectedSeasonId}
-              onChange={e => {
-                const seasonId = e.target.value;
-                setSelectedSeasonId(seasonId);
-                const newSeason = seasons.find(s => s.id === seasonId);
-                if (newSeason?.stages?.length) {
-                  setSelectedStageId(getClosestStage(newSeason.stages) || newSeason.stages[0].id);
-                } else {
-                  setSelectedStageId("");
-                }
-              }}
-            >
-              {seasons.map(season => (
-                <option key={season.id} value={season.id}>{season.name}</option>
-              ))}
-            </select>
-            <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                value={selectedSeasonId}
+                onChange={e => {
+                  const seasonId = e.target.value;
+                  setSelectedSeasonId(seasonId);
+                  const newSeason = seasons.find(s => s.id === seasonId);
+                  if (newSeason?.stages?.length) {
+                    setSelectedStageId(getClosestStage(newSeason.stages) || newSeason.stages[0].id);
+                  } else {
+                    setSelectedStageId("");
+                  }
+                }}
+              >
+                {seasons.map(season => (
+                  <option key={season.id} value={season.id}>{season.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
-        </div>
-        {/* Etapa */}
-        <div className="flex flex-col">
-          <label className="text-xs text-gray-500 mb-1 font-medium" htmlFor="stage-select">Etapa</label>
-          <div className="relative">
-            <select
-              id="stage-select"
+          {/* Etapa */}
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-500 mb-1 font-medium" htmlFor="stage-select">Etapa</label>
+            <div className="relative">
+              <select
+                id="stage-select"
               className="appearance-none bg-white border border-gray-300 rounded px-3 py-2 font-semibold text-base pr-8 focus:outline-none focus:border-orange-500 w-full"
-              value={selectedStageId}
-              onChange={e => setSelectedStageId(e.target.value)}
-            >
-              {stages.map(stage => (
-                <option key={stage.id} value={stage.id}>{stage.name}</option>
-              ))}
-            </select>
-            <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                value={selectedStageId}
+                onChange={e => setSelectedStageId(e.target.value)}
+              >
+                {stages.map(stage => (
+                  <option key={stage.id} value={stage.id}>{stage.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
-        </div>
         {/* Filtro de bateria (apenas se categoria selecionada) */}
         {selectedOverviewCategory ? (() => {
           const category = categories.find(cat => cat.id === selectedOverviewCategory);
@@ -1334,7 +1499,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                   ))}
                 </select>
                 <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
+        </div>
             </div>
           );
         })() : <div></div>}
@@ -1344,88 +1509,88 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
       {selectedOverviewCategory === null ? (
         // Visão geral: renderizar os 3 blocos
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Coluna 1: Pilotos Confirmados na Etapa */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Pilotos Confirmados na Etapa
-                </h3>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Coluna 1: Pilotos Confirmados na Etapa */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Pilotos Confirmados na Etapa
+            </h3>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={handleOpenPilotConfirmationModal}>
-                      Gerenciar Confirmações
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              
-              {loading ? (
-                <Loading type="spinner" size="md" message="Carregando dados..." />
-              ) : error ? (
-                <div className="text-red-600">{error}</div>
-              ) : (
-                <div className="space-y-4">
-                  {categories.map((category) => {
-                    const categoryPilots = registrations.filter(reg =>
-                      reg.categories.some((rc: any) => rc.category.id === category.id)
-                    );
-                    const confirmedPilots = categoryPilots.filter(reg =>
-                      stageParticipations.some(
-                        (part) => part.userId === reg.userId && part.categoryId === category.id && part.status === 'confirmed'
-                      )
-                    );
-                    
-                    return (
+                  Gerenciar Confirmações
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          
+          {loading ? (
+            <Loading type="spinner" size="md" message="Carregando dados..." />
+          ) : error ? (
+            <div className="text-red-600">{error}</div>
+          ) : (
+            <div className="space-y-4">
+              {categories.map((category) => {
+                const categoryPilots = registrations.filter(reg =>
+                  reg.categories.some((rc: any) => rc.category.id === category.id)
+                );
+                const confirmedPilots = categoryPilots.filter(reg =>
+                  stageParticipations.some(
+                    (part) => part.userId === reg.userId && part.categoryId === category.id && part.status === 'confirmed'
+                  )
+                );
+                
+                return (
                       <div key={category.id + '-' + drawVersion} className="border border-gray-200 rounded-lg">
-                        <div 
-                          className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"
-                          onClick={() => toggleCategory(category.id)}
-                        >
+                    <div 
+                      className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"
+                      onClick={() => toggleCategory(category.id)}
+                    >
                           <div className="flex items-center justify-between w-full">
-                            <span className="text-sm font-medium text-gray-900">
-                              {category.name}
-                            </span>
+                        <span className="text-sm font-medium text-gray-900">
+                          {category.name}
+                        </span>
                             <div className="flex items-center space-x-2">
-                            <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2 py-1 rounded-full">
-                              {confirmedPilots.length}/{category.maxPilots}
-                            </span>
-                          {expandedCategories.has(category.id) ? (
-                            <ChevronDown className="w-4 h-4 text-gray-500" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 text-gray-500" />
-                          )}
+                        <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2 py-1 rounded-full">
+                          {confirmedPilots.length}/{category.maxPilots}
+                        </span>
+                      {expandedCategories.has(category.id) ? (
+                        <ChevronDown className="w-4 h-4 text-gray-500" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-gray-500" />
+                      )}
                             </div>
                           </div>
-                        </div>
-                        
-                        {expandedCategories.has(category.id) && (
-                          <div className="border-t border-gray-200 p-3 space-y-2">
-                            {confirmedPilots.length > 0 ? (
-                              confirmedPilots
-                                .sort((a, b) => {
-                                  return (
-                                    (a.user?.name || a.userId).localeCompare(b.user?.name || b.userId)
-                                  );
-                                })
+                    </div>
+                    
+                    {expandedCategories.has(category.id) && (
+                      <div className="border-t border-gray-200 p-3 space-y-2">
+                        {confirmedPilots.length > 0 ? (
+                          confirmedPilots
+                            .sort((a, b) => {
+                              return (
+                                (a.user?.name || a.userId).localeCompare(b.user?.name || b.userId)
+                              );
+                            })
                                 .map((pilot) => {
                                   // Verificar se há karts sorteados para este piloto
                                   const pilotKartAssignments = fleetDrawResults[category.id]?.[pilot.userId];
                                   const hasKartAssignments = pilotKartAssignments && Object.keys(pilotKartAssignments).length > 0;
                                   return (
                                     <div key={pilot.id} className="flex items-center justify-between">
-                                      <span className="text-sm text-gray-900 font-medium">
-                                        {formatName(pilot.user?.name || pilot.userId)}
-                                      </span>
+                                <span className="text-sm text-gray-900 font-medium">
+                                  {formatName(pilot.user?.name || pilot.userId)}
+                                </span>
                                       {hasKartAssignments && (
                                         <div className="relative" data-kart-tooltip>
                                           <button
@@ -1450,7 +1615,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                                                     <div key={batteryIdx} className="text-xs">
                                                       Bateria {batteryNumber}: Kart {result.kart}
                                                       {fleet && ` (${fleet.name})`}
-                                                    </div>
+                              </div>
                                                   );
                                                 })}
                                               </div>
@@ -1461,35 +1626,35 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                                     </div>
                                   );
                                 })
-                            ) : (
-                              <div className="text-sm text-gray-500 text-center py-2">
-                                Nenhum piloto confirmado nesta categoria
-                              </div>
-                            )}
+                        ) : (
+                          <div className="text-sm text-gray-500 text-center py-2">
+                            Nenhum piloto confirmado nesta categoria
                           </div>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            {/* Coluna 2: Cronograma */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Cronograma
-                </h3>
-                {canEditSchedule && (
+          )}
+        </div>
+        {/* Coluna 2: Cronograma */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Cronograma
+            </h3>
+            {canEditSchedule && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button 
+              <Button 
                         variant="ghost"
-                        size="sm"
+                size="sm"
                         className="h-8 w-8 p-0"
-                      >
+              >
                         <MoreHorizontal className="h-4 w-4" />
-                      </Button>
+              </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={toggleAddItemForm}>
@@ -1497,64 +1662,64 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                )}
-              </div>
-              
-              <div className="space-y-3">
+            )}
+          </div>
+          
+          <div className="space-y-3">
                 {canEditSchedule && showAddItemForm && (
-                  <div className="space-y-3">
-                    <div className="w-full flex items-center my-2">
-                      <div className="flex-grow border-t border-gray-200" />
-                      <span className="mx-3 text-xs text-gray-400 uppercase tracking-wider">Adicionar novo item</span>
-                      <div className="flex-grow border-t border-gray-200" />
-                    </div>
-                    <div className="flex space-x-2">
-                      <input
-                        type="text"
-                        placeholder="Descrição do item"
-                        value={newItemLabel}
-                        onChange={(e) => setNewItemLabel(e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      />
-                      <input
-                        type="time"
-                        value={newItemTime}
-                        onChange={(e) => setNewItemTime(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      />
-                    </div>
-                    <Button 
-                      className="w-full bg-orange-500 hover:bg-orange-600 text-black"
-                      onClick={addScheduleItem}
-                      disabled={!newItemLabel.trim() || !newItemTime.trim()}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Adicionar Item
-                    </Button>
-                    <div className="w-full flex items-center my-2">
-                      <div className="flex-grow border-t border-gray-200" />
-                    </div>
-                  </div>
-                )}
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                  <SortableContext items={scheduleItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                    {scheduleItems.map((item) => (
-                      <SortableItem
-                        key={item.id}
-                        item={item}
-                      />
-                    ))}
-                  </SortableContext>
-                </DndContext>
+              <div className="space-y-3">
+                <div className="w-full flex items-center my-2">
+                  <div className="flex-grow border-t border-gray-200" />
+                  <span className="mx-3 text-xs text-gray-400 uppercase tracking-wider">Adicionar novo item</span>
+                  <div className="flex-grow border-t border-gray-200" />
+                </div>
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    placeholder="Descrição do item"
+                    value={newItemLabel}
+                    onChange={(e) => setNewItemLabel(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  />
+                  <input
+                    type="time"
+                    value={newItemTime}
+                    onChange={(e) => setNewItemTime(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  />
+                </div>
+                <Button 
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-black"
+                  onClick={addScheduleItem}
+                  disabled={!newItemLabel.trim() || !newItemTime.trim()}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Adicionar Item
+                </Button>
+                <div className="w-full flex items-center my-2">
+                  <div className="flex-grow border-t border-gray-200" />
+                </div>
               </div>
-            </div>
+            )}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={scheduleItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                {scheduleItems.map((item) => (
+                  <SortableItem
+                    key={item.id}
+                    item={item}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
+          </div>
+        </div>
 
-            {/* Coluna 3: Frota/Sorteio */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+        {/* Coluna 3: Frota/Sorteio */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  Frota/Sorteio
-                </h3>
+            Frota/Sorteio
+          </h3>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -1578,41 +1743,41 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                 </DropdownMenu>
               </div>
               <div className="flex flex-col gap-4 mb-4 w-full">
-                {fleets.map((fleet, idx) => (
+            {fleets.map((fleet, idx) => (
                   <div key={fleet.id} className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 min-w-0">
-                    <div
+                <div
                       className="flex items-center gap-2 mb-3 cursor-pointer select-none min-w-0"
-                      onClick={() => toggleFleet(fleet.id)}
-                    >
+                  onClick={() => toggleFleet(fleet.id)}
+                >
                       <div className="flex-shrink-0">
-                        {expandedFleets.has(fleet.id) ? (
-                          <ChevronDown className="w-4 h-4 text-gray-500" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4 text-gray-500" />
-                        )}
+                  {expandedFleets.has(fleet.id) ? (
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-gray-500" />
+                  )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <input
-                          type="text"
-                          value={fleet.name}
-                          onChange={e => handleFleetNameChange(fleet.id, e.target.value)}
+                  <input
+                    type="text"
+                    value={fleet.name}
+                    onChange={e => handleFleetNameChange(fleet.id, e.target.value)}
                           className="font-semibold text-lg border-b border-gray-300 focus:border-orange-500 outline-none bg-transparent w-full truncate"
                           placeholder="Nome da frota"
-                          onClick={e => e.stopPropagation()}
-                        />
+                    onClick={e => e.stopPropagation()}
+                  />
                       </div>
-                      {fleets.length > 1 && (
-                        <button
-                          onClick={e => { e.stopPropagation(); handleRemoveFleet(fleet.id); }}
+                  {fleets.length > 1 && (
+                    <button
+                      onClick={e => { e.stopPropagation(); handleRemoveFleet(fleet.id); }}
                           className="flex-shrink-0 ml-2 text-gray-400 hover:text-red-500 transition-colors"
-                          title="Remover frota"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                    {expandedFleets.has(fleet.id) && (
-                      <>
+                      title="Remover frota"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                {expandedFleets.has(fleet.id) && (
+                  <>
                         <div className="space-y-3 mb-4">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm text-gray-500 whitespace-nowrap">Karts ativos: {getActiveKartsCount(fleet.id)}</span>
@@ -1624,67 +1789,67 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                           </div>
                           <div className="flex items-center gap-2">
                             <Button
-                              type="button"
+                        type="button"
                               variant="outline"
                               size="icon"
                               className="h-9 w-9"
                               onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.max(getMinKartsRequired(), fleet.totalKarts - 1)); }}
                               disabled={fleet.totalKarts <= getMinKartsRequired()}
-                              tabIndex={-1}
-                            >
+                        tabIndex={-1}
+                      >
                               <Minus className="h-4 w-4" />
                             </Button>
-                            <input
-                              type="number"
+                      <input
+                        type="number"
                               min={getMinKartsRequired()}
-                              max={99}
-                              value={fleet.totalKarts}
+                        max={99}
+                        value={fleet.totalKarts}
                               onChange={e => handleFleetKartsChange(fleet.id, Math.max(getMinKartsRequired(), Math.min(99, Number(e.target.value))))}
                               className="w-24 h-9 px-3 border border-gray-300 rounded-md text-sm text-center focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-colors"
-                              onClick={e => e.stopPropagation()}
-                            />
+                        onClick={e => e.stopPropagation()}
+                      />
                             <Button
-                              type="button"
+                        type="button"
                               variant="outline"
                               size="icon"
                               className="h-9 w-9"
-                              onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.min(99, fleet.totalKarts + 1)); }}
-                              disabled={fleet.totalKarts >= 99}
-                              tabIndex={-1}
-                            >
+                        onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.min(99, fleet.totalKarts + 1)); }}
+                        disabled={fleet.totalKarts >= 99}
+                        tabIndex={-1}
+                      >
                               <Plus className="h-4 w-4" />
                             </Button>
                           </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {Array.from({ length: fleet.totalKarts }, (_, i) => {
-                            const isInactive = (inactiveKarts[fleet.id] || []).includes(i);
-                            return (
-                              <TooltipProvider key={i}>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleKartActive(fleet.id, i)}
-                                      className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border transition-colors
-                                        ${isInactive ? 'bg-gray-300 text-white border-gray-400' : 'bg-orange-500 text-black border-orange-600'}`}
-                                      title={`Kart ${i + 1} ${isInactive ? '(inativo)' : ''}`}
-                                    >
-                                      {i + 1}
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    {isInactive ? 'Desbloquear kart' : 'Bloquear kart'}
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            );
-                          })}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {Array.from({ length: fleet.totalKarts }, (_, i) => {
+                        const isInactive = (inactiveKarts[fleet.id] || []).includes(i);
+                        return (
+                          <TooltipProvider key={i}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleKartActive(fleet.id, i)}
+                                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border transition-colors
+                                    ${isInactive ? 'bg-gray-300 text-white border-gray-400' : 'bg-orange-500 text-black border-orange-600'}`}
+                                  title={`Kart ${i + 1} ${isInactive ? '(inativo)' : ''}`}
+                                >
+                                  {i + 1}
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {isInactive ? 'Desbloquear kart' : 'Bloquear kart'}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
               </div>
             </div>
           </div>
@@ -1703,54 +1868,166 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
           const batteries = category.batteriesConfig || [ { name: 'Bateria 1' } ];
           return (
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <div className="text-xl font-bold text-gray-900 mb-1">
-                    {category.name} {categoryPilots.length}/{category.maxPilots}
+              <div className="mb-4">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                  <div>
+                    <div className="text-xl font-bold text-gray-900 mb-1">
+                      {category.name} {categoryPilots.length}/{category.maxPilots}
+                    </div>
+                    <div className="text-sm text-gray-600">Pilotos confirmados para a etapa</div>
                   </div>
-                  <div className="text-sm text-gray-600">Pilotos confirmados para a etapa</div>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="rounded-full px-3 h-8 text-xs font-semibold">
-                      <ChevronDown className="w-4 h-4 mr-1" /> Importar
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => console.log('Importar classificação')}>
-                      Importar Classificação
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => console.log('Importar corrida')}>
-                      Importar Corrida
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="rounded-full px-3 h-8 text-xs font-semibold w-full lg:w-auto">
+                        <ChevronDown className="w-4 h-4 mr-1" /> Importar
+            </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => console.log('Importar classificação')}>
+                        Importar Classificação
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => console.log('Importar corrida')}>
+                        Importar Corrida
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+          </div>
+        </div>
               <div className="mb-6">
                 <div className="text-sm font-semibold text-gray-700 mb-2">{batteries[selectedBatteryIndex]?.name || `Bateria ${selectedBatteryIndex + 1}`}</div>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm border-separate border-spacing-y-2">
+                                    {/* MOBILE: Cards de resultados */}
+                  {categoryPilots.length > 0 && (
+                    <div className="block lg:hidden">
+                      {getSortedPilots(categoryPilots, category).map((pilot) => (
+                        <div key={pilot.id} className="bg-white rounded-lg shadow p-4 mb-4">
+                          <div className="font-bold text-lg mb-4">{formatName(pilot.user?.name || pilot.userId)}</div>
+                          
+                          {/* Primeira linha: Kart e Peso */}
+                          <div className="grid grid-cols-2 gap-3 mb-3">
+                            {/* Kart */}
+                            <div className="flex flex-col">
+                              <span className="text-xs text-gray-500 mb-1">Kart</span>
+                              <button
+                                className="py-3 px-4 rounded-lg bg-orange-100 text-orange-800 font-semibold text-base border border-orange-200 hover:bg-orange-200 transition-colors"
+                                onClick={() => openKartSelectionModal(category.id, pilot.userId, selectedBatteryIndex)}
+                              >
+                                {(() => {
+                                  const pilotKartAssignments = fleetDrawResults[category.id]?.[pilot.userId];
+                                  if (pilotKartAssignments && pilotKartAssignments[selectedBatteryIndex]) {
+                                    return pilotKartAssignments[selectedBatteryIndex].kart;
+                                  }
+                                  return '-';
+                                })()}
+                              </button>
+                            </div>
+                            
+                            {/* Peso */}
+                            <div className="flex flex-col">
+                              <span className="text-xs text-gray-500 mb-1">Peso</span>
+                              <button
+                                className={`py-3 px-4 rounded-lg font-semibold text-base border transition-colors ${
+                                  stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.weight === false 
+                                    ? 'bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-200' 
+                                    : 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200'
+                                }`}
+                                onClick={() => {
+                                  const currentWeight = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.weight;
+                                  const newWeight = currentWeight === false ? true : false;
+                                  updatePilotResult(category.id, pilot.userId, selectedBatteryIndex, 'weight', newWeight);
+                                }}
+                              >
+                                {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.weight === false ? 'Abaixo peso' : 'OK'}
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {/* Segunda linha: Classificação e Corrida */}
+                          <div className="grid grid-cols-2 gap-3">
+                            {/* Classificação */}
+                            <div className="flex flex-col">
+                              <span className="text-xs text-gray-500 mb-1">Classificação</span>
+                              <button
+                                className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 hover:bg-gray-200 transition-colors"
+                                onClick={() => openPositionSelectionModal(category.id, pilot.userId, selectedBatteryIndex, 'startPosition')}
+                              >
+                                {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.startPosition || '-'}
+                              </button>
+                            </div>
+                            
+                            {/* Corrida */}
+                            <div className="flex flex-col">
+                              <span className="text-xs text-gray-500 mb-1">Corrida</span>
+                              <button
+                                className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 hover:bg-gray-200 transition-colors"
+                                onClick={() => openPositionSelectionModal(category.id, pilot.userId, selectedBatteryIndex, 'finishPosition')}
+                              >
+                                {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition || '-'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* DESKTOP: Tabela de resultados (layout original) */}
+                  <table className="min-w-full text-sm border-separate border-spacing-y-2 hidden lg:table">
                     <thead>
                       <tr className="text-gray-500">
-                        <th className="px-2 py-1 text-left">Kart</th>
-                        <th className="px-2 py-1 text-left">Peso</th>
-                        <th className="px-2 py-1 text-left">Nome</th>
-                        <th className="px-2 py-1 text-left">Posição largada</th>
-                        <th className="px-2 py-1 text-left">Posição chegada</th>
+                        <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('kart')}>
+                          Kart {sortColumn === 'kart' && (sortDirection === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('piloto')}>
+                          Piloto {sortColumn === 'piloto' && (sortDirection === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('peso')}>
+                          Peso {sortColumn === 'peso' && (sortDirection === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('classificacao')}>
+                          Posição Classificação {sortColumn === 'classificacao' && (sortDirection === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('corrida')}>
+                          Posição Corrida {sortColumn === 'corrida' && (sortDirection === 'asc' ? '↑' : '↓')}
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="border-t border-gray-200">
-                      {categoryPilots.map((pilot, i) => (
-                        <tr key={pilot.id} className="border-b border-gray-200">
-                          <td className="px-2 py-1">
+                      {getSortedPilots(categoryPilots, category).map((pilot, i) => (
+                        <tr key={pilot.id} className="border-b border-gray-200 group">
+                          {/* Kart */}
+                          <td 
+                            className="px-2 py-1 cursor-pointer hover:bg-gray-50 rounded transition-colors"
+                            onClick={() => openKartSelectionModal(category.id, pilot.userId, selectedBatteryIndex)}
+                          >
                             {(() => {
                               const pilotKartAssignments = fleetDrawResults[category.id]?.[pilot.userId];
+                              console.log('Pilot kart assignments:', {
+                                categoryId: category.id,
+                                pilotId: pilot.userId,
+                                batteryIndex: selectedBatteryIndex,
+                                assignments: pilotKartAssignments,
+                                fleetDrawResults: fleetDrawResults
+                              });
                               if (pilotKartAssignments && pilotKartAssignments[selectedBatteryIndex]) {
-                                return pilotKartAssignments[selectedBatteryIndex].kart;
+                                return (
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium">{pilotKartAssignments[selectedBatteryIndex].kart}</span>
+                                    <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                  </div>
+                                );
                               }
-                              return '-';
+                              return (
+                                <div className="flex items-center justify-between text-gray-400">
+                                  <span>-</span>
+                                  <ChevronDown className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                              );
                             })()}
                           </td>
+                          {/* Piloto */}
+                          <td className="px-2 py-1">{formatName(pilot.user?.name || pilot.userId)}</td>
+                          {/* Peso */}
                           <td 
                             className="px-2 py-1 cursor-pointer hover:bg-gray-50 rounded transition-colors flex items-center justify-between group w-32"
                             onClick={() => {
@@ -1764,32 +2041,31 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                             </span>
                             <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-1" />
                           </td>
-                          <td className="px-2 py-1">{formatName(pilot.user?.name || pilot.userId)}</td>
-                          <td className="px-2 py-1">
-                            <input
-                              type="number"
-                              min="1"
-                              className="w-12 px-1 py-1 text-sm border border-gray-300 rounded focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
-                              value={stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.startPosition || ''}
-                              onChange={(e) => {
-                                const value = e.target.value ? parseInt(e.target.value) : null;
-                                updatePilotResult(category.id, pilot.userId, selectedBatteryIndex, 'startPosition', value);
-                              }}
-                              placeholder="-"
-                            />
+                          {/* Posição Classificação */}
+                          <td
+                            className="px-2 py-1 cursor-pointer hover:bg-gray-50 rounded transition-colors text-center"
+                            onClick={() => openPositionSelectionModal(category.id, pilot.userId, selectedBatteryIndex, 'startPosition')}
+                          >
+                            {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.startPosition ? (
+                              <span className="font-medium">
+                                {stageResults[category.id][pilot.userId][selectedBatteryIndex].startPosition}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
                           </td>
-                          <td className="px-2 py-1">
-                            <input
-                              type="number"
-                              min="1"
-                              className="w-12 px-1 py-1 text-sm border border-gray-300 rounded focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
-                              value={stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition || ''}
-                              onChange={(e) => {
-                                const value = e.target.value ? parseInt(e.target.value) : null;
-                                updatePilotResult(category.id, pilot.userId, selectedBatteryIndex, 'finishPosition', value);
-                              }}
-                              placeholder="-"
-                            />
+                          {/* Posição Corrida */}
+                          <td
+                            className="px-2 py-1 cursor-pointer hover:bg-gray-50 rounded transition-colors text-center"
+                            onClick={() => openPositionSelectionModal(category.id, pilot.userId, selectedBatteryIndex, 'finishPosition')}
+                          >
+                            {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition ? (
+                              <span className="font-medium">
+                                {stageResults[category.id][pilot.userId][selectedBatteryIndex].finishPosition}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -1870,8 +2146,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                               </option>
                             ))}
                           </select>
-                        </div>
-                        
+                      </div>
+                      
                         {/* Resultados do sorteio para esta categoria */}
                         {fleetDrawResults[category.id] && (
                           <div className="mt-4">
@@ -1934,6 +2210,149 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
       </div>,
       document.body
     )}
-  </div>
-    );
+
+    {/* Modal de Seleção de Kart */}
+    {showKartSelectionModal && selectedPilotForKartChange && createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black bg-opacity-50"
+          onClick={closeKartSelectionModal}
+        />
+        
+        {/* Modal Content */}
+        <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 overflow-hidden flex flex-col z-10">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Selecionar Kart</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Selecione um kart disponível para o piloto.
+              </p>
+            </div>
+            <button
+              onClick={closeKartSelectionModal}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+                                  </div>
+                                  
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Karts Disponíveis
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Selecione um kart da frota para a bateria {selectedPilotForKartChange.batteryIndex + 1}
+                </p>
+                
+                <div className="grid grid-cols-6 gap-2">
+                  {getAvailableKarts(
+                    selectedPilotForKartChange.categoryId, 
+                    selectedPilotForKartChange.batteryIndex, 
+                    selectedPilotForKartChange.pilotId
+                  ).map((kart) => (
+                                        <button
+                      key={kart}
+                      onClick={() => changePilotKart(kart)}
+                      className="w-12 h-12 rounded-full bg-orange-500 text-black font-bold text-sm border-2 border-orange-600 hover:bg-orange-600 transition-colors flex items-center justify-center"
+                    >
+                      {kart}
+                                        </button>
+                  ))}
+                                </div>
+                
+                {getAvailableKarts(
+                  selectedPilotForKartChange.categoryId, 
+                  selectedPilotForKartChange.batteryIndex, 
+                  selectedPilotForKartChange.pilotId
+                ).length === 0 && (
+                  <div className="text-center py-4 text-gray-500">
+                    Nenhum kart disponível para esta bateria.
+                        </div>
+                )}
+                      </div>
+                    </div>
+              </div>
+          
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+            <Button 
+              variant="outline" 
+              onClick={closeKartSelectionModal}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+
+    {/* Modal de Seleção de Posição */}
+    {showPositionSelectionModal && selectedPilotForPosition && createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black bg-opacity-50"
+          onClick={closePositionSelectionModal}
+        />
+        {/* Modal Content */}
+        <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden flex flex-col z-10">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Selecionar Posição</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Selecione a posição para o piloto.
+              </p>
+            </div>
+            <button
+              onClick={closePositionSelectionModal}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="grid grid-cols-6 gap-2">
+              {selectedPilotForPosition && (() => {
+                // Encontrar a lista de pilotos confirmados na categoria
+                const categoryPilots = registrations.filter(reg =>
+                  reg.categories.some((rc: any) => rc.category.id === selectedPilotForPosition.categoryId) &&
+                  stageParticipations.some(
+                    (part) => part.userId === reg.userId && part.categoryId === selectedPilotForPosition.categoryId && part.status === 'confirmed'
+                  )
+                );
+                return Array.from({ length: categoryPilots.length }, (_, idx) => idx + 1).map((pos) => (
+                  <button
+                    key={pos}
+                    onClick={() => changePilotPosition(pos)}
+                    className="w-12 h-12 rounded-full bg-orange-500 text-black font-bold text-sm border-2 border-orange-600 hover:bg-orange-600 transition-colors flex items-center justify-center"
+                  >
+                    {pos}
+                  </button>
+                ));
+              })()}
+            </div>
+          </div>
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+            <Button 
+              variant="outline" 
+              onClick={closePositionSelectionModal}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+    </div>
+  );
 }; 
