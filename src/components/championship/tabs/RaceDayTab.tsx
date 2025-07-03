@@ -183,10 +183,19 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
   const [newItemLabel, setNewItemLabel] = useState('');
   const [newItemTime, setNewItemTime] = useState('');
   const [pilotLoading, setPilotLoading] = useState<{ [key: string]: boolean }>({});
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [pendingScheduleGeneration, setPendingScheduleGeneration] = useState(false);
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [showPilotConfirmationModal, setShowPilotConfirmationModal] = useState(false);
+  const [showAddItemForm, setShowAddItemForm] = useState(false);
+
+  // Função para alternar a visibilidade do formulário de adicionar item
+  const toggleAddItemForm = () => {
+    setShowAddItemForm(!showAddItemForm);
+    // Limpar campos quando ocultar o formulário
+    if (showAddItemForm) {
+      setNewItemLabel('');
+      setNewItemTime('');
+    }
+  };
 
   // Função para fechar o modal de confirmação de pilotos
   const handleClosePilotConfirmationModal = () => {
@@ -214,6 +223,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
       setShowPilotConfirmationModal(false);
       setPilotLoading({});
     }
+    // Ocultar formulário de adicionar item quando mudar de etapa
+    setShowAddItemForm(false);
+    setNewItemLabel('');
+    setNewItemTime('');
   }, [selectedStageId]);
 
   // --- Frotas ---
@@ -327,18 +340,24 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
   };
 
   useEffect(() => {
-    if (selectedStage) {
+    if (selectedStage && categories.length > 0) {
       loadSchedule();
     }
-  }, [selectedStage]);
+  }, [selectedStage, categories.length]);
 
   const loadSchedule = async () => {
     if (!selectedStage) return;
     
     try {
       const stageData = await StageService.getStageById(selectedStage.id);
+      const currentSchedule = stageData.schedule || [];
       
-      setScheduleItems(stageData.schedule || []);
+      // Se não há cronograma cadastrado e há categorias disponíveis, gerar cronograma padrão automaticamente
+      if (currentSchedule.length === 0 && categories.length > 0 && canEditSchedule) {
+        await generateDefaultScheduleAutomatically();
+      } else {
+        setScheduleItems(currentSchedule);
+      }
     } catch (error) {
       console.error('❌ [DEBUG] Erro ao carregar cronograma:', error);
     }
@@ -401,67 +420,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
     }
   };
 
-  const generateDefaultSchedule = () => {
-    if (!selectedStage || !categories.length) return;
-    
-    // Verificar se já existem itens no cronograma
-    if (scheduleItems.length > 0) {
-      setShowConfirmDialog(true);
-      setPendingScheduleGeneration(true);
-    } else {
-      const startTime = selectedStage.time;
-      let [startHour, startMinute] = startTime.split(':').map(Number);
-      // Subtrair 30 minutos do horário do evento
-      startMinute -= 30;
-      if (startMinute < 0) {
-        startHour -= 1;
-        startMinute += 60;
-      }
-      const newScheduleItems: ScheduleItem[] = [];
-      let currentHour = startHour;
-      let currentMinute = startMinute;
-      // Adicionar briefing inicial
-      newScheduleItems.push({
-        id: Date.now().toString(),
-        label: 'Briefing',
-        time: `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`
-      });
-      // Adicionar 30 minutos para o briefing
-      currentMinute += 30;
-      if (currentMinute >= 60) {
-        currentHour += 1;
-        currentMinute -= 60;
-      }
-      // Adicionar cada categoria
-      categories.forEach((category, index) => {
-        newScheduleItems.push({
-          id: (Date.now() + index + 1).toString(),
-          label: `${category.name}`,
-          time: `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`
-        });
-        // Adicionar 30 minutos para próxima categoria
-        currentMinute += 30;
-        if (currentMinute >= 60) {
-          currentHour += 1;
-          currentMinute -= 60;
-        }
-      });
-      // Adicionar premiação
-      newScheduleItems.push({
-        id: (Date.now() + categories.length + 1).toString(),
-        label: 'Premiação',
-        time: `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`
-      });
-      
-      setScheduleItems(newScheduleItems);
-      saveScheduleToDatabase(newScheduleItems);
-    }
-  };
-
-  const handleConfirmScheduleGeneration = () => {
-    setShowConfirmDialog(false);
-    setPendingScheduleGeneration(false);
-    
+  const generateDefaultScheduleAutomatically = async () => {
     if (!selectedStage || !categories.length) return;
     
     const startTime = selectedStage.time;
@@ -515,13 +474,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
     });
     
     setScheduleItems(newScheduleItems);
-    saveScheduleToDatabase(newScheduleItems);
+    await saveScheduleToDatabase(newScheduleItems);
   };
 
-  const handleCancelScheduleGeneration = () => {
-    setShowConfirmDialog(false);
-    setPendingScheduleGeneration(false);
-  };
+
 
   const handleEditItem = (item: ScheduleItem) => {
     setEditingItem(item.id);
@@ -1027,7 +983,6 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleOpenPilotConfirmationModal}>
-                  <CheckCircle className="w-4 h-4 mr-2" />
                   Gerenciar Confirmações
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -1108,19 +1063,27 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
               Cronograma
             </h3>
             {canEditSchedule && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={generateDefaultSchedule}
-                disabled={!selectedStage || !categories.length}
-              >
-                Gerar Cronograma Padrão
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={toggleAddItemForm}>
+                    {showAddItemForm ? 'Cancelar' : 'Adicionar item ao cronograma'}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
           
           <div className="space-y-3">
-            {canEditSchedule && (
+            {canEditSchedule && showAddItemForm && (
               <div className="space-y-3">
                 <div className="w-full flex items-center my-2">
                   <div className="flex-grow border-t border-gray-200" />
@@ -1279,27 +1242,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
         </div>
       </div>
 
-      <Dialog
-        open={showConfirmDialog}
-        onOpenChange={handleCancelScheduleGeneration}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Substituir cronograma</DialogTitle>
-            <DialogDescription>
-              Já existem itens no cronograma. Gerar o cronograma padrão irá substituir todos os itens existentes. Deseja continuar?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCancelScheduleGeneration}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={handleConfirmScheduleGeneration}>
-              Substituir
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
 
       {/* Modal de Confirmação de Pilotos */}
       <PilotConfirmationModal />
