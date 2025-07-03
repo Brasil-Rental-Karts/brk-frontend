@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "brk-design-system";
 import { Button, Badge } from "brk-design-system";
-import { ChevronDown, MoreHorizontal, CheckCircle, XCircle, Loader2, ChevronRight, Plus, GripVertical, Edit, Copy, Trash2, Circle, X } from "lucide-react";
+import { ChevronDown, MoreHorizontal, CheckCircle, XCircle, Loader2, ChevronRight, Plus, Minus, GripVertical, Edit, Copy, Trash2, Circle, X } from "lucide-react";
 import { CategoryService, Category } from '@/lib/services/category.service';
 import { SeasonRegistrationService, SeasonRegistration } from '@/lib/services/season-registration.service';
 import { Loading } from '@/components/ui/loading';
@@ -32,14 +32,7 @@ import {
   sortableKeyboardCoordinates
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -186,6 +179,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [showPilotConfirmationModal, setShowPilotConfirmationModal] = useState(false);
   const [showAddItemForm, setShowAddItemForm] = useState(false);
+  const [showFleetDrawModal, setShowFleetDrawModal] = useState(false);
+  const [fleetDrawResults, setFleetDrawResults] = useState<{[categoryId: string]: {[pilotId: string]: { [batteryIndex: number]: { kart: number } } } }>({});
+  const [categoryFleetAssignments, setCategoryFleetAssignments] = useState<{[categoryId: string]: string}>({});
+  const [drawVersion, setDrawVersion] = useState(0);
 
   // Função para alternar a visibilidade do formulário de adicionar item
   const toggleAddItemForm = () => {
@@ -209,6 +206,129 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
     setShowPilotConfirmationModal(true);
   };
 
+  // Função para abrir o modal de sorteio de frota
+  const handleOpenFleetDrawModal = () => {
+    setShowFleetDrawModal(true);
+    // Inicializar atribuições de frota por categoria
+    const initialAssignments: {[categoryId: string]: string} = {};
+    categories.forEach(category => {
+      if (fleets.length > 0) {
+        initialAssignments[category.id] = fleets[0].id;
+      }
+    });
+    setCategoryFleetAssignments(initialAssignments);
+  };
+
+  // Função para fechar o modal de sorteio de frota
+  const handleCloseFleetDrawModal = () => {
+    setShowFleetDrawModal(false);
+    // Não limpar o estado aqui - manter os dados do sorteio
+  };
+
+  // Função para realizar o sorteio de frota
+  const performFleetDraw = () => {
+    const results: { [categoryId: string]: { [pilotId: string]: { [batteryIndex: number]: { kart: number } } } } = {};
+
+    categories.forEach(category => {
+      const assignedFleetId = categoryFleetAssignments[category.id];
+      if (!assignedFleetId) {
+        return;
+      }
+
+      const fleet = fleets.find(f => f.id === assignedFleetId);
+      if (!fleet) {
+        return;
+      }
+
+      // Obter pilotos confirmados na categoria
+      const categoryPilots = registrations.filter(reg =>
+        reg.categories.some((rc: any) => rc.category.id === category.id) &&
+        stageParticipations.some(
+          (part) => part.userId === reg.userId && part.categoryId === category.id && part.status === 'confirmed'
+        )
+      );
+      if (categoryPilots.length === 0) {
+        return;
+      }
+
+      // Obter baterias da categoria
+      const batteries = category.batteriesConfig || [];
+      if (batteries.length === 0) return;
+
+      // Obter karts disponíveis (não inativos)
+      const inactiveKartsForFleet = inactiveKarts[assignedFleetId] || [];
+      const availableKarts = Array.from({ length: fleet.totalKarts }, (_, i) => i + 1)
+        .filter(kart => !inactiveKartsForFleet.includes(kart - 1));
+      if (availableKarts.length === 0) return;
+
+      results[category.id] = {};
+      // Inicializar histórico de karts por piloto
+      const pilotKartHistory = new Map<string, Set<number>>();
+      categoryPilots.forEach(pilot => pilotKartHistory.set(pilot.userId, new Set()));
+
+      // Para cada bateria, sorteia karts para os pilotos
+      for (let batteryIndex = 0; batteryIndex < batteries.length; batteryIndex++) {
+        // Embaralhar os karts disponíveis para esta bateria
+        let kartsForThisBattery = [...availableKarts];
+        // Embaralhar pilotos para esta bateria
+        let pilotsForThisBattery = [...categoryPilots];
+        // Shuffle
+        kartsForThisBattery.sort(() => Math.random() - 0.5);
+        pilotsForThisBattery.sort(() => Math.random() - 0.5);
+
+        // Para evitar deadlock, limitar tentativas
+        let attempts = 0;
+        let success = false;
+        while (!success && attempts < 20) {
+          success = true;
+          const usedKarts = new Set<number>();
+          for (let i = 0; i < pilotsForThisBattery.length; i++) {
+            const pilot = pilotsForThisBattery[i];
+            const history = pilotKartHistory.get(pilot.userId) || new Set();
+            // Karts disponíveis para este piloto nesta bateria
+            const possibleKarts = kartsForThisBattery.filter(kart => !history.has(kart) && !usedKarts.has(kart));
+            if (possibleKarts.length === 0) {
+              // Não foi possível, tentar outro embaralhamento
+              success = false;
+              break;
+            }
+            // Sorteia um kart
+            const kart = possibleKarts[Math.floor(Math.random() * possibleKarts.length)];
+            usedKarts.add(kart);
+            // Salva resultado
+            if (!results[category.id][pilot.userId]) results[category.id][pilot.userId] = {};
+            results[category.id][pilot.userId][batteryIndex] = { kart };
+          }
+          if (!success) {
+            // Tentar outro shuffle
+            kartsForThisBattery.sort(() => Math.random() - 0.5);
+            pilotsForThisBattery.sort(() => Math.random() - 0.5);
+            attempts++;
+          }
+        }
+        // Atualiza histórico
+        if (success) {
+          for (let i = 0; i < pilotsForThisBattery.length; i++) {
+            const pilot = pilotsForThisBattery[i];
+            const kart = results[category.id][pilot.userId][batteryIndex]?.kart;
+            if (kart) {
+              pilotKartHistory.get(pilot.userId)?.add(kart);
+            }
+          }
+        } else {
+          // Se não conseguiu, limpa os resultados desta bateria
+          pilotsForThisBattery.forEach(pilot => {
+            if (results[category.id][pilot.userId]) {
+              delete results[category.id][pilot.userId][batteryIndex];
+            }
+          });
+        }
+      }
+    });
+    setFleetDrawResults(results);
+    return results;
+  };
+
   // Limpar estado quando o componente for desmontado
   useEffect(() => {
     return () => {
@@ -227,6 +347,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
     setShowAddItemForm(false);
     setNewItemLabel('');
     setNewItemTime('');
+    // Fechar modal de sorteio quando mudar de etapa
+    setShowFleetDrawModal(false);
+    // Não resetar fleetDrawResults e categoryFleetAssignments aqui
+    // Eles serão carregados pelo useEffect específico
   }, [selectedStageId]);
 
   // --- Frotas ---
@@ -234,6 +358,32 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
   const [fleets, setFleets] = useState<Fleet[]>([
     { id: '1', name: 'Frota 1', totalKarts: 20 },
   ]);
+
+  // Calcular o número máximo de pilotos confirmados entre todas as categorias
+  const getMaxConfirmedPilots = () => {
+    let maxPilots = 0;
+    categories.forEach(category => {
+      const categoryPilots = registrations.filter(reg =>
+        reg.categories.some((rc: any) => rc.category.id === category.id) &&
+        stageParticipations.some(
+          (part) => part.userId === reg.userId && part.categoryId === category.id && part.status === 'confirmed'
+        )
+      );
+      maxPilots = Math.max(maxPilots, categoryPilots.length);
+    });
+    return maxPilots;
+  };
+
+  // Função para obter o mínimo de karts ativos necessário
+  const getMinKartsRequired = () => getMaxConfirmedPilots();
+
+  // Função para calcular karts ativos de uma frota
+  const getActiveKartsCount = (fleetId: string) => {
+    const fleet = fleets.find(f => f.id === fleetId);
+    if (!fleet) return 0;
+    const inactiveKartsForFleet = inactiveKarts[fleetId] || [];
+    return fleet.totalKarts - inactiveKartsForFleet.length;
+  };
 
   // Carregar frotas da etapa selecionada
   const loadFleets = async () => {
@@ -260,7 +410,6 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
         setInactiveKarts({});
       }
     } catch (error) {
-      console.error('❌ [DEBUG] Erro ao carregar frotas:', error);
       // Em caso de erro, usar padrão
       const defaultFleets = [{ id: '1', name: 'Frota 1', totalKarts: 20 }];
       setFleets(defaultFleets);
@@ -277,7 +426,6 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
       
       await StageService.update(selectedStage.id, updateData);
     } catch (error) {
-      console.error('❌ [DEBUG] Erro ao salvar frotas:', error);
       toast.error('Erro ao salvar frotas');
     }
   };
@@ -294,9 +442,20 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
   };
   
   const handleFleetKartsChange = (id: string, totalKarts: number) => {
-    const newFleets = fleets.map(f => f.id === id ? { ...f, totalKarts } : f);
-    setFleets(newFleets);
-    saveFleets(newFleets);
+    setFleets(prevFleets => {
+      const fleet = prevFleets.find(f => f.id === id);
+      if (!fleet) return prevFleets;
+      const currentInactive = inactiveKarts[id] || [];
+      const minRequired = getMinKartsRequired();
+      const wouldBeActive = totalKarts - currentInactive.length;
+      if (wouldBeActive < minRequired) {
+        toast.error(`Não é possível reduzir. Mínimo de ${minRequired} karts ativos é necessário.`);
+        return prevFleets;
+      }
+      const newFleets = prevFleets.map(f => f.id === id ? { ...f, totalKarts } : f);
+      saveFleets(newFleets);
+      return newFleets;
+    });
   };
 
   const handleAddFleet = () => {
@@ -359,7 +518,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
         setScheduleItems(currentSchedule);
       }
     } catch (error) {
-      console.error('❌ [DEBUG] Erro ao carregar cronograma:', error);
+      // Opcional: mostrar notificação de erro para o usuário
     }
   };
 
@@ -405,7 +564,6 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
     try {
       await StageService.updateSchedule(selectedStage.id, schedule);
     } catch (error) {
-      console.error('❌ [DEBUG] Erro ao salvar cronograma:', error);
       // Opcional: mostrar notificação de erro para o usuário
     }
   };
@@ -416,7 +574,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
     try {
       await StageService.updateSchedule(selectedStage.id, scheduleItems);
     } catch (error) {
-      console.error('Erro ao salvar cronograma:', error);
+      // Opcional: mostrar notificação de erro para o usuário
     }
   };
 
@@ -737,23 +895,28 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
     setInactiveKarts(prev => {
       const current = prev[fleetId] || [];
       const newInactiveKarts = { ...prev };
-      
+      const fleet = fleets.find(f => f.id === fleetId);
+      if (!fleet) return prev;
+      const minRequired = getMinKartsRequired();
       if (current.includes(kartIdx)) {
-        // Remove da lista de inativos
+        // Ativando kart (sempre permitido)
         newInactiveKarts[fleetId] = current.filter(i => i !== kartIdx);
       } else {
-        // Adiciona à lista de inativos
-        newInactiveKarts[fleetId] = [...current, kartIdx];
+        // Inativando kart
+        const wouldBeInactive = [...current, kartIdx];
+        const wouldBeActive = fleet.totalKarts - wouldBeInactive.length;
+        if (wouldBeActive < minRequired) {
+          toast.error(`Não é possível inativar este kart. Mínimo de ${minRequired} karts ativos é necessário.`);
+          return prev;
+        }
+        newInactiveKarts[fleetId] = wouldBeInactive;
       }
-      
       // Salvar frotas com estado dos karts inativos
       const fleetsWithInactiveKarts = fleets.map(fleet => ({
         ...fleet,
         inactiveKarts: newInactiveKarts[fleet.id] || []
       }));
-      
       saveFleets(fleetsWithInactiveKarts);
-      
       return newInactiveKarts;
     });
   };
@@ -909,6 +1072,69 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
     );
   };
 
+  // Carregar sorteio salvo ao abrir o modal
+  useEffect(() => {
+    if (showFleetDrawModal && selectedStageId) {
+      StageService.getKartDrawAssignments(selectedStageId)
+        .then((res) => {
+          if (res && res.data) {
+            if (res.data.results) {
+              setFleetDrawResults(res.data.results);
+            } else {
+              setFleetDrawResults(res.data);
+            }
+            if (res.data.categoryFleetAssignments) {
+              setCategoryFleetAssignments(res.data.categoryFleetAssignments);
+            }
+          }
+        })
+        .catch(() => {
+          setFleetDrawResults({});
+          setCategoryFleetAssignments({});
+        });
+    }
+  }, [showFleetDrawModal, selectedStageId]);
+
+  // Carregar sorteio salvo quando a etapa muda (para mostrar ícones na lista de pilotos)
+  useEffect(() => {
+    if (selectedStageId) {
+      StageService.getKartDrawAssignments(selectedStageId)
+        .then((res) => {
+          if (res && res.data) {
+            if (res.data.results) {
+              setFleetDrawResults(res.data.results);
+            } else {
+              setFleetDrawResults(res.data);
+            }
+            if (res.data.categoryFleetAssignments) {
+              setCategoryFleetAssignments(res.data.categoryFleetAssignments);
+            }
+          }
+        })
+        .catch(() => {
+          setFleetDrawResults({});
+          setCategoryFleetAssignments({});
+        });
+    }
+  }, [selectedStageId]);
+
+  // Salvar sorteio no backend ao clicar em 'Realizar Sorteio'
+  const handleSaveFleetDraw = async (results?: any) => {
+    if (!selectedStageId) return;
+    const dataToSave = results || fleetDrawResults;
+    const dataWithFleetAssignments = {
+      results: dataToSave,
+      categoryFleetAssignments: categoryFleetAssignments
+    };
+    await StageService.saveKartDrawAssignments(selectedStageId, dataWithFleetAssignments);
+    setFleetDrawResults(dataWithFleetAssignments.results);
+    setCategoryFleetAssignments(dataWithFleetAssignments.categoryFleetAssignments);
+    setDrawVersion(v => v + 1); // força re-render
+    toast.success('Sorteio salvo com sucesso!');
+  };
+
+
+  
   return (
     <div className="space-y-6">
       {/* Header Inteligente */}
@@ -1005,8 +1231,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                   )
                 );
                 
+
+                
                 return (
-                  <div key={category.id} className="border border-gray-200 rounded-lg">
+                  <div key={category.id + '-' + drawVersion} className="border border-gray-200 rounded-lg">
                     <div 
                       className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"
                       onClick={() => toggleCategory(category.id)}
@@ -1035,13 +1263,52 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                                 (a.user?.name || a.userId).localeCompare(b.user?.name || b.userId)
                               );
                             })
-                            .map((pilot) => (
-                              <div key={pilot.id} className="flex items-center">
-                                <span className="text-sm text-gray-900 font-medium">
-                                  {formatName(pilot.user?.name || pilot.userId)}
-                                </span>
-                              </div>
-                            ))
+                            .map((pilot) => {
+                              // Verificar se há karts sorteados para este piloto
+                              const pilotKartAssignments = fleetDrawResults[category.id]?.[pilot.userId];
+                              const hasKartAssignments = pilotKartAssignments && Object.keys(pilotKartAssignments).length > 0;
+                              
+
+                              
+                              return (
+                                <div key={pilot.id} className="flex items-center justify-between">
+                                  <span className="text-sm text-gray-900 font-medium">
+                                    {formatName(pilot.user?.name || pilot.userId)}
+                                  </span>
+                                  {hasKartAssignments && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <div className="flex items-center ml-2">
+                                            <img 
+                                              src="/kart.svg" 
+                                              alt="Kart" 
+                                              className="w-4 h-4 text-black hover:text-gray-700 cursor-help"
+                                            />
+                                          </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="left" className="max-w-xs">
+                                          <div className="space-y-1">
+                                            <div className="font-semibold text-sm">Karts Sorteados:</div>
+                                            {Object.entries(pilotKartAssignments).map(([batteryIdx, result]) => {
+                                              const batteryNumber = Number(batteryIdx) + 1;
+                                              const assignedFleetId = categoryFleetAssignments[category.id];
+                                              const fleet = fleets.find(f => f.id === assignedFleetId);
+                                              return (
+                                                <div key={batteryIdx} className="text-xs">
+                                                  Bateria {batteryNumber}: Kart {result.kart}
+                                                  {fleet && ` (${fleet.name})`}
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                </div>
+                              );
+                            })
                         ) : (
                           <div className="text-sm text-gray-500 text-center py-2">
                             Nenhum piloto confirmado nesta categoria
@@ -1133,33 +1400,60 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
 
         {/* Coluna 3: Frota/Sorteio */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Frota/Sorteio
-          </h3>
-          <div className="flex flex-wrap gap-6 items-end mb-4 w-full">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Frota/Sorteio
+            </h3>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleAddFleet}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Adicionar frota
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleOpenFleetDrawModal}>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Sorteio de frota
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="flex flex-col gap-4 mb-4 w-full">
             {fleets.map((fleet, idx) => (
-              <div key={fleet.id} className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 w-full">
+              <div key={fleet.id} className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 min-w-0">
                 <div
-                  className="flex items-center gap-2 mb-2 cursor-pointer select-none"
+                  className="flex items-center gap-2 mb-3 cursor-pointer select-none min-w-0"
                   onClick={() => toggleFleet(fleet.id)}
                 >
-                  {expandedFleets.has(fleet.id) ? (
-                    <ChevronDown className="w-4 h-4 text-gray-500" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4 text-gray-500" />
-                  )}
-                  <input
-                    type="text"
-                    value={fleet.name}
-                    onChange={e => handleFleetNameChange(fleet.id, e.target.value)}
-                    className="font-semibold text-lg border-b border-gray-300 focus:border-orange-500 outline-none flex-1 bg-transparent"
-                    style={{ minWidth: 0 }}
-                    onClick={e => e.stopPropagation()}
-                  />
+                  <div className="flex-shrink-0">
+                    {expandedFleets.has(fleet.id) ? (
+                      <ChevronDown className="w-4 h-4 text-gray-500" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-gray-500" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={fleet.name}
+                      onChange={e => handleFleetNameChange(fleet.id, e.target.value)}
+                      className="font-semibold text-lg border-b border-gray-300 focus:border-orange-500 outline-none bg-transparent w-full truncate"
+                      placeholder="Nome da frota"
+                      onClick={e => e.stopPropagation()}
+                    />
+                  </div>
                   {fleets.length > 1 && (
                     <button
                       onClick={e => { e.stopPropagation(); handleRemoveFleet(fleet.id); }}
-                      className="ml-2 text-gray-400 hover:text-red-500"
+                      className="flex-shrink-0 ml-2 text-gray-400 hover:text-red-500 transition-colors"
                       title="Remover frota"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1168,35 +1462,48 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                 </div>
                 {expandedFleets.has(fleet.id) && (
                   <>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-sm text-gray-500">Total de karts:</span>
-                      <button
-                        type="button"
-                        className="w-7 h-7 flex items-center justify-center rounded border border-gray-300 bg-white text-lg font-bold hover:bg-gray-100"
-                        onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.max(0, fleet.totalKarts - 1)); }}
-                        disabled={fleet.totalKarts <= 0}
-                        tabIndex={-1}
-                      >
-                        -
-                      </button>
-                      <input
-                        type="number"
-                        min={0}
-                        max={99}
-                        value={fleet.totalKarts}
-                        onChange={e => handleFleetKartsChange(fleet.id, Math.max(0, Math.min(99, Number(e.target.value))))}
-                        className="w-16 px-2 py-1 border border-gray-300 rounded text-sm text-center"
-                        onClick={e => e.stopPropagation()}
-                      />
-                      <button
-                        type="button"
-                        className="w-7 h-7 flex items-center justify-center rounded border border-gray-300 bg-white text-lg font-bold hover:bg-gray-100"
-                        onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.min(99, fleet.totalKarts + 1)); }}
-                        disabled={fleet.totalKarts >= 99}
-                        tabIndex={-1}
-                      >
-                        +
-                      </button>
+                    <div className="space-y-3 mb-4">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm text-gray-500 whitespace-nowrap">Karts ativos: {getActiveKartsCount(fleet.id)}</span>
+                        {getMinKartsRequired() > 0 && (
+                          <span className="text-xs text-orange-600 font-medium whitespace-nowrap">
+                            (mín: {getMinKartsRequired()})
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9"
+                          onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.max(getMinKartsRequired(), fleet.totalKarts - 1)); }}
+                          disabled={fleet.totalKarts <= getMinKartsRequired()}
+                          tabIndex={-1}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <input
+                          type="number"
+                          min={getMinKartsRequired()}
+                          max={99}
+                          value={fleet.totalKarts}
+                          onChange={e => handleFleetKartsChange(fleet.id, Math.max(getMinKartsRequired(), Math.min(99, Number(e.target.value))))}
+                          className="w-24 h-9 px-3 border border-gray-300 rounded-md text-sm text-center focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-colors"
+                          onClick={e => e.stopPropagation()}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9"
+                          onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.min(99, fleet.totalKarts + 1)); }}
+                          disabled={fleet.totalKarts >= 99}
+                          tabIndex={-1}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {Array.from({ length: fleet.totalKarts }, (_, i) => {
@@ -1227,17 +1534,6 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                 )}
               </div>
             ))}
-            <Button
-              onClick={handleAddFleet}
-              className="w-full mt-2 bg-orange-500 hover:bg-orange-600 text-black flex items-center justify-center gap-2"
-              title="Adicionar frota"
-              type="button"
-              variant="default"
-              size="lg"
-            >
-              <Plus className="w-5 h-5" />
-              Adicionar frota
-            </Button>
           </div>
         </div>
       </div>
@@ -1246,6 +1542,138 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
 
       {/* Modal de Confirmação de Pilotos */}
       <PilotConfirmationModal />
+
+      {/* Modal de Sorteio de Frota */}
+      {showFleetDrawModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-50"
+            onClick={handleCloseFleetDrawModal}
+          />
+          
+          {/* Modal Content */}
+          <div className="relative bg-white rounded-lg shadow-xl max-w-6xl max-h-[90vh] w-full mx-4 overflow-hidden flex flex-col z-10">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Sorteio de Frota</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Configure a frota para cada categoria e realize o sorteio dos karts por bateria.
+                </p>
+              </div>
+              <button
+                onClick={handleCloseFleetDrawModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-6">
+                {/* Configuração de frotas por categoria */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Configuração de Frotas</h3>
+                  {categories.map((category) => {
+                    const categoryPilots = registrations.filter(reg =>
+                      reg.categories.some((rc: any) => rc.category.id === category.id) &&
+                      stageParticipations.some(
+                        (part) => part.userId === reg.userId && part.categoryId === category.id && part.status === 'confirmed'
+                      )
+                    );
+                    
+                    return (
+                      <div key={category.id + '-' + drawVersion} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <h4 className="text-base font-semibold text-gray-900">
+                              {category.name}
+                            </h4>
+                            <p className="text-sm text-gray-600">
+                              {categoryPilots.length} pilotos confirmados • {category.batteriesConfig?.length || 0} baterias
+                            </p>
+                          </div>
+                          <select
+                            value={categoryFleetAssignments[category.id] || ''}
+                            onChange={(e) => setCategoryFleetAssignments(prev => ({
+                              ...prev,
+                              [category.id]: e.target.value
+                            }))}
+                            className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          >
+                            <option value="">Selecione uma frota</option>
+                            {fleets.map(fleet => (
+                              <option key={fleet.id} value={fleet.id}>
+                                {fleet.name} ({getActiveKartsCount(fleet.id)} karts ativos)
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        {/* Resultados do sorteio para esta categoria */}
+                        {fleetDrawResults[category.id] && (
+                          <div className="mt-4">
+                            <h5 className="text-sm font-semibold text-gray-700 mb-2">Resultado do Sorteio:</h5>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                              {Object.entries(fleetDrawResults[category.id])
+                                .map(([pilotId, batteryResults]) => {
+                                  const pilot = registrations.find(reg => reg.userId === pilotId);
+                                  return {
+                                    pilotId,
+                                    batteryResults,
+                                    pilotName: formatName(pilot?.user?.name || pilotId)
+                                  };
+                                })
+                                .sort((a, b) => a.pilotName.localeCompare(b.pilotName, 'pt-BR'))
+                                .map(({ pilotId, batteryResults, pilotName }) => (
+                                  <div key={pilotId} className="bg-gray-50 rounded-lg p-3">
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {pilotName}
+                                    </div>
+                                    <div className="text-xs text-gray-600 mt-1 space-y-1">
+                                      {Object.entries(batteryResults).map(([batteryIdx, result]) => (
+                                        <div key={batteryIdx}>
+                                          Bateria {Number(batteryIdx) + 1}: Kart {result.kart}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+              <Button 
+                variant="outline" 
+                onClick={handleCloseFleetDrawModal}
+              >
+                Fechar
+              </Button>
+              <Button 
+                onClick={async () => { 
+                  const results = performFleetDraw(); 
+                  await handleSaveFleetDraw(results); 
+                }}
+                disabled={Object.keys(categoryFleetAssignments).length === 0}
+                className="bg-orange-500 hover:bg-orange-600 text-black"
+              >
+                Realizar Sorteio
+              </Button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }; 
