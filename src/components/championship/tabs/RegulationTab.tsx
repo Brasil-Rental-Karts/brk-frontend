@@ -243,6 +243,14 @@ export const RegulationTab = ({
 
   return (
     <div className="space-y-6">
+      {/* Título da aba */}
+      <div className="border-b border-gray-200 pb-4">
+        <h2 className="text-2xl font-bold text-gray-900">Regulamento</h2>
+        <p className="text-sm text-gray-600 mt-1">
+          Gerencie o regulamento e as regras do campeonato
+        </p>
+      </div>
+
       {/* Season Selector */}
       <div className="space-y-2">
         <Label htmlFor="season-select">Selecionar Temporada</Label>

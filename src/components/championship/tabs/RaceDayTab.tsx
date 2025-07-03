@@ -1137,57 +1137,71 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
   
   return (
     <div className="space-y-6">
-      {/* Header Inteligente */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-8">
-          {/* Temporada */}
-          <div className="flex flex-col">
-            <label className="text-xs text-gray-500 mb-1 font-medium" htmlFor="season-select">Temporada</label>
-            <div className="relative">
-              <select
-                id="season-select"
-                className="appearance-none bg-white border border-gray-300 rounded px-3 py-2 font-bold text-base pr-8 focus:outline-none focus:border-orange-500 min-w-[140px]"
-                value={selectedSeasonId}
-                onChange={e => {
-                  const seasonId = e.target.value;
-                  setSelectedSeasonId(seasonId);
-                  const newSeason = seasons.find(s => s.id === seasonId);
-                  if (newSeason?.stages?.length) {
-                    setSelectedStageId(getClosestStage(newSeason.stages) || newSeason.stages[0].id);
-                  } else {
-                    setSelectedStageId("");
-                  }
-                }}
-              >
-                {seasons.map(season => (
-                  <option key={season.id} value={season.id}>{season.name}</option>
-                ))}
-              </select>
-              <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
+      {/* Título da aba */}
+      <div className="border-b border-gray-200 pb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Race Day</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Gerencie tudo para o dia da corrida: confirmações de pilotos, cronograma, frotas de karts, sorteio de karts por bateria e organização geral do evento
+            </p>
           </div>
-          {/* Etapa */}
-          <div className="flex flex-col">
-            <label className="text-xs text-gray-500 mb-1 font-medium" htmlFor="stage-select">Etapa</label>
-            <div className="relative">
-              <select
-                id="stage-select"
-                className="appearance-none bg-white border border-gray-300 rounded px-3 py-2 font-semibold text-base pr-8 focus:outline-none focus:border-orange-500 min-w-[140px]"
-                value={selectedStageId}
-                onChange={e => setSelectedStageId(e.target.value)}
-              >
-                {stages.map(stage => (
-                  <option key={stage.id} value={stage.id}>{stage.name}</option>
-                ))}
-              </select>
-              <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
+          <Button variant="outline" className="rounded-full px-4 py-1 h-8 text-sm font-semibold flex items-center gap-1">
+            Visão geral
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Header Inteligente */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        {/* Temporada */}
+        <div className="flex flex-col">
+          <label className="text-xs text-gray-500 mb-1 font-medium" htmlFor="season-select">Temporada</label>
+          <div className="relative">
+            <select
+              id="season-select"
+              className="appearance-none bg-white border border-gray-300 rounded px-3 py-2 font-bold text-base pr-8 focus:outline-none focus:border-orange-500 w-full"
+              value={selectedSeasonId}
+              onChange={e => {
+                const seasonId = e.target.value;
+                setSelectedSeasonId(seasonId);
+                const newSeason = seasons.find(s => s.id === seasonId);
+                if (newSeason?.stages?.length) {
+                  setSelectedStageId(getClosestStage(newSeason.stages) || newSeason.stages[0].id);
+                } else {
+                  setSelectedStageId("");
+                }
+              }}
+            >
+              {seasons.map(season => (
+                <option key={season.id} value={season.id}>{season.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
         </div>
-        <Button variant="outline" className="rounded-full px-4 py-1 h-8 text-sm font-semibold flex items-center gap-1">
-          Visão geral
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-        </Button>
+        
+        {/* Etapa */}
+        <div className="flex flex-col">
+          <label className="text-xs text-gray-500 mb-1 font-medium" htmlFor="stage-select">Etapa</label>
+          <div className="relative">
+            <select
+              id="stage-select"
+              className="appearance-none bg-white border border-gray-300 rounded px-3 py-2 font-semibold text-base pr-8 focus:outline-none focus:border-orange-500 w-full"
+              value={selectedStageId}
+              onChange={e => setSelectedStageId(e.target.value)}
+            >
+              {stages.map(stage => (
+                <option key={stage.id} value={stage.id}>{stage.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+        </div>
+        
+        {/* Coluna vazia para manter alinhamento */}
+        <div></div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
