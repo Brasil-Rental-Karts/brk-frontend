@@ -183,6 +183,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
   const [fleetDrawResults, setFleetDrawResults] = useState<{[categoryId: string]: {[pilotId: string]: { [batteryIndex: number]: { kart: number } } } }>({});
   const [categoryFleetAssignments, setCategoryFleetAssignments] = useState<{[categoryId: string]: string}>({});
   const [drawVersion, setDrawVersion] = useState(0);
+  const [openKartTooltip, setOpenKartTooltip] = useState<string | null>(null);
 
   // Função para alternar a visibilidade do formulário de adicionar item
   const toggleAddItemForm = () => {
@@ -453,7 +454,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
         return prevFleets;
       }
       const newFleets = prevFleets.map(f => f.id === id ? { ...f, totalKarts } : f);
-      saveFleets(newFleets);
+    saveFleets(newFleets);
       return newFleets;
     });
   };
@@ -497,6 +498,24 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
       return newSet;
     });
   };
+
+  const toggleKartTooltip = (pilotId: string) => {
+    setOpenKartTooltip(openKartTooltip === pilotId ? null : pilotId);
+  };
+
+  // Close tooltip when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openKartTooltip && !(event.target as Element).closest('[data-kart-tooltip]')) {
+        setOpenKartTooltip(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openKartTooltip]);
 
   useEffect(() => {
     if (selectedStage && categories.length > 0) {
@@ -832,25 +851,25 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
                   <div
                     {...attributes}
                     {...listeners}
-                    className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+                    className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 flex-shrink-0"
                   >
                     <GripVertical className="w-4 h-4" />
                   </div>
-                  <div className="flex-1 flex items-center gap-3">
-                    <div className="text-lg font-semibold text-gray-900 min-w-[60px]">
+                  <div className="flex-1 flex items-center gap-2 min-w-0">
+                    <div className="text-lg font-semibold text-gray-900 flex-shrink-0">
                       {item.time}
                     </div>
-                    <div className="text-gray-700 flex-1">
+                    <div className="text-gray-700 flex-1 min-w-0 truncate">
                       {item.label}
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1 flex-shrink-0">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -993,9 +1012,11 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                           <h4 className="text-base font-semibold text-gray-900">
                             {category.name}
                           </h4>
-                          <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2 py-1 rounded-full">
-                            {confirmedPilots.length}/{category.maxPilots}
-                          </span>
+                          <div className="flex justify-end">
+                            <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2 py-1 rounded-full">
+                              {confirmedPilots.length}/{category.maxPilots}
+                            </span>
+                          </div>
                         </div>
                       </div>
                       
@@ -1134,71 +1155,73 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
   };
 
 
-  
+
   return (
     <div className="space-y-6">
       {/* Título da aba */}
       <div className="border-b border-gray-200 pb-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Race Day</h2>
             <p className="text-sm text-gray-600 mt-1">
-              Gerencie tudo para o dia da corrida: confirmações de pilotos, cronograma, frotas de karts, sorteio de karts por bateria e organização geral do evento
+              Gerencie tudo para o dia da corrida.
             </p>
           </div>
-          <Button variant="outline" className="rounded-full px-4 py-1 h-8 text-sm font-semibold flex items-center gap-1">
-            Visão geral
-            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-          </Button>
+          <div className="flex justify-center lg:justify-end">
+            <Button variant="outline" className="rounded-full px-4 py-1 h-8 text-sm font-semibold flex items-center gap-1 w-full lg:w-auto">
+              Visão geral
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Header Inteligente */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Temporada */}
-        <div className="flex flex-col">
-          <label className="text-xs text-gray-500 mb-1 font-medium" htmlFor="season-select">Temporada</label>
-          <div className="relative">
-            <select
-              id="season-select"
+          {/* Temporada */}
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-500 mb-1 font-medium" htmlFor="season-select">Temporada</label>
+            <div className="relative">
+              <select
+                id="season-select"
               className="appearance-none bg-white border border-gray-300 rounded px-3 py-2 font-bold text-base pr-8 focus:outline-none focus:border-orange-500 w-full"
-              value={selectedSeasonId}
-              onChange={e => {
-                const seasonId = e.target.value;
-                setSelectedSeasonId(seasonId);
-                const newSeason = seasons.find(s => s.id === seasonId);
-                if (newSeason?.stages?.length) {
-                  setSelectedStageId(getClosestStage(newSeason.stages) || newSeason.stages[0].id);
-                } else {
-                  setSelectedStageId("");
-                }
-              }}
-            >
-              {seasons.map(season => (
-                <option key={season.id} value={season.id}>{season.name}</option>
-              ))}
-            </select>
-            <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                value={selectedSeasonId}
+                onChange={e => {
+                  const seasonId = e.target.value;
+                  setSelectedSeasonId(seasonId);
+                  const newSeason = seasons.find(s => s.id === seasonId);
+                  if (newSeason?.stages?.length) {
+                    setSelectedStageId(getClosestStage(newSeason.stages) || newSeason.stages[0].id);
+                  } else {
+                    setSelectedStageId("");
+                  }
+                }}
+              >
+                {seasons.map(season => (
+                  <option key={season.id} value={season.id}>{season.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
-        </div>
         
-        {/* Etapa */}
-        <div className="flex flex-col">
-          <label className="text-xs text-gray-500 mb-1 font-medium" htmlFor="stage-select">Etapa</label>
-          <div className="relative">
-            <select
-              id="stage-select"
+          {/* Etapa */}
+          <div className="flex flex-col">
+            <label className="text-xs text-gray-500 mb-1 font-medium" htmlFor="stage-select">Etapa</label>
+            <div className="relative">
+              <select
+                id="stage-select"
               className="appearance-none bg-white border border-gray-300 rounded px-3 py-2 font-semibold text-base pr-8 focus:outline-none focus:border-orange-500 w-full"
-              value={selectedStageId}
-              onChange={e => setSelectedStageId(e.target.value)}
-            >
-              {stages.map(stage => (
-                <option key={stage.id} value={stage.id}>{stage.name}</option>
-              ))}
-            </select>
-            <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                value={selectedStageId}
+                onChange={e => setSelectedStageId(e.target.value)}
+              >
+                {stages.map(stage => (
+                  <option key={stage.id} value={stage.id}>{stage.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
-        </div>
         
         {/* Coluna vazia para manter alinhamento */}
         <div></div>
@@ -1253,19 +1276,21 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                       className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"
                       onClick={() => toggleCategory(category.id)}
                     >
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center justify-between w-full">
                         <span className="text-sm font-medium text-gray-900">
                           {category.name}
                         </span>
+                        <div className="flex items-center space-x-2">
                         <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2 py-1 rounded-full">
                           {confirmedPilots.length}/{category.maxPilots}
                         </span>
-                      </div>
                       {expandedCategories.has(category.id) ? (
                         <ChevronDown className="w-4 h-4 text-gray-500" />
                       ) : (
                         <ChevronRight className="w-4 h-4 text-gray-500" />
                       )}
+                        </div>
+                                              </div>
                     </div>
                     
                     {expandedCategories.has(category.id) && (
@@ -1286,22 +1311,23 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                               
                               return (
                                 <div key={pilot.id} className="flex items-center justify-between">
-                                  <span className="text-sm text-gray-900 font-medium">
-                                    {formatName(pilot.user?.name || pilot.userId)}
-                                  </span>
+                                <span className="text-sm text-gray-900 font-medium">
+                                  {formatName(pilot.user?.name || pilot.userId)}
+                                </span>
                                   {hasKartAssignments && (
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <div className="flex items-center ml-2">
-                                            <img 
-                                              src="/kart.svg" 
-                                              alt="Kart" 
-                                              className="w-4 h-4 text-black hover:text-gray-700 cursor-help"
-                                            />
-                                          </div>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="left" className="max-w-xs">
+                                    <div className="relative" data-kart-tooltip>
+                                      <button
+                                        onClick={() => toggleKartTooltip(pilot.id)}
+                                        className="flex items-center ml-2 p-1 rounded hover:bg-gray-100"
+                                      >
+                                        <img 
+                                          src="/kart.svg" 
+                                          alt="Kart" 
+                                          className="w-4 h-4 text-black"
+                                        />
+                                      </button>
+                                                                            {openKartTooltip === pilot.id && (
+                                        <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-max max-w-[calc(100vw-2rem)] min-w-[200px]">
                                           <div className="space-y-1">
                                             <div className="font-semibold text-sm">Karts Sorteados:</div>
                                             {Object.entries(pilotKartAssignments).map(([batteryIdx, result]) => {
@@ -1316,9 +1342,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                                               );
                                             })}
                                           </div>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
+                                        </div>
+                                      )}
+                                    </div>
                                   )}
                                 </div>
                               );
@@ -1346,13 +1372,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
             {canEditSchedule && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
+              <Button 
                     variant="ghost"
-                    size="sm"
+                size="sm"
                     className="h-8 w-8 p-0"
-                  >
+              >
                     <MoreHorizontal className="h-4 w-4" />
-                  </Button>
+              </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={toggleAddItemForm}>
@@ -1416,8 +1442,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">
-              Frota/Sorteio
-            </h3>
+            Frota/Sorteio
+          </h3>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -1448,21 +1474,21 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                   onClick={() => toggleFleet(fleet.id)}
                 >
                   <div className="flex-shrink-0">
-                    {expandedFleets.has(fleet.id) ? (
-                      <ChevronDown className="w-4 h-4 text-gray-500" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 text-gray-500" />
-                    )}
+                  {expandedFleets.has(fleet.id) ? (
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-gray-500" />
+                  )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <input
-                      type="text"
-                      value={fleet.name}
-                      onChange={e => handleFleetNameChange(fleet.id, e.target.value)}
+                  <input
+                    type="text"
+                    value={fleet.name}
+                    onChange={e => handleFleetNameChange(fleet.id, e.target.value)}
                       className="font-semibold text-lg border-b border-gray-300 focus:border-orange-500 outline-none bg-transparent w-full truncate"
                       placeholder="Nome da frota"
-                      onClick={e => e.stopPropagation()}
-                    />
+                    onClick={e => e.stopPropagation()}
+                  />
                   </div>
                   {fleets.length > 1 && (
                     <button
@@ -1487,34 +1513,34 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
-                          type="button"
+                        type="button"
                           variant="outline"
                           size="icon"
                           className="h-9 w-9"
                           onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.max(getMinKartsRequired(), fleet.totalKarts - 1)); }}
                           disabled={fleet.totalKarts <= getMinKartsRequired()}
-                          tabIndex={-1}
-                        >
+                        tabIndex={-1}
+                      >
                           <Minus className="h-4 w-4" />
                         </Button>
-                        <input
-                          type="number"
+                      <input
+                        type="number"
                           min={getMinKartsRequired()}
-                          max={99}
-                          value={fleet.totalKarts}
+                        max={99}
+                        value={fleet.totalKarts}
                           onChange={e => handleFleetKartsChange(fleet.id, Math.max(getMinKartsRequired(), Math.min(99, Number(e.target.value))))}
                           className="w-24 h-9 px-3 border border-gray-300 rounded-md text-sm text-center focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-colors"
-                          onClick={e => e.stopPropagation()}
-                        />
+                        onClick={e => e.stopPropagation()}
+                      />
                         <Button
-                          type="button"
+                        type="button"
                           variant="outline"
                           size="icon"
                           className="h-9 w-9"
-                          onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.min(99, fleet.totalKarts + 1)); }}
-                          disabled={fleet.totalKarts >= 99}
-                          tabIndex={-1}
-                        >
+                        onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.min(99, fleet.totalKarts + 1)); }}
+                        disabled={fleet.totalKarts >= 99}
+                        tabIndex={-1}
+                      >
                           <Plus className="h-4 w-4" />
                         </Button>
                       </div>
@@ -1590,32 +1616,30 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                 {/* Configuração de frotas por categoria */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-gray-900">Configuração de Frotas</h3>
-                  {categories.map((category) => {
-                    const categoryPilots = registrations.filter(reg =>
+                {categories.map((category) => {
+                  const categoryPilots = registrations.filter(reg =>
                       reg.categories.some((rc: any) => rc.category.id === category.id) &&
-                      stageParticipations.some(
-                        (part) => part.userId === reg.userId && part.categoryId === category.id && part.status === 'confirmed'
-                      )
-                    );
-                    
-                    return (
+                    stageParticipations.some(
+                      (part) => part.userId === reg.userId && part.categoryId === category.id && part.status === 'confirmed'
+                    )
+                  );
+                  
+                  return (
                       <div key={category.id + '-' + drawVersion} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <h4 className="text-base font-semibold text-gray-900">
-                              {category.name}
-                            </h4>
-                            <p className="text-sm text-gray-600">
-                              {categoryPilots.length} pilotos confirmados • {category.batteriesConfig?.length || 0} baterias
-                            </p>
-                          </div>
+                        <div className="mb-3">
+                          <h4 className="text-base font-semibold text-gray-900">
+                            {category.name}
+                          </h4>
+                          <p className="text-sm text-gray-600 mb-3">
+                            {categoryPilots.length} pilotos confirmados • {category.batteriesConfig?.length || 0} baterias
+                          </p>
                           <select
                             value={categoryFleetAssignments[category.id] || ''}
                             onChange={(e) => setCategoryFleetAssignments(prev => ({
                               ...prev,
                               [category.id]: e.target.value
                             }))}
-                            className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                           >
                             <option value="">Selecione uma frota</option>
                             {fleets.map(fleet => (
@@ -1625,7 +1649,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                             ))}
                           </select>
                         </div>
-                        
+                      
                         {/* Resultados do sorteio para esta categoria */}
                         {fleetDrawResults[category.id] && (
                           <div className="mt-4">
@@ -1645,34 +1669,34 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                                   <div key={pilotId} className="bg-gray-50 rounded-lg p-3">
                                     <div className="text-sm font-medium text-gray-900">
                                       {pilotName}
-                                    </div>
+                                  </div>
                                     <div className="text-xs text-gray-600 mt-1 space-y-1">
                                       {Object.entries(batteryResults).map(([batteryIdx, result]) => (
                                         <div key={batteryIdx}>
                                           Bateria {Number(batteryIdx) + 1}: Kart {result.kart}
-                                        </div>
+                                </div>
                                       ))}
-                                    </div>
-                                  </div>
+                        </div>
+                      </div>
                                 ))}
                             </div>
                           </div>
                         )}
-                      </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-            
+              </div>
+          </div>
+          
             {/* Footer */}
             <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
               <Button 
                 variant="outline" 
                 onClick={handleCloseFleetDrawModal}
               >
-                Fechar
-              </Button>
+              Fechar
+            </Button>
               <Button 
                 onClick={async () => { 
                   const results = performFleetDraw(); 
