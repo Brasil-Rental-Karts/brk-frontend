@@ -8,7 +8,20 @@ import { AlertTriangle, Plus, Edit, Trash2, GripVertical, HelpCircle, Power, Pow
 import { RegulationService, Regulation, CreateRegulationData, UpdateRegulationData } from "@/lib/services/regulation.service";
 import { Season, SeasonService } from "@/lib/services/season.service";
 import { ChampionshipService, Championship } from "@/lib/services/championship.service";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Label } from "brk-design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
 import ReactMarkdown from "react-markdown";
@@ -133,29 +146,28 @@ export const RegulationTab = ({
     }
   };
 
-  const handleDragEnd = async (result: any) => {
-    if (!result.destination) return;
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    })
+  );
 
-    const items = Array.from(regulations);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-
-    setRegulations(items);
-
-    // Update order in backend
-    try {
-      const regulationIds = items.map(item => item.id);
-
-      await RegulationService.reorder({
+  function handleDragEnd(event: any) {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      const oldIndex = regulations.findIndex(item => item.id === active.id);
+      const newIndex = regulations.findIndex(item => item.id === over.id);
+      const items = arrayMove(regulations, oldIndex, newIndex);
+      setRegulations(items);
+      // Update order in backend
+      RegulationService.reorder({
         seasonId: selectedSeason,
-        regulationIds
-      });
-    } catch (error) {
-      console.error("Error reordering regulations:", error);
-      // Reload regulations to restore original order
-      loadRegulations(selectedSeason);
+        regulationIds: items.map(item => item.id)
+      }).catch(() => loadRegulations(selectedSeason));
     }
-  };
+  }
 
   const openEditModal = (regulation: Regulation) => {
     setEditingRegulation(regulation);
@@ -231,6 +243,14 @@ export const RegulationTab = ({
 
   return (
     <div className="space-y-6">
+      {/* Título da aba */}
+      <div className="border-b border-gray-200 pb-4">
+        <h2 className="text-2xl font-bold text-gray-900">Regulamento</h2>
+        <p className="text-sm text-gray-600 mt-1">
+          Gerencie o regulamento e as regras do campeonato
+        </p>
+      </div>
+
       {/* Season Selector */}
       <div className="space-y-2">
         <Label htmlFor="season-select">Selecionar Temporada</Label>
@@ -546,80 +566,101 @@ export const RegulationTab = ({
               </AlertDescription>
             </Alert>
           ) : (
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <Droppable droppableId="regulations">
-                {(provided) => (
-                  <div
-                    {...provided.droppableProps}
-                    ref={provided.innerRef}
-                    className="space-y-3"
-                  >
-                    {regulations.map((regulation, index) => (
-                      <Draggable key={regulation.id} draggableId={regulation.id} index={index}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            className={`${snapshot.isDragging ? 'opacity-50' : ''}`}
-                          >
-                            <Card>
-                              <CardHeader className="pb-3">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center space-x-2">
-                                    <div {...provided.dragHandleProps}>
-                                      <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
-                                    </div>
-                                    <CardTitle className="text-base prose prose-sm max-w-none">
-                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                        {regulation.title}
-                                      </ReactMarkdown>
-                                    </CardTitle>
-                                    <span className="text-xs text-gray-500">
-                                      #{regulation.order}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center space-x-2">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => openEditModal(regulation)}
-                                      title="Editar"
-                                      disabled={showCreateForm || showEditForm}
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleDeleteRegulation(regulation.id)}
-                                      title="Excluir"
-                                      disabled={showCreateForm || showEditForm}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </CardHeader>
-                              <CardContent>
-                                <div className="text-sm text-gray-600 prose prose-sm max-w-none">
-                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                    {regulation.content}
-                                  </ReactMarkdown>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </DragDropContext>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={regulations.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                {regulations.map((regulation, index) => (
+                  <SortableRegulationCard
+                    key={regulation.id}
+                    regulation={regulation}
+                    index={index}
+                    onEdit={openEditModal}
+                    onDelete={handleDeleteRegulation}
+                    canEdit={!(showCreateForm || showEditForm)}
+                    isEditing={showEditForm}
+                    isCreating={showCreateForm}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </>
       )}
     </div>
   );
-}; 
+};
+
+function SortableRegulationCard({ regulation, index, onEdit, onDelete, canEdit, isEditing, isCreating }: any) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: regulation.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    background: isDragging ? '#f3f4f6' : undefined,
+    marginBottom: '0.75rem',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                className="cursor-grab text-gray-400 hover:text-gray-600"
+                {...attributes}
+                {...listeners}
+                tabIndex={-1}
+                aria-label="Arrastar para reordenar"
+                disabled={isEditing || isCreating}
+              >
+                <GripVertical className="h-4 w-4" />
+              </button>
+              <CardTitle className="text-base prose prose-sm max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {regulation.title}
+                </ReactMarkdown>
+              </CardTitle>
+              <span className="text-xs text-gray-500">#{regulation.order}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onEdit(regulation)}
+                title="Editar"
+                disabled={isEditing || isCreating}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDelete(regulation.id)}
+                title="Excluir"
+                disabled={isEditing || isCreating}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-gray-600 prose prose-sm max-w-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {regulation.content}
+            </ReactMarkdown>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+} 

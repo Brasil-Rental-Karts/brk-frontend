@@ -14,6 +14,8 @@ export interface Stage {
   doublePoints: boolean;
   briefing?: string;
   briefingTime?: string; // HH:MM format
+  schedule?: any; // JSONB field for schedule items
+  fleets?: any[]; // JSONB field for fleets configuration
   createdAt: string;
   updatedAt: string;
 }
@@ -49,6 +51,7 @@ export interface UpdateStageData {
   doublePoints?: boolean;
   briefing?: string;
   briefingTime?: string; // HH:MM format
+  fleets?: any[]; // JSONB field for fleets configuration
 }
 
 /**

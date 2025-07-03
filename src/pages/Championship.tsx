@@ -24,6 +24,7 @@ import { Category } from "@/lib/services/category.service";
 import { Season as BaseSeason } from "@/lib/services/season.service";
 import { Stage } from "@/lib/types/stage";
 import { Loading } from '@/components/ui/loading';
+import { RaceDayTab } from "@/components/championship/tabs/RaceDayTab";
 
 // Estende a interface base da temporada para incluir as categorias
 type Season = BaseSeason & { categories?: Category[]; stages?: Stage[] };
@@ -51,6 +52,7 @@ export const Championship = () => {
     'pilotos': 'pilotos',
     'regulations': 'regulamento',
     'regulamento': 'regulamento',
+    'race-day': 'race-day',
     'edit-data': 'config-edit',
     'config-edit': 'config-edit',
     'sponsors': 'config-sponsors',
@@ -93,6 +95,7 @@ export const Championship = () => {
       'etapas': 'stages',
       'pilotos': 'pilots',
       'regulamento': 'regulations',
+      'race-day': 'raceDay',
       'config-edit': 'editChampionship',
       'config-grid': 'gridTypes',
       'config-scoring': 'scoringSystems',
@@ -233,6 +236,15 @@ export const Championship = () => {
                   Regulamento
                 </TabsTrigger>
               )}
+              {permissions?.raceDay && (
+                <TabsTrigger 
+                  value="race-day" 
+                  disabled={!hasSeasons}
+                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+                >
+                  Race Day
+                </TabsTrigger>
+              )}
             </TabsList>
           </div>
         </div>
@@ -290,6 +302,12 @@ export const Championship = () => {
                 error={error}
                 onRefresh={refresh}
               />
+            </TabsContent>
+          )}
+
+          {permissions?.raceDay && hasSeasons && (
+            <TabsContent value="race-day" className="mt-0 ring-0 focus-visible:outline-none">
+              <RaceDayTab seasons={championship.seasons || []} championshipName={championship.name} />
             </TabsContent>
           )}
 

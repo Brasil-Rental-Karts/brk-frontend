@@ -24,6 +24,13 @@ export class StageService {
   }
 
   /**
+   * Buscar etapa por ID (alias para getById)
+   */
+  static async getStageById(id: string): Promise<Stage> {
+    return this.getById(id);
+  }
+
+  /**
    * Buscar etapas por temporada
    */
   static async getBySeasonId(seasonId: string): Promise<Stage[]> {
@@ -263,5 +270,45 @@ export class StageService {
     }
     
     return errors;
+  }
+
+  /**
+   * Atualizar cronograma da etapa
+   */
+  static async updateSchedule(id: string, schedule: any): Promise<Stage> {
+    const response = await api.put<Stage>(`${StageService.BASE_URL}/${id}/schedule`, { schedule });
+    return response.data;
+  }
+
+  /**
+   * Salvar sorteio de karts da etapa
+   */
+  static async saveKartDrawAssignments(stageId: string, assignments: any): Promise<any> {
+    const response = await api.patch(`${this.BASE_URL}/${stageId}/kart-draw`, assignments);
+    return response.data;
+  }
+
+  /**
+   * Buscar sorteio de karts da etapa
+   */
+  static async getKartDrawAssignments(stageId: string): Promise<any> {
+    const response = await api.get(`${this.BASE_URL}/${stageId}/kart-draw`);
+    return response.data.data;
+  }
+
+  /**
+   * Salvar resultados da etapa
+   */
+  static async saveStageResults(stageId: string, results: any): Promise<any> {
+    const response = await api.patch(`${this.BASE_URL}/${stageId}/stage-results`, results);
+    return response.data.data;
+  }
+
+  /**
+   * Buscar resultados da etapa
+   */
+  static async getStageResults(stageId: string): Promise<any> {
+    const response = await api.get(`${this.BASE_URL}/${stageId}/stage-results`);
+    return response.data.data;
   }
 } 

@@ -312,6 +312,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                                     stages: 'Etapas',
                                     pilots: 'Pilotos',
                                     regulations: 'Regulamentos',
+                                    raceDay: 'Race Day',
                                     editChampionship: 'Editar Campeonato',
                                     gridTypes: 'Tipos de Grid',
                                     scoringSystems: 'Sistemas de Pontuação',
@@ -386,6 +387,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
             <li><strong>Etapas:</strong> Gerenciar etapas e eventos</li>
             <li><strong>Pilotos:</strong> Visualizar e gerenciar pilotos inscritos</li>
             <li><strong>Regulamentos:</strong> Editar regulamentos das temporadas</li>
+            <li><strong>Race Day:</strong> Acessar funcionalidades do dia da corrida</li>
             <li><strong>Editar Campeonato:</strong> Modificar dados básicos do campeonato</li>
             <li><strong>Tipos de Grid:</strong> Configurar tipos de grid disponíveis</li>
             <li><strong>Sistemas de Pontuação:</strong> Criar e editar sistemas de pontuação</li>
@@ -507,6 +509,16 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                 />
                 <label htmlFor="regulations" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   Regulamentos
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="raceDay"
+                  checked={permissions.raceDay || false}
+                  onCheckedChange={(checked) => handlePermissionChange('raceDay', checked as boolean)}
+                />
+                <label htmlFor="raceDay" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Race Day
                 </label>
               </div>
               <div className="flex items-center space-x-2">

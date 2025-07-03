@@ -290,13 +290,6 @@ export const AdminPilotRegistration = () => {
     let calculatedAmount = 0;
     const baseValue = Number(selectedSeason.inscriptionValue);
 
-    console.log('Debug - Valores de cálculo:', {
-      baseValue,
-      selectedCategoryIds: selectedCategoryIds.length,
-      selectedStageIds: selectedStageIds.length,
-      inscriptionType: selectedSeason.inscriptionType
-    });
-
     if (selectedSeason.inscriptionType === 'por_etapa' && selectedStageIds.length > 0) {
       // Por etapa: quantidade de categorias x quantidade de etapas x valor da inscrição
       calculatedAmount = baseValue * selectedCategoryIds.length * selectedStageIds.length;
@@ -304,8 +297,6 @@ export const AdminPilotRegistration = () => {
       // Por temporada: quantidade de categorias x valor da inscrição
       calculatedAmount = baseValue * selectedCategoryIds.length;
     }
-
-    console.log('Debug - Valor calculado:', calculatedAmount);
 
     setAmount(calculatedAmount);
     setAmountDisplay(formatCurrencyInput(calculatedAmount));

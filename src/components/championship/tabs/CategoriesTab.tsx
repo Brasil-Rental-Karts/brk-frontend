@@ -419,6 +419,14 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
 
   return (
     <div className="space-y-6">
+      {/* Título da aba */}
+      <div className="border-b border-gray-200 pb-4">
+        <h2 className="text-2xl font-bold text-gray-900">Categorias</h2>
+        <p className="text-sm text-gray-600 mt-1">
+          Gerencie as categorias de pilotos do campeonato
+        </p>
+      </div>
+
       {/* Header com filtros e ação */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div className="flex-1 w-full sm:w-auto">

@@ -69,7 +69,7 @@ const createFilterFields = (seasonOptions: { value: string; label: string }[] = 
   {
     key: 'status',
     label: 'Status',
-    type: 'select',
+    type: 'combobox',
     placeholder: 'Todos os status',
     options: [
       { value: 'all', label: 'Todos' },
@@ -471,6 +471,14 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
 
   return (
     <div className="space-y-6">
+      {/* Título da aba */}
+      <div className="border-b border-gray-200 pb-4">
+        <h2 className="text-2xl font-bold text-gray-900">Etapas</h2>
+        <p className="text-sm text-gray-600 mt-1">
+          Gerencie as etapas e eventos do campeonato
+        </p>
+      </div>
+
       {/* Header com filtros e ação */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div className="flex-1 w-full sm:w-auto">
