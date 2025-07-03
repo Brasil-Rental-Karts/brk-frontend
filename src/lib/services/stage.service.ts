@@ -293,6 +293,22 @@ export class StageService {
    */
   static async getKartDrawAssignments(stageId: string): Promise<any> {
     const response = await api.get(`${this.BASE_URL}/${stageId}/kart-draw`);
-    return response.data;
+    return response.data.data;
+  }
+
+  /**
+   * Salvar resultados da etapa
+   */
+  static async saveStageResults(stageId: string, results: any): Promise<any> {
+    const response = await api.patch(`${this.BASE_URL}/${stageId}/stage-results`, results);
+    return response.data.data;
+  }
+
+  /**
+   * Buscar resultados da etapa
+   */
+  static async getStageResults(stageId: string): Promise<any> {
+    const response = await api.get(`${this.BASE_URL}/${stageId}/stage-results`);
+    return response.data.data;
   }
 } 

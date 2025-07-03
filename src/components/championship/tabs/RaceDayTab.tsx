@@ -37,6 +37,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
   Tooltip,
   TooltipContent,
@@ -184,6 +185,11 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
   const [categoryFleetAssignments, setCategoryFleetAssignments] = useState<{[categoryId: string]: string}>({});
   const [drawVersion, setDrawVersion] = useState(0);
   const [openKartTooltip, setOpenKartTooltip] = useState<string | null>(null);
+  const [selectedOverviewCategory, setSelectedOverviewCategory] = useState<string | null>(null);
+  // Novo estado para bateria selecionada
+  const [selectedBatteryIndex, setSelectedBatteryIndex] = useState<number>(0);
+  const [pilotWeights, setPilotWeights] = useState<Record<string, boolean>>({});
+  const [stageResults, setStageResults] = useState<any>({});
 
   // Função para alternar a visibilidade do formulário de adicionar item
   const toggleAddItemForm = () => {
@@ -957,6 +963,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
     });
   };
 
+  const togglePilotWeight = (pilotId: string) => {
+    setPilotWeights(prev => ({
+      ...prev,
+      [pilotId]: !prev[pilotId]
+    }));
+  };
+
   // Componente Modal customizado para evitar problemas de z-index
   const PilotConfirmationModal = () => {
     if (!showPilotConfirmationModal) return null;
@@ -1154,7 +1167,66 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
     toast.success('Sorteio salvo com sucesso!');
   };
 
+  // Atualizar selectedBatteryIndex ao trocar de categoria
+  useEffect(() => {
+    setSelectedBatteryIndex(0);
+  }, [selectedOverviewCategory]);
 
+  // Carregar resultados da etapa
+  const loadStageResults = async () => {
+    if (!selectedStageId) return;
+    try {
+      const results = await StageService.getStageResults(selectedStageId);
+      setStageResults(results || {});
+    } catch (error) {
+      console.error('Erro ao carregar resultados da etapa:', error);
+    }
+  };
+
+  // Salvar resultados da etapa
+  const saveStageResults = async (results?: any) => {
+    if (!selectedStageId) return;
+    try {
+      const dataToSave = results || stageResults;
+      await StageService.saveStageResults(selectedStageId, dataToSave);
+      console.log('Resultados da etapa salvos com sucesso');
+    } catch (error) {
+      console.error('Erro ao salvar resultados da etapa:', error);
+    }
+  };
+
+  // Atualizar resultado de um piloto
+  const updatePilotResult = (categoryId: string, pilotId: string, batteryIndex: number, field: string, value: any) => {
+    setStageResults((prev: any) => {
+      const newResults = { ...prev };
+      if (!newResults[categoryId]) {
+        newResults[categoryId] = {};
+      }
+      if (!newResults[categoryId][pilotId]) {
+        newResults[categoryId][pilotId] = {};
+      }
+      if (!newResults[categoryId][pilotId][batteryIndex]) {
+        newResults[categoryId][pilotId][batteryIndex] = {};
+      }
+      newResults[categoryId][pilotId][batteryIndex][field] = value;
+      return newResults;
+    });
+  };
+
+  // Carregar resultados quando a etapa muda
+  useEffect(() => {
+    loadStageResults();
+  }, [selectedStageId]);
+
+  // Salvar resultados automaticamente quando mudam
+  useEffect(() => {
+    if (Object.keys(stageResults).length > 0) {
+      const timeoutId = setTimeout(() => {
+        saveStageResults();
+      }, 1000); // Debounce de 1 segundo
+      return () => clearTimeout(timeoutId);
+    }
+  }, [stageResults]);
 
   return (
     <div className="space-y-6">
@@ -1168,417 +1240,567 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
             </p>
           </div>
           <div className="flex justify-center lg:justify-end">
-            <Button variant="outline" className="rounded-full px-4 py-1 h-8 text-sm font-semibold flex items-center gap-1 w-full lg:w-auto">
-              Visão geral
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="rounded-full px-4 py-1 h-8 text-sm font-semibold flex items-center gap-1 w-full lg:w-auto">
+                  {selectedOverviewCategory ? 
+                    categories.find(cat => cat.id === selectedOverviewCategory)?.name || 'Visão geral' 
+                    : 'Visão geral'
+                  }
+                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setSelectedOverviewCategory(null)}>
+                  Visão geral
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {categories.map(category => (
+                  <DropdownMenuItem 
+                    key={category.id} 
+                    onClick={() => setSelectedOverviewCategory(category.id)}
+                  >
+                    {category.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
 
-      {/* Header Inteligente */}
+      {/* Filtros sempre visíveis */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* Temporada */}
-          <div className="flex flex-col">
-            <label className="text-xs text-gray-500 mb-1 font-medium" htmlFor="season-select">Temporada</label>
-            <div className="relative">
-              <select
-                id="season-select"
+        {/* Temporada */}
+        <div className="flex flex-col">
+          <label className="text-xs text-gray-500 mb-1 font-medium" htmlFor="season-select">Temporada</label>
+          <div className="relative">
+            <select
+              id="season-select"
               className="appearance-none bg-white border border-gray-300 rounded px-3 py-2 font-bold text-base pr-8 focus:outline-none focus:border-orange-500 w-full"
-                value={selectedSeasonId}
-                onChange={e => {
-                  const seasonId = e.target.value;
-                  setSelectedSeasonId(seasonId);
-                  const newSeason = seasons.find(s => s.id === seasonId);
-                  if (newSeason?.stages?.length) {
-                    setSelectedStageId(getClosestStage(newSeason.stages) || newSeason.stages[0].id);
-                  } else {
-                    setSelectedStageId("");
-                  }
-                }}
-              >
-                {seasons.map(season => (
-                  <option key={season.id} value={season.id}>{season.name}</option>
-                ))}
-              </select>
-              <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
+              value={selectedSeasonId}
+              onChange={e => {
+                const seasonId = e.target.value;
+                setSelectedSeasonId(seasonId);
+                const newSeason = seasons.find(s => s.id === seasonId);
+                if (newSeason?.stages?.length) {
+                  setSelectedStageId(getClosestStage(newSeason.stages) || newSeason.stages[0].id);
+                } else {
+                  setSelectedStageId("");
+                }
+              }}
+            >
+              {seasons.map(season => (
+                <option key={season.id} value={season.id}>{season.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
-        
-          {/* Etapa */}
-          <div className="flex flex-col">
-            <label className="text-xs text-gray-500 mb-1 font-medium" htmlFor="stage-select">Etapa</label>
-            <div className="relative">
-              <select
-                id="stage-select"
+        </div>
+        {/* Etapa */}
+        <div className="flex flex-col">
+          <label className="text-xs text-gray-500 mb-1 font-medium" htmlFor="stage-select">Etapa</label>
+          <div className="relative">
+            <select
+              id="stage-select"
               className="appearance-none bg-white border border-gray-300 rounded px-3 py-2 font-semibold text-base pr-8 focus:outline-none focus:border-orange-500 w-full"
-                value={selectedStageId}
-                onChange={e => setSelectedStageId(e.target.value)}
-              >
-                {stages.map(stage => (
-                  <option key={stage.id} value={stage.id}>{stage.name}</option>
-                ))}
-              </select>
-              <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
+              value={selectedStageId}
+              onChange={e => setSelectedStageId(e.target.value)}
+            >
+              {stages.map(stage => (
+                <option key={stage.id} value={stage.id}>{stage.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
-        
-        {/* Coluna vazia para manter alinhamento */}
-        <div></div>
+        </div>
+        {/* Filtro de bateria (apenas se categoria selecionada) */}
+        {selectedOverviewCategory ? (() => {
+          const category = categories.find(cat => cat.id === selectedOverviewCategory);
+          if (!category) return <div></div>;
+          const batteries = category.batteriesConfig || [ { name: 'Bateria 1' } ];
+          return (
+            <div className="flex flex-col">
+              <label className="text-xs text-gray-500 mb-1 font-medium" htmlFor="battery-select">Bateria <span className='text-gray-400'>({batteries.length})</span></label>
+              <div className="relative">
+                <select
+                  id="battery-select"
+                  className="appearance-none bg-white border border-gray-300 rounded px-3 py-2 font-semibold text-base pr-8 focus:outline-none focus:border-orange-500 w-full"
+                  value={selectedBatteryIndex}
+                  onChange={e => setSelectedBatteryIndex(Number(e.target.value))}
+                >
+                  {batteries.map((battery, idx) => (
+                    <option key={idx} value={idx}>{battery.name || `Bateria ${idx + 1}`}</option>
+                  ))}
+                </select>
+                <ChevronDown className="w-5 h-5 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
+          );
+        })() : <div></div>}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Coluna 1: Pilotos Confirmados na Etapa */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Pilotos Confirmados na Etapa
-            </h3>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleOpenPilotConfirmationModal}>
-                  Gerenciar Confirmações
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          
-          {loading ? (
-            <Loading type="spinner" size="md" message="Carregando dados..." />
-          ) : error ? (
-            <div className="text-red-600">{error}</div>
-          ) : (
-            <div className="space-y-4">
-              {categories.map((category) => {
-                const categoryPilots = registrations.filter(reg =>
-                  reg.categories.some((rc: any) => rc.category.id === category.id)
-                );
-                const confirmedPilots = categoryPilots.filter(reg =>
-                  stageParticipations.some(
-                    (part) => part.userId === reg.userId && part.categoryId === category.id && part.status === 'confirmed'
-                  )
-                );
-                
-
-                
-                return (
-                  <div key={category.id + '-' + drawVersion} className="border border-gray-200 rounded-lg">
-                    <div 
-                      className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"
-                      onClick={() => toggleCategory(category.id)}
+      {/* Renderização condicional dos blocos */}
+      {selectedOverviewCategory === null ? (
+        // Visão geral: renderizar os 3 blocos
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Coluna 1: Pilotos Confirmados na Etapa */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Pilotos Confirmados na Etapa
+                </h3>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
                     >
-                      <div className="flex items-center justify-between w-full">
-                        <span className="text-sm font-medium text-gray-900">
-                          {category.name}
-                        </span>
-                        <div className="flex items-center space-x-2">
-                        <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2 py-1 rounded-full">
-                          {confirmedPilots.length}/{category.maxPilots}
-                        </span>
-                      {expandedCategories.has(category.id) ? (
-                        <ChevronDown className="w-4 h-4 text-gray-500" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-gray-500" />
-                      )}
-                        </div>
-                                              </div>
-                    </div>
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleOpenPilotConfirmationModal}>
+                      Gerenciar Confirmações
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              
+              {loading ? (
+                <Loading type="spinner" size="md" message="Carregando dados..." />
+              ) : error ? (
+                <div className="text-red-600">{error}</div>
+              ) : (
+                <div className="space-y-4">
+                  {categories.map((category) => {
+                    const categoryPilots = registrations.filter(reg =>
+                      reg.categories.some((rc: any) => rc.category.id === category.id)
+                    );
+                    const confirmedPilots = categoryPilots.filter(reg =>
+                      stageParticipations.some(
+                        (part) => part.userId === reg.userId && part.categoryId === category.id && part.status === 'confirmed'
+                      )
+                    );
                     
-                    {expandedCategories.has(category.id) && (
-                      <div className="border-t border-gray-200 p-3 space-y-2">
-                        {confirmedPilots.length > 0 ? (
-                          confirmedPilots
-                            .sort((a, b) => {
-                              return (
-                                (a.user?.name || a.userId).localeCompare(b.user?.name || b.userId)
-                              );
-                            })
-                            .map((pilot) => {
-                              // Verificar se há karts sorteados para este piloto
-                              const pilotKartAssignments = fleetDrawResults[category.id]?.[pilot.userId];
-                              const hasKartAssignments = pilotKartAssignments && Object.keys(pilotKartAssignments).length > 0;
-                              
-
-                              
-                              return (
-                                <div key={pilot.id} className="flex items-center justify-between">
-                                <span className="text-sm text-gray-900 font-medium">
-                                  {formatName(pilot.user?.name || pilot.userId)}
-                                </span>
-                                  {hasKartAssignments && (
-                                    <div className="relative" data-kart-tooltip>
-                                      <button
-                                        onClick={() => toggleKartTooltip(pilot.id)}
-                                        className="flex items-center ml-2 p-1 rounded hover:bg-gray-100"
-                                      >
-                                        <img 
-                                          src="/kart.svg" 
-                                          alt="Kart" 
-                                          className="w-4 h-4 text-black"
-                                        />
-                                      </button>
-                                                                            {openKartTooltip === pilot.id && (
-                                        <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-max max-w-[calc(100vw-2rem)] min-w-[200px]">
-                                          <div className="space-y-1">
-                                            <div className="font-semibold text-sm">Karts Sorteados:</div>
-                                            {Object.entries(pilotKartAssignments).map(([batteryIdx, result]) => {
-                                              const batteryNumber = Number(batteryIdx) + 1;
-                                              const assignedFleetId = categoryFleetAssignments[category.id];
-                                              const fleet = fleets.find(f => f.id === assignedFleetId);
-                                              return (
-                                                <div key={batteryIdx} className="text-xs">
-                                                  Bateria {batteryNumber}: Kart {result.kart}
-                                                  {fleet && ` (${fleet.name})`}
-                                                </div>
-                                              );
-                                            })}
-                                          </div>
+                    return (
+                      <div key={category.id + '-' + drawVersion} className="border border-gray-200 rounded-lg">
+                        <div 
+                          className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"
+                          onClick={() => toggleCategory(category.id)}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-sm font-medium text-gray-900">
+                              {category.name}
+                            </span>
+                            <div className="flex items-center space-x-2">
+                            <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2 py-1 rounded-full">
+                              {confirmedPilots.length}/{category.maxPilots}
+                            </span>
+                          {expandedCategories.has(category.id) ? (
+                            <ChevronDown className="w-4 h-4 text-gray-500" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-gray-500" />
+                          )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {expandedCategories.has(category.id) && (
+                          <div className="border-t border-gray-200 p-3 space-y-2">
+                            {confirmedPilots.length > 0 ? (
+                              confirmedPilots
+                                .sort((a, b) => {
+                                  return (
+                                    (a.user?.name || a.userId).localeCompare(b.user?.name || b.userId)
+                                  );
+                                })
+                                .map((pilot) => {
+                                  // Verificar se há karts sorteados para este piloto
+                                  const pilotKartAssignments = fleetDrawResults[category.id]?.[pilot.userId];
+                                  const hasKartAssignments = pilotKartAssignments && Object.keys(pilotKartAssignments).length > 0;
+                                  return (
+                                    <div key={pilot.id} className="flex items-center justify-between">
+                                      <span className="text-sm text-gray-900 font-medium">
+                                        {formatName(pilot.user?.name || pilot.userId)}
+                                      </span>
+                                      {hasKartAssignments && (
+                                        <div className="relative" data-kart-tooltip>
+                                          <button
+                                            onClick={() => toggleKartTooltip(pilot.id)}
+                                            className="flex items-center ml-2 p-1 rounded hover:bg-gray-100"
+                                          >
+                                            <img 
+                                              src="/kart.svg" 
+                                              alt="Kart" 
+                                              className="w-4 h-4 text-black"
+                                            />
+                                          </button>
+                                          {openKartTooltip === pilot.id && (
+                                            <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-max max-w-[calc(100vw-2rem)] min-w-[200px]">
+                                              <div className="space-y-1">
+                                                <div className="font-semibold text-sm">Karts Sorteados:</div>
+                                                {Object.entries(pilotKartAssignments).map(([batteryIdx, result]) => {
+                                                  const batteryNumber = Number(batteryIdx) + 1;
+                                                  const assignedFleetId = categoryFleetAssignments[category.id];
+                                                  const fleet = fleets.find(f => f.id === assignedFleetId);
+                                                  return (
+                                                    <div key={batteryIdx} className="text-xs">
+                                                      Bateria {batteryNumber}: Kart {result.kart}
+                                                      {fleet && ` (${fleet.name})`}
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                            </div>
+                                          )}
                                         </div>
                                       )}
                                     </div>
-                                  )}
-                                </div>
-                              );
-                            })
-                        ) : (
-                          <div className="text-sm text-gray-500 text-center py-2">
-                            Nenhum piloto confirmado nesta categoria
+                                  );
+                                })
+                            ) : (
+                              <div className="text-sm text-gray-500 text-center py-2">
+                                Nenhum piloto confirmado nesta categoria
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-
-        {/* Coluna 2: Cronograma */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Cronograma
-            </h3>
-            {canEditSchedule && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-              <Button 
-                    variant="ghost"
-                size="sm"
-                    className="h-8 w-8 p-0"
-              >
-                    <MoreHorizontal className="h-4 w-4" />
-              </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={toggleAddItemForm}>
-                    {showAddItemForm ? 'Cancelar' : 'Adicionar item ao cronograma'}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-          
-          <div className="space-y-3">
-            {canEditSchedule && showAddItemForm && (
-              <div className="space-y-3">
-                <div className="w-full flex items-center my-2">
-                  <div className="flex-grow border-t border-gray-200" />
-                  <span className="mx-3 text-xs text-gray-400 uppercase tracking-wider">Adicionar novo item</span>
-                  <div className="flex-grow border-t border-gray-200" />
-                </div>
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    placeholder="Descrição do item"
-                    value={newItemLabel}
-                    onChange={(e) => setNewItemLabel(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  />
-                  <input
-                    type="time"
-                    value={newItemTime}
-                    onChange={(e) => setNewItemTime(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  />
-                </div>
-                <Button 
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-black"
-                  onClick={addScheduleItem}
-                  disabled={!newItemLabel.trim() || !newItemTime.trim()}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Adicionar Item
-                </Button>
-                <div className="w-full flex items-center my-2">
-                  <div className="flex-grow border-t border-gray-200" />
-                </div>
-              </div>
-            )}
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={scheduleItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                {scheduleItems.map((item) => (
-                  <SortableItem
-                    key={item.id}
-                    item={item}
-                  />
-                ))}
-              </SortableContext>
-            </DndContext>
-          </div>
-        </div>
-
-        {/* Coluna 3: Frota/Sorteio */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-            Frota/Sorteio
-          </h3>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleAddFleet}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Adicionar frota
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleOpenFleetDrawModal}>
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Sorteio de frota
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          <div className="flex flex-col gap-4 mb-4 w-full">
-            {fleets.map((fleet, idx) => (
-              <div key={fleet.id} className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 min-w-0">
-                <div
-                  className="flex items-center gap-2 mb-3 cursor-pointer select-none min-w-0"
-                  onClick={() => toggleFleet(fleet.id)}
-                >
-                  <div className="flex-shrink-0">
-                  {expandedFleets.has(fleet.id) ? (
-                    <ChevronDown className="w-4 h-4 text-gray-500" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4 text-gray-500" />
-                  )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                  <input
-                    type="text"
-                    value={fleet.name}
-                    onChange={e => handleFleetNameChange(fleet.id, e.target.value)}
-                      className="font-semibold text-lg border-b border-gray-300 focus:border-orange-500 outline-none bg-transparent w-full truncate"
-                      placeholder="Nome da frota"
-                    onClick={e => e.stopPropagation()}
-                  />
-                  </div>
-                  {fleets.length > 1 && (
-                    <button
-                      onClick={e => { e.stopPropagation(); handleRemoveFleet(fleet.id); }}
-                      className="flex-shrink-0 ml-2 text-gray-400 hover:text-red-500 transition-colors"
-                      title="Remover frota"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-                {expandedFleets.has(fleet.id) && (
-                  <>
-                    <div className="space-y-3 mb-4">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm text-gray-500 whitespace-nowrap">Karts ativos: {getActiveKartsCount(fleet.id)}</span>
-                        {getMinKartsRequired() > 0 && (
-                          <span className="text-xs text-orange-600 font-medium whitespace-nowrap">
-                            (mín: {getMinKartsRequired()})
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                        type="button"
-                          variant="outline"
-                          size="icon"
-                          className="h-9 w-9"
-                          onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.max(getMinKartsRequired(), fleet.totalKarts - 1)); }}
-                          disabled={fleet.totalKarts <= getMinKartsRequired()}
-                        tabIndex={-1}
+            {/* Coluna 2: Cronograma */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Cronograma
+                </h3>
+                {canEditSchedule && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
                       >
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                      <input
-                        type="number"
-                          min={getMinKartsRequired()}
-                        max={99}
-                        value={fleet.totalKarts}
-                          onChange={e => handleFleetKartsChange(fleet.id, Math.max(getMinKartsRequired(), Math.min(99, Number(e.target.value))))}
-                          className="w-24 h-9 px-3 border border-gray-300 rounded-md text-sm text-center focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-colors"
-                        onClick={e => e.stopPropagation()}
-                      />
-                        <Button
-                        type="button"
-                          variant="outline"
-                          size="icon"
-                          className="h-9 w-9"
-                        onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.min(99, fleet.totalKarts + 1)); }}
-                        disabled={fleet.totalKarts >= 99}
-                        tabIndex={-1}
-                      >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {Array.from({ length: fleet.totalKarts }, (_, i) => {
-                        const isInactive = (inactiveKarts[fleet.id] || []).includes(i);
-                        return (
-                          <TooltipProvider key={i}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  type="button"
-                                  onClick={() => toggleKartActive(fleet.id, i)}
-                                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border transition-colors
-                                    ${isInactive ? 'bg-gray-300 text-white border-gray-400' : 'bg-orange-500 text-black border-orange-600'}`}
-                                  title={`Kart ${i + 1} ${isInactive ? '(inativo)' : ''}`}
-                                >
-                                  {i + 1}
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {isInactive ? 'Desbloquear kart' : 'Bloquear kart'}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        );
-                      })}
-                    </div>
-                  </>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={toggleAddItemForm}>
+                        {showAddItemForm ? 'Cancelar' : 'Adicionar item ao cronograma'}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 )}
               </div>
-            ))}
+              
+              <div className="space-y-3">
+                {canEditSchedule && showAddItemForm && (
+                  <div className="space-y-3">
+                    <div className="w-full flex items-center my-2">
+                      <div className="flex-grow border-t border-gray-200" />
+                      <span className="mx-3 text-xs text-gray-400 uppercase tracking-wider">Adicionar novo item</span>
+                      <div className="flex-grow border-t border-gray-200" />
+                    </div>
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        placeholder="Descrição do item"
+                        value={newItemLabel}
+                        onChange={(e) => setNewItemLabel(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      />
+                      <input
+                        type="time"
+                        value={newItemTime}
+                        onChange={(e) => setNewItemTime(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      />
+                    </div>
+                    <Button 
+                      className="w-full bg-orange-500 hover:bg-orange-600 text-black"
+                      onClick={addScheduleItem}
+                      disabled={!newItemLabel.trim() || !newItemTime.trim()}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Adicionar Item
+                    </Button>
+                    <div className="w-full flex items-center my-2">
+                      <div className="flex-grow border-t border-gray-200" />
+                    </div>
+                  </div>
+                )}
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={scheduleItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                    {scheduleItems.map((item) => (
+                      <SortableItem
+                        key={item.id}
+                        item={item}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+              </div>
+            </div>
+
+            {/* Coluna 3: Frota/Sorteio */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Frota/Sorteio
+                </h3>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleAddFleet}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Adicionar frota
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleOpenFleetDrawModal}>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Sorteio de frota
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="flex flex-col gap-4 mb-4 w-full">
+                {fleets.map((fleet, idx) => (
+                  <div key={fleet.id} className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 min-w-0">
+                    <div
+                      className="flex items-center gap-2 mb-3 cursor-pointer select-none min-w-0"
+                      onClick={() => toggleFleet(fleet.id)}
+                    >
+                      <div className="flex-shrink-0">
+                        {expandedFleets.has(fleet.id) ? (
+                          <ChevronDown className="w-4 h-4 text-gray-500" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4 text-gray-500" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <input
+                          type="text"
+                          value={fleet.name}
+                          onChange={e => handleFleetNameChange(fleet.id, e.target.value)}
+                          className="font-semibold text-lg border-b border-gray-300 focus:border-orange-500 outline-none bg-transparent w-full truncate"
+                          placeholder="Nome da frota"
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </div>
+                      {fleets.length > 1 && (
+                        <button
+                          onClick={e => { e.stopPropagation(); handleRemoveFleet(fleet.id); }}
+                          className="flex-shrink-0 ml-2 text-gray-400 hover:text-red-500 transition-colors"
+                          title="Remover frota"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    {expandedFleets.has(fleet.id) && (
+                      <>
+                        <div className="space-y-3 mb-4">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm text-gray-500 whitespace-nowrap">Karts ativos: {getActiveKartsCount(fleet.id)}</span>
+                            {getMinKartsRequired() > 0 && (
+                              <span className="text-xs text-orange-600 font-medium whitespace-nowrap">
+                                (mín: {getMinKartsRequired()})
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-9 w-9"
+                              onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.max(getMinKartsRequired(), fleet.totalKarts - 1)); }}
+                              disabled={fleet.totalKarts <= getMinKartsRequired()}
+                              tabIndex={-1}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            <input
+                              type="number"
+                              min={getMinKartsRequired()}
+                              max={99}
+                              value={fleet.totalKarts}
+                              onChange={e => handleFleetKartsChange(fleet.id, Math.max(getMinKartsRequired(), Math.min(99, Number(e.target.value))))}
+                              className="w-24 h-9 px-3 border border-gray-300 rounded-md text-sm text-center focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-colors"
+                              onClick={e => e.stopPropagation()}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-9 w-9"
+                              onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.min(99, fleet.totalKarts + 1)); }}
+                              disabled={fleet.totalKarts >= 99}
+                              tabIndex={-1}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {Array.from({ length: fleet.totalKarts }, (_, i) => {
+                            const isInactive = (inactiveKarts[fleet.id] || []).includes(i);
+                            return (
+                              <TooltipProvider key={i}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleKartActive(fleet.id, i)}
+                                      className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border transition-colors
+                                        ${isInactive ? 'bg-gray-300 text-white border-gray-400' : 'bg-orange-500 text-black border-orange-600'}`}
+                                      title={`Kart ${i + 1} ${isInactive ? '(inativo)' : ''}`}
+                                    >
+                                      {i + 1}
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {isInactive ? 'Desbloquear kart' : 'Bloquear kart'}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-
-
+        </>
+      ) : (
+        // Categoria selecionada: renderizar bloco customizado
+        (() => {
+          const category = categories.find(cat => cat.id === selectedOverviewCategory);
+          if (!category) return null;
+          const categoryPilots = registrations.filter(reg =>
+            reg.categories.some((rc: any) => rc.category.id === category.id) &&
+            stageParticipations.some(
+              (part) => part.userId === reg.userId && part.categoryId === category.id && part.status === 'confirmed'
+            )
+          );
+          const batteries = category.batteriesConfig || [ { name: 'Bateria 1' } ];
+          return (
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="text-xl font-bold text-gray-900 mb-1">
+                    {category.name} {categoryPilots.length}/{category.maxPilots}
+                  </div>
+                  <div className="text-sm text-gray-600">Pilotos confirmados para a etapa</div>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="rounded-full px-3 h-8 text-xs font-semibold">
+                      <ChevronDown className="w-4 h-4 mr-1" /> Importar
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => console.log('Importar classificação')}>
+                      Importar Classificação
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => console.log('Importar corrida')}>
+                      Importar Corrida
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="mb-6">
+                <div className="text-sm font-semibold text-gray-700 mb-2">{batteries[selectedBatteryIndex]?.name || `Bateria ${selectedBatteryIndex + 1}`}</div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm border-separate border-spacing-y-2">
+                    <thead>
+                      <tr className="text-gray-500">
+                        <th className="px-2 py-1 text-left">Kart</th>
+                        <th className="px-2 py-1 text-left">Peso</th>
+                        <th className="px-2 py-1 text-left">Nome</th>
+                        <th className="px-2 py-1 text-left">Posição largada</th>
+                        <th className="px-2 py-1 text-left">Posição chegada</th>
+                      </tr>
+                    </thead>
+                    <tbody className="border-t border-gray-200">
+                      {categoryPilots.map((pilot, i) => (
+                        <tr key={pilot.id} className="border-b border-gray-200">
+                          <td className="px-2 py-1">
+                            {(() => {
+                              const pilotKartAssignments = fleetDrawResults[category.id]?.[pilot.userId];
+                              if (pilotKartAssignments && pilotKartAssignments[selectedBatteryIndex]) {
+                                return pilotKartAssignments[selectedBatteryIndex].kart;
+                              }
+                              return '-';
+                            })()}
+                          </td>
+                          <td 
+                            className="px-2 py-1 cursor-pointer hover:bg-gray-50 rounded transition-colors flex items-center justify-between group w-32"
+                            onClick={() => {
+                              const currentWeight = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.weight;
+                              const newWeight = currentWeight === false ? true : false;
+                              updatePilotResult(category.id, pilot.userId, selectedBatteryIndex, 'weight', newWeight);
+                            }}
+                          >
+                            <span className={`${stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.weight === false ? 'text-orange-600' : 'text-green-600'} text-xs font-medium truncate`}>
+                              {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.weight === false ? 'Abaixo peso' : 'OK'}
+                            </span>
+                            <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-1" />
+                          </td>
+                          <td className="px-2 py-1">{formatName(pilot.user?.name || pilot.userId)}</td>
+                          <td className="px-2 py-1">
+                            <input
+                              type="number"
+                              min="1"
+                              className="w-12 px-1 py-1 text-sm border border-gray-300 rounded focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
+                              value={stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.startPosition || ''}
+                              onChange={(e) => {
+                                const value = e.target.value ? parseInt(e.target.value) : null;
+                                updatePilotResult(category.id, pilot.userId, selectedBatteryIndex, 'startPosition', value);
+                              }}
+                              placeholder="-"
+                            />
+                          </td>
+                          <td className="px-2 py-1">
+                            <input
+                              type="number"
+                              min="1"
+                              className="w-12 px-1 py-1 text-sm border border-gray-300 rounded focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none"
+                              value={stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition || ''}
+                              onChange={(e) => {
+                                const value = e.target.value ? parseInt(e.target.value) : null;
+                                updatePilotResult(category.id, pilot.userId, selectedBatteryIndex, 'finishPosition', value);
+                              }}
+                              placeholder="-"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          );
+        })()
+      )}
 
       {/* Modal de Confirmação de Pilotos */}
       <PilotConfirmationModal />
@@ -1649,7 +1871,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                             ))}
                           </select>
                         </div>
-                      
+                        
                         {/* Resultados do sorteio para esta categoria */}
                         {fleetDrawResults[category.id] && (
                           <div className="mt-4">
@@ -1676,9 +1898,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                                           Bateria {Number(batteryIdx) + 1}: Kart {result.kart}
                                 </div>
                                       ))}
+                          </div>
                         </div>
-                      </div>
-                                ))}
+                                  ))}
                             </div>
                           </div>
                         )}
@@ -1689,29 +1911,29 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
               </div>
           </div>
           
-            {/* Footer */}
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
-              <Button 
-                variant="outline" 
-                onClick={handleCloseFleetDrawModal}
-              >
-              Fechar
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+            <Button 
+              variant="outline" 
+              onClick={handleCloseFleetDrawModal}
+            >
+            Fechar
+          </Button>
+            <Button 
+              onClick={async () => { 
+                const results = performFleetDraw(); 
+                await handleSaveFleetDraw(results); 
+              }}
+              disabled={Object.keys(categoryFleetAssignments).length === 0}
+              className="bg-orange-500 hover:bg-orange-600 text-black"
+            >
+              Realizar Sorteio
             </Button>
-              <Button 
-                onClick={async () => { 
-                  const results = performFleetDraw(); 
-                  await handleSaveFleetDraw(results); 
-                }}
-                disabled={Object.keys(categoryFleetAssignments).length === 0}
-                className="bg-orange-500 hover:bg-orange-600 text-black"
-              >
-                Realizar Sorteio
-              </Button>
-            </div>
           </div>
-        </div>,
-        document.body
-      )}
-    </div>
-  );
+        </div>
+      </div>,
+      document.body
+    )}
+  </div>
+    );
 }; 
