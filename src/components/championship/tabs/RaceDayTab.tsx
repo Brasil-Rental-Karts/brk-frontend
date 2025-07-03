@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "brk-design-system";
 import { Button, Badge } from "brk-design-system";
-import { ChevronDown, MoreHorizontal, CheckCircle, XCircle, Loader2, ChevronRight, Plus, Minus, GripVertical, Edit, Copy, Trash2, Circle, X } from "lucide-react";
+import { ChevronDown, MoreHorizontal, CheckCircle, XCircle, Loader2, ChevronRight, Plus, Minus, GripVertical, Edit, Copy, Trash2, Circle, X, Share2 } from "lucide-react";
 import { CategoryService, Category } from '@/lib/services/category.service';
 import { SeasonRegistrationService, SeasonRegistration } from '@/lib/services/season-registration.service';
 import { Loading } from '@/components/ui/loading';
@@ -61,6 +61,7 @@ interface Season {
 
 interface RaceDayTabProps {
   seasons: Season[];
+  championshipName?: string;
 }
 
 interface ScheduleItem {
@@ -129,7 +130,7 @@ const RaceDayHeader: React.FC<{
   </div>
 );
 
-export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
+export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipName }) => {
   const { user } = useAuth();
   // Filtrar temporadas válidas
   const validSeasons = seasons.filter(s => s.status === 'agendado' || s.status === 'em_andamento');
@@ -1393,6 +1394,71 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
     }
   };
 
+
+
+  // Função para copiar mensagem com emojis
+  const copyMessageWithEmojis = async () => {
+    if (!selectedStage) return;
+    
+    try {
+      // Buscar dados completos da etapa
+      const stageData = await StageService.getById(selectedStage.id);
+      
+      // Formatar data
+      const stageDate = new Date(stageData.date);
+      const formattedDate = stageDate.toLocaleDateString('pt-BR', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      
+      // Formatar horário
+      const formattedTime = stageData.time;
+      
+      // Buscar nome da temporada
+      const seasonName = selectedSeason?.name || 'Temporada';
+      
+      // Gerar mensagem com emojis
+      let message = `🏁 *${stageData.name}*\n`;
+      message += `📅 ${formattedDate}\n`;
+      message += `🕒 ${formattedTime}\n`;
+      message += `📍 ${stageData.kartodrome}\n`;
+      message += `🏠 ${stageData.kartodromeAddress}\n\n`;
+      
+      if (scheduleItems.length > 0) {
+        message += `📋 *CRONOGRAMA:*\n`;
+        scheduleItems.forEach((item, index) => {
+          message += `${index + 1}. ${item.time} - ${item.label}\n`;
+        });
+        message += `\n`;
+      }
+      
+      if (stageData.streamLink) {
+        message += `📺 *TRANSMISSÃO:*\n`;
+        message += `${stageData.streamLink}\n\n`;
+      }
+      
+      if (stageData.briefing) {
+        message += `📢 *BRIEFING:*\n`;
+        message += `${stageData.briefing}\n`;
+        message += `\n`;
+      }
+      
+      message += `🏆 ${seasonName}\n`;
+      message += `\n`;
+      message += `#BRK #Kart #Corrida #${championshipName?.replace(/\s+/g, '') || 'Championship'}`;
+      
+      // Copiar para clipboard
+      await navigator.clipboard.writeText(message);
+      toast.success('Cronograma copiado para área de transferência!');
+      
+    } catch (error) {
+      console.error('Erro ao copiar mensagem:', error);
+      toast.error('Erro ao copiar mensagem do cronograma');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Título da aba */}
@@ -1641,28 +1707,34 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
         </div>
         {/* Coluna 2: Cronograma */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">
               Cronograma
             </h3>
-            {canEditSchedule && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-              <Button 
-                        variant="ghost"
-                size="sm"
-                        className="h-8 w-8 p-0"
-              >
-                        <MoreHorizontal className="h-4 w-4" />
-              </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={toggleAddItemForm}>
-                        {showAddItemForm ? 'Cancelar' : 'Adicionar item ao cronograma'}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={copyMessageWithEmojis}>
+                  Compartilhar cronograma
+                </DropdownMenuItem>
+                {canEditSchedule && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={toggleAddItemForm}>
+                      {showAddItemForm ? 'Cancelar' : 'Adicionar item ao cronograma'}
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           
           <div className="space-y-3">
@@ -1716,60 +1788,60 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
 
         {/* Coluna 3: Frota/Sorteio */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-            Frota/Sorteio
-          </h3>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleAddFleet}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Adicionar frota
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleOpenFleetDrawModal}>
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Sorteio de frota
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              <div className="flex flex-col gap-4 mb-4 w-full">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Frota/Sorteio
+            </h3>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleAddFleet}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Adicionar frota
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleOpenFleetDrawModal}>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Sorteio de frota
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="flex flex-col gap-4 mb-4 w-full">
             {fleets.map((fleet, idx) => (
-                  <div key={fleet.id} className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 min-w-0">
+              <div key={fleet.id} className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 min-w-0">
                 <div
-                      className="flex items-center gap-2 mb-3 cursor-pointer select-none min-w-0"
+                  className="flex items-center gap-2 mb-3 cursor-pointer select-none min-w-0"
                   onClick={() => toggleFleet(fleet.id)}
                 >
-                      <div className="flex-shrink-0">
-                  {expandedFleets.has(fleet.id) ? (
-                    <ChevronDown className="w-4 h-4 text-gray-500" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4 text-gray-500" />
-                  )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                  <input
-                    type="text"
-                    value={fleet.name}
-                    onChange={e => handleFleetNameChange(fleet.id, e.target.value)}
-                          className="font-semibold text-lg border-b border-gray-300 focus:border-orange-500 outline-none bg-transparent w-full truncate"
-                          placeholder="Nome da frota"
-                    onClick={e => e.stopPropagation()}
-                  />
-                      </div>
+                  <div className="flex-shrink-0">
+                    {expandedFleets.has(fleet.id) ? (
+                      <ChevronDown className="w-4 h-4 text-gray-500" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-gray-500" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={fleet.name}
+                      onChange={e => handleFleetNameChange(fleet.id, e.target.value)}
+                      className="font-semibold text-lg border-b border-gray-300 focus:border-orange-500 outline-none bg-transparent w-full truncate"
+                      placeholder="Nome da frota"
+                      onClick={e => e.stopPropagation()}
+                    />
+                  </div>
                   {fleets.length > 1 && (
                     <button
                       onClick={e => { e.stopPropagation(); handleRemoveFleet(fleet.id); }}
-                          className="flex-shrink-0 ml-2 text-gray-400 hover:text-red-500 transition-colors"
+                      className="flex-shrink-0 ml-2 text-gray-400 hover:text-red-500 transition-colors"
                       title="Remover frota"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1778,48 +1850,48 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                 </div>
                 {expandedFleets.has(fleet.id) && (
                   <>
-                        <div className="space-y-3 mb-4">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm text-gray-500 whitespace-nowrap">Karts ativos: {getActiveKartsCount(fleet.id)}</span>
-                            {getMinKartsRequired() > 0 && (
-                              <span className="text-xs text-orange-600 font-medium whitespace-nowrap">
-                                (mín: {getMinKartsRequired()})
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                        type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-9 w-9"
-                              onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.max(getMinKartsRequired(), fleet.totalKarts - 1)); }}
-                              disabled={fleet.totalKarts <= getMinKartsRequired()}
-                        tabIndex={-1}
-                      >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                      <input
-                        type="number"
-                              min={getMinKartsRequired()}
-                        max={99}
-                        value={fleet.totalKarts}
-                              onChange={e => handleFleetKartsChange(fleet.id, Math.max(getMinKartsRequired(), Math.min(99, Number(e.target.value))))}
-                              className="w-24 h-9 px-3 border border-gray-300 rounded-md text-sm text-center focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-colors"
-                        onClick={e => e.stopPropagation()}
-                      />
-                            <Button
-                        type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-9 w-9"
-                        onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.min(99, fleet.totalKarts + 1)); }}
-                        disabled={fleet.totalKarts >= 99}
-                        tabIndex={-1}
-                      >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
+                    <div className="space-y-3 mb-4">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm text-gray-500 whitespace-nowrap">Karts ativos: {getActiveKartsCount(fleet.id)}</span>
+                        {getMinKartsRequired() > 0 && (
+                          <span className="text-xs text-orange-600 font-medium whitespace-nowrap">
+                            (mín: {getMinKartsRequired()})
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9"
+                          onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.max(getMinKartsRequired(), fleet.totalKarts - 1)); }}
+                          disabled={fleet.totalKarts <= getMinKartsRequired()}
+                          tabIndex={-1}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <input
+                          type="number"
+                          min={getMinKartsRequired()}
+                          max={99}
+                          value={fleet.totalKarts}
+                          onChange={e => handleFleetKartsChange(fleet.id, Math.max(getMinKartsRequired(), Math.min(99, Number(e.target.value))))}
+                          className="w-24 h-9 px-3 border border-gray-300 rounded-md text-sm text-center focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-colors"
+                          onClick={e => e.stopPropagation()}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9"
+                          onClick={e => { e.stopPropagation(); handleFleetKartsChange(fleet.id, Math.min(99, fleet.totalKarts + 1)); }}
+                          disabled={fleet.totalKarts >= 99}
+                          tabIndex={-1}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {Array.from({ length: fleet.totalKarts }, (_, i) => {
@@ -1850,10 +1922,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                 )}
               </div>
             ))}
-              </div>
-            </div>
           </div>
-        </>
+        </div>
+      </div>
+      </>
       ) : (
         // Categoria selecionada: renderizar bloco customizado
         (() => {
@@ -1880,7 +1952,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm" className="rounded-full px-3 h-8 text-xs font-semibold w-full lg:w-auto">
                         <ChevronDown className="w-4 h-4 mr-1" /> Importar
-            </Button>
+                      </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => console.log('Importar classificação')}>
@@ -1891,12 +1963,12 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons }) => {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-          </div>
-        </div>
+                </div>
+              </div>
               <div className="mb-6">
                 <div className="text-sm font-semibold text-gray-700 mb-2">{batteries[selectedBatteryIndex]?.name || `Bateria ${selectedBatteryIndex + 1}`}</div>
                 <div className="overflow-x-auto">
-                                    {/* MOBILE: Cards de resultados */}
+                  {/* MOBILE: Cards de resultados */}
                   {categoryPilots.length > 0 && (
                     <div className="block lg:hidden">
                       {getSortedPilots(categoryPilots, category).map((pilot) => (
