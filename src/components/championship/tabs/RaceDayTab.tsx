@@ -411,7 +411,15 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     return fleet.totalKarts - inactiveKartsForFleet.length;
   };
 
-  // Carregar frotas da etapa selecionada
+  /**
+   * Carregar frotas da etapa selecionada
+   * 
+   * Lógica de carregamento:
+   * 1. Se a etapa tem frotas cadastradas → usa as frotas da etapa
+   * 2. Se a etapa NÃO tem frotas cadastradas → busca frotas padrão do kartódromo
+   * 3. Se o kartódromo não tem frotas padrão → usa frota genérica padrão
+   * 4. Em caso de erro → usa frota genérica padrão
+   */
   const loadFleets = async () => {
     if (!selectedStage?.id) return;
     
@@ -430,13 +438,43 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
         });
         setInactiveKarts(newInactiveKarts);
       } else {
-        // Se não há frotas salvas, usar padrão
-        const defaultFleets = [{ id: '1', name: 'Frota 1', totalKarts: 20 }];
-        setFleets(defaultFleets);
-        setInactiveKarts({});
+        // Se não há frotas salvas, buscar frotas padrão do kartódromo
+        if (selectedStage.raceTrackId) {
+          try {
+            const raceTrack = await RaceTrackService.getById(selectedStage.raceTrackId);
+            
+            if (raceTrack.defaultFleets && Array.isArray(raceTrack.defaultFleets) && raceTrack.defaultFleets.length > 0) {
+              // Converter frotas padrão do kartódromo para o formato esperado
+              const defaultFleets = raceTrack.defaultFleets.map((fleet, index) => ({
+                id: `default-${index + 1}`,
+                name: fleet.name,
+                totalKarts: fleet.kartQuantity
+              }));
+              setFleets(defaultFleets);
+              setInactiveKarts({});
+            } else {
+              // Se não há frotas padrão no kartódromo, usar padrão genérico
+              const defaultFleets = [{ id: '1', name: 'Frota 1', totalKarts: 20 }];
+              setFleets(defaultFleets);
+              setInactiveKarts({});
+            }
+          } catch (raceTrackError) {
+            console.error('Erro ao buscar frotas padrão do kartódromo:', raceTrackError);
+            // Em caso de erro ao buscar kartódromo, usar padrão genérico
+            const defaultFleets = [{ id: '1', name: 'Frota 1', totalKarts: 20 }];
+            setFleets(defaultFleets);
+            setInactiveKarts({});
+          }
+        } else {
+          // Se não há raceTrackId, usar padrão genérico
+          const defaultFleets = [{ id: '1', name: 'Frota 1', totalKarts: 20 }];
+          setFleets(defaultFleets);
+          setInactiveKarts({});
+        }
       }
     } catch (error) {
-      // Em caso de erro, usar padrão
+      console.error('Erro ao carregar frotas da etapa:', error);
+      // Em caso de erro, usar padrão genérico
       const defaultFleets = [{ id: '1', name: 'Frota 1', totalKarts: 20 }];
       setFleets(defaultFleets);
       setInactiveKarts({});
