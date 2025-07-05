@@ -249,12 +249,8 @@ export class StageService {
       errors.push('Horário deve estar no formato HH:MM');
     }
     
-    if ('kartodrome' in data && data.kartodrome && data.kartodrome.trim().length === 0) {
-      errors.push('Nome do kartódromo é obrigatório');
-    }
-    
-    if ('kartodromeAddress' in data && data.kartodromeAddress && data.kartodromeAddress.trim().length === 0) {
-      errors.push('Endereço do kartódromo é obrigatório');
+    if ('raceTrackId' in data && (!data.raceTrackId || data.raceTrackId.trim().length === 0)) {
+      errors.push('Kartódromo é obrigatório');
     }
     
     if ('categoryIds' in data && data.categoryIds && data.categoryIds.length === 0) {

@@ -43,6 +43,7 @@ import {
   TooltipTrigger,
 } from "brk-design-system";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { RaceTrackService } from '@/lib/services/race-track.service';
 
 
 type Season = BaseSeason & { categories?: Category[], stages?: Stage[] };
@@ -81,7 +82,12 @@ const createFilterFields = (seasonOptions: { value: string; label: string }[] = 
   }
 ];
 
-const StageCard = ({ stage, onAction, getStageStatusBadge }: { stage: StageWithSeasonName, onAction: (action: string, stageId: string) => void, getStageStatusBadge: (stage: Stage) => JSX.Element }) => {
+const StageCard = ({ stage, onAction, getStageStatusBadge, raceTrack }: { 
+  stage: StageWithSeasonName, 
+  onAction: (action: string, stageId: string) => void, 
+  getStageStatusBadge: (stage: Stage) => JSX.Element,
+  raceTrack?: any
+}) => {
   return (
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -133,7 +139,16 @@ const StageCard = ({ stage, onAction, getStageStatusBadge }: { stage: StageWithS
           </div>
           <div className="flex flex-col col-span-2">
             <span className="text-muted-foreground">Kartódromo</span>
-            <span className="font-medium">{stage.kartodrome}</span>
+            <span className="font-medium">
+              {raceTrack 
+                ? raceTrack.name 
+                : 'Carregando...'}
+            </span>
+            {stage.trackLayoutId && (
+              <span className="text-xs text-muted-foreground mt-1">
+                Traçado: {stage.trackLayoutId}
+              </span>
+            )}
           </div>
           <div className="flex flex-col">
             <span className="text-muted-foreground">Temporada</span>
@@ -160,12 +175,40 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortBy, setSortBy] = useState<keyof Stage>("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [raceTracks, setRaceTracks] = useState<Record<string, any>>({});
 
   // Estados para o modal de exclusão
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [stageToDelete, setStageToDelete] = useState<Stage | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Buscar dados dos kartódromos
+  useEffect(() => {
+    const fetchRaceTracks = async () => {
+      try {
+        const allStages = seasons.flatMap(season => season.stages || []);
+        const uniqueRaceTrackIds = [...new Set(allStages.map(stage => stage.raceTrackId).filter(Boolean))];
+        
+        const raceTracksData: Record<string, any> = {};
+        for (const raceTrackId of uniqueRaceTrackIds) {
+          try {
+            const raceTrack = await RaceTrackService.getById(raceTrackId);
+            raceTracksData[raceTrackId] = raceTrack;
+          } catch (err) {
+            console.error(`Erro ao buscar kartódromo ${raceTrackId}:`, err);
+          }
+        }
+        setRaceTracks(raceTracksData);
+      } catch (err) {
+        console.error('Erro ao buscar kartódromos:', err);
+      }
+    };
+
+    if (seasons.length > 0) {
+      fetchRaceTracks();
+    }
+  }, [seasons]);
 
   const seasonOptions = useMemo(() => [
     { value: 'all', label: 'Todas as temporadas' },
@@ -327,14 +370,13 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
 
     const duplicatedStageData = {
       name: `${stageData.name} (Cópia)`,
-      date: '',
-      time: stageData.time || '',
-      kartodrome: stageData.kartodrome || '',
-      kartodromeAddress: stageData.kartodromeAddress || '',
+      date,
+      time: stageData.time,
+      raceTrackId: stageData.raceTrackId || '',
       streamLink: stageData.streamLink || '',
-      seasonId: stageData.seasonId || '',
+      seasonId: stageData.seasonId,
       categoryIds,
-      doublePoints: !!stageData.doublePoints,
+      doublePoints: stageData.doublePoints || false,
       briefing: stageData.briefing || '',
       briefingTime: stageData.briefingTime || '',
     };
@@ -516,6 +558,7 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
                   stage={stage as StageWithSeasonName} 
                   onAction={handleStageAction}
                   getStageStatusBadge={getStageStatusBadge}
+                  raceTrack={raceTracks[stage.raceTrackId]}
                  />
               </div>
             ))}
@@ -620,10 +663,16 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
                       </TableCell>
                       <TableCell className="text-center py-4">
                         <div>
-                          <div className="font-medium">{stage.kartodrome}</div>
-                          <div className="text-sm text-muted-foreground mt-1">
-                            {stage.kartodromeAddress}
+                          <div className="font-medium">
+                            {stage.raceTrackId && raceTracks[stage.raceTrackId] 
+                              ? raceTracks[stage.raceTrackId].name 
+                              : 'Carregando...'}
                           </div>
+                          {stage.trackLayoutId && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Traçado: {stage.trackLayoutId}
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="text-center py-4">

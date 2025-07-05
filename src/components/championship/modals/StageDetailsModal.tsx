@@ -17,6 +17,7 @@ import {
   Check, 
   X, 
   Trophy,
+  Navigation,
   Link as LinkIcon 
 } from "lucide-react";
 import { Stage } from "@/lib/types/stage";
@@ -24,6 +25,7 @@ import { StageParticipationService, StageParticipation } from "@/lib/services/st
 import { CategoryService } from "@/lib/services/category.service";
 import { StageService } from "@/lib/services/stage.service";
 import { Loading } from '@/components/ui/loading';
+import { RaceTrackService } from '@/lib/services/race-track.service';
 
 interface StageDetailsModalProps {
   stage: Stage | null;
@@ -43,11 +45,22 @@ export const StageDetailsModal = ({ stage, isOpen, onClose }: StageDetailsModalP
   const [categories, setCategories] = useState<CategoryWithParticipants[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [raceTrack, setRaceTrack] = useState<any>(null);
 
   const fetchStageDetails = async (stageId: string) => {
     try {
       setLoading(true);
       setError(null);
+
+      // Buscar dados do kartódromo
+      if (stage?.raceTrackId) {
+        try {
+          const raceTrackData = await RaceTrackService.getById(stage.raceTrackId);
+          setRaceTrack(raceTrackData);
+        } catch (err) {
+          console.error('Erro ao buscar dados do kartódromo:', err);
+        }
+      }
 
       // Buscar participações da etapa
       const stageParticipations = await StageParticipationService.getStageParticipations(stageId);
@@ -137,12 +150,18 @@ export const StageDetailsModal = ({ stage, isOpen, onClose }: StageDetailsModalP
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span>{stage.kartodrome}</span>
+                <span>{raceTrack?.name || 'Carregando...'}</span>
               </div>
-              {stage.kartodromeAddress && (
+              {raceTrack?.address && (
                 <div className="flex items-start gap-2 md:col-span-2">
                   <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <span className="text-sm text-muted-foreground">{stage.kartodromeAddress}</span>
+                  <span className="text-sm text-muted-foreground">{raceTrack.address}</span>
+                </div>
+              )}
+              {stage.trackLayoutId && stage.trackLayoutId !== 'undefined' && (
+                <div className="flex items-center gap-2 md:col-span-2">
+                  <Navigation className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Traçado: {stage.trackLayoutId}</span>
                 </div>
               )}
               {stage.doublePoints && (

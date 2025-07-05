@@ -45,11 +45,16 @@ import {
   TooltipTrigger,
 } from 'brk-design-system';
 import { createPortal } from "react-dom";
+import { RaceTrackService } from '@/lib/services/race-track.service';
 
 interface Stage {
   id: string;
   name: string;
+  date: string;
   time: string; // HH:MM format
+  raceTrackId?: string;
+  streamLink?: string;
+  briefing?: string;
 }
 
 interface Season {
@@ -1398,33 +1403,41 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
 
   // Função para copiar mensagem com emojis
   const copyMessageWithEmojis = async () => {
-    if (!selectedStage) return;
-    
     try {
-      // Buscar dados completos da etapa
-      const stageData = await StageService.getById(selectedStage.id);
+      const stageData = stages.find(s => s.id === selectedStageId);
+      if (!stageData) {
+        toast.error('Etapa não encontrada');
+        return;
+      }
+
+      // Buscar dados do kartódromo
+      let raceTrackName = 'Kartódromo';
+      let raceTrackAddress = '';
       
-      // Formatar data
-      const stageDate = new Date(stageData.date);
-      const formattedDate = stageDate.toLocaleDateString('pt-BR', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-      
-      // Formatar horário
-      const formattedTime = stageData.time;
-      
-      // Buscar nome da temporada
+      if (stageData.raceTrackId) {
+        try {
+          const raceTrack = await RaceTrackService.getById(stageData.raceTrackId);
+          raceTrackName = raceTrack.name;
+          raceTrackAddress = raceTrack.address;
+        } catch (err) {
+          console.error('Erro ao buscar dados do kartódromo:', err);
+        }
+      }
+
+      const formattedDate = StageService.formatDate(stageData.date);
+      const formattedTime = StageService.formatTime(stageData.time);
       const seasonName = selectedSeason?.name || 'Temporada';
       
       // Gerar mensagem com emojis
       let message = `🏁 *${stageData.name}*\n`;
       message += `📅 ${formattedDate}\n`;
       message += `🕒 ${formattedTime}\n`;
-      message += `📍 ${stageData.kartodrome}\n`;
-      message += `🏠 ${stageData.kartodromeAddress}\n\n`;
+      message += `📍 ${raceTrackName}\n`;
+      if (raceTrackAddress) {
+        message += `🏠 ${raceTrackAddress}\n\n`;
+      } else {
+        message += `\n`;
+      }
       
       if (scheduleItems.length > 0) {
         message += `📋 *CRONOGRAMA:*\n`;

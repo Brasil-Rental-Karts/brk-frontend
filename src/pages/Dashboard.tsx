@@ -13,6 +13,7 @@ import {
   Clock,
   X,
   Users,
+  Navigation,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Alert, AlertTitle, AlertDescription } from "brk-design-system";
@@ -40,6 +41,7 @@ import { CompleteProfileModal } from "@/components/profile/CompleteProfileModal"
 import { toast } from "sonner";
 import { differenceInHours, parseISO } from "date-fns";
 import { Loading } from '@/components/ui/loading';
+import { RaceTrackService } from '@/lib/services/race-track.service';
 
 export const Dashboard = () => {
   const nav = useNavigation();
@@ -52,6 +54,7 @@ export const Dashboard = () => {
   const [showConfirmConfirmation, setShowConfirmConfirmation] = useState<{stageId: string, categoryId: string, categoryName: string} | null>(null);
   const [isCheckingRedirect, setIsCheckingRedirect] = useState(true);
   const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
+  const [raceTracks, setRaceTracks] = useState<Record<string, any>>({});
   
   // Check if user is manager or administrator
   const isManager = user?.role === 'Manager' || user?.role === 'Administrator';
@@ -71,7 +74,7 @@ export const Dashboard = () => {
     error: registrationsError 
   } = useUserRegistrations();
   
-  const { 
+  const {
     upcomingRaces, 
     loading: loadingRaces, 
     error: racesError,
@@ -167,6 +170,48 @@ export const Dashboard = () => {
       return false;
     }
   };
+
+  // Buscar dados dos kartódromos
+  useEffect(() => {
+    const fetchRaceTracks = async () => {
+      try {
+        console.log('Dashboard: upcomingRaces:', upcomingRaces);
+        const allStages = upcomingRaces.map(race => race.stage);
+        console.log('Dashboard: allStages:', allStages);
+        const uniqueRaceTrackIds = [...new Set(allStages.map(stage => stage.raceTrackId).filter(Boolean))];
+        console.log('Dashboard: uniqueRaceTrackIds:', uniqueRaceTrackIds);
+        
+        // Se não há raceTrackIds, não fazer nada
+        if (uniqueRaceTrackIds.length === 0) {
+          console.log('Dashboard: Nenhum raceTrackId encontrado');
+          return;
+        }
+        
+        const raceTracksData: Record<string, any> = {};
+        for (const raceTrackId of uniqueRaceTrackIds) {
+          try {
+            console.log(`Dashboard: Buscando kartódromo ${raceTrackId}...`);
+            const raceTrack = await RaceTrackService.getById(raceTrackId);
+            console.log(`Dashboard: kartódromo ${raceTrackId} carregado:`, raceTrack);
+            raceTracksData[raceTrackId] = raceTrack;
+          } catch (err) {
+            console.error(`Erro ao buscar kartódromo ${raceTrackId}:`, err);
+          }
+        }
+        console.log('Dashboard: raceTracksData final:', raceTracksData);
+        setRaceTracks(raceTracksData);
+      } catch (err) {
+        console.error('Erro ao buscar kartódromos:', err);
+      }
+    };
+
+    if (upcomingRaces.length > 0 && !loadingRaces) {
+      console.log('Dashboard: Iniciando busca de kartódromos...');
+      fetchRaceTracks();
+    } else {
+      console.log('Dashboard: Aguardando carregamento das etapas...', { upcomingRacesLength: upcomingRaces.length, loadingRaces });
+    }
+  }, [upcomingRaces, loadingRaces]);
 
   // Show loading while checking for redirect
   if (isCheckingRedirect) {
@@ -538,7 +583,19 @@ export const Dashboard = () => {
                     </div>
                     <div className="flex items-center gap-1 min-w-0">
                       <MapPin className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{race.stage.kartodrome}</span>
+                      <span className="truncate">
+                        {(() => {
+                          const raceTrackId = race.stage.raceTrackId;
+                          const raceTrack = raceTracks[raceTrackId];
+                          console.log('Dashboard render: raceTrackId:', raceTrackId, 'raceTrack:', raceTrack);
+                          const trackName = raceTrackId && raceTrack 
+                            ? raceTrack.name 
+                            : 'Carregando...';
+                          return race.stage.trackLayoutId && race.stage.trackLayoutId !== 'undefined'
+                            ? `${trackName} - ${race.stage.trackLayoutId}`
+                            : trackName;
+                        })()}
+                      </span>
                     </div>
                   </div>
                   
@@ -643,13 +700,33 @@ export const Dashboard = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-card-foreground">Local</h3>
-                  <p className="text-sm text-muted-foreground">{selectedRace?.stage?.kartodrome}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {(() => {
+                      const raceTrackId = selectedRace?.stage?.raceTrackId;
+                      const raceTrack = raceTracks[raceTrackId];
+                      console.log('Dashboard modal render: raceTrackId:', raceTrackId, 'raceTrack:', raceTrack);
+                      return raceTrackId && raceTrack 
+                        ? raceTrack.name 
+                        : 'Carregando...';
+                    })()}
+                  </p>
                 </div>
               </div>
-              {selectedRace?.stage?.kartodromeAddress && (
-                <p className="text-xs text-muted-foreground pl-11">
-                  {selectedRace.stage.kartodromeAddress}
-                </p>
+              {(() => {
+                const raceTrackId = selectedRace?.stage?.raceTrackId;
+                const raceTrack = raceTracks[raceTrackId];
+                console.log('Dashboard modal address render: raceTrackId:', raceTrackId, 'raceTrack:', raceTrack);
+                return raceTrackId && raceTrack?.address ? (
+                  <p className="text-xs text-muted-foreground pl-11">
+                    {raceTrack.address}
+                  </p>
+                ) : null;
+              })()}
+              {selectedRace?.stage?.trackLayoutId && selectedRace.stage.trackLayoutId !== 'undefined' && (
+                <div className="flex items-center gap-2 mt-3 pl-11">
+                  <Navigation className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Traçado: {selectedRace.stage.trackLayoutId}</span>
+                </div>
               )}
             </div>
 

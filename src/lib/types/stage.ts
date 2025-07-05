@@ -6,8 +6,8 @@ export interface Stage {
   name: string;
   date: string; // ISO date string
   time: string; // HH:MM format
-  kartodrome: string;
-  kartodromeAddress: string;
+  raceTrackId: string;
+  trackLayoutId?: string;
   streamLink?: string;
   seasonId: string;
   categoryIds: string[];
@@ -27,8 +27,8 @@ export interface CreateStageData {
   name: string;
   date: string; // YYYY-MM-DD format
   time: string; // HH:MM format
-  kartodrome: string;
-  kartodromeAddress: string;
+  raceTrackId: string;
+  trackLayoutId?: string;
   streamLink?: string;
   seasonId: string;
   categoryIds: string[];
@@ -44,8 +44,8 @@ export interface UpdateStageData {
   name?: string;
   date?: string; // YYYY-MM-DD format
   time?: string; // HH:MM format
-  kartodrome?: string;
-  kartodromeAddress?: string;
+  raceTrackId?: string;
+  trackLayoutId?: string;
   streamLink?: string;
   categoryIds?: string[];
   doublePoints?: boolean;

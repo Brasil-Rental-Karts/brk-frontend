@@ -31,6 +31,7 @@ import { InputMask } from "@/components/ui/input-mask";
 import { FormScreen } from "@/components/ui/FormScreen";
 import { FormSectionConfig } from "@/components/ui/dynamic-form";
 import { Loading } from '@/components/ui/loading';
+import { RaceTrackService } from "@/lib/services/race-track.service";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _unused = {
@@ -86,8 +87,8 @@ const STAGE_INITIAL_VALUES = {
   name: "",
   date: "",
   time: "",
-  kartodrome: "",
-  kartodromeAddress: "",
+  raceTrackId: "",
+  trackLayoutId: "undefined",
   streamLink: "",
   seasonId: "",
   categoryIds: [] as string[],
@@ -149,8 +150,8 @@ export const CreateStage = () => {
           { id: "name", name: "Nome da etapa", type: "input", mandatory: true, max_char: 75, placeholder: "Ex: Etapa 1 - Interlagos" },
           { id: "date", name: "Data", type: "inputMask", mask: "date", mandatory: true, placeholder: "DD/MM/AAAA" },
           { id: "time", name: "Hora", type: "inputMask", mask: "time", mandatory: true, placeholder: "HH:MM" },
-          { id: "kartodrome", name: "Kartódromo", type: "input", mandatory: true, max_char: 100 },
-          { id: "kartodromeAddress", name: "Endereço do Kartódromo", type: "input", mandatory: true, max_char: 200 },
+          { id: "raceTrackId", name: "Kartódromo", type: "select", mandatory: true, options: [] },
+          { id: "trackLayoutId", name: "Traçado", type: "select", mandatory: false, options: [], conditionalField: { dependsOn: 'raceTrackId', showWhen: (value: string) => !!value } },
           { id: "streamLink", name: "Link da transmissão", type: "input", placeholder: "https://..." },
         ],
       },
@@ -173,15 +174,21 @@ export const CreateStage = () => {
       },
     ];
 
-    const loadDataAndConfig = async () => {
-      setIsLoading(true);
-      try {
-        const seasonsData = await SeasonService.getByChampionshipId(championshipId!, 1, 1000);
-        setAllSeasons(seasonsData.data);
-        let activeSeasons = seasonsData.data.filter(s => s.status !== 'cancelado');
-        
-        let categoryOptions: { value: string; description: string }[] = [];
-        let stageDataToSet: Record<string, any> = STAGE_INITIAL_VALUES;
+            const loadDataAndConfig = async () => {
+          setIsLoading(true);
+          try {
+            const seasonsData = await SeasonService.getByChampionshipId(championshipId!, 1, 1000);
+            setAllSeasons(seasonsData.data);
+            let activeSeasons = seasonsData.data.filter(s => s.status !== 'cancelado');
+            
+            let categoryOptions: { value: string; description: string }[] = [];
+            let stageDataToSet: Record<string, any> = STAGE_INITIAL_VALUES;
+            let raceTrackOptions: { value: string; description: string }[] = [];
+            let configToUse = [...baseConfig];
+
+        // Buscar kartódromos cadastrados
+        const raceTracks = await RaceTrackService.getActive();
+        raceTrackOptions = raceTracks.map(rt => ({ value: rt.id, description: `${rt.name} - ${rt.city}/${rt.state}` }));
 
         const duplicatedData = location.state?.initialData;
 
@@ -191,6 +198,8 @@ export const CreateStage = () => {
             ...STAGE_INITIAL_VALUES,
             ...stageData,
             date: formatISOToDate(stageData.date),
+            raceTrackId: stageData.raceTrackId || "",
+            trackLayoutId: stageData.trackLayoutId || "undefined",
           };
 
           if (stageData.seasonId) {
@@ -202,6 +211,38 @@ export const CreateStage = () => {
               activeSeasons.push(stageSeason);
             }
           }
+          
+          // Carregar traçados se houver kartódromo selecionado
+          if (stageData.raceTrackId) {
+            try {
+              const raceTrack = await RaceTrackService.getById(stageData.raceTrackId);
+              const trackLayoutOptions = [
+                { value: 'undefined', description: 'Não definido' },
+                ...raceTrack.trackLayouts.map((layout: any) => ({
+                  value: layout.name,
+                  description: `${layout.name} (${layout.length}m)`
+                }))
+              ];
+              
+              // Atualizar as opções do campo trackLayoutId
+              configToUse = configToUse.map(section => {
+                if (section.section === "Informações Básicas") {
+                  return {
+                    ...section,
+                    fields: section.fields.map(field => {
+                      if (field.id === 'trackLayoutId') {
+                        return { ...field, options: trackLayoutOptions };
+                      }
+                      return field;
+                    })
+                  };
+                }
+                return section;
+              });
+            } catch (error) {
+              console.error('Erro ao carregar traçados:', error);
+            }
+          }
         } else if (duplicatedData) {
           stageDataToSet = {
             ...STAGE_INITIAL_VALUES,
@@ -209,6 +250,8 @@ export const CreateStage = () => {
             date: /^\d{2}\/\d{2}\/\d{4}$/.test(duplicatedData.date) 
               ? duplicatedData.date 
               : formatISOToDate(duplicatedData.date),
+            raceTrackId: duplicatedData.raceTrackId || "",
+            trackLayoutId: duplicatedData.trackLayoutId || "undefined",
           };
 
           if (duplicatedData.seasonId) {
@@ -220,7 +263,18 @@ export const CreateStage = () => {
         const seasonOptions = activeSeasons.map(s => ({ value: s.id, description: s.name }));
         setInitialValues(stageDataToSet);
 
-        const newConfig = baseConfig.map(section => {
+        const newConfig = configToUse.map(section => {
+          if (section.section === "Informações Básicas") {
+            return {
+              ...section,
+              fields: section.fields.map(field => {
+                if (field.id === 'raceTrackId') {
+                  return { ...field, options: raceTrackOptions };
+                }
+                return field;
+              })
+            };
+          }
           if (section.section === "Temporada e Categorias") {
             return {
               ...section,
@@ -263,6 +317,9 @@ export const CreateStage = () => {
     if (transformedData.streamLink === '') {
       transformedData.streamLink = null;
     }
+    if (transformedData.trackLayoutId === '' || transformedData.trackLayoutId === 'undefined') {
+      transformedData.trackLayoutId = null;
+    }
 
     // Garantir que doublePoints seja boolean
     if (transformedData.doublePoints === undefined || transformedData.doublePoints === null) {
@@ -295,6 +352,46 @@ export const CreateStage = () => {
         formActions.setValue('categoryIds', []);
       }
       await loadCategoriesForSeason(value);
+    }
+    
+    if (fieldId === 'raceTrackId') {
+      if (formActions.setValue) {
+        formActions.setValue('trackLayoutId', 'undefined');
+      }
+      
+      // Carregar traçados do kartódromo selecionado
+      if (value) {
+        try {
+          const raceTrack = await RaceTrackService.getById(value);
+          const trackLayoutOptions = [
+            { value: 'undefined', description: 'Não definido' },
+            ...raceTrack.trackLayouts.map((layout: any) => ({
+              value: layout.name,
+              description: `${layout.name} (${layout.length}m)`
+            }))
+          ];
+          
+          // Atualizar as opções do campo trackLayoutId
+          setFormConfig(prevConfig => 
+            prevConfig.map(section => {
+              if (section.section === "Informações Básicas") {
+                return {
+                  ...section,
+                  fields: section.fields.map(field => {
+                    if (field.id === 'trackLayoutId') {
+                      return { ...field, options: trackLayoutOptions };
+                    }
+                    return field;
+                  })
+                };
+              }
+              return section;
+            })
+          );
+        } catch (error) {
+          console.error('Erro ao carregar traçados:', error);
+        }
+      }
     }
   }, [loadCategoriesForSeason]);
 
