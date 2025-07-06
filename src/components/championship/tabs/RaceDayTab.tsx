@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "brk-design-system";
 import { Button, Badge } from "brk-design-system";
-import { ChevronDown, MoreHorizontal, CheckCircle, XCircle, Loader2, ChevronRight, Plus, Minus, GripVertical, Edit, Copy, Trash2, Circle, X, Share2 } from "lucide-react";
+import { ChevronDown, MoreHorizontal, CheckCircle, XCircle, Loader2, ChevronRight, Plus, Minus, GripVertical, Edit, Copy, Trash2, Circle, X, Share2, Search } from "lucide-react";
 import { CategoryService, Category } from '@/lib/services/category.service';
 import { SeasonRegistrationService, SeasonRegistration } from '@/lib/services/season-registration.service';
 import { Loading } from '@/components/ui/loading';
@@ -57,15 +57,16 @@ interface Stage {
   briefing?: string;
 }
 
-interface Season {
+interface SeasonWithStages {
   id: string;
   name: string;
   status?: string;
   stages?: Stage[];
+  inscriptionType?: 'por_temporada' | 'por_etapa';
 }
 
 interface RaceDayTabProps {
-  seasons: Season[];
+  seasons: SeasonWithStages[];
   championshipName?: string;
 }
 
@@ -76,7 +77,7 @@ interface ScheduleItem {
 }
 
 const RaceDayHeader: React.FC<{
-  seasons: Season[];
+  seasons: SeasonWithStages[];
   selectedSeasonId: string;
   onSelectSeason: (seasonId: string) => void;
   stages: Stage[];
@@ -168,7 +169,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     if (validSeasons.length > 0) return validSeasons[0].id;
     return seasons[0]?.id || "";
   });
-  const selectedSeason = seasons.find(s => s.id === selectedSeasonId) || seasons[0];
+  const selectedSeason = seasons.find((s: SeasonWithStages) => s.id === selectedSeasonId) || seasons[0];
   const stages = selectedSeason?.stages || [];
   const [selectedStageId, setSelectedStageId] = useState(() => getClosestStage(stages) || "");
   const selectedStage = stages.find(s => s.id === selectedStageId) || stages[0];
@@ -209,6 +210,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   // Estado para ordenação da tabela
   const [sortColumn, setSortColumn] = useState<string>('piloto');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
 
   // Função para alternar a visibilidade do formulário de adicionar item
   const toggleAddItemForm = () => {
@@ -1027,12 +1029,21 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     }));
   };
 
-  // Componente Modal customizado para evitar problemas de z-index
+  // Componente Modal simplificado para evitar problemas de foco
   const PilotConfirmationModal = () => {
-    if (!showPilotConfirmationModal) return null;
+    const [searchQuery, setSearchQuery] = React.useState('');
 
-    // Verificar se estamos no lado do cliente
+    if (!showPilotConfirmationModal) return null;
     if (typeof window === 'undefined') return null;
+
+    // Função simples de filtro
+    const filterPilots = (pilots: any[]) => {
+      if (!searchQuery.trim()) return pilots;
+      return pilots.filter(pilot => {
+        const name = formatName(pilot.user?.name || pilot.userId);
+        return name.toLowerCase().includes(searchQuery.toLowerCase());
+      });
+    };
 
     return createPortal(
       <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1065,15 +1076,44 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
               <div className="text-red-600">{error}</div>
             ) : (
               <div className="space-y-6">
+                {/* Campo de pesquisa simplificado */}
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                    <Search className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Pesquisar piloto por nome..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                    autoComplete="off"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
                 {categories.map((category) => {
                   const categoryPilots = registrations.filter(reg =>
                     reg.categories.some((rc: any) => rc.category.id === category.id)
                   );
-                  const confirmedPilots = categoryPilots.filter(reg =>
+                  const filteredPilots = filterPilots(categoryPilots);
+                  const confirmedPilots = filteredPilots.filter(reg =>
                     stageParticipations.some(
                       (part) => part.userId === reg.userId && part.categoryId === category.id && part.status === 'confirmed'
                     )
                   );
+                  
+                  // Ocultar categoria se não há pilotos filtrados
+                  if (searchQuery && filteredPilots.length === 0) {
+                    return null;
+                  }
                   
                   return (
                     <div key={category.id} className="border border-gray-200 rounded-lg">
@@ -1082,8 +1122,19 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                           <h4 className="text-base font-semibold text-gray-900">
                             {category.name}
                           </h4>
-                          <div className="flex justify-end">
-                            <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2 py-1 rounded-full">
+                          <div className="flex items-center gap-2">
+                            {confirmedPilots.length >= category.maxPilots && (
+                              <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
+                                Lotada
+                              </Badge>
+                            )}
+                            <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                              confirmedPilots.length >= category.maxPilots 
+                                ? 'bg-red-100 text-red-800' 
+                                : confirmedPilots.length >= category.maxPilots * 0.8 
+                                  ? 'bg-yellow-100 text-yellow-800' 
+                                  : 'bg-green-100 text-green-800'
+                            }`}>
                               {confirmedPilots.length}/{category.maxPilots}
                             </span>
                           </div>
@@ -1092,54 +1143,77 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                       
                       <div className="p-4">
                         <div className="space-y-3">
-                          {categoryPilots
-                            .sort((a, b) => {
-                              return (
-                                (a.user?.name || a.userId).localeCompare(b.user?.name || b.userId)
-                              );
-                            })
-                            .map((pilot) => {
-                              const isConfirmed = confirmedPilots.some(p => p.userId === pilot.userId);
-                              const isLoading = !!pilotLoading[pilot.userId + '-' + category.id];
-                              
-                              return (
-                                <div key={pilot.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
-                                  <div className="flex items-center space-x-3">
-                                    <span className="text-sm font-medium text-gray-900">
-                                      {formatName(pilot.user?.name || pilot.userId)}
-                                    </span>
-                                    {isConfirmed && (
-                                      <Badge variant="secondary" className="bg-green-100 text-green-800">
-                                        Confirmado
-                                      </Badge>
-                                    )}
+                          {filteredPilots.length > 0 ? (
+                            filteredPilots
+                              .sort((a, b) => {
+                                return (
+                                  (a.user?.name || a.userId).localeCompare(b.user?.name || b.userId)
+                                );
+                              })
+                              .map((pilot) => {
+                                const isConfirmed = confirmedPilots.some(p => p.userId === pilot.userId);
+                                const isLoading = !!pilotLoading[pilot.userId + '-' + category.id];
+                                const canConfirmResult = canPilotBeConfirmed(pilot, category);
+                                
+                                return (
+                                  <div key={pilot.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
+                                    <div className="flex items-center space-x-3">
+                                      <span className="text-sm font-medium text-gray-900">
+                                        {formatName(pilot.user?.name || pilot.userId)}
+                                      </span>
+                                      {isConfirmed && (
+                                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                          Confirmado
+                                        </Badge>
+                                      )}
+                                      {!canConfirmResult.canConfirm && !isConfirmed && (
+                                        <Badge variant="secondary" className={`text-xs ${
+                                          canConfirmResult.reason === 'category_full' ? 'bg-red-100 text-red-800' :
+                                          canConfirmResult.reason === 'payment_overdue' ? 'bg-orange-100 text-orange-800' :
+                                          canConfirmResult.reason === 'payment_pending' ? 'bg-yellow-100 text-yellow-800' :
+                                          'bg-gray-100 text-gray-800'
+                                        }`}>
+                                          {canConfirmResult.message}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <button
+                                            onClick={() => {
+                                              if (canConfirmResult.canConfirm || isConfirmed) {
+                                                handleToggleConfirm(pilot, category.id, isConfirmed);
+                                              }
+                                            }}
+                                            className={`flex items-center space-x-1 ${
+                                              !canConfirmResult.canConfirm && !isConfirmed ? 'cursor-not-allowed opacity-50' : ''
+                                            }`}
+                                            disabled={isLoading || (!canConfirmResult.canConfirm && !isConfirmed)}
+                                          >
+                                            {getPilotStatusIcon(canConfirmResult, isLoading)}
+                                          </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          {isLoading ? 'Processando...' :
+                                           isConfirmed ? 'Cancelar participação' :
+                                           !canConfirmResult.canConfirm ? canConfirmResult.message :
+                                           'Confirmar participação'}
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
                                   </div>
-                                  
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <button
-                                          onClick={() => handleToggleConfirm(pilot, category.id, isConfirmed)}
-                                          className="flex items-center space-x-1"
-                                          disabled={isLoading}
-                                        >
-                                          {isLoading ? (
-                                            <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-                                          ) : isConfirmed ? (
-                                            <CheckCircle className="w-4 h-4 text-green-600" />
-                                          ) : (
-                                            <Circle className="w-4 h-4 text-gray-400" />
-                                          )}
-                                        </button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        {isConfirmed ? 'Cancelar participação' : 'Confirmar participação'}
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                </div>
-                              );
-                            })}
+                                );
+                              })
+                          ) : (
+                            <div className="text-sm text-gray-500 text-center py-2">
+                              {searchQuery ? 
+                                'Nenhum piloto encontrado para a pesquisa' : 
+                                'Nenhum piloto nesta categoria'
+                              }
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1232,6 +1306,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   useEffect(() => {
     setSelectedBatteryIndex(0);
   }, [selectedOverviewCategory]);
+
+
 
   // Carregar resultados da etapa
   const loadStageResults = async () => {
@@ -1439,10 +1515,12 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
 
 
 
+
+
   // Função para copiar mensagem com emojis
   const copyMessageWithEmojis = async () => {
     try {
-      const stageData = stages.find(s => s.id === selectedStageId);
+      const stageData = stages.find((s: Stage) => s.id === selectedStageId);
       if (!stageData) {
         toast.error('Etapa não encontrada');
         return;
@@ -1507,6 +1585,78 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     } catch (error) {
       console.error('Erro ao copiar mensagem:', error);
       toast.error('Erro ao copiar mensagem do cronograma');
+    }
+  };
+
+  // Função para verificar se um piloto pode ser confirmado
+  const canPilotBeConfirmed = (pilot: any, category: any) => {
+    // 1. Verificar se já está confirmado
+    const isConfirmed = stageParticipations.some(
+      (part) => part.userId === pilot.userId && part.categoryId === category.id && part.status === 'confirmed'
+    );
+    
+    if (isConfirmed) {
+      return { canConfirm: false, reason: 'already_confirmed', message: 'Já confirmado' };
+    }
+
+    // 2. Verificar limite máximo de pilotos na categoria
+    const confirmedPilotsInCategory = stageParticipations.filter(
+      (part) => part.categoryId === category.id && part.status === 'confirmed'
+    ).length;
+    
+    if (confirmedPilotsInCategory >= category.maxPilots) {
+      return { canConfirm: false, reason: 'category_full', message: 'Categoria lotada' };
+    }
+
+    // 3. Verificar se é temporada por etapa e se o piloto está inscrito na etapa específica
+    if (selectedSeason?.inscriptionType === 'por_etapa' && selectedStageId) {
+      // Verificar se o piloto tem inscrição na etapa específica
+      const isRegisteredInStage = pilot.stages?.some((regStage: any) => 
+        regStage.stageId === selectedStageId || regStage.stage?.id === selectedStageId
+      );
+      
+      if (!isRegisteredInStage) {
+        return { canConfirm: false, reason: 'not_registered_stage', message: 'Não inscrito nesta etapa' };
+      }
+    }
+
+    // 4. Verificar problemas de pagamento (baseado no status de registro)
+    // Se o piloto tem status de pagamento problemático
+    if (pilot.paymentStatus === 'overdue') {
+      return { canConfirm: false, reason: 'payment_overdue', message: 'Pagamento em atraso' };
+    }
+    
+    if (pilot.paymentStatus === 'pending' && pilot.status !== 'confirmed') {
+      return { canConfirm: false, reason: 'payment_pending', message: 'Pagamento pendente' };
+    }
+
+    // 5. Se chegou até aqui, pode ser confirmado
+    return { canConfirm: true, reason: null, message: null };
+  };
+
+  // Função para obter o ícone do status do piloto
+  const getPilotStatusIcon = (canConfirmResult: any, isLoading: boolean) => {
+    if (isLoading) {
+      return <Loader2 className="w-4 h-4 animate-spin text-gray-400" />;
+    }
+
+    if (canConfirmResult.canConfirm) {
+      return <Circle className="w-4 h-4 text-gray-400" />;
+    }
+
+    switch (canConfirmResult.reason) {
+      case 'already_confirmed':
+        return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'category_full':
+        return <XCircle className="w-4 h-4 text-red-600" />;
+      case 'payment_overdue':
+        return <XCircle className="w-4 h-4 text-orange-600" />;
+      case 'payment_pending':
+        return <XCircle className="w-4 h-4 text-yellow-600" />;
+      case 'not_registered_stage':
+        return <XCircle className="w-4 h-4 text-gray-600" />;
+      default:
+        return <XCircle className="w-4 h-4 text-red-600" />;
     }
   };
 
@@ -1589,7 +1739,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                 value={selectedStageId}
                 onChange={e => setSelectedStageId(e.target.value)}
               >
-                {stages.map(stage => (
+                {stages.map((stage: Stage) => (
                   <option key={stage.id} value={stage.id}>{stage.name}</option>
                 ))}
               </select>
@@ -1678,7 +1828,18 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                           {category.name}
                         </span>
                             <div className="flex items-center space-x-2">
-                        <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2 py-1 rounded-full">
+                        {confirmedPilots.length >= category.maxPilots && (
+                          <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
+                            Lotada
+                          </Badge>
+                        )}
+                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                          confirmedPilots.length >= category.maxPilots 
+                            ? 'bg-red-100 text-red-800' 
+                            : confirmedPilots.length >= category.maxPilots * 0.8 
+                              ? 'bg-yellow-100 text-yellow-800' 
+                              : 'bg-green-100 text-green-800'
+                        }`}>
                           {confirmedPilots.length}/{category.maxPilots}
                         </span>
                       {expandedCategories.has(category.id) ? (
@@ -1745,7 +1906,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                                 })
                         ) : (
                           <div className="text-sm text-gray-500 text-center py-2">
-                            Nenhum piloto confirmado nesta categoria
+                            'Nenhum piloto confirmado nesta categoria'
                           </div>
                         )}
                       </div>
