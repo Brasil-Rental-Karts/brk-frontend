@@ -46,7 +46,9 @@ import {
 } from 'brk-design-system';
 import { createPortal } from "react-dom";
 import { RaceTrackService } from '@/lib/services/race-track.service';
+import { LapTimesService, LapTimes as LapTimesType } from '@/lib/services/lap-times.service';
 import * as XLSX from 'xlsx';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface Stage {
   id: string;
@@ -216,7 +218,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
-  const [importType, setImportType] = useState<'race' | 'qualification'>('race');
+  const [importType, setImportType] = useState<'race' | 'qualification' | 'lapTimes'>('race');
+  
+  // Estados para lap times
+  const [lapTimes, setLapTimes] = useState<{ [categoryId: string]: LapTimesType[] }>({});
+  const [showLapTimesChart, setShowLapTimesChart] = useState(false);
+  const [selectedPilotsForChart, setSelectedPilotsForChart] = useState<string[]>([]);
+  const [lapTimesLoading, setLapTimesLoading] = useState(false);
 
 
   // Função para alternar a visibilidade do formulário de adicionar item
@@ -1366,6 +1374,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     loadStageResults();
   }, [selectedStageId]);
 
+  // Carregar lap times quando categoria é selecionada
+  useEffect(() => {
+    if (selectedOverviewCategory) {
+      loadLapTimes(selectedOverviewCategory);
+    }
+  }, [selectedOverviewCategory, selectedStageId]);
+
   // Salvar resultados automaticamente quando mudam
   useEffect(() => {
     if (Object.keys(stageResults).length > 0) {
@@ -1524,8 +1539,24 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     }
   };
 
+  // Funções para lap times
+  const loadLapTimes = async (categoryId: string) => {
+    try {
+      setLapTimesLoading(true);
+      const lapTimesData = await LapTimesService.getLapTimesByStageAndCategory(selectedStageId, categoryId);
+      setLapTimes(prev => ({
+        ...prev,
+        [categoryId]: lapTimesData
+      }));
+    } catch (error) {
+      console.error('Erro ao carregar tempos volta a volta:', error);
+    } finally {
+      setLapTimesLoading(false);
+    }
+  };
+
   // Funções para importação
-  const openImportModal = (type: 'race' | 'qualification') => {
+  const openImportModal = (type: 'race' | 'qualification' | 'lapTimes') => {
     setImportType(type);
     setShowImportModal(true);
     setImportFile(null);
@@ -1559,107 +1590,179 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     try {
       const buffer = await importFile.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: 'array' });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
       
-      // Processar os dados do arquivo Excel
-      const results: any = {};
-      
-      // Buscar pelo cabeçalho (linha que contém "POS" e "#")
-      let headerRow = -1;
-      let positionColumn = -1;
-      let kartColumn = -1;
-      
-      for (let i = 0; i < data.length; i++) {
-        const row = data[i] as any[];
-        for (let j = 0; j < row.length; j++) {
-          const cell = String(row[j] || '').trim().toLowerCase();
-          if (cell === 'pos' || cell === 'posição') {
-            headerRow = i;
-            positionColumn = j;
+      if (importType === 'lapTimes') {
+        // Para volta a volta, usar apenas a primeira sheet
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        // Processar arquivo de volta a volta
+        try {
+          const processedData = LapTimesService.processExcelData(data as any[]);
+          
+          // Criar mapeamento de kart para usuário
+          const kartToUserMapping: { [kartNumber: number]: string } = {};
+          Object.entries(categoryResults).forEach(([pilotId, batteryResults]) => {
+            const pilotBatteryData = batteryResults[selectedBatteryIndex];
+            if (pilotBatteryData) {
+              kartToUserMapping[pilotBatteryData.kart] = pilotId;
+            }
+          });
+          
+          // Importar os tempos volta a volta
+          const result = await LapTimesService.importLapTimesFromExcel(
+            selectedStageId,
+            selectedOverviewCategory,
+            {
+              batteryIndex: selectedBatteryIndex,
+              excelData: processedData,
+              kartToUserMapping
+            }
+          );
+          
+          // Atualizar estado local
+          await loadLapTimes(selectedOverviewCategory);
+          
+          // Feedback
+          let message = `${result.imported} pilotos com tempos volta a volta importados`;
+          if (result.errors.length > 0) {
+            message += ` • ${result.errors.length} erros: ${result.errors.slice(0, 3).join(', ')}`;
+            if (result.errors.length > 3) {
+              message += '...';
+            }
           }
-          if (cell === '#' || cell === 'kart') {
-            kartColumn = j;
+          
+          if (result.imported > 0) {
+            toast.success(message);
+          } else {
+            toast.error('Nenhum tempo volta a volta foi importado. Verifique se o arquivo está no formato correto.');
           }
+          
+        } catch (error) {
+          console.error('Erro ao processar volta a volta:', error);
+          toast.error('Erro ao processar arquivo de volta a volta. Verifique o formato.');
         }
-        if (headerRow >= 0 && positionColumn >= 0 && kartColumn >= 0) {
-          break;
-        }
-      }
-      
-      if (headerRow === -1 || positionColumn === -1 || kartColumn === -1) {
-        toast.error('Não foi possível encontrar as colunas POS e # no arquivo');
-        return;
-      }
-      
-      // Processar as linhas de dados (começando após o cabeçalho)
-      let processedCount = 0;
-      let ncCount = 0; // Contador de pilotos que não completaram
-      const notFoundKarts: number[] = [];
-      
-      for (let i = headerRow + 1; i < data.length; i++) {
-        const row = data[i] as any[];
-        if (!row[positionColumn] || !row[kartColumn]) continue;
+      } else {
+        // Processar arquivo de corrida/classificação com múltiplas sheets
+        let totalProcessedCount = 0;
+        let totalNcCount = 0;
+        const allNotFoundKarts: number[] = [];
         
-        const positionValue = String(row[positionColumn]).trim().toUpperCase();
-        const kartNumber = Number(row[kartColumn]);
-        
-        // Validar se o kart é um número válido
-        if (isNaN(kartNumber)) continue;
-        
-        // Encontrar o piloto que tem este kart sorteado
-        const categoryResults = fleetDrawResults[selectedOverviewCategory];
-        if (!categoryResults) continue;
-        
-        let pilotFound = false;
-        for (const [pilotId, batteryResults] of Object.entries(categoryResults)) {
-          const pilotBatteryData = batteryResults[selectedBatteryIndex];
-          if (pilotBatteryData && pilotBatteryData.kart === kartNumber) {
-            const fieldToUpdate = importType === 'race' ? 'finishPosition' : 'startPosition';
-            
-            // Verificar se é NC (Não Completou)
-            if (positionValue === 'NC') {
-              // Limpar a posição (definir como null/undefined)
-              updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, fieldToUpdate, null);
-              ncCount++;
-            } else {
-              // Tentar converter para número
-              const position = Number(positionValue);
-              if (!isNaN(position)) {
-                updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, fieldToUpdate, position);
-                processedCount++;
+        // Processar todas as sheets
+        for (const sheetName of workbook.SheetNames) {
+          const worksheet = workbook.Sheets[sheetName];
+          const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
+          // Buscar pelo cabeçalho (linha que contém "POS" e "#")
+          let headerRow = -1;
+          let positionColumn = -1;
+          let kartColumn = -1;
+          
+          for (let i = 0; i < data.length; i++) {
+            const row = data[i] as any[];
+            for (let j = 0; j < row.length; j++) {
+              const cell = String(row[j] || '').trim().toLowerCase();
+              if (cell === 'pos' || cell === 'posição') {
+                headerRow = i;
+                positionColumn = j;
+              }
+              if (cell === '#' || cell === 'kart') {
+                kartColumn = j;
               }
             }
-            pilotFound = true;
-            break;
+            if (headerRow >= 0 && positionColumn >= 0 && kartColumn >= 0) {
+              break;
+            }
+          }
+          
+          if (headerRow === -1 || positionColumn === -1 || kartColumn === -1) {
+            console.log(`Sheet "${sheetName}": Colunas POS e # não encontradas, pulando...`);
+            continue;
+          }
+          
+          // Processar as linhas de dados (começando após o cabeçalho)
+          let processedCount = 0;
+          let ncCount = 0;
+          const notFoundKarts: number[] = [];
+          
+          for (let i = headerRow + 1; i < data.length; i++) {
+            const row = data[i] as any[];
+            if (!row[positionColumn] || !row[kartColumn]) continue;
+            
+            const positionValue = String(row[positionColumn]).trim().toUpperCase();
+            const kartNumber = Number(row[kartColumn]);
+            
+            // Validar se o kart é um número válido
+            if (isNaN(kartNumber)) continue;
+            
+            // Encontrar o piloto que tem este kart sorteado
+            const categoryResults = fleetDrawResults[selectedOverviewCategory];
+            if (!categoryResults) continue;
+            
+            let pilotFound = false;
+            for (const [pilotId, batteryResults] of Object.entries(categoryResults)) {
+              const pilotBatteryData = batteryResults[selectedBatteryIndex];
+              if (pilotBatteryData && pilotBatteryData.kart === kartNumber) {
+                const fieldToUpdate = importType === 'race' ? 'finishPosition' : 'startPosition';
+                
+                // Verificar se é NC (Não Completou)
+                if (positionValue === 'NC') {
+                  // Limpar a posição (definir como null/undefined)
+                  updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, fieldToUpdate, null);
+                  ncCount++;
+                } else {
+                  // Tentar converter para número
+                  const position = Number(positionValue);
+                  if (!isNaN(position)) {
+                    updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, fieldToUpdate, position);
+                    processedCount++;
+                  }
+                }
+                pilotFound = true;
+                break;
+              }
+            }
+            
+            if (!pilotFound) {
+              notFoundKarts.push(kartNumber);
+            }
+          }
+          
+          // Acumular totais
+          totalProcessedCount += processedCount;
+          totalNcCount += ncCount;
+          allNotFoundKarts.push(...notFoundKarts);
+          
+          if (processedCount > 0 || ncCount > 0) {
+            console.log(`Sheet "${sheetName}": ${processedCount} posições importadas, ${ncCount} NC`);
           }
         }
         
-        if (!pilotFound) {
-          notFoundKarts.push(kartNumber);
+        // Feedback detalhado final
+        if (totalProcessedCount > 0 || totalNcCount > 0) {
+          let message = '';
+          if (totalProcessedCount > 0) {
+            message += `${totalProcessedCount} ${importType === 'race' ? 'posições de corrida' : 'posições de classificação'} importadas`;
+          }
+          if (totalNcCount > 0) {
+            if (message) message += ' • ';
+            message += `${totalNcCount} pilotos marcados como NC (não completaram)`;
+          }
+          if (workbook.SheetNames.length > 1) {
+            message += ` (processadas ${workbook.SheetNames.length} sheets)`;
+          }
+          toast.success(message);
+        }
+        
+        if (allNotFoundKarts.length > 0) {
+          const uniqueNotFoundKarts = [...new Set(allNotFoundKarts)];
+          toast.warning(`Karts não encontrados no sorteio: ${uniqueNotFoundKarts.join(', ')}`);
+        }
+        
+        if (totalProcessedCount === 0 && totalNcCount === 0) {
+          toast.error('Nenhum resultado foi importado. Verifique se o arquivo está no formato correto.');
         }
       }
       
-      // Feedback detalhado
-      if (processedCount > 0 || ncCount > 0) {
-        let message = '';
-        if (processedCount > 0) {
-          message += `${processedCount} ${importType === 'race' ? 'posições de corrida' : 'posições de classificação'} importadas`;
-        }
-        if (ncCount > 0) {
-          if (message) message += ' • ';
-          message += `${ncCount} pilotos marcados como NC (não completaram)`;
-        }
-        toast.success(message);
-      }
-      
-      if (notFoundKarts.length > 0) {
-        toast.warning(`Karts não encontrados no sorteio: ${notFoundKarts.join(', ')}`);
-      }
-      
-      if (processedCount === 0 && ncCount === 0) {
-        toast.error('Nenhum resultado foi importado. Verifique se o arquivo está no formato correto.');
-      }
       closeImportModal();
       
     } catch (error) {
@@ -2318,23 +2421,40 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                     <div className="text-sm text-gray-600">Pilotos confirmados para a etapa</div>
                   </div>
                   {selectedOverviewCategory && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="rounded-full px-3 h-8 text-xs font-semibold w-full lg:w-auto">
-                          <Upload className="w-4 h-4 mr-1" /> Importar
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openImportModal('qualification')}>
-                          <Upload className="w-4 h-4 mr-2" />
-                          Importar Classificação
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openImportModal('race')}>
-                          <Upload className="w-4 h-4 mr-2" />
-                          Importar Corrida
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="rounded-full px-3 h-8 text-xs font-semibold"
+                        onClick={() => {
+                          loadLapTimes(selectedOverviewCategory);
+                          setShowLapTimesChart(true);
+                        }}
+                      >
+                        📊 Gráfico Volta a Volta
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="rounded-full px-3 h-8 text-xs font-semibold">
+                            <Upload className="w-4 h-4 mr-1" /> Importar
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openImportModal('qualification')}>
+                            <Upload className="w-4 h-4 mr-2" />
+                            Importar Classificação
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openImportModal('race')}>
+                            <Upload className="w-4 h-4 mr-2" />
+                            Importar Corrida
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openImportModal('lapTimes')}>
+                            <Upload className="w-4 h-4 mr-2" />
+                            Importar Volta a Volta
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   )}
                 </div>
               </div>
@@ -2814,7 +2934,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                Importar {importType === 'race' ? 'Corrida' : 'Classificação'}
+                Importar {importType === 'race' ? 'Corrida' : importType === 'qualification' ? 'Classificação' : 'Volta a Volta'}
               </h2>
               <p className="text-sm text-gray-600 mt-1">
                 Selecione o arquivo Excel com os resultados.
@@ -2836,13 +2956,23 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                 <h3 className="text-sm font-semibold text-blue-900 mb-2">
                   Formato do arquivo Excel:
                 </h3>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Cabeçalho com coluna <strong>POS</strong> (posição)</li>
-                  <li>• Cabeçalho com coluna <strong>#</strong> (número do kart)</li>
-                  <li>• Dados numéricos nas colunas POS e #</li>
-                  <li>• Use <strong>NC</strong> para pilotos que não completaram</li>
-                  <li>• Arquivo de exemplo: <code>exemplo-importacao-corrida.xlsx</code></li>
-                </ul>
+                {importType === 'lapTimes' ? (
+                  <ul className="text-sm text-blue-800 space-y-1">
+                    <li>• Coluna A: Marcador <strong>#</strong> seguido pelos dados</li>
+                    <li>• Coluna A: Número do kart (após o marcador #)</li>
+                    <li>• Coluna C: Número da volta</li>
+                    <li>• Coluna D: Tempo de volta (formato MM:SS.sss)</li>
+                    <li>• Exemplo: <code>NOVATOS - VOLTA A VOLTA 01.xlsx</code></li>
+                  </ul>
+                ) : (
+                  <ul className="text-sm text-blue-800 space-y-1">
+                    <li>• Cabeçalho com coluna <strong>POS</strong> (posição)</li>
+                    <li>• Cabeçalho com coluna <strong>#</strong> (número do kart)</li>
+                    <li>• Dados numéricos nas colunas POS e #</li>
+                    <li>• Use <strong>NC</strong> para pilotos que não completaram</li>
+                    <li>• Arquivo de exemplo: <code>exemplo-importacao-corrida.xlsx</code></li>
+                  </ul>
+                )}
               </div>
               
               {/* Upload de arquivo */}
@@ -2891,6 +3021,179 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
               ) : (
                 'Importar'
               )}
+            </Button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+
+    {/* Modal de Gráfico Volta a Volta */}
+    {showLapTimesChart && selectedOverviewCategory && createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black bg-opacity-50"
+          onClick={() => setShowLapTimesChart(false)}
+        />
+        
+        {/* Modal Content */}
+        <div className="relative bg-white rounded-lg shadow-xl max-w-6xl max-h-[90vh] w-full mx-4 overflow-hidden flex flex-col z-10">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Gráfico Volta a Volta
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {categories.find(cat => cat.id === selectedOverviewCategory)?.name} - Bateria {selectedBatteryIndex + 1}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowLapTimesChart(false)}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {lapTimesLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                <span className="ml-2 text-gray-600">Carregando tempos volta a volta...</span>
+              </div>
+            ) : lapTimes[selectedOverviewCategory] && lapTimes[selectedOverviewCategory].length > 0 ? (
+              <>
+                {/* Seleção de pilotos */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Selecionar Pilotos</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {lapTimes[selectedOverviewCategory]
+                      .filter(lapTime => lapTime.batteryIndex === selectedBatteryIndex)
+                      .map((lapTime) => (
+                        <label key={lapTime.userId} className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedPilotsForChart.includes(lapTime.userId)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedPilotsForChart(prev => [...prev, lapTime.userId]);
+                              } else {
+                                setSelectedPilotsForChart(prev => prev.filter(id => id !== lapTime.userId));
+                              }
+                            }}
+                            className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                          />
+                          <span className="text-sm">
+                            {lapTime.user?.name || `Piloto ${lapTime.userId}`} (Kart {lapTime.kartNumber})
+                          </span>
+                        </label>
+                      ))}
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const allPilotIds = lapTimes[selectedOverviewCategory]
+                          .filter(lapTime => lapTime.batteryIndex === selectedBatteryIndex)
+                          .map(lapTime => lapTime.userId);
+                        setSelectedPilotsForChart(allPilotIds);
+                      }}
+                    >
+                      Selecionar Todos
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedPilotsForChart([])}
+                    >
+                      Limpar Seleção
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Gráfico */}
+                {selectedPilotsForChart.length > 0 && (
+                  <div className="h-96">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="lap" 
+                          type="number"
+                          domain={['dataMin', 'dataMax']}
+                          label={{ value: 'Volta', position: 'insideBottom', offset: -5 }}
+                        />
+                        <YAxis 
+                          domain={['dataMin - 1000', 'dataMax + 1000']}
+                          tickFormatter={(value) => LapTimesService.formatMsToTime(value)}
+                          label={{ value: 'Tempo', angle: -90, position: 'insideLeft' }}
+                        />
+                        <RechartsTooltip 
+                          formatter={(value: any) => [LapTimesService.formatMsToTime(value), 'Tempo']}
+                          labelFormatter={(label) => `Volta ${label}`}
+                        />
+                        <Legend />
+                        {selectedPilotsForChart.map((pilotId, index) => {
+                          const lapTime = lapTimes[selectedOverviewCategory]?.find(
+                            lt => lt.userId === pilotId && lt.batteryIndex === selectedBatteryIndex
+                          );
+                          if (!lapTime) return null;
+
+                          const data = lapTime.lapTimes.map(lt => ({
+                            lap: lt.lap,
+                            timeMs: lt.timeMs,
+                            time: lt.time
+                          }));
+
+                          const colors = [
+                            '#f97316', '#3b82f6', '#ef4444', '#22c55e', '#a855f7', 
+                            '#f59e0b', '#06b6d4', '#84cc16', '#ec4899', '#6366f1'
+                          ];
+
+                          return (
+                            <Line
+                              key={pilotId}
+                              type="monotone"
+                              dataKey="timeMs"
+                              data={data}
+                              stroke={colors[index % colors.length]}
+                              strokeWidth={2}
+                              dot={{ r: 4 }}
+                              name={`${lapTime.user?.name || `Piloto ${pilotId}`} (Kart ${lapTime.kartNumber})`}
+                            />
+                          );
+                        })}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {selectedPilotsForChart.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    Selecione os pilotos para visualizar o gráfico
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                Nenhum tempo volta a volta encontrado para esta categoria e bateria.
+                <br />
+                Importe os dados usando o botão "Importar Volta a Volta".
+              </div>
+            )}
+          </div>
+          
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowLapTimesChart(false)}
+            >
+              Fechar
             </Button>
           </div>
         </div>
