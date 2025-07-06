@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "brk-design-system";
 import { Button, Badge } from "brk-design-system";
-import { ChevronDown, MoreHorizontal, CheckCircle, XCircle, Loader2, ChevronRight, Plus, Minus, GripVertical, Edit, Copy, Trash2, Circle, X, Share2 } from "lucide-react";
+import { ChevronDown, MoreHorizontal, CheckCircle, XCircle, Loader2, ChevronRight, Plus, Minus, GripVertical, Edit, Copy, Trash2, Circle, X, Share2, Search } from "lucide-react";
 import { CategoryService, Category } from '@/lib/services/category.service';
 import { SeasonRegistrationService, SeasonRegistration } from '@/lib/services/season-registration.service';
 import { Loading } from '@/components/ui/loading';
@@ -209,6 +209,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   // Estado para ordenação da tabela
   const [sortColumn, setSortColumn] = useState<string>('piloto');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
 
   // Função para alternar a visibilidade do formulário de adicionar item
   const toggleAddItemForm = () => {
@@ -1027,12 +1028,21 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     }));
   };
 
-  // Componente Modal customizado para evitar problemas de z-index
+  // Componente Modal simplificado para evitar problemas de foco
   const PilotConfirmationModal = () => {
-    if (!showPilotConfirmationModal) return null;
+    const [searchQuery, setSearchQuery] = React.useState('');
 
-    // Verificar se estamos no lado do cliente
+    if (!showPilotConfirmationModal) return null;
     if (typeof window === 'undefined') return null;
+
+    // Função simples de filtro
+    const filterPilots = (pilots: any[]) => {
+      if (!searchQuery.trim()) return pilots;
+      return pilots.filter(pilot => {
+        const name = formatName(pilot.user?.name || pilot.userId);
+        return name.toLowerCase().includes(searchQuery.toLowerCase());
+      });
+    };
 
     return createPortal(
       <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1065,15 +1075,44 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
               <div className="text-red-600">{error}</div>
             ) : (
               <div className="space-y-6">
+                {/* Campo de pesquisa simplificado */}
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                    <Search className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Pesquisar piloto por nome..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                    autoComplete="off"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
                 {categories.map((category) => {
                   const categoryPilots = registrations.filter(reg =>
                     reg.categories.some((rc: any) => rc.category.id === category.id)
                   );
-                  const confirmedPilots = categoryPilots.filter(reg =>
+                  const filteredPilots = filterPilots(categoryPilots);
+                  const confirmedPilots = filteredPilots.filter(reg =>
                     stageParticipations.some(
                       (part) => part.userId === reg.userId && part.categoryId === category.id && part.status === 'confirmed'
                     )
                   );
+                  
+                  // Ocultar categoria se não há pilotos filtrados
+                  if (searchQuery && filteredPilots.length === 0) {
+                    return null;
+                  }
                   
                   return (
                     <div key={category.id} className="border border-gray-200 rounded-lg">
@@ -1092,54 +1131,63 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                       
                       <div className="p-4">
                         <div className="space-y-3">
-                          {categoryPilots
-                            .sort((a, b) => {
-                              return (
-                                (a.user?.name || a.userId).localeCompare(b.user?.name || b.userId)
-                              );
-                            })
-                            .map((pilot) => {
-                              const isConfirmed = confirmedPilots.some(p => p.userId === pilot.userId);
-                              const isLoading = !!pilotLoading[pilot.userId + '-' + category.id];
-                              
-                              return (
-                                <div key={pilot.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
-                                  <div className="flex items-center space-x-3">
-                                    <span className="text-sm font-medium text-gray-900">
-                                      {formatName(pilot.user?.name || pilot.userId)}
-                                    </span>
-                                    {isConfirmed && (
-                                      <Badge variant="secondary" className="bg-green-100 text-green-800">
-                                        Confirmado
-                                      </Badge>
-                                    )}
+                          {filteredPilots.length > 0 ? (
+                            filteredPilots
+                              .sort((a, b) => {
+                                return (
+                                  (a.user?.name || a.userId).localeCompare(b.user?.name || b.userId)
+                                );
+                              })
+                              .map((pilot) => {
+                                const isConfirmed = confirmedPilots.some(p => p.userId === pilot.userId);
+                                const isLoading = !!pilotLoading[pilot.userId + '-' + category.id];
+                                
+                                return (
+                                  <div key={pilot.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
+                                    <div className="flex items-center space-x-3">
+                                      <span className="text-sm font-medium text-gray-900">
+                                        {formatName(pilot.user?.name || pilot.userId)}
+                                      </span>
+                                      {isConfirmed && (
+                                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                          Confirmado
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <button
+                                            onClick={() => handleToggleConfirm(pilot, category.id, isConfirmed)}
+                                            className="flex items-center space-x-1"
+                                            disabled={isLoading}
+                                          >
+                                            {isLoading ? (
+                                              <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                                            ) : isConfirmed ? (
+                                              <CheckCircle className="w-4 h-4 text-green-600" />
+                                            ) : (
+                                              <Circle className="w-4 h-4 text-gray-400" />
+                                            )}
+                                          </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          {isConfirmed ? 'Cancelar participação' : 'Confirmar participação'}
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
                                   </div>
-                                  
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <button
-                                          onClick={() => handleToggleConfirm(pilot, category.id, isConfirmed)}
-                                          className="flex items-center space-x-1"
-                                          disabled={isLoading}
-                                        >
-                                          {isLoading ? (
-                                            <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-                                          ) : isConfirmed ? (
-                                            <CheckCircle className="w-4 h-4 text-green-600" />
-                                          ) : (
-                                            <Circle className="w-4 h-4 text-gray-400" />
-                                          )}
-                                        </button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        {isConfirmed ? 'Cancelar participação' : 'Confirmar participação'}
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                </div>
-                              );
-                            })}
+                                );
+                              })
+                          ) : (
+                            <div className="text-sm text-gray-500 text-center py-2">
+                              {searchQuery ? 
+                                'Nenhum piloto encontrado para a pesquisa' : 
+                                'Nenhum piloto nesta categoria'
+                              }
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1232,6 +1280,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   useEffect(() => {
     setSelectedBatteryIndex(0);
   }, [selectedOverviewCategory]);
+
+
 
   // Carregar resultados da etapa
   const loadStageResults = async () => {
@@ -1436,6 +1486,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       setSortDirection('asc');
     }
   };
+
+
 
 
 
@@ -1745,7 +1797,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                                 })
                         ) : (
                           <div className="text-sm text-gray-500 text-center py-2">
-                            Nenhum piloto confirmado nesta categoria
+                            'Nenhum piloto confirmado nesta categoria'
                           </div>
                         )}
                       </div>
