@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "brk-design-system";
 import { Button, Badge } from "brk-design-system";
-import { ChevronDown, MoreHorizontal, CheckCircle, XCircle, Loader2, ChevronRight, Plus, Minus, GripVertical, Edit, Copy, Trash2, Circle, X, Share2, Search, Upload } from "lucide-react";
+import { ChevronDown, MoreHorizontal, CheckCircle, XCircle, Loader2, ChevronRight, Plus, Minus, GripVertical, Edit, Copy, Trash2, Circle, X, Share2, Search, Upload, BarChart3 } from "lucide-react";
 import { CategoryService, Category } from '@/lib/services/category.service';
 import { SeasonRegistrationService, SeasonRegistration } from '@/lib/services/season-registration.service';
 import { Loading } from '@/components/ui/loading';
@@ -225,6 +225,26 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   const [showLapTimesChart, setShowLapTimesChart] = useState(false);
   const [selectedPilotsForChart, setSelectedPilotsForChart] = useState<string[]>([]);
   const [lapTimesLoading, setLapTimesLoading] = useState(false);
+
+  // Cores fixas para cada piloto baseado no userId
+  const getPilotColor = (userId: string): string => {
+    const colors = [
+      '#f97316', '#3b82f6', '#ef4444', '#22c55e', '#a855f7', 
+      '#f59e0b', '#06b6d4', '#84cc16', '#ec4899', '#6366f1',
+      '#8b5cf6', '#f43f5e', '#10b981', '#f59e0b', '#3b82f6',
+      '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#ec4899'
+    ];
+    
+    // Criar um hash simples do userId para garantir consistência
+    let hash = 0;
+    for (let i = 0; i < userId.length; i++) {
+      const char = userId.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    
+    return colors[Math.abs(hash) % colors.length];
+  };
 
 
   // Função para alternar a visibilidade do formulário de adicionar item
@@ -2421,40 +2441,36 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                     <div className="text-sm text-gray-600">Pilotos confirmados para a etapa</div>
                   </div>
                   {selectedOverviewCategory && (
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="rounded-full px-3 h-8 text-xs font-semibold"
-                        onClick={() => {
-                          loadLapTimes(selectedOverviewCategory);
-                          setShowLapTimesChart(true);
-                        }}
-                      >
-                        📊 Gráfico Volta a Volta
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" className="rounded-full px-3 h-8 text-xs font-semibold">
-                            <Upload className="w-4 h-4 mr-1" /> Importar
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openImportModal('qualification')}>
-                            <Upload className="w-4 h-4 mr-2" />
-                            Importar Classificação
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openImportModal('race')}>
-                            <Upload className="w-4 h-4 mr-2" />
-                            Importar Corrida
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openImportModal('lapTimes')}>
-                            <Upload className="w-4 h-4 mr-2" />
-                            Importar Volta a Volta
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="rounded-full px-3 h-8 text-xs font-semibold">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openImportModal('qualification')}>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Importar Classificação
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openImportModal('race')}>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Importar Corrida
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openImportModal('lapTimes')}>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Importar Volta a Volta
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            loadLapTimes(selectedOverviewCategory);
+                            setShowLapTimesChart(true);
+                          }}
+                        >
+                          <BarChart3 className="w-4 h-4 mr-2" />
+                          Gráfico Volta a Volta
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
                 </div>
               </div>
@@ -3030,171 +3046,266 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
 
     {/* Modal de Gráfico Volta a Volta */}
     {showLapTimesChart && selectedOverviewCategory && createPortal(
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
         {/* Backdrop */}
         <div 
-          className="absolute inset-0 bg-black bg-opacity-50"
-          onClick={() => setShowLapTimesChart(false)}
+          className="absolute inset-0 bg-black bg-opacity-60"
         />
         
-        {/* Modal Content */}
-        <div className="relative bg-white rounded-lg shadow-xl max-w-6xl max-h-[90vh] w-full mx-4 overflow-hidden flex flex-col z-10">
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">
-                Gráfico Volta a Volta
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                {categories.find(cat => cat.id === selectedOverviewCategory)?.name} - Bateria {selectedBatteryIndex + 1}
-              </p>
+        {/* Modal Content - Maximized */}
+        <div className="relative bg-white rounded-xl shadow-2xl w-full h-full max-w-[98vw] max-h-[98vh] overflow-hidden flex flex-col z-10">
+          {/* Header - Compact */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
+            <div className="flex items-center gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  📊 Gráfico Volta a Volta
+                </h2>
+                <p className="text-xs text-gray-600">
+                  {categories.find(cat => cat.id === selectedOverviewCategory)?.name} - Bateria {selectedBatteryIndex + 1}
+                </p>
+              </div>
+              
+              {/* Quick Stats */}
+              {lapTimes[selectedOverviewCategory] && lapTimes[selectedOverviewCategory].length > 0 && (
+                <div className="hidden md:flex items-center gap-4 text-xs text-gray-600">
+                  <span>
+                    {lapTimes[selectedOverviewCategory]
+                      .filter(lt => lt.batteryIndex === selectedBatteryIndex).length} pilotos
+                  </span>
+                  <span>|</span>
+                  <span>
+                    {selectedPilotsForChart.length} selecionados
+                  </span>
+                </div>
+              )}
             </div>
+            
             <button
               onClick={() => setShowLapTimesChart(false)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-200 rounded-lg"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
           </div>
           
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          {/* Content - Split Layout */}
+          <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
             {lapTimesLoading ? (
-              <div className="flex items-center justify-center h-64">
+              <div className="flex items-center justify-center h-full">
                 <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
                 <span className="ml-2 text-gray-600">Carregando tempos volta a volta...</span>
               </div>
             ) : lapTimes[selectedOverviewCategory] && lapTimes[selectedOverviewCategory].length > 0 ? (
               <>
-                {/* Seleção de pilotos */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Selecionar Pilotos</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                {/* Sidebar - Pilot Selection */}
+                <div className="lg:w-80 xl:w-96 border-b lg:border-b-0 lg:border-r border-gray-200 bg-gray-50 flex flex-col">
+                  <div className="p-4 border-b border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      👥 Selecionar Pilotos
+                      <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
+                        {selectedPilotsForChart.length}
+                      </span>
+                    </h3>
+                    
+                    {/* Quick Actions */}
+                    <div className="flex gap-2 mb-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 text-xs h-8"
+                        onClick={() => {
+                          const allPilotIds = lapTimes[selectedOverviewCategory]
+                            .filter(lapTime => lapTime.batteryIndex === selectedBatteryIndex)
+                            .map(lapTime => lapTime.userId);
+                          setSelectedPilotsForChart(allPilotIds);
+                        }}
+                      >
+                        ✓ Todos
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 text-xs h-8"
+                        onClick={() => setSelectedPilotsForChart([])}
+                      >
+                        ✗ Limpar
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Pilots List - Scrollable */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-2">
                     {lapTimes[selectedOverviewCategory]
                       .filter(lapTime => lapTime.batteryIndex === selectedBatteryIndex)
-                      .map((lapTime) => (
-                        <label key={lapTime.userId} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedPilotsForChart.includes(lapTime.userId)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedPilotsForChart(prev => [...prev, lapTime.userId]);
-                              } else {
-                                setSelectedPilotsForChart(prev => prev.filter(id => id !== lapTime.userId));
-                              }
-                            }}
-                            className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                          />
-                          <span className="text-sm">
-                            {lapTime.user?.name || `Piloto ${lapTime.userId}`} (Kart {lapTime.kartNumber})
-                          </span>
-                        </label>
-                      ))}
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const allPilotIds = lapTimes[selectedOverviewCategory]
-                          .filter(lapTime => lapTime.batteryIndex === selectedBatteryIndex)
-                          .map(lapTime => lapTime.userId);
-                        setSelectedPilotsForChart(allPilotIds);
-                      }}
-                    >
-                      Selecionar Todos
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedPilotsForChart([])}
-                    >
-                      Limpar Seleção
-                    </Button>
+                      .sort((a, b) => a.kartNumber - b.kartNumber)
+                                             .map((lapTime, index) => {
+                         const isSelected = selectedPilotsForChart.includes(lapTime.userId);
+                         const pilotColor = getPilotColor(lapTime.userId);
+                        
+                        return (
+                          <label 
+                            key={lapTime.userId} 
+                            className={`flex items-center p-3 rounded-lg cursor-pointer transition-all hover:bg-white border ${
+                              isSelected 
+                                ? 'bg-white border-orange-200 shadow-sm' 
+                                : 'bg-gray-100 border-transparent hover:border-gray-200'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedPilotsForChart(prev => [...prev, lapTime.userId]);
+                                } else {
+                                  setSelectedPilotsForChart(prev => prev.filter(id => id !== lapTime.userId));
+                                }
+                              }}
+                              className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 mr-3"
+                            />
+                            
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              {isSelected && (
+                                <div 
+                                  className="w-3 h-3 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: pilotColor }}
+                                />
+                              )}
+                              
+                              <div className="flex-1 min-w-0">
+                                                                 <div className="font-medium text-sm text-gray-900 truncate">
+                                   {lapTime.user?.name ? formatName(lapTime.user.name) : `Piloto ${lapTime.userId}`}
+                                 </div>
+                                <div className="text-xs text-gray-500 flex items-center gap-2">
+                                  <span>Kart {lapTime.kartNumber}</span>
+                                  <span>•</span>
+                                  <span>{lapTime.lapTimes.length} voltas</span>
+                                  {lapTime.lapTimes.length > 0 && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="font-mono">
+                                        {LapTimesService.getBestLapTime(lapTime.lapTimes)?.time}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })}
                   </div>
                 </div>
 
-                {/* Gráfico */}
-                {selectedPilotsForChart.length > 0 && (
-                  <div className="h-96">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="lap" 
-                          type="number"
-                          domain={['dataMin', 'dataMax']}
-                          label={{ value: 'Volta', position: 'insideBottom', offset: -5 }}
-                        />
-                        <YAxis 
-                          domain={['dataMin - 1000', 'dataMax + 1000']}
-                          tickFormatter={(value) => LapTimesService.formatMsToTime(value)}
-                          label={{ value: 'Tempo', angle: -90, position: 'insideLeft' }}
-                        />
-                        <RechartsTooltip 
-                          formatter={(value: any) => [LapTimesService.formatMsToTime(value), 'Tempo']}
-                          labelFormatter={(label) => `Volta ${label}`}
-                        />
-                        <Legend />
-                        {selectedPilotsForChart.map((pilotId, index) => {
-                          const lapTime = lapTimes[selectedOverviewCategory]?.find(
-                            lt => lt.userId === pilotId && lt.batteryIndex === selectedBatteryIndex
-                          );
-                          if (!lapTime) return null;
+                {/* Main Chart Area */}
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {selectedPilotsForChart.length > 0 ? (
+                    <div className="flex-1 p-4">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                          <XAxis 
+                            dataKey="lap" 
+                            type="number"
+                            domain={['dataMin', 'dataMax']}
+                            label={{ value: 'Volta', position: 'insideBottom', offset: -5 }}
+                            tick={{ fontSize: 12 }}
+                          />
+                          <YAxis 
+                            domain={['dataMin - 1000', 'dataMax + 1000']}
+                            tickFormatter={(value) => LapTimesService.formatMsToTime(value)}
+                            label={{ value: 'Tempo', angle: -90, position: 'insideLeft' }}
+                            tick={{ fontSize: 12 }}
+                            width={80}
+                          />
+                          <RechartsTooltip 
+                            formatter={(value: any) => [LapTimesService.formatMsToTime(value), 'Tempo']}
+                            labelFormatter={(label) => `Volta ${label}`}
+                            contentStyle={{
+                              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '8px',
+                              fontSize: '12px'
+                            }}
+                          />
+                          {selectedPilotsForChart.map((pilotId) => {
+                            const lapTime = lapTimes[selectedOverviewCategory]?.find(
+                              lt => lt.userId === pilotId && lt.batteryIndex === selectedBatteryIndex
+                            );
+                            if (!lapTime) return null;
 
-                          const data = lapTime.lapTimes.map(lt => ({
-                            lap: lt.lap,
-                            timeMs: lt.timeMs,
-                            time: lt.time
-                          }));
+                            const data = lapTime.lapTimes.map(lt => ({
+                              lap: lt.lap,
+                              timeMs: lt.timeMs,
+                              time: lt.time
+                            }));
 
-                          const colors = [
-                            '#f97316', '#3b82f6', '#ef4444', '#22c55e', '#a855f7', 
-                            '#f59e0b', '#06b6d4', '#84cc16', '#ec4899', '#6366f1'
-                          ];
+                            const pilotColor = getPilotColor(pilotId);
 
-                          return (
-                            <Line
-                              key={pilotId}
-                              type="monotone"
-                              dataKey="timeMs"
-                              data={data}
-                              stroke={colors[index % colors.length]}
-                              strokeWidth={2}
-                              dot={{ r: 4 }}
-                              name={`${lapTime.user?.name || `Piloto ${pilotId}`} (Kart ${lapTime.kartNumber})`}
-                            />
-                          );
-                        })}
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-
-                {selectedPilotsForChart.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    Selecione os pilotos para visualizar o gráfico
-                  </div>
-                )}
+                            return (
+                              <Line
+                                key={pilotId}
+                                type="monotone"
+                                dataKey="timeMs"
+                                data={data}
+                                stroke={pilotColor}
+                                strokeWidth={2.5}
+                                dot={{ r: 4, strokeWidth: 2 }}
+                                activeDot={{ r: 6, strokeWidth: 2 }}
+                                name={`${lapTime.user?.name ? formatName(lapTime.user.name) : `Piloto ${pilotId}`} (Kart ${lapTime.kartNumber})`}
+                              />
+                            );
+                          })}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center text-gray-500">
+                      <div className="text-center">
+                        <div className="text-4xl mb-4">📊</div>
+                        <div className="text-lg font-medium mb-2">Selecione os pilotos</div>
+                        <div className="text-sm">Escolha os pilotos na lateral para visualizar o gráfico</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                Nenhum tempo volta a volta encontrado para esta categoria e bateria.
-                <br />
-                Importe os dados usando o botão "Importar Volta a Volta".
+              <div className="flex-1 flex items-center justify-center text-gray-500">
+                <div className="text-center">
+                  <div className="text-4xl mb-4">⏱️</div>
+                  <div className="text-lg font-medium mb-2">Nenhum tempo volta a volta encontrado</div>
+                  <div className="text-sm">
+                    Para esta categoria e bateria.
+                    <br />
+                    Importe os dados usando o botão "Importar Volta a Volta".
+                  </div>
+                </div>
               </div>
             )}
           </div>
           
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowLapTimesChart(false)}
-            >
-              Fechar
-            </Button>
+          {/* Footer - Compact with Stats */}
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
+            <div className="flex items-center gap-4 text-xs text-gray-600">
+              {selectedPilotsForChart.length > 0 && lapTimes[selectedOverviewCategory] && (
+                <>
+                  <span>
+                    {selectedPilotsForChart.length} pilotos selecionados
+                  </span>
+                  <span>•</span>
+                  <span>
+                    {Math.max(...selectedPilotsForChart.map(pilotId => {
+                      const lapTime = lapTimes[selectedOverviewCategory]?.find(
+                        lt => lt.userId === pilotId && lt.batteryIndex === selectedBatteryIndex
+                      );
+                      return lapTime?.lapTimes.length || 0;
+                    }))} voltas máximo
+                  </span>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>,
