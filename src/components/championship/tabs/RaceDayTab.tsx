@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "brk-design-system";
 import { Button, Badge } from "brk-design-system";
-import { ChevronDown, MoreHorizontal, CheckCircle, XCircle, Loader2, ChevronRight, Plus, Minus, GripVertical, Edit, Copy, Trash2, Circle, X, Share2, Search } from "lucide-react";
+import { ChevronDown, MoreHorizontal, CheckCircle, XCircle, Loader2, ChevronRight, Plus, Minus, GripVertical, Edit, Copy, Trash2, Circle, X, Share2, Search, Upload } from "lucide-react";
 import { CategoryService, Category } from '@/lib/services/category.service';
 import { SeasonRegistrationService, SeasonRegistration } from '@/lib/services/season-registration.service';
 import { Loading } from '@/components/ui/loading';
@@ -46,6 +46,7 @@ import {
 } from 'brk-design-system';
 import { createPortal } from "react-dom";
 import { RaceTrackService } from '@/lib/services/race-track.service';
+import * as XLSX from 'xlsx';
 
 interface Stage {
   id: string;
@@ -210,6 +211,12 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   // Estado para ordenação da tabela
   const [sortColumn, setSortColumn] = useState<string>('piloto');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  
+  // Estados para importação
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importType, setImportType] = useState<'race' | 'qualification'>('race');
 
 
   // Função para alternar a visibilidade do formulário de adicionar item
@@ -377,6 +384,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     setNewItemTime('');
     // Fechar modal de sorteio quando mudar de etapa
     setShowFleetDrawModal(false);
+    // Fechar modal de importação quando mudar de etapa
+    setShowImportModal(false);
     // Não resetar fleetDrawResults e categoryFleetAssignments aqui
     // Eles serão carregados pelo useEffect específico
   }, [selectedStageId]);
@@ -1305,6 +1314,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   // Atualizar selectedBatteryIndex ao trocar de categoria
   useEffect(() => {
     setSelectedBatteryIndex(0);
+    // Fechar modal de importação quando mudar de categoria
+    setShowImportModal(false);
   }, [selectedOverviewCategory]);
 
 
@@ -1510,6 +1521,152 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     } else {
       setSortColumn(col);
       setSortDirection('asc');
+    }
+  };
+
+  // Funções para importação
+  const openImportModal = (type: 'race' | 'qualification') => {
+    setImportType(type);
+    setShowImportModal(true);
+    setImportFile(null);
+  };
+
+  const closeImportModal = () => {
+    setShowImportModal(false);
+    setImportFile(null);
+    setImportLoading(false);
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setImportFile(file);
+    }
+  };
+
+  const processImportFile = async () => {
+    if (!importFile || !selectedOverviewCategory) return;
+    
+    // Verificar se há resultados de sorteio para a categoria
+    const categoryResults = fleetDrawResults[selectedOverviewCategory];
+    if (!categoryResults || Object.keys(categoryResults).length === 0) {
+      toast.error('É necessário realizar o sorteio de karts antes de importar os resultados.');
+      return;
+    }
+    
+    setImportLoading(true);
+    
+    try {
+      const buffer = await importFile.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      
+      // Processar os dados do arquivo Excel
+      const results: any = {};
+      
+      // Buscar pelo cabeçalho (linha que contém "POS" e "#")
+      let headerRow = -1;
+      let positionColumn = -1;
+      let kartColumn = -1;
+      
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i] as any[];
+        for (let j = 0; j < row.length; j++) {
+          const cell = String(row[j] || '').trim().toLowerCase();
+          if (cell === 'pos' || cell === 'posição') {
+            headerRow = i;
+            positionColumn = j;
+          }
+          if (cell === '#' || cell === 'kart') {
+            kartColumn = j;
+          }
+        }
+        if (headerRow >= 0 && positionColumn >= 0 && kartColumn >= 0) {
+          break;
+        }
+      }
+      
+      if (headerRow === -1 || positionColumn === -1 || kartColumn === -1) {
+        toast.error('Não foi possível encontrar as colunas POS e # no arquivo');
+        return;
+      }
+      
+      // Processar as linhas de dados (começando após o cabeçalho)
+      let processedCount = 0;
+      let ncCount = 0; // Contador de pilotos que não completaram
+      const notFoundKarts: number[] = [];
+      
+      for (let i = headerRow + 1; i < data.length; i++) {
+        const row = data[i] as any[];
+        if (!row[positionColumn] || !row[kartColumn]) continue;
+        
+        const positionValue = String(row[positionColumn]).trim().toUpperCase();
+        const kartNumber = Number(row[kartColumn]);
+        
+        // Validar se o kart é um número válido
+        if (isNaN(kartNumber)) continue;
+        
+        // Encontrar o piloto que tem este kart sorteado
+        const categoryResults = fleetDrawResults[selectedOverviewCategory];
+        if (!categoryResults) continue;
+        
+        let pilotFound = false;
+        for (const [pilotId, batteryResults] of Object.entries(categoryResults)) {
+          const pilotBatteryData = batteryResults[selectedBatteryIndex];
+          if (pilotBatteryData && pilotBatteryData.kart === kartNumber) {
+            const fieldToUpdate = importType === 'race' ? 'finishPosition' : 'startPosition';
+            
+            // Verificar se é NC (Não Completou)
+            if (positionValue === 'NC') {
+              // Limpar a posição (definir como null/undefined)
+              updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, fieldToUpdate, null);
+              ncCount++;
+            } else {
+              // Tentar converter para número
+              const position = Number(positionValue);
+              if (!isNaN(position)) {
+                updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, fieldToUpdate, position);
+                processedCount++;
+              }
+            }
+            pilotFound = true;
+            break;
+          }
+        }
+        
+        if (!pilotFound) {
+          notFoundKarts.push(kartNumber);
+        }
+      }
+      
+      // Feedback detalhado
+      if (processedCount > 0 || ncCount > 0) {
+        let message = '';
+        if (processedCount > 0) {
+          message += `${processedCount} ${importType === 'race' ? 'posições de corrida' : 'posições de classificação'} importadas`;
+        }
+        if (ncCount > 0) {
+          if (message) message += ' • ';
+          message += `${ncCount} pilotos marcados como NC (não completaram)`;
+        }
+        toast.success(message);
+      }
+      
+      if (notFoundKarts.length > 0) {
+        toast.warning(`Karts não encontrados no sorteio: ${notFoundKarts.join(', ')}`);
+      }
+      
+      if (processedCount === 0 && ncCount === 0) {
+        toast.error('Nenhum resultado foi importado. Verifique se o arquivo está no formato correto.');
+      }
+      closeImportModal();
+      
+    } catch (error) {
+      console.error('Erro ao processar arquivo:', error);
+      toast.error('Erro ao processar o arquivo. Verifique se o formato está correto.');
+    } finally {
+      setImportLoading(false);
     }
   };
 
@@ -2160,21 +2317,25 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                     </div>
                     <div className="text-sm text-gray-600">Pilotos confirmados para a etapa</div>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="rounded-full px-3 h-8 text-xs font-semibold w-full lg:w-auto">
-                        <ChevronDown className="w-4 h-4 mr-1" /> Importar
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => console.log('Importar classificação')}>
-                        Importar Classificação
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => console.log('Importar corrida')}>
-                        Importar Corrida
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {selectedOverviewCategory && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="rounded-full px-3 h-8 text-xs font-semibold w-full lg:w-auto">
+                          <Upload className="w-4 h-4 mr-1" /> Importar
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openImportModal('qualification')}>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Importar Classificação
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openImportModal('race')}>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Importar Corrida
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
               </div>
               <div className="mb-6">
@@ -2631,6 +2792,105 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
               onClick={closePositionSelectionModal}
             >
               Cancelar
+            </Button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+
+    {/* Modal de Importação */}
+    {showImportModal && createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black bg-opacity-50"
+          onClick={closeImportModal}
+        />
+        
+        {/* Modal Content */}
+        <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden flex flex-col z-10">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Importar {importType === 'race' ? 'Corrida' : 'Classificação'}
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Selecione o arquivo Excel com os resultados.
+              </p>
+            </div>
+            <button
+              onClick={closeImportModal}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          {/* Content */}
+          <div className="flex-1 p-6">
+            <div className="space-y-4">
+              {/* Informações do formato */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-blue-900 mb-2">
+                  Formato do arquivo Excel:
+                </h3>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Cabeçalho com coluna <strong>POS</strong> (posição)</li>
+                  <li>• Cabeçalho com coluna <strong>#</strong> (número do kart)</li>
+                  <li>• Dados numéricos nas colunas POS e #</li>
+                  <li>• Use <strong>NC</strong> para pilotos que não completaram</li>
+                  <li>• Arquivo de exemplo: <code>exemplo-importacao-corrida.xlsx</code></li>
+                </ul>
+              </div>
+              
+              {/* Upload de arquivo */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Selecionar arquivo Excel
+                </label>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileSelect}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+              
+              {/* Arquivo selecionado */}
+              {importFile && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-sm text-green-800">
+                    <strong>Arquivo selecionado:</strong> {importFile.name}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+            <Button 
+              variant="outline" 
+              onClick={closeImportModal}
+              disabled={importLoading}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={processImportFile}
+              disabled={!importFile || importLoading}
+              className="bg-orange-500 hover:bg-orange-600 text-black"
+            >
+              {importLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Importando...
+                </>
+              ) : (
+                'Importar'
+              )}
             </Button>
           </div>
         </div>
