@@ -9,6 +9,9 @@ export interface Category {
   maxPilots: number;
   batteriesConfig: BatteriesConfig;
   minimumAge: number;
+  allowDiscarding: boolean;
+  discardingType?: 'bateria' | 'etapa';
+  discardingQuantity?: number;
   seasonId: string;
   createdAt: string;
   updatedAt: string;
@@ -20,6 +23,9 @@ export interface CategoryData {
   maxPilots: number;
   batteriesConfig: BatteriesConfig;
   minimumAge: number;
+  allowDiscarding: boolean;
+  discardingType?: 'bateria' | 'etapa';
+  discardingQuantity?: number;
   seasonId: string;
 }
 

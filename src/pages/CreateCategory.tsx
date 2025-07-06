@@ -155,15 +155,55 @@ export const CreateCategory = () => {
           },
         ],
       },
+      {
+        section: "Configuração de Descarte",
+        detail: "Configure se a categoria permite descarte de resultados",
+        fields: [
+          {
+            id: "allowDiscarding",
+            name: "Permitir descarte de resultados",
+            type: "checkbox",
+          },
+          {
+            id: "discardingType",
+            name: "Tipo de descarte",
+            type: "select",
+            conditionalField: {
+              dependsOn: 'allowDiscarding',
+              showWhen: (value: boolean) => value === true
+            },
+            options: [
+              { value: "bateria", description: "Bateria" },
+              { value: "etapa", description: "Etapa" },
+            ],
+          },
+          {
+            id: "discardingQuantity",
+            name: "Quantidade a descartar",
+            type: "inputMask",
+            mask: "number",
+            min_value: 1,
+            max_value: 999,
+            placeholder: "Ex: 1",
+            conditionalField: {
+              dependsOn: 'allowDiscarding',
+              showWhen: (value: boolean) => value === true
+            },
+          },
+        ],
+      },
     ];
     setFormConfig(config);
   }, [seasons, gridTypes, scoringSystems]);
 
-  const transformInitialData = useCallback((data: CategoryData) => ({
+  const transformInitialData = useCallback((data: any) => ({
     ...data,
     ballast: data.ballast.toString(),
     maxPilots: data.maxPilots.toString(),
     minimumAge: data.minimumAge.toString(),
+    allowDiscarding: Boolean(data.allowDiscarding),
+    discardingType: data.discardingType || "",
+    discardingQuantity: data.discardingQuantity ? data.discardingQuantity.toString() : "",
   }), []);
   
   const transformSubmitData = useCallback((data: any): CategoryData => {
@@ -177,6 +217,9 @@ export const CreateCategory = () => {
       ballast: parseInt(data.ballast, 10),
       maxPilots: parseInt(data.maxPilots, 10),
       minimumAge: parseInt(data.minimumAge, 10),
+      allowDiscarding: Boolean(data.allowDiscarding),
+      discardingType: data.allowDiscarding ? data.discardingType : undefined,
+      discardingQuantity: data.allowDiscarding && data.discardingQuantity ? parseInt(data.discardingQuantity, 10) : undefined,
       championshipId: championshipId!,
     }
   }, [championshipId, allSeasons]);
@@ -213,6 +256,9 @@ export const CreateCategory = () => {
         minimumAge: "",
         seasonId: "",
         batteriesConfig: [],
+        allowDiscarding: false,
+        discardingType: "",
+        discardingQuantity: "",
       }}
       successMessage={isEditMode ? "Categoria atualizada com sucesso!" : "Categoria criada com sucesso!"}
       errorMessage={isEditMode ? "Erro ao atualizar categoria." : "Erro ao criar categoria."}
