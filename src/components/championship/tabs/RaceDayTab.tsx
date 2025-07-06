@@ -1529,12 +1529,20 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
         const peso = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.weight;
         const start = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.startPosition || 0;
         const finish = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition || 0;
+        const bestLap = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.bestLap;
         const nome = formatName(pilot.user?.name || pilot.userId);
         switch (col) {
           case 'kart': return kart;
           case 'peso': return peso === false ? 0 : 1;
           case 'classificacao': return start;
           case 'corrida': return finish;
+          case 'bestLap': 
+            if (!bestLap) return 999999; // Coloca pilotos sem tempo no final
+            // Converter tempo para milissegundos para comparação
+            const [minutes, seconds] = bestLap.includes(':') 
+              ? bestLap.split(':') 
+              : ['0', bestLap];
+            return parseFloat(minutes) * 60000 + parseFloat(seconds) * 1000;
           case 'piloto': return nome;
           default: return nome;
         }
@@ -1665,6 +1673,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
         // Processar arquivo de corrida/classificação com múltiplas sheets
         let totalProcessedCount = 0;
         let totalNcCount = 0;
+        let totalBestLapCount = 0;
         const allNotFoundKarts: number[] = [];
         
         // Processar todas as sheets
@@ -1672,10 +1681,11 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           const worksheet = workbook.Sheets[sheetName];
           const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
           
-          // Buscar pelo cabeçalho (linha que contém "POS" e "#")
+          // Buscar pelo cabeçalho (linha que contém "POS", "#" e melhor volta)
           let headerRow = -1;
           let positionColumn = -1;
           let kartColumn = -1;
+          let bestLapColumn = -1;
           
           for (let i = 0; i < data.length; i++) {
             const row = data[i] as any[];
@@ -1688,6 +1698,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
               if (cell === '#' || cell === 'kart') {
                 kartColumn = j;
               }
+              // Procurar pela coluna TMV (Tempo Melhor Volta)
+              if (cell === 'tmv' || cell === 'tempo melhor volta' || cell === 'melhor volta') {
+                bestLapColumn = j;
+              }
             }
             if (headerRow >= 0 && positionColumn >= 0 && kartColumn >= 0) {
               break;
@@ -1699,9 +1713,17 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
             continue;
           }
           
+          // Log para debug das colunas encontradas
+          console.log(`Sheet "${sheetName}": POS=${positionColumn}, #=${kartColumn}, TMV=${bestLapColumn}`);
+          
+          if (bestLapColumn === -1) {
+            console.log(`Sheet "${sheetName}": Coluna TMV não encontrada - melhores voltas não serão importadas`);
+          }
+          
           // Processar as linhas de dados (começando após o cabeçalho)
           let processedCount = 0;
           let ncCount = 0;
+          let bestLapCount = 0;
           const notFoundKarts: number[] = [];
           
           for (let i = headerRow + 1; i < data.length; i++) {
@@ -1710,6 +1732,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
             
             const positionValue = String(row[positionColumn]).trim().toUpperCase();
             const kartNumber = Number(row[kartColumn]);
+            const bestLapValue = bestLapColumn >= 0 ? String(row[bestLapColumn] || '').trim() : '';
             
             // Validar se o kart é um número válido
             if (isNaN(kartNumber)) continue;
@@ -1737,6 +1760,22 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                     processedCount++;
                   }
                 }
+                
+                // Processar melhor volta se disponível
+                if (bestLapColumn >= 0 && bestLapValue && importType === 'race' && bestLapValue !== 'NC') {
+                  // Validar formato de tempo (exemplo: 47.123, 1:23.456, 47,123)
+                  const timePattern = /^(\d{1,2}:)?\d{1,2}[.,]\d{1,3}$/;
+                  if (timePattern.test(bestLapValue)) {
+                    // Normalizar formato (trocar vírgula por ponto se necessário)
+                    const normalizedTime = bestLapValue.replace(',', '.');
+                    updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'bestLap', normalizedTime);
+                    bestLapCount++;
+                    console.log(`Melhor volta importada: Kart ${kartNumber} - ${normalizedTime}`);
+                  } else {
+                    console.log(`Formato de tempo inválido ignorado: Kart ${kartNumber} - "${bestLapValue}"`);
+                  }
+                }
+                
                 pilotFound = true;
                 break;
               }
@@ -1750,15 +1789,16 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           // Acumular totais
           totalProcessedCount += processedCount;
           totalNcCount += ncCount;
+          totalBestLapCount += bestLapCount;
           allNotFoundKarts.push(...notFoundKarts);
           
-          if (processedCount > 0 || ncCount > 0) {
-            console.log(`Sheet "${sheetName}": ${processedCount} posições importadas, ${ncCount} NC`);
+          if (processedCount > 0 || ncCount > 0 || bestLapCount > 0) {
+            console.log(`Sheet "${sheetName}": ${processedCount} posições importadas, ${ncCount} NC, ${bestLapCount} melhores voltas`);
           }
         }
         
         // Feedback detalhado final
-        if (totalProcessedCount > 0 || totalNcCount > 0) {
+        if (totalProcessedCount > 0 || totalNcCount > 0 || totalBestLapCount > 0) {
           let message = '';
           if (totalProcessedCount > 0) {
             message += `${totalProcessedCount} ${importType === 'race' ? 'posições de corrida' : 'posições de classificação'} importadas`;
@@ -1766,6 +1806,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           if (totalNcCount > 0) {
             if (message) message += ' • ';
             message += `${totalNcCount} pilotos marcados como NC (não completaram)`;
+          }
+          if (totalBestLapCount > 0) {
+            if (message) message += ' • ';
+            message += `${totalBestLapCount} melhores voltas importadas`;
           }
           if (workbook.SheetNames.length > 1) {
             message += ` (processadas ${workbook.SheetNames.length} sheets)`;
@@ -1778,7 +1822,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           toast.warning(`Karts não encontrados no sorteio: ${uniqueNotFoundKarts.join(', ')}`);
         }
         
-        if (totalProcessedCount === 0 && totalNcCount === 0) {
+        if (totalProcessedCount === 0 && totalNcCount === 0 && totalBestLapCount === 0) {
           toast.error('Nenhum resultado foi importado. Verifique se o arquivo está no formato correto.');
         }
       }
@@ -2547,6 +2591,49 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                               </button>
                             </div>
                           </div>
+                          
+                          {/* Terceira linha: Melhor Volta */}
+                          <div className="grid grid-cols-1 gap-3 mt-3">
+                            <div className="flex flex-col">
+                              <span className="text-xs text-gray-500 mb-1">Melhor Volta</span>
+                              <div className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 min-h-[49px] flex items-center justify-center">
+                                {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.bestLap ? (
+                                  <div className="flex items-center gap-2">
+                                    <span>{stageResults[category.id][pilot.userId][selectedBatteryIndex].bestLap}</span>
+                                    {(() => {
+                                      // Verificar se é a melhor volta da categoria
+                                      const categoryResults = stageResults[category.id] || {};
+                                      const allBestLaps = Object.values(categoryResults).map((pilotData: any) => 
+                                        pilotData?.[selectedBatteryIndex]?.bestLap
+                                      ).filter(Boolean);
+                                      
+                                      if (allBestLaps.length === 0) return null;
+                                      
+                                      // Converter tempos para comparação
+                                      const convertTimeToMs = (time: string) => {
+                                        const [minutes, seconds] = time.includes(':') 
+                                          ? time.split(':') 
+                                          : ['0', time];
+                                        return parseFloat(minutes) * 60000 + parseFloat(seconds) * 1000;
+                                      };
+                                      
+                                      const currentTime = stageResults[category.id][pilot.userId][selectedBatteryIndex].bestLap;
+                                      const bestTime = allBestLaps.reduce((best, current) => {
+                                        return convertTimeToMs(current) < convertTimeToMs(best) ? current : best;
+                                      });
+                                      
+                                      if (currentTime === bestTime) {
+                                        return <span className="text-orange-500 font-bold">🏆</span>;
+                                      }
+                                      return null;
+                                    })()}
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -2570,6 +2657,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                         </th>
                         <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('corrida')}>
                           Posição Corrida {sortColumn === 'corrida' && (sortDirection === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('bestLap')}>
+                          Melhor Volta {sortColumn === 'bestLap' && (sortDirection === 'asc' ? '↑' : '↓')}
                         </th>
                       </tr>
                     </thead>
@@ -2644,6 +2734,45 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                               <span className="font-medium">
                                 {stageResults[category.id][pilot.userId][selectedBatteryIndex].finishPosition}
                               </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          {/* Melhor Volta */}
+                          <td className="px-2 py-1 text-center">
+                            {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.bestLap ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="font-medium">
+                                  {stageResults[category.id][pilot.userId][selectedBatteryIndex].bestLap}
+                                </span>
+                                {(() => {
+                                  // Verificar se é a melhor volta da categoria
+                                  const categoryResults = stageResults[category.id] || {};
+                                  const allBestLaps = Object.values(categoryResults).map((pilotData: any) => 
+                                    pilotData?.[selectedBatteryIndex]?.bestLap
+                                  ).filter(Boolean);
+                                  
+                                  if (allBestLaps.length === 0) return null;
+                                  
+                                  // Converter tempos para comparação
+                                  const convertTimeToMs = (time: string) => {
+                                    const [minutes, seconds] = time.includes(':') 
+                                      ? time.split(':') 
+                                      : ['0', time];
+                                    return parseFloat(minutes) * 60000 + parseFloat(seconds) * 1000;
+                                  };
+                                  
+                                  const currentTime = stageResults[category.id][pilot.userId][selectedBatteryIndex].bestLap;
+                                  const bestTime = allBestLaps.reduce((best, current) => {
+                                    return convertTimeToMs(current) < convertTimeToMs(best) ? current : best;
+                                  });
+                                  
+                                  if (currentTime === bestTime) {
+                                    return <span className="text-orange-500 font-bold">🏆</span>;
+                                  }
+                                  return null;
+                                })()}
+                              </div>
                             ) : (
                               <span className="text-gray-400">-</span>
                             )}
