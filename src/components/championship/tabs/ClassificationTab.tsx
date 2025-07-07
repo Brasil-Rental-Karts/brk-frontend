@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "brk-design-system";
 import { Card } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { Trophy, Medal, Target, Calendar, Filter, Star } from "lucide-react";
+import { Trophy, Medal, Target, Filter, Star, RefreshCw, Users } from "lucide-react";
 import { EmptyState } from "brk-design-system";
 import {
   Select,
@@ -19,75 +19,41 @@ import {
   TableHeader,
   TableRow,
 } from "brk-design-system";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
+
 
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 
 import { SeasonService, Season } from "@/lib/services/season.service";
-import { CategoryService, Category } from "@/lib/services/category.service";
-import { StageService, Stage } from "@/lib/services/stage.service";
-import { SeasonRegistrationService } from "@/lib/services/season-registration.service";
+import { ChampionshipClassificationService, SeasonClassification, ClassificationEntry } from "@/lib/services/championship-classification.service";
 import { Loading } from '@/components/ui/loading';
+import { toast } from "sonner";
 
 interface ClassificationTabProps {
   championshipId: string;
 }
 
-interface Pilot {
-  id: string;
-  name: string;
-  email: string;
-  categories: { id: string; category: Category }[];
-}
-
-interface StageResult {
-  pilotId: string;
-  stageId: string;
-  categoryId: string;
-  position: number;
-  points: number;
-  doublePoints: boolean;
-}
-
-interface ClassificationEntry {
-  pilot: Pilot;
-  category: Category;
-  totalPoints: number;
-  totalPointsWithoutBonus: number;
-  victories: number;
-  podiums: number;
-  stageResults: StageResult[];
-  bestPosition: number;
-  participations: number;
-}
-
-const PODIUM_POSITIONS = [1, 2, 3];
+const PODIUM_POSITIONS = [1, 2, 3, 4, 5];
 
 /**
  * Tab de classificação do campeonato
- * Exibe classificação geral e por categorias, com resultados por etapas
+ * Exibe classificação geral e por categorias, usando dados otimizados do Redis
  * Segue padrões dos maiores campeonatos de automobilismo mundial
  */
 export const ClassificationTab = ({ championshipId }: ClassificationTabProps) => {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<"general" | "categories" | "stages">("general");
   
   // Dados básicos
   const [seasons, setSeasons] = useState<Season[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [stages, setStages] = useState<Stage[]>([]);
-  const [pilots, setPilots] = useState<Pilot[]>([]);
-  
-  // Filtros
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
   
-  // Dados processados
-  const [classification, setClassification] = useState<ClassificationEntry[]>([]);
+  // Dados de classificação do Redis
+  const [seasonClassification, setSeasonClassification] = useState<SeasonClassification | null>(null);
 
   // Carregar dados iniciais
-  const fetchData = useCallback(async () => {
+  const fetchSeasons = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -103,163 +69,131 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
       }
 
     } catch (err: any) {
-      setError(err.message || 'Erro ao carregar dados');
+      setError(err.message || 'Erro ao carregar temporadas');
     } finally {
       setLoading(false);
     }
   }, [championshipId]);
 
-  // Carregar dados dependentes da temporada
-  const fetchSeasonData = useCallback(async (seasonId: string) => {
+  // Carregar classificação da temporada
+  const fetchClassification = useCallback(async (seasonId: string) => {
     if (!seasonId) return;
     
     try {
       setLoading(true);
+      setError(null);
       
-      // Buscar categorias, etapas e pilotos da temporada
-      const [categoriesData, stagesData, pilotsData] = await Promise.all([
-        CategoryService.getBySeasonId(seasonId),
-        StageService.getBySeasonId(seasonId),
-        SeasonRegistrationService.getBySeasonId(seasonId)
-      ]);
-
-      setCategories(categoriesData);
-      setStages(stagesData);
+      console.log('🔍 [FRONTEND] Buscando classificação para temporada:', seasonId);
+      const classification = await ChampionshipClassificationService.getSeasonClassificationOptimized(seasonId);
       
-      // Processar pilotos confirmados
-      const confirmedPilots = pilotsData
-        .filter((reg: any) => reg.status === 'confirmed' && reg.paymentStatus === 'paid')
-        .map((reg: any) => ({
-          id: reg.user.id,
-          name: reg.user.name,
-          email: reg.user.email,
-          categories: reg.categories || []
-        }));
+      console.log('📊 [FRONTEND] Classificação recebida:', {
+        hasData: !!classification,
+        totalCategories: classification?.totalCategories,
+        totalPilots: classification?.totalPilots,
+        categoriesCount: Object.keys(classification?.classificationsByCategory || {}).length,
+        categories: Object.keys(classification?.classificationsByCategory || {}),
+        lastUpdated: classification?.lastUpdated
+      });
       
-      setPilots(confirmedPilots);
+      setSeasonClassification(classification);
 
     } catch (err: any) {
-      setError(err.message || 'Erro ao carregar dados da temporada');
+      console.error('❌ [FRONTEND] Erro ao carregar classificação:', err);
+      setError(err.message || 'Erro ao carregar classificação');
+      setSeasonClassification(null);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Calcular classificação
-  const calculateClassification = useCallback(() => {
-    if (!pilots.length || !categories.length || !stages.length) {
-      setClassification([]);
-      return;
-    }
-
-    const entries: ClassificationEntry[] = [];
-
-    // Para cada piloto e categoria
-    pilots.forEach(pilot => {
-      pilot.categories.forEach(pilotCategory => {
-        const category = categories.find(c => c.id === pilotCategory.category.id);
-        if (!category) return;
-
-        // Filtrar por categoria se selecionado
-        if (selectedCategoryId !== 'all' && category.id !== selectedCategoryId) return;
-
-        // Simular resultados das etapas (em produção, viria do backend)
-        const stageResults: StageResult[] = stages
-          .filter(stage => stage.categoryIds.includes(category.id))
-          .map(stage => {
-            // Simular posição aleatória para demonstração
-            const position = Math.floor(Math.random() * 20) + 1;
-            const basePoints = getPointsForPosition(position);
-            const points = stage.doublePoints ? basePoints * 2 : basePoints;
-            
-            return {
-              pilotId: pilot.id,
-              stageId: stage.id,
-              categoryId: category.id,
-              position,
-              points,
-              doublePoints: stage.doublePoints
-            };
-          });
-
-        // Calcular estatísticas
-        const totalPoints = stageResults.reduce((sum, result) => sum + result.points, 0);
-        const totalPointsWithoutBonus = stageResults.reduce((sum, result) => {
-          const basePoints = getPointsForPosition(result.position);
-          return sum + basePoints;
-        }, 0);
-        
-        const victories = stageResults.filter(r => r.position === 1).length;
-        const podiums = stageResults.filter(r => PODIUM_POSITIONS.includes(r.position)).length;
-        const bestPosition = stageResults.length > 0 ? Math.min(...stageResults.map(r => r.position)) : 999;
-        const participations = stageResults.length;
-
-        entries.push({
-          pilot,
-          category,
-          totalPoints,
-          totalPointsWithoutBonus,
-          victories,
-          podiums,
-          stageResults,
-          bestPosition,
-          participations
-        });
-      });
-    });
-
-    // Ordenar por pontuação total, depois por vitórias, depois por pódios
-    entries.sort((a, b) => {
-      if (a.totalPoints !== b.totalPoints) return b.totalPoints - a.totalPoints;
-      if (a.victories !== b.victories) return b.victories - a.victories;
-      if (a.podiums !== b.podiums) return b.podiums - a.podiums;
-      if (a.bestPosition !== b.bestPosition) return a.bestPosition - b.bestPosition;
-      return 0;
-    });
-
-    setClassification(entries);
-  }, [pilots, categories, stages, selectedCategoryId]);
-
-  // Sistema de pontuação baseado na Fórmula 1 (25-18-15-12-10-8-6-4-2-1)
-  const getPointsForPosition = (position: number): number => {
-    const pointsTable: { [key: number]: number } = {
-      1: 25, 2: 18, 3: 15, 4: 12, 5: 10,
-      6: 8, 7: 6, 8: 4, 9: 2, 10: 1
-    };
-    return pointsTable[position] || 0;
-  };
-
-  // Agrupar classificação por categoria
-  const classificationByCategory = useMemo(() => {
-    const grouped: { [categoryId: string]: { category: Category; entries: ClassificationEntry[] } } = {};
+  // Recalcular classificação
+  const recalculateClassification = useCallback(async () => {
+    if (!selectedSeasonId) return;
     
-    classification.forEach(entry => {
-      if (!grouped[entry.category.id]) {
-        grouped[entry.category.id] = {
-          category: entry.category,
-          entries: []
-        };
-      }
-      grouped[entry.category.id].entries.push(entry);
-    });
-
-    return Object.values(grouped);
-  }, [classification]);
+    try {
+      setRefreshing(true);
+      await ChampionshipClassificationService.recalculateSeasonClassification(selectedSeasonId);
+      
+      // Aguardar um pouco para o cache ser atualizado
+      setTimeout(() => {
+        fetchClassification(selectedSeasonId);
+        toast.success('Classificação recalculada com sucesso!');
+      }, 1000);
+      
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao recalcular classificação');
+    } finally {
+      setRefreshing(false);
+    }
+  }, [selectedSeasonId, fetchClassification]);
 
   // Efeitos
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchSeasons();
+  }, [fetchSeasons]);
 
   useEffect(() => {
     if (selectedSeasonId) {
-      fetchSeasonData(selectedSeasonId);
+      fetchClassification(selectedSeasonId);
     }
-  }, [selectedSeasonId, fetchSeasonData]);
+  }, [selectedSeasonId, fetchClassification]);
 
-  useEffect(() => {
-    calculateClassification();
-  }, [calculateClassification]);
+  // Dados processados
+  const { categories, allPilots, filteredPilots } = useMemo(() => {
+    console.log('🔄 [FRONTEND] Processando dados de classificação:', {
+      hasSeasonClassification: !!seasonClassification,
+      hasClassificationsByCategory: !!seasonClassification?.classificationsByCategory,
+      selectedCategoryId
+    });
+
+    if (!seasonClassification || !seasonClassification.classificationsByCategory) {
+      console.log('⚠️ [FRONTEND] Sem dados de classificação para processar');
+      return { categories: [], allPilots: [], filteredPilots: [] };
+    }
+
+    // Verificar se há categorias válidas
+    const validCategories = Object.entries(seasonClassification.classificationsByCategory).filter(
+      ([_, data]) => data && data.category
+    );
+
+    console.log('📋 [FRONTEND] Categorias válidas encontradas:', {
+      total: validCategories.length,
+      categories: validCategories.map(([id, data]) => ({ id, name: data.category?.name, pilotsCount: data.pilots?.length }))
+    });
+
+    const categoriesArray = validCategories.map(([categoryId, data]) => ({
+      ...data.category,
+      id: categoryId
+    }));
+
+    const allPilotsArray: ClassificationEntry[] = [];
+    validCategories.forEach(([_, categoryData]) => {
+      if (categoryData && categoryData.pilots && Array.isArray(categoryData.pilots)) {
+        console.log('👥 [FRONTEND] Adicionando pilotos da categoria:', {
+          categoryName: categoryData.category?.name,
+          pilotsCount: categoryData.pilots.length
+        });
+        allPilotsArray.push(...categoryData.pilots);
+      }
+    });
+
+    const filteredPilotsArray = selectedCategoryId === 'all' 
+      ? allPilotsArray
+      : seasonClassification.classificationsByCategory[selectedCategoryId]?.pilots || [];
+
+    console.log('✅ [FRONTEND] Dados processados:', {
+      categoriesCount: categoriesArray.length,
+      allPilotsCount: allPilotsArray.length,
+      filteredPilotsCount: filteredPilotsArray.length,
+      selectedCategory: selectedCategoryId
+    });
+
+    return {
+      categories: categoriesArray,
+      allPilots: allPilotsArray,
+      filteredPilots: filteredPilotsArray
+    };
+  }, [seasonClassification, selectedCategoryId]);
 
   // Renderizar badge de posição
   const renderPositionBadge = (position: number) => {
@@ -294,27 +228,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
     );
   };
 
-  // Renderizar estatísticas do piloto
-  const renderPilotStats = (entry: ClassificationEntry) => (
-    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-      <div className="flex items-center gap-1">
-        <Trophy className="h-3 w-3" />
-        <span>{entry.victories} vitória{entry.victories !== 1 ? 's' : ''}</span>
-      </div>
-      <div className="flex items-center gap-1">
-        <Medal className="h-3 w-3" />
-        <span>{entry.podiums} pódio{entry.podiums !== 1 ? 's' : ''}</span>
-      </div>
-      <div className="flex items-center gap-1">
-        <Target className="h-3 w-3" />
-        <span>Melhor: {entry.bestPosition === 999 ? '-' : `${entry.bestPosition}º`}</span>
-      </div>
-      <div className="flex items-center gap-1">
-        <Calendar className="h-3 w-3" />
-        <span>{entry.participations} etapa{entry.participations !== 1 ? 's' : ''}</span>
-      </div>
-    </div>
-  );
+
 
   if (loading) {
     return (
@@ -335,7 +249,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
           <div className="mt-4">
-            <Button onClick={() => fetchData()} variant="outline">
+            <Button onClick={() => fetchSeasons()} variant="outline">
               Tentar novamente
             </Button>
           </div>
@@ -351,6 +265,44 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
         title="Nenhuma temporada encontrada"
         description="Não há temporadas disponíveis para exibir a classificação"
       />
+    );
+  }
+
+  // Se não há dados de classificação e não está carregando
+  if (!loading && seasonClassification && Object.keys(seasonClassification.classificationsByCategory || {}).length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-2">
+          <div className="text-sm text-muted-foreground">
+            Nenhum piloto na classificação
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={recalculateClassification}
+              disabled={refreshing}
+            >
+              {refreshing ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Recalculando...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Calcular Classificação
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+        <EmptyState
+          icon={Users}
+          title="Classificação ainda não disponível"
+          description="A classificação desta temporada ainda não foi calculada. Clique em 'Calcular Classificação' para gerar os dados."
+        />
+      </div>
     );
   }
 
@@ -399,188 +351,125 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
           </div>
         </div>
 
-        <div className="text-sm text-muted-foreground">
-          {classification.length} piloto{classification.length !== 1 ? 's' : ''} na classificação
+        <div className="flex flex-col gap-2">
+          <div className="text-sm text-muted-foreground">
+            {filteredPilots.length} piloto{filteredPilots.length !== 1 ? 's' : ''} na classificação
+          </div>
+          {seasonClassification?.lastUpdated && (
+            <div className="text-xs text-muted-foreground">
+              Última atualização: {new Date(seasonClassification.lastUpdated).toLocaleString('pt-BR')}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={recalculateClassification}
+              disabled={refreshing}
+            >
+              {refreshing ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Recalculando...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Recalcular
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Sistema de tabs para diferentes visualizações */}
-      <Tabs value={activeView} onValueChange={(value) => setActiveView(value as any)}>
-        <TabsList>
-          <TabsTrigger value="general">Classificação Geral</TabsTrigger>
-          <TabsTrigger value="categories">Por Categoria</TabsTrigger>
-          <TabsTrigger value="stages">Por Etapas</TabsTrigger>
-        </TabsList>
-
-        {/* Classificação Geral */}
-        <TabsContent value="general" className="mt-6">
-          {classification.length === 0 ? (
-            <EmptyState
-              icon={Trophy}
-              title="Nenhuma classificação disponível"
-              description="Ainda não há resultados para exibir na classificação geral"
-            />
-          ) : (
-            <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-16">Pos.</TableHead>
-                    <TableHead>Piloto</TableHead>
-                    <TableHead>Categoria</TableHead>
-                    <TableHead className="text-center">Pontos</TableHead>
-                    <TableHead className="text-center">Estatísticas</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {classification.map((entry, index) => (
-                    <TableRow key={`${entry.pilot.id}-${entry.category.id}`}>
-                      <TableCell className="font-medium">
-                        {renderPositionBadge(index + 1)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="font-medium">{entry.pilot.name}</div>
-                          <div className="text-xs text-muted-foreground">{entry.pilot.email}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{entry.category.name}</span>
-                          <Badge variant="outline" className="text-xs">Lastro: {entry.category.ballast}</Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="space-y-1">
-                          <div className="text-lg font-bold">{entry.totalPoints}</div>
-                          {entry.totalPoints !== entry.totalPointsWithoutBonus && (
-                            <div className="text-xs text-muted-foreground">
-                              ({entry.totalPointsWithoutBonus} + bônus)
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {renderPilotStats(entry)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* Classificação por Categoria */}
-        <TabsContent value="categories" className="mt-6">
-          {classificationByCategory.length === 0 ? (
-            <EmptyState
-              icon={Filter}
-              title="Nenhuma categoria encontrada"
-              description="Não há categorias com pilotos para exibir"
-            />
-          ) : (
-            <div className="space-y-6">
-              {classificationByCategory.map(({ category, entries }) => (
-                <Card key={category.id}>
-                  <div className="p-4 border-b">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-semibold">{category.name}</h3>
-                      <Badge variant="outline">Lastro: {category.ballast}</Badge>
-                      <Badge variant="secondary">{entries.length} piloto{entries.length !== 1 ? 's' : ''}</Badge>
+      {/* Classificação */}
+      {filteredPilots.length === 0 ? (
+        <EmptyState
+          icon={Trophy}
+          title="Nenhuma classificação disponível"
+          description="Ainda não há resultados para exibir na classificação"
+        />
+      ) : (
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-16">Pos.</TableHead>
+                <TableHead>Piloto</TableHead>
+                <TableHead>Categoria</TableHead>
+                <TableHead className="text-center">Pontos</TableHead>
+                <TableHead className="text-center">Vitórias</TableHead>
+                <TableHead className="text-center">Pódios</TableHead>
+                <TableHead className="text-center">Poles</TableHead>
+                <TableHead className="text-center">V. Rápidas</TableHead>
+                <TableHead className="text-center">Melhor Pos.</TableHead>
+                <TableHead className="text-center">Etapas</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredPilots.map((entry, index) => (
+                <TableRow key={`${entry.user.id}-${entry.category.id}`}>
+                  <TableCell className="font-medium">
+                    {renderPositionBadge(index + 1)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="font-medium">{entry.user.name}</div>
+                      {entry.user.nickname && (
+                        <div className="text-xs text-muted-foreground">@{entry.user.nickname}</div>
+                      )}
                     </div>
-                  </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-16">Pos.</TableHead>
-                        <TableHead>Piloto</TableHead>
-                        <TableHead className="text-center">Pontos</TableHead>
-                        <TableHead className="text-center">Estatísticas</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {entries.map((entry, index) => (
-                        <TableRow key={entry.pilot.id}>
-                          <TableCell className="font-medium">
-                            {renderPositionBadge(index + 1)}
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="font-medium">{entry.pilot.name}</div>
-                              <div className="text-xs text-muted-foreground">{entry.pilot.email}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="space-y-1">
-                              <div className="text-lg font-bold">{entry.totalPoints}</div>
-                              {entry.totalPoints !== entry.totalPointsWithoutBonus && (
-                                <div className="text-xs text-muted-foreground">
-                                  ({entry.totalPointsWithoutBonus} + bônus)
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {renderPilotStats(entry)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </Card>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{entry.category.name}</span>
+                      <Badge variant="outline" className="text-xs">Lastro: {entry.category.ballast}</Badge>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="space-y-1">
+                      <div className="text-lg font-bold">{entry.totalPoints}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      {entry.wins > 0 && <Trophy className="h-3 w-3 text-yellow-500" />}
+                      <span className="font-medium">{entry.wins}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      {entry.podiums > 0 && <Medal className="h-3 w-3 text-gray-400" />}
+                      <span className="font-medium">{entry.podiums}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      {entry.polePositions > 0 && <Target className="h-3 w-3 text-blue-500" />}
+                      <span className="font-medium">{entry.polePositions}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      {entry.fastestLaps > 0 && <Star className="h-3 w-3 text-purple-500" />}
+                      <span className="font-medium">{entry.fastestLaps}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className="font-medium">
+                      {entry.bestPosition === null ? '-' : `${entry.bestPosition}º`}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className="font-medium">{entry.totalStages}</span>
+                  </TableCell>
+                </TableRow>
               ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Resultados por Etapas */}
-        <TabsContent value="stages" className="mt-6">
-          {stages.length === 0 ? (
-            <EmptyState
-              icon={Calendar}
-              title="Nenhuma etapa encontrada"
-              description="Ainda não há etapas criadas para esta temporada"
-            />
-          ) : (
-            <Card>
-              <div className="p-4 border-b">
-                <h3 className="text-lg font-semibold">Resultados por Etapas</h3>
-                <p className="text-sm text-muted-foreground">
-                  Visualize os resultados de cada etapa da temporada
-                </p>
-              </div>
-              <div className="p-4">
-                <div className="grid gap-4">
-                  {stages.map((stage) => (
-                    <Card key={stage.id} className="border">
-                      <div className="p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <h4 className="font-semibold">{stage.name}</h4>
-                            <Badge variant="outline">
-                              {new Date(stage.date).toLocaleDateString('pt-BR')}
-                            </Badge>
-                            {stage.doublePoints && (
-                              <Badge variant="secondary" className="flex items-center gap-1">
-                                <Star className="h-3 w-3" />
-                                Pontos em Dobro
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Esta funcionalidade será implementada com os resultados reais das etapas
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+            </TableBody>
+          </Table>
+        </Card>
+      )}
     </div>
   );
 }; 
