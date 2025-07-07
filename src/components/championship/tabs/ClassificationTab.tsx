@@ -178,14 +178,33 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
     });
 
     const filteredPilotsArray = selectedCategoryId === 'all' 
-      ? allPilotsArray
+      ? allPilotsArray.sort((a, b) => {
+          // Ordenar por pontos (maior para menor) quando "todas as categorias" estiver selecionado
+          if (b.totalPoints !== a.totalPoints) {
+            return b.totalPoints - a.totalPoints;
+          }
+          // Em caso de empate, ordenar por número de vitórias
+          if (b.wins !== a.wins) {
+            return b.wins - a.wins;
+          }
+          // Em caso de empate, ordenar por número de pódios
+          if (b.podiums !== a.podiums) {
+            return b.podiums - a.podiums;
+          }
+          // Por último, ordenar por melhor posição (menor posição = melhor)
+          if (a.bestPosition !== null && b.bestPosition !== null) {
+            return a.bestPosition - b.bestPosition;
+          }
+          return 0;
+        })
       : seasonClassification.classificationsByCategory[selectedCategoryId]?.pilots || [];
 
     console.log('✅ [FRONTEND] Dados processados:', {
       categoriesCount: categoriesArray.length,
       allPilotsCount: allPilotsArray.length,
       filteredPilotsCount: filteredPilotsArray.length,
-      selectedCategory: selectedCategoryId
+      selectedCategory: selectedCategoryId,
+      isOrderedByPoints: selectedCategoryId === 'all'
     });
 
     return {
