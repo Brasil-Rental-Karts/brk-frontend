@@ -97,7 +97,7 @@ export const Championship = () => {
       'categorias': 'categories',
       'etapas': 'stages',
       'pilotos': 'pilots',
-      'classificacao': 'pilots',
+      'classificacao': 'classification',
       'regulamento': 'regulations',
       'race-day': 'raceDay',
       'config-edit': 'editChampionship',
@@ -231,7 +231,7 @@ export const Championship = () => {
                   Pilotos
                 </TabsTrigger>
               )}
-              {permissions?.pilots && (
+              {permissions?.classification && (
                 <TabsTrigger 
                   value="classificacao" 
                   disabled={!hasSeasons}
@@ -306,7 +306,7 @@ export const Championship = () => {
             </TabsContent>
           )}
 
-          {permissions?.pilots && hasSeasons && (
+          {permissions?.classification && hasSeasons && (
             <TabsContent value="classificacao" className="mt-0 ring-0 focus-visible:outline-none">
               <ClassificationTab championshipId={id} />
             </TabsContent>

@@ -311,6 +311,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                                     categories: 'Categorias',
                                     stages: 'Etapas',
                                     pilots: 'Pilotos',
+                                    classification: 'Classificação',
                                     regulations: 'Regulamentos',
                                     raceDay: 'Race Day',
                                     editChampionship: 'Editar Campeonato',
@@ -386,6 +387,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
             <li><strong>Categorias:</strong> Configurar categorias e suas regras</li>
             <li><strong>Etapas:</strong> Gerenciar etapas e eventos</li>
             <li><strong>Pilotos:</strong> Visualizar e gerenciar pilotos inscritos</li>
+            <li><strong>Classificação:</strong> Acessar a aba de classificação do campeonato</li>
             <li><strong>Regulamentos:</strong> Editar regulamentos das temporadas</li>
             <li><strong>Race Day:</strong> Acessar funcionalidades do dia da corrida</li>
             <li><strong>Editar Campeonato:</strong> Modificar dados básicos do campeonato</li>
@@ -499,6 +501,16 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                 />
                 <label htmlFor="pilots" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   Pilotos
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="classification"
+                  checked={permissions.classification || false}
+                  onCheckedChange={(checked) => handlePermissionChange('classification', checked as boolean)}
+                />
+                <label htmlFor="classification" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Classificação
                 </label>
               </div>
               <div className="flex items-center space-x-2">
