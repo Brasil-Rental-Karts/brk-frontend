@@ -81,23 +81,42 @@ const CategoryOptionBadge: React.FC<{
   checked: boolean;
   onChange: (checked: boolean) => void;
   disabled?: boolean;
-}> = ({ category, checked, onChange, disabled }) => (
-  <div className={`flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors ${checked ? 'border-primary' : 'border-gray-200'}`}>
-    <div className="flex items-center space-x-3">
-      <Checkbox
-        checked={checked}
-        onCheckedChange={onChange}
-        disabled={disabled}
-        className="mt-0.5"
-      />
-      <span className="font-medium text-sm">{category.name}</span>
+  registrationCount?: number;
+}> = ({ category, checked, onChange, disabled, registrationCount = 0 }) => {
+  const availableSlots = category.maxPilots - registrationCount;
+  const isFull = availableSlots <= 0;
+  const isDisabled = disabled || isFull;
+  
+  return (
+    <div className={`flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 p-3 border rounded-lg transition-colors ${
+      checked ? 'border-primary bg-primary/5' : 
+      isFull ? 'border-red-200 bg-red-50' : 
+      'border-gray-200 hover:bg-gray-50'
+    }`}>
+      <div className="flex items-center space-x-3">
+        <Checkbox
+          checked={checked}
+          onCheckedChange={onChange}
+          disabled={isDisabled}
+          className="mt-0.5"
+        />
+        <span className={`font-medium text-sm ${isFull ? 'text-red-600' : ''}`}>
+          {category.name}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-2 sm:ml-6">
+        <Badge variant="default" className="text-xs">{category.ballast}kg</Badge>
+        <Badge variant="default" className="text-xs">{category.minimumAge} anos</Badge>
+        <Badge 
+          variant={isFull ? "destructive" : availableSlots <= 2 ? "secondary" : "outline"} 
+          className="text-xs"
+        >
+          {isFull ? 'Lotada' : `${availableSlots} vaga${availableSlots !== 1 ? 's' : ''} disponível${availableSlots !== 1 ? 'is' : ''}`}
+        </Badge>
+      </div>
     </div>
-    <div className="flex flex-wrap gap-2 sm:ml-6">
-      <Badge variant="default" className="text-xs">{category.ballast}kg</Badge>
-      <Badge variant="default" className="text-xs">{category.minimumAge} anos</Badge>
-    </div>
-  </div>
-);
+  );
+};
 
 // Componente para exibir etapa com badges
 const StageOptionBadge: React.FC<{
@@ -145,6 +164,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showMobileTooltip, setShowMobileTooltip] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [categoryRegistrationCounts, setCategoryRegistrationCounts] = useState<Record<string, number>>({});
 
   // Detectar se é dispositivo móvel
   useEffect(() => {
@@ -219,6 +239,21 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       setStages(stagesData);
       setUserRegistrations(userRegistrationsData);
       setChampionship(championshipData);
+      
+      // Buscar contagens de pilotos por categoria
+      const counts: Record<string, number> = {};
+      await Promise.all(
+        categoriesData.map(async (category) => {
+          try {
+            const count = await SeasonRegistrationService.getCategoryRegistrationCount(category.id);
+            counts[category.id] = count;
+          } catch (error) {
+            console.error(`Erro ao buscar contagem para categoria ${category.id}:`, error);
+            counts[category.id] = 0;
+          }
+        })
+      );
+      setCategoryRegistrationCounts(counts);
       
       // Verificar se é inscrição por etapa e se há etapas
       if (seasonData.inscriptionType === 'por_etapa') {
@@ -410,6 +445,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
                       onChange(newValue);
                     }}
                     disabled={disabled}
+                    registrationCount={categoryRegistrationCounts[category.id] || 0}
                   />
                 ))}
               </div>
@@ -478,7 +514,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     );
 
     setFormConfig(config);
-  }, [season, categories, filteredStages, selectedPaymentMethod, total]);
+  }, [season, categories, filteredStages, selectedPaymentMethod, total, categoryRegistrationCounts]);
 
   const calculateTotal = (selectedCategories: string[], selectedStages: string[]) => {
     if (!season || !selectedCategories.length) {
