@@ -76,23 +76,25 @@ const translatePaymentStatus = (status: string): string => {
 };
 
 // Componente para exibir categoria com badges
-const CategoryOptionBadge: React.FC<{
+const CategoryOptionBadge = React.forwardRef<HTMLDivElement, {
   category: Category;
   checked: boolean;
   onChange: (checked: boolean) => void;
   disabled?: boolean;
   registrationCount?: number;
-}> = ({ category, checked, onChange, disabled, registrationCount = 0 }) => {
+}>(({ category, checked, onChange, disabled, registrationCount = 0 }, ref) => {
   const availableSlots = category.maxPilots - registrationCount;
   const isFull = availableSlots <= 0;
   const isDisabled = disabled || isFull;
   
   return (
-    <div className={`flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 p-3 border rounded-lg transition-colors ${
-      checked ? 'border-primary bg-primary/5' : 
-      isFull ? 'border-red-200 bg-red-50' : 
-      'border-gray-200 hover:bg-gray-50'
-    }`}>
+    <div 
+      ref={ref}
+      className={`flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 p-3 border rounded-lg transition-colors ${
+        checked ? 'border-primary bg-primary/5' : 
+        isFull ? 'border-red-200 bg-red-50' : 
+        'border-gray-200 hover:bg-gray-50'
+      }`}>
       <div className="flex items-center space-x-3">
         <Checkbox
           checked={checked}
@@ -116,16 +118,20 @@ const CategoryOptionBadge: React.FC<{
       </div>
     </div>
   );
-};
+});
+
+CategoryOptionBadge.displayName = 'CategoryOptionBadge';
 
 // Componente para exibir etapa com badges
-const StageOptionBadge: React.FC<{
+const StageOptionBadge = React.forwardRef<HTMLDivElement, {
   stage: Stage;
   checked: boolean;
   onChange: (checked: boolean) => void;
   disabled?: boolean;
-}> = ({ stage, checked, onChange, disabled }) => (
-  <div className={`flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors ${checked ? 'border-primary' : 'border-gray-200'}`}>
+}>(({ stage, checked, onChange, disabled }, ref) => (
+  <div 
+    ref={ref}
+    className={`flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors ${checked ? 'border-primary' : 'border-gray-200'}`}>
     <div className="flex items-center space-x-3">
       <Checkbox
         checked={checked}
@@ -142,7 +148,71 @@ const StageOptionBadge: React.FC<{
       <Badge variant="default" className="text-xs">{stage.time}</Badge>
     </div>
   </div>
-);
+));
+
+StageOptionBadge.displayName = 'StageOptionBadge';
+
+// Componente para seleção de categorias
+const CategorySelectionComponent = React.forwardRef<HTMLDivElement, {
+  value?: string[];
+  onChange: (value: string[]) => void;
+  disabled?: boolean;
+  categories: any[];
+  categoryRegistrationCounts: Record<string, number>;
+}>(({ value = [], onChange, disabled, categories, categoryRegistrationCounts }, ref) => {
+  const safeValue = Array.isArray(value) ? value : [];
+  return (
+    <div ref={ref} className="space-y-2">
+      {categories.map(category => (
+        <CategoryOptionBadge
+          key={category.id}
+          category={category}
+          checked={safeValue.includes(category.id)}
+          onChange={checked => {
+            const newValue = checked
+              ? [...safeValue, category.id]
+              : safeValue.filter((v: string) => v !== category.id);
+            onChange(newValue);
+          }}
+          disabled={disabled}
+          registrationCount={categoryRegistrationCounts[category.id] || 0}
+        />
+      ))}
+    </div>
+  );
+});
+
+CategorySelectionComponent.displayName = 'CategorySelectionComponent';
+
+// Componente para seleção de etapas
+const StageSelectionComponent = React.forwardRef<HTMLDivElement, {
+  value?: string[];
+  onChange: (value: string[]) => void;
+  disabled?: boolean;
+  stages: any[];
+}>(({ value = [], onChange, disabled, stages }, ref) => {
+  const safeValue = Array.isArray(value) ? value : [];
+  return (
+    <div ref={ref} className="space-y-2">
+      {stages.map(stage => (
+        <StageOptionBadge
+          key={stage.id}
+          stage={stage}
+          checked={safeValue.includes(stage.id)}
+          onChange={checked => {
+            const newValue = checked
+              ? [...safeValue, stage.id]
+              : safeValue.filter((v: string) => v !== stage.id);
+            onChange(newValue);
+          }}
+          disabled={disabled}
+        />
+      ))}
+    </div>
+  );
+});
+
+StageSelectionComponent.displayName = 'StageSelectionComponent';
 
 export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   seasonId,
@@ -392,13 +462,21 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   useEffect(() => {
     if (!season || !categories.length) return;
 
+    // Verificar se há métodos de pagamento válidos
+    const availablePaymentMethods = season.paymentMethods || [];
+    if (availablePaymentMethods.length === 0) {
+      console.error('⚠️ [FRONTEND] Temporada sem métodos de pagamento válidos');
+      setError('Esta temporada não possui métodos de pagamento configurados. Entre em contato com os organizadores.');
+      return;
+    }
+
     const paymentFields: any[] = [
       {
         id: "pagamento",
         name: "Método de Pagamento",
         type: "select",
         mandatory: true,
-        options: season.paymentMethods.map(method => ({
+        options: (season.paymentMethods || []).map(method => ({
           value: method,
           description: method === 'pix' ? 'PIX - Aprovação Instantânea' : 'Cartão de Crédito'
         }))
@@ -431,25 +509,22 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
             name: "Categorias Disponíveis",
             type: "custom",
             mandatory: true,
-            customComponent: ({ value = [], onChange, disabled }) => (
-              <div className="space-y-2">
-                {categories.map(category => (
-                  <CategoryOptionBadge
-                    key={category.id}
-                    category={category}
-                    checked={value.includes(category.id)}
-                    onChange={checked => {
-                      const newValue = checked
-                        ? [...value, category.id]
-                        : value.filter((v: string) => v !== category.id);
-                      onChange(newValue);
-                    }}
-                    disabled={disabled}
-                    registrationCount={categoryRegistrationCounts[category.id] || 0}
-                  />
-                ))}
-              </div>
-            )
+            customComponent: (() => {
+              const Component = React.forwardRef<HTMLDivElement, {
+                value?: string[];
+                onChange: (value: string[]) => void;
+                disabled?: boolean;
+              }>((props, ref) => (
+                <CategorySelectionComponent
+                  {...props}
+                  ref={ref}
+                  categories={categories}
+                  categoryRegistrationCounts={categoryRegistrationCounts}
+                />
+              ));
+              Component.displayName = 'CategorySelectionWrapper';
+              return Component;
+            })()
           }
         ]
       }
@@ -466,29 +541,24 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
             name: "Etapas Disponíveis",
             type: "custom",
             mandatory: true,
-            customComponent: ({ value = [], onChange, disabled }) => (
-              <div className="space-y-2">
-                {filteredStages.map(stage => (
-                  <StageOptionBadge
-                    key={stage.id}
-                    stage={stage}
-                    checked={value.includes(stage.id)}
-                    onChange={checked => {
-                      const newValue = checked
-                        ? [...value, stage.id]
-                        : value.filter((v: string) => v !== stage.id);
-                      onChange(newValue);
-                    }}
-                    disabled={disabled}
-                  />
-                ))}
-              </div>
-            )
+            customComponent: (() => {
+              const Component = React.forwardRef<HTMLDivElement, {
+                value?: string[];
+                onChange: (value: string[]) => void;
+                disabled?: boolean;
+              }>((props, ref) => (
+                <StageSelectionComponent
+                  {...props}
+                  ref={ref}
+                  stages={filteredStages}
+                />
+              ));
+              Component.displayName = 'StageSelectionWrapper';
+              return Component;
+            })()
           }
         ]
       });
-    } else if (season.inscriptionType === 'por_etapa' && filteredStages.length === 0) {
-      console.warn('⚠️ [FRONTEND] Temporada é por etapa mas não há etapas disponíveis para inscrição');
     }
 
     config.push(
@@ -884,12 +954,12 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
             <div className="mt-4 p-4 bg-blue-50 rounded-lg">
               <h4 className="font-semibold text-blue-900 mb-2">Condições de Pagamento:</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
-                {season.paymentMethods.includes('pix') && (
+                {(season.paymentMethods || []).includes('pix') && (
                   <div>
                     <strong>PIX:</strong> até {season.pixInstallments || 1}x
                   </div>
                 )}
-                {season.paymentMethods.includes('cartao_credito') && (
+                {(season.paymentMethods || []).includes('cartao_credito') && (
                   <div>
                     <strong>Cartão:</strong> até {season.creditCardInstallments || 1}x
                   </div>
