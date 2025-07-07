@@ -32,7 +32,8 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
     const originalTotal = registration.amount;
     
     // Se o valor original é menor que o valor com taxas, significa que as taxas não foram aplicadas
-    const needsUpdate = originalTotal < currentTotal && (currentTotal - originalTotal) > 0.5;
+    // Mas como estamos no CreditCardPayment, sempre vamos mostrar o valor com taxas
+    const needsUpdate = false; // Não precisamos atualizar, apenas mostrar o valor correto
 
     if (needsUpdate) {
       setIsUpdatingPayment(true);
@@ -86,17 +87,59 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
   };
 
   // Função para calcular o valor total com taxas do Asaas
-  const calculateTotalWithAsaasFees = (baseTotal: number, installments: number) => {
+  const calculateTotalWithAsaasFees = (baseTotal: number, paymentMethod: string, installments: number) => {
+    if (paymentMethod !== 'cartao_credito') {
+      return baseTotal;
+    }
+
+    // Taxa fixa por transação
     const fixedFee = 0.49;
+    
+    // Taxa percentual baseada no número de parcelas
     const percentageRate = getAsaasCreditCardRate(installments);
+    
+    // Calcular taxa percentual
     const percentageFee = baseTotal * (percentageRate / 100);
+    
+    // Total com taxas
     return baseTotal + percentageFee + fixedFee;
   };
 
-  // Calcular o valor total correto com as taxas do Asaas
-  const getTotalAmountWithFees = () => {
+  // Função para calcular o valor base a partir do total com taxas
+  const calculateBaseFromTotal = (totalWithFees: number, installments: number) => {
+    const fixedFee = 0.49;
+    const percentageRate = getAsaasCreditCardRate(installments);
+    const percentageRateDecimal = percentageRate / 100;
+    
+    // Fórmula: total = base + (base * taxa%) + taxa_fixa
+    // total = base * (1 + taxa%) + taxa_fixa
+    // base = (total - taxa_fixa) / (1 + taxa%)
+    const baseAmount = (totalWithFees - fixedFee) / (1 + percentageRateDecimal);
+    return baseAmount;
+  };
+
+  // Função para obter o valor base da inscrição
+  const getBaseAmount = () => {
     const installments = paymentData.installmentCount || 1;
-    return calculateTotalWithAsaasFees(registration.amount, installments);
+    return calculateBaseFromTotal(registration.amount, installments);
+  };
+
+  // Obter o valor total correto (já inclui as taxas do Asaas)
+  const getTotalAmountWithFees = () => {
+    // O registration.amount já contém o valor total com as taxas do Asaas
+    // pois foi calculado no frontend e enviado como totalAmount para o backend
+    const totalWithFees = registration.amount;
+    
+    // Debug: verificar os valores
+    console.log('[CreditCardPayment] Debug:', {
+      registrationAmount: registration.amount,
+      paymentDataValue: paymentData.value,
+      installments: paymentData.installmentCount || 1,
+      feeRate: getAsaasCreditCardRate(paymentData.installmentCount || 1),
+      difference: Math.abs(paymentData.value - totalWithFees)
+    });
+    
+    return totalWithFees;
   };
 
   const getInstallmentText = () => {
@@ -148,7 +191,7 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
                 {formatCurrency(getTotalAmountWithFees())}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Valor base: {formatCurrency(registration.amount)} + Taxas Asaas
+                Inclui taxa de {getAsaasCreditCardRate(paymentData.installmentCount || 1)}% + R$ 0,49
               </p>
             </div>
             
@@ -167,9 +210,15 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
               <div className="text-sm">
                 <p className="font-medium text-orange-900 mb-1">Taxas do Gateway de Pagamento</p>
                 <div className="text-orange-800 space-y-1">
-                  <p>• Valor da inscrição: {formatCurrency(registration.amount)}</p>
+                  <p>• Valor da inscrição: {formatCurrency(getBaseAmount())}</p>
                   <p>• Taxa Asaas: {getAsaasCreditCardRate(paymentData.installmentCount || 1)}% + R$ 0,49</p>
                   <p>• <strong>Total a pagar: {formatCurrency(getTotalAmountWithFees())}</strong></p>
+                  <p className="text-xs text-orange-700 mt-2">
+                    Taxas promocionais válidas até 16/09/2025
+                  </p>
+                  <p className="text-xs text-orange-600 mt-1">
+                    ✓ Usando valor já calculado pelo sistema
+                  </p>
                 </div>
               </div>
             </div>

@@ -228,8 +228,10 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   const [userRegistrations, setUserRegistrations] = useState<SeasonRegistration[]>([]);
   const [championship, setChampionship] = useState<Championship | null>(null);
   const [total, setTotal] = useState(0);
+  const [totalWithFees, setTotalWithFees] = useState(0);
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
+  const [selectedInstallments, setSelectedInstallments] = useState<number>(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showMobileTooltip, setShowMobileTooltip] = useState(false);
@@ -353,6 +355,33 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     }
   }, [stages, userRegistrations, filterStages]);
 
+  // Calcular total com taxas quando método de pagamento ou parcelamento mudar
+  useEffect(() => {
+    if (selectedPaymentMethod === 'cartao_credito') {
+      const totalWithAsaasFees = calculateTotalWithAsaasFees(total, selectedPaymentMethod, selectedInstallments);
+      setTotalWithFees(totalWithAsaasFees);
+      
+      // Debug log
+      console.log('[SeasonRegistrationForm] Total atualizado:', {
+        baseTotal: total,
+        paymentMethod: selectedPaymentMethod,
+        installments: selectedInstallments,
+        totalWithFees: totalWithAsaasFees,
+        feeRate: getAsaasCreditCardRate(selectedInstallments)
+      });
+    } else {
+      setTotalWithFees(total);
+    }
+  }, [total, selectedPaymentMethod, selectedInstallments]);
+
+  // Recalcular total com taxas quando necessário
+  const getCurrentTotalWithFees = useCallback(() => {
+    if (selectedPaymentMethod === 'cartao_credito') {
+      return calculateTotalWithAsaasFees(total, selectedPaymentMethod, selectedInstallments);
+    }
+    return total;
+  }, [total, selectedPaymentMethod, selectedInstallments]);
+
   const {
     isSaving,
     handleSubmit: useFormScreenSubmit,
@@ -367,10 +396,19 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     transformSubmitData: (data) => {
       const installmentsCount = data.installments ? parseInt(data.installments, 10) : 1;
       
-      // Calcular o valor total correto incluindo taxas do Asaas se for cartão de crédito
-      const finalTotal = data.pagamento === 'cartao_credito' 
-        ? calculateTotalWithAsaasFees(total, data.pagamento, installmentsCount)
-        : total;
+      // Calcular o total com taxas no momento da submissão
+      const finalTotal = getCurrentTotalWithFees();
+      
+      // Debug log para verificar o valor sendo enviado
+      console.log('[SeasonRegistrationForm] Enviando dados para backend:', {
+        paymentMethod: data.pagamento,
+        installments: installmentsCount,
+        baseTotal: total,
+        totalWithFees: totalWithFees,
+        calculatedTotal: finalTotal,
+        categories: data.categorias,
+        stages: data.etapas
+      });
       
       const transformedData = {
         userId: user?.id || '',
@@ -657,6 +695,12 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       setSelectedPaymentMethod(data.pagamento || '');
     }
     
+    // Atualizar parcelamento selecionado
+    if (data.installments) {
+      const installmentsCount = parseInt(data.installments, 10);
+      setSelectedInstallments(installmentsCount);
+    }
+    
     // Calcular total baseado nas categorias selecionadas
     if (data.categorias && Array.isArray(data.categorias)) {
       calculateTotal(data.categorias, data.etapas || []);
@@ -937,7 +981,14 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
             </div>
             <div className="flex items-center gap-2">
               <strong>Total calculado:</strong> 
-              <span className="text-lg font-bold text-primary">{formatCurrency(total)}</span>
+              <span className="text-lg font-bold text-primary">
+                {selectedPaymentMethod === 'cartao_credito' ? formatCurrency(totalWithFees) : formatCurrency(total)}
+                {selectedPaymentMethod === 'cartao_credito' && (
+                  <span className="text-xs text-orange-600 ml-1">
+                    (inclui taxas)
+                  </span>
+                )}
+              </span>
               {championship && !championship.commissionAbsorbedByChampionship && (
                 <>
                   {isMobile ? (
