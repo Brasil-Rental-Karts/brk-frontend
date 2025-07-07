@@ -295,6 +295,13 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   } = useFormScreen<any, CreateRegistrationData>({
     createData: (data) => SeasonRegistrationService.create(data),
     transformSubmitData: (data) => {
+      const installmentsCount = data.installments ? parseInt(data.installments, 10) : 1;
+      
+      // Calcular o valor total correto incluindo taxas do Asaas se for cartão de crédito
+      const finalTotal = data.pagamento === 'cartao_credito' 
+        ? calculateTotalWithAsaasFees(total, data.pagamento, installmentsCount)
+        : total;
+      
       const transformedData = {
         userId: user?.id || '',
         seasonId: season?.id || '',
@@ -302,7 +309,8 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
         stageIds: data.etapas || [],
         paymentMethod: data.pagamento,
         userDocument: data.cpf,
-        installments: data.installments ? parseInt(data.installments, 10) : 1,
+        installments: installmentsCount,
+        totalAmount: finalTotal, // Enviar o total correto incluindo taxas
       };
       
       return transformedData;
@@ -351,6 +359,38 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     }
   };
 
+  // Função para obter a taxa do Asaas para cartão de crédito
+  const getAsaasCreditCardRate = (installments: number) => {
+    // Taxas promocionais válidas até 16/09/2025
+    const promotionalRates: Record<number, number> = {
+      1: 1.99, // À vista
+      2: 2.49, 3: 2.49, 4: 2.49, 5: 2.49, 6: 2.49, // 2 a 6 parcelas
+      7: 2.99, 8: 2.99, 9: 2.99, 10: 2.99, 11: 2.99, 12: 2.99, // 7 a 12 parcelas
+      13: 3.29, 14: 3.29, 15: 3.29, 16: 3.29, 17: 3.29, 18: 3.29, 19: 3.29, 20: 3.29, 21: 3.29 // 13 a 21 parcelas
+    };
+
+    return promotionalRates[installments] || 3.29; // Default para 3.29% se não encontrar
+  };
+
+  // Função para calcular o valor total com taxas do Asaas
+  const calculateTotalWithAsaasFees = (baseTotal: number, paymentMethod: string, installments: number) => {
+    if (paymentMethod !== 'cartao_credito') {
+      return baseTotal;
+    }
+
+    // Taxa fixa por transação
+    const fixedFee = 0.49;
+    
+    // Taxa percentual baseada no número de parcelas
+    const percentageRate = getAsaasCreditCardRate(installments);
+    
+    // Calcular taxa percentual
+    const percentageFee = baseTotal * (percentageRate / 100);
+    
+    // Total com taxas
+    return baseTotal + percentageFee + fixedFee;
+  };
+
   // Função para gerar opções de parcelas baseadas no método de pagamento
   const generateInstallmentOptions = (paymentMethod: string) => {
     const maxInstallments = getMaxInstallments(paymentMethod);
@@ -359,30 +399,28 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       return [];
     }
 
-    // Sempre incluir a opção 1x (à vista)
-    const options = [
-      {
-        value: "1",
-        description: `1x de ${formatCurrency(total)} (à vista)`
-      }
-    ];
+    const options = [];
 
-    // Adicionar opções de 2x até o máximo permitido
-    if (maxInstallments > 1) {
-      for (let i = 2; i <= maxInstallments; i++) {
+    // Gerar opções de 1x até o máximo permitido
+    for (let i = 1; i <= maxInstallments; i++) {
+      if (paymentMethod === 'pix') {
         const installmentValue = total / i;
+        options.push({
+          value: i.toString(),
+          description: i === 1 ? `1x de ${formatCurrency(installmentValue)} (à vista)` : `${i}x de ${formatCurrency(installmentValue)}`
+        });
+      } else if (paymentMethod === 'cartao_credito') {
+        // Calcular total com taxas do Asaas
+        const totalWithFees = calculateTotalWithAsaasFees(total, paymentMethod, i);
+        const installmentValue = totalWithFees / i;
+        const feeRate = getAsaasCreditCardRate(i);
         
-        if (paymentMethod === 'pix') {
-          options.push({
-            value: i.toString(),
-            description: `${i}x de ${formatCurrency(installmentValue)}`
-          });
-        } else {
-          options.push({
-            value: i.toString(),
-            description: `${i}x de ${formatCurrency(installmentValue)}`
-          });
-        }
+        options.push({
+          value: i.toString(),
+          description: i === 1 ? 
+            `1x de ${formatCurrency(installmentValue)} (à vista - taxa ${feeRate}% + R$ 0,49)` :
+            `${i}x de ${formatCurrency(installmentValue)} (taxa ${feeRate}% + R$ 0,49)`
+        });
       }
     }
 
@@ -902,6 +940,16 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
                   <div className="text-xs text-yellow-800">
                     <strong>PIX Parcelado:</strong> A 1ª parcela será via PIX (pagamento imediato). 
                     As demais parcelas serão PIX enviados automaticamente por email nas datas de vencimento.
+                  </div>
+                </div>
+              )}
+              
+              {/* Informações sobre taxas do cartão de crédito */}
+              {selectedPaymentMethod === 'cartao_credito' && (
+                <div className="mt-3 p-3 bg-orange-50 border-l-4 border-orange-400 rounded-r-md">
+                  <div className="text-xs text-orange-800">
+                    <strong>Taxas do Cartão de Crédito:</strong> Os valores das parcelas já incluem as taxas do gateway de pagamento Asaas. 
+                    Taxas promocionais: À vista 1,99%, 2-6x 2,49%, 7-12x 2,99%, 13-21x 3,29% + R$ 0,49 por transação.
                   </div>
                 </div>
               )}

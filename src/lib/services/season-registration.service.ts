@@ -30,6 +30,7 @@ export interface CreateRegistrationData {
   paymentMethod: 'pix' | 'cartao_credito';
   userDocument: string;
   installments?: number;
+  totalAmount?: number; // Valor total calculado incluindo taxas
 }
 
 export interface CreateAdminRegistrationData {
