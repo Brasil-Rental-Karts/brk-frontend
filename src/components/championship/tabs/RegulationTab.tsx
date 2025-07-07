@@ -325,16 +325,16 @@ export const RegulationTab = ({
 
       {selectedSeason && (
         <>
-          {/* Header with Create Button */}
-          <div className="flex justify-between items-center">
+          {/* Header with Buttons */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <h3 className="text-lg font-semibold">Seções do Regulamento</h3>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               {regulations.length > 0 && (
                 <Button 
                   onClick={handleGeneratePDF}
                   variant="outline"
                   disabled={generatingPDF || showCreateForm || showEditForm}
-                  className="flex items-center gap-2"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2"
                 >
                   <FileText className="h-4 w-4" />
                   {generatingPDF ? "Gerando PDF..." : "Gerar PDF"}
@@ -347,8 +347,9 @@ export const RegulationTab = ({
                 }}
                 variant={showCreateForm ? "outline" : "default"}
                 disabled={showEditForm}
+                className="w-full sm:w-auto flex items-center justify-center gap-2"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-4 w-4" />
                 {showCreateForm ? "Cancelar" : "Nova Seção"}
               </Button>
             </div>

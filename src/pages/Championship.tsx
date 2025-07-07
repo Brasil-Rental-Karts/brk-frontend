@@ -25,6 +25,7 @@ import { Season as BaseSeason } from "@/lib/services/season.service";
 import { Stage } from "@/lib/types/stage";
 import { Loading } from '@/components/ui/loading';
 import { RaceDayTab } from "@/components/championship/tabs/RaceDayTab";
+import { ClassificationTab } from "@/components/championship/tabs/ClassificationTab";
 
 // Estende a interface base da temporada para incluir as categorias
 type Season = BaseSeason & { categories?: Category[]; stages?: Stage[] };
@@ -50,6 +51,8 @@ export const Championship = () => {
     'etapas': 'etapas',
     'pilots': 'pilotos',
     'pilotos': 'pilotos',
+    'classification': 'classificacao',
+    'classificacao': 'classificacao',
     'regulations': 'regulamento',
     'regulamento': 'regulamento',
     'race-day': 'race-day',
@@ -94,6 +97,7 @@ export const Championship = () => {
       'categorias': 'categories',
       'etapas': 'stages',
       'pilotos': 'pilots',
+      'classificacao': 'pilots',
       'regulamento': 'regulations',
       'race-day': 'raceDay',
       'config-edit': 'editChampionship',
@@ -227,6 +231,15 @@ export const Championship = () => {
                   Pilotos
                 </TabsTrigger>
               )}
+              {permissions?.pilots && (
+                <TabsTrigger 
+                  value="classificacao" 
+                  disabled={!hasSeasons}
+                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+                >
+                  Classificação
+                </TabsTrigger>
+              )}
               {permissions?.regulations && (
                 <TabsTrigger 
                   value="regulamento" 
@@ -290,6 +303,12 @@ export const Championship = () => {
           {permissions?.pilots && hasCategories && (
             <TabsContent value="pilotos" className="mt-0 ring-0 focus-visible:outline-none">
               <PilotsTab championshipId={id} />
+            </TabsContent>
+          )}
+
+          {permissions?.pilots && hasSeasons && (
+            <TabsContent value="classificacao" className="mt-0 ring-0 focus-visible:outline-none">
+              <ClassificationTab championshipId={id} />
             </TabsContent>
           )}
 

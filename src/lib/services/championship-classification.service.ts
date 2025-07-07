@@ -1,0 +1,145 @@
+import api from '../axios';
+
+export interface ClassificationPilot {
+  id: string;
+  name: string;
+  nickname?: string;
+  profilePicture?: string;
+  active: boolean;
+}
+
+export interface ClassificationCategory {
+  id: string;
+  name: string;
+  ballast: number;
+  maxPilots: number;
+  minimumAge: number;
+}
+
+export interface ClassificationEntry {
+  userId: string;
+  categoryId: string;
+  seasonId: string;
+  totalPoints: number;
+  totalStages: number;
+  wins: number;
+  podiums: number;
+  polePositions: number;
+  fastestLaps: number;
+  bestPosition: number | null;
+  averagePosition: number | null;
+  user: ClassificationPilot;
+  category: ClassificationCategory;
+}
+
+export interface SeasonClassification {
+  lastUpdated: string;
+  totalCategories: number;
+  totalPilots: number;
+  classificationsByCategory: {
+    [categoryId: string]: {
+      category: ClassificationCategory;
+      pilots: ClassificationEntry[];
+    };
+  };
+}
+
+export class ChampionshipClassificationService {
+  private static readonly BASE_URL = '/classification';
+
+  /**
+   * Buscar classificação por temporada e categoria
+   */
+  static async getBySeasonAndCategory(
+    seasonId: string, 
+    categoryId: string
+  ): Promise<ClassificationEntry[]> {
+    try {
+      const response = await api.get<ClassificationEntry[]>(
+        `${ChampionshipClassificationService.BASE_URL}/season/${seasonId}/category/${categoryId}`
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching classification by season and category:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao buscar classificação da categoria.'
+      );
+    }
+  }
+
+  /**
+   * Buscar classificação completa do campeonato (todas as categorias)
+   */
+  static async getByChampionship(championshipId: string): Promise<{[categoryId: string]: ClassificationEntry[]}> {
+    try {
+      const response = await api.get<{[categoryId: string]: ClassificationEntry[]}>(
+        `${ChampionshipClassificationService.BASE_URL}/championship/${championshipId}`
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching championship classification:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao buscar classificação do campeonato.'
+      );
+    }
+  }
+
+  /**
+   * Buscar classificação específica de um usuário
+   */
+  static async getUserClassification(
+    userId: string,
+    seasonId: string,
+    categoryId: string
+  ): Promise<ClassificationEntry> {
+    try {
+      const response = await api.get<ClassificationEntry>(
+        `${ChampionshipClassificationService.BASE_URL}/user/${userId}/season/${seasonId}/category/${categoryId}`
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching user classification:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao buscar classificação do usuário.'
+      );
+    }
+  }
+
+  /**
+   * Buscar classificação otimizada da temporada (do Redis)
+   */
+  static async getSeasonClassificationOptimized(seasonId: string): Promise<SeasonClassification> {
+    try {
+      const response = await api.get<{ message: string; data: SeasonClassification }>(
+        `${ChampionshipClassificationService.BASE_URL}/season/${seasonId}/optimized`
+      );
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Error fetching optimized season classification:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao buscar classificação da temporada.'
+      );
+    }
+  }
+
+  /**
+   * Recalcular classificação de uma temporada
+   */
+  static async recalculateSeasonClassification(seasonId: string): Promise<void> {
+    try {
+      await api.post(
+        `${ChampionshipClassificationService.BASE_URL}/season/${seasonId}/recalculate`
+      );
+    } catch (error: any) {
+      console.error('Error recalculating season classification:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao recalcular classificação da temporada.'
+      );
+    }
+  }
+} 
