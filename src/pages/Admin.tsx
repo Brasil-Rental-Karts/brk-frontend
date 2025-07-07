@@ -2,14 +2,16 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from "brk-design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
-import { Plus, Users, CreditCard, Trophy, TrendingUp, MapPin } from "lucide-react";
+import { Plus, Users, CreditCard, Trophy, TrendingUp, MapPin, RefreshCw, Database } from "lucide-react";
 import { AdminPilotRegistration } from "@/components/admin/AdminPilotRegistration";
 import { RaceTrackManagement } from "@/components/admin/RaceTrackManagement";
-import { useAdminStats } from "@/hooks/use-admin-stats";
+import { useAdminStats, usePreloadUsersCache } from "@/hooks/use-admin-stats";
+import { toast } from "sonner";
 
 export const Admin = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const { stats, loading, error, refresh } = useAdminStats();
+  const { preloadUsers, loading: preloadLoading, error: preloadError, result: preloadResult } = usePreloadUsersCache();
   const navigate = useNavigate();
 
   // Handle URL parameters for tab navigation
@@ -30,8 +32,30 @@ export const Admin = () => {
     }
   }, []);
 
+  // Handle preload result
+  useEffect(() => {
+    if (preloadResult) {
+      toast.success(`Cache atualizado com sucesso! ${preloadResult.totalUsers} usuários carregados em ${preloadResult.duration}`, {
+        duration: 5000,
+      });
+    }
+  }, [preloadResult]);
+
+  // Handle preload error
+  useEffect(() => {
+    if (preloadError) {
+      toast.error(`Erro ao atualizar cache: ${preloadError}`, {
+        duration: 5000,
+      });
+    }
+  }, [preloadError]);
+
   const handleCreateRaceTrack = () => {
     navigate('/admin/race-tracks/create');
+  };
+
+  const handlePreloadUsers = async () => {
+    await preloadUsers();
   };
 
   return (
@@ -232,9 +256,52 @@ export const Admin = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Funcionalidades de sistema em desenvolvimento...
-              </p>
+              <div className="space-y-6">
+                <div className="border rounded-lg p-4 sm:p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Database className="h-5 w-5 text-blue-600" />
+                    <h3 className="text-lg font-semibold">Cache Redis</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Atualize o cache Redis com todos os dados dos usuários para melhor performance do sistema.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button
+                      onClick={handlePreloadUsers}
+                      disabled={preloadLoading}
+                      className="flex items-center gap-2 w-full sm:w-auto"
+                    >
+                      {preloadLoading ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                          Atualizando...
+                        </>
+                      ) : (
+                        <>
+                          <Database className="h-4 w-4" />
+                          Atualizar Cache de Usuários
+                        </>
+                      )}
+                    </Button>
+                    {preloadResult && (
+                      <div className="text-sm text-green-600 flex items-center gap-1">
+                        <Users className="h-4 w-4" />
+                        {preloadResult.totalUsers} usuários carregados em {preloadResult.duration}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="border rounded-lg p-4 sm:p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <TrendingUp className="h-5 w-5 text-green-600" />
+                    <h3 className="text-lg font-semibold">Outras Funcionalidades</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Outras funcionalidades de sistema em desenvolvimento...
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
