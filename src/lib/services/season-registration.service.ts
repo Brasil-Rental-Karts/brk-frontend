@@ -336,4 +336,32 @@ export class SeasonRegistrationService {
       );
     }
   }
+
+  /**
+   * Adicionar etapas a uma inscrição existente
+   */
+  static async addStagesToRegistration(
+    registrationId: string, 
+    data: {
+      stageIds: string[];
+      paymentStatus: 'exempt' | 'direct_payment';
+      amount: number;
+      notes?: string;
+    }
+  ): Promise<SeasonRegistration> {
+    try {
+      const response = await api.post<{
+        message: string;
+        data: SeasonRegistration;
+      }>(`${SeasonRegistrationService.BASE_URL}/${registrationId}/add-stages`, data);
+      
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Error adding stages to registration:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao adicionar etapas à inscrição.'
+      );
+    }
+  }
 } 
