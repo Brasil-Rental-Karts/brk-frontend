@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CreditCard, ExternalLink, AlertCircle, Shield } from 'lucide-react';
 import { Button } from 'brk-design-system';
 import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
 import { Alert, AlertDescription } from 'brk-design-system';
 import { Badge } from 'brk-design-system';
 import { SeasonRegistration, RegistrationPaymentData, SeasonRegistrationService } from '@/lib/services/season-registration.service';
+import { CreditCardFeesService, CreditCardFeesRate } from '@/lib/services/credit-card-fees.service';
 import { formatCurrency } from '@/utils/currency';
 import { toast } from 'sonner';
 
@@ -20,6 +21,38 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
   onPaymentComplete
 }) => {
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+  const [feeRate, setFeeRate] = useState<CreditCardFeesRate | null>(null);
+  const [loadingFees, setLoadingFees] = useState(false);
+  const creditCardFeesService = new CreditCardFeesService();
+
+  // Buscar taxas configuráveis para o campeonato
+  useEffect(() => {
+    const fetchFees = async () => {
+      if (!registration.season?.championshipId) return;
+      
+      setLoadingFees(true);
+      try {
+        const installments = paymentData.installmentCount || 1;
+        const rate = await creditCardFeesService.getRateForInstallments(
+          registration.season.championshipId,
+          installments
+        );
+        setFeeRate(rate);
+      } catch (error) {
+        console.error('Erro ao buscar taxas configuráveis:', error);
+        // Usar taxas padrão se não conseguir buscar
+        setFeeRate({
+          percentageRate: 3.29, // Taxa padrão para 13 a 21 parcelas
+          fixedFee: 0.49,
+          isDefault: true
+        });
+      } finally {
+        setLoadingFees(false);
+      }
+    };
+
+    fetchFees();
+  }, [registration.season?.championshipId, paymentData.installmentCount]);
 
   const handlePaymentRedirect = async () => {
     if (!paymentData.paymentLink) {
@@ -75,84 +108,63 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
     return 'Cartão de Crédito';
   };
 
-  // Função para obter a taxa do Asaas para cartão de crédito
-  const getAsaasCreditCardRate = (installments: number) => {
-    const promotionalRates: Record<number, number> = {
-      1: 1.99, // À vista
-      2: 2.49, 3: 2.49, 4: 2.49, 5: 2.49, 6: 2.49, // 2 a 6 parcelas
-      7: 2.99, 8: 2.99, 9: 2.99, 10: 2.99, 11: 2.99, 12: 2.99, // 7 a 12 parcelas
-      13: 3.29, 14: 3.29, 15: 3.29, 16: 3.29, 17: 3.29, 18: 3.29, 19: 3.29, 20: 3.29, 21: 3.29 // 13 a 21 parcelas
-    };
-    return promotionalRates[installments] || 3.29;
-  };
-
-  // Função para calcular o valor total com taxas do Asaas
-  const calculateTotalWithAsaasFees = (baseTotal: number, paymentMethod: string, installments: number) => {
-    if (paymentMethod !== 'cartao_credito') {
+  // Função para calcular o valor total com taxas configuráveis
+  const calculateTotalWithConfigurableFees = (baseTotal: number, installments: number) => {
+    if (!feeRate) {
+      // Se não houver taxa configurada, retornar o valor base
       return baseTotal;
     }
-
-    // Taxa fixa por transação
-    const fixedFee = 0.49;
-    
-    // Taxa percentual baseada no número de parcelas
-    const percentageRate = getAsaasCreditCardRate(installments);
-    
-    // Calcular taxa percentual
-    const percentageFee = baseTotal * (percentageRate / 100);
-    
-    // Total com taxas
-    return baseTotal + percentageFee + fixedFee;
+    // Usar taxas configuráveis
+    const percentageFee = baseTotal * (feeRate.percentageRate / 100);
+    return baseTotal + percentageFee + feeRate.fixedFee;
   };
 
   // Função para calcular o valor base a partir do total com taxas
   const calculateBaseFromTotal = (totalWithFees: number, installments: number) => {
-    const fixedFee = 0.49;
-    const percentageRate = getAsaasCreditCardRate(installments);
-    const percentageRateDecimal = percentageRate / 100;
-    
+    if (!feeRate) {
+      // Se não houver taxa configurada, retornar o valor total
+      return totalWithFees;
+    }
+    const percentageRateDecimal = feeRate.percentageRate / 100;
     // Fórmula: total = base + (base * taxa%) + taxa_fixa
     // total = base * (1 + taxa%) + taxa_fixa
     // base = (total - taxa_fixa) / (1 + taxa%)
-    const baseAmount = (totalWithFees - fixedFee) / (1 + percentageRateDecimal);
+    const baseAmount = (totalWithFees - feeRate.fixedFee) / (1 + percentageRateDecimal);
     return baseAmount;
   };
 
   // Função para obter o valor base da inscrição
   const getBaseAmount = () => {
-    const installments = paymentData.installmentCount || 1;
-    return calculateBaseFromTotal(registration.amount, installments);
+    try {
+      const installments = paymentData.installmentCount || 1;
+      return calculateBaseFromTotal(registration.amount, installments);
+    } catch (err) {
+      // Se não houver taxa configurada, retornar o valor original
+      return registration.amount;
+    }
   };
 
   // Obter o valor total correto (já inclui as taxas do Asaas)
   const getTotalAmountWithFees = () => {
-    // O registration.amount já contém o valor total com as taxas do Asaas
-    // pois foi calculado no frontend e enviado como totalAmount para o backend
-    const totalWithFees = registration.amount;
-    
-    // Debug: verificar os valores
-    console.log('[CreditCardPayment] Debug:', {
-      registrationAmount: registration.amount,
-      paymentDataValue: paymentData.value,
-      installments: paymentData.installmentCount || 1,
-      feeRate: getAsaasCreditCardRate(paymentData.installmentCount || 1),
-      difference: Math.abs(paymentData.value - totalWithFees)
-    });
-    
-    return totalWithFees;
+    try {
+      return registration.amount;
+    } catch (err) {
+      return 0;
+    }
   };
 
   const getInstallmentText = () => {
-    const totalWithFees = getTotalAmountWithFees();
-    
-    if (paymentData.installmentCount && paymentData.installmentCount > 1) {
-      const installmentValue = totalWithFees / paymentData.installmentCount;
-      const feeRate = getAsaasCreditCardRate(paymentData.installmentCount);
-      return `${paymentData.installmentCount}x de ${formatCurrency(installmentValue)} (taxa ${feeRate}% + R$ 0,49)`;
+    try {
+      const totalWithFees = getTotalAmountWithFees();
+      if (!feeRate) throw new Error();
+      if (paymentData.installmentCount && paymentData.installmentCount > 1) {
+        const installmentValue = totalWithFees / paymentData.installmentCount;
+        return `${paymentData.installmentCount}x de ${formatCurrency(installmentValue)} (taxa ${feeRate.percentageRate}% + R$ ${Number(feeRate.fixedFee || 0).toFixed(2)})`;
+      }
+      return `Pagamento à vista (taxa ${feeRate.percentageRate}% + R$ ${Number(feeRate.fixedFee || 0).toFixed(2)})`;
+    } catch (err) {
+      return 'Taxa de cartão de crédito não configurada. Solicite ao administrador.';
     }
-    
-    const feeRate = getAsaasCreditCardRate(1);
-    return `Pagamento à vista (taxa ${feeRate}% + R$ 0,49)`;
   };
 
   return (
@@ -191,7 +203,13 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
                 {formatCurrency(getTotalAmountWithFees())}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Inclui taxa de {getAsaasCreditCardRate(paymentData.installmentCount || 1)}% + R$ 0,49
+                {loadingFees ? (
+                  'Carregando taxas...'
+                ) : feeRate ? (
+                  `Inclui taxa de ${feeRate.percentageRate}% + R$ ${Number(feeRate.fixedFee || 0).toFixed(2)}${feeRate.isDefault ? ' (padrão)' : ''}`
+                ) : (
+                  `Inclui taxa de 3.29% + R$ 0,49`
+                )}
               </p>
             </div>
             
@@ -211,8 +229,20 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
                 <p className="font-medium text-orange-900 mb-1">Taxas do Gateway de Pagamento</p>
                 <div className="text-orange-800 space-y-1">
                   <p>• Valor da inscrição: {formatCurrency(getBaseAmount())}</p>
-                  <p>• Taxa Asaas: {getAsaasCreditCardRate(paymentData.installmentCount || 1)}% + R$ 0,49</p>
-                  <p>• <strong>Total a pagar: {formatCurrency(getTotalAmountWithFees())}</strong></p>
+                  {feeRate ? (
+                    <>
+                      <p>• Taxa configurada: {feeRate.percentageRate}% + R$ {Number(feeRate.fixedFee || 0).toFixed(2)}</p>
+                      <p>• <strong>Total a pagar: {formatCurrency(getTotalAmountWithFees())}</strong></p>
+                    </>
+                  ) : (
+                    <>
+                      <p>• <strong>Taxa não configurada para este campeonato</strong></p>
+                      <p>• <strong>Total a pagar: {formatCurrency(getTotalAmountWithFees())}</strong></p>
+                      <p className="text-xs text-orange-700 mt-2">
+                        ⚠️ Solicite ao administrador que configure as taxas no painel
+                      </p>
+                    </>
+                  )}
                   <p className="text-xs text-orange-700 mt-2">
                     Taxas promocionais válidas até 16/09/2025
                   </p>
