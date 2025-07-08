@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { SeasonRegistrationForm } from '@/components/season/SeasonRegistrationForm';
 import { SeasonService, Season, PaymentCondition } from '@/lib/services/season.service';
+import { SeasonRegistrationService, SeasonRegistration as UserRegistration } from '@/lib/services/season-registration.service';
 import { Card, CardContent, CardHeader, CardTitle, Button } from 'brk-design-system';
 import { formatCurrency } from '@/utils/currency';
 import { PageLoader } from '@/components/ui/loading';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const SeasonRegistration: React.FC = () => {
   const { seasonId, seasonSlug, conditionType } = useParams<{ 
@@ -13,8 +15,10 @@ export const SeasonRegistration: React.FC = () => {
     conditionType?: 'por_temporada' | 'por_etapa';
   }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [season, setSeason] = useState<Season | null>(null);
+  const [userRegistrations, setUserRegistrations] = useState<UserRegistration[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCondition, setSelectedCondition] = useState<'por_temporada' | 'por_etapa' | null>(null);
@@ -23,22 +27,46 @@ export const SeasonRegistration: React.FC = () => {
   const seasonIdentifier = seasonSlug || seasonId;
 
   useEffect(() => {
-    const fetchSeason = async () => {
+    const fetchData = async () => {
       if (!seasonIdentifier) return;
 
       try {
         setLoading(true);
         setError(null);
-        const seasonData = await SeasonService.getById(seasonIdentifier);
+        
+        // Buscar temporada e inscrições do usuário em paralelo
+        const [seasonData, userRegistrationsData] = await Promise.all([
+          SeasonService.getById(seasonIdentifier),
+          user ? SeasonRegistrationService.getMyRegistrations() : Promise.resolve([])
+        ]);
+        
         setSeason(seasonData);
+        setUserRegistrations(userRegistrationsData);
 
-        // Se há apenas uma condição ativa, seleciona automaticamente
+        // Verificar se o usuário já tem inscrição nesta temporada
+        const existingRegistration = userRegistrationsData.find(reg => reg.seasonId === seasonData.id);
+        
+        // Obter condições de pagamento ativas
         const activeConditions = seasonData.paymentConditions?.filter(c => c.enabled) || [];
-        if (activeConditions.length === 1) {
-          setSelectedCondition(activeConditions[0].type);
-        } else if (conditionType && activeConditions.some(c => c.type === conditionType)) {
-          // Se o tipo de condição foi especificado na URL e é válido, usa ele
-          setSelectedCondition(conditionType);
+        
+        if (existingRegistration) {
+          // Se o usuário já está inscrito, determinar o tipo baseado na inscrição existente
+          const hasStages = existingRegistration.stages && existingRegistration.stages.length > 0;
+          const registrationType = hasStages ? 'por_etapa' : 'por_temporada';
+          
+          // Filtrar apenas condições compatíveis com o tipo de inscrição existente
+          const compatibleConditions = activeConditions.filter(c => c.type === registrationType);
+          
+          if (compatibleConditions.length > 0) {
+            setSelectedCondition(registrationType);
+          }
+        } else {
+          // Se não está inscrito, usar lógica normal
+          if (activeConditions.length === 1) {
+            setSelectedCondition(activeConditions[0].type);
+          } else if (conditionType && activeConditions.some(c => c.type === conditionType)) {
+            setSelectedCondition(conditionType);
+          }
         }
       } catch (err: any) {
         setError(err.message || 'Erro ao carregar dados da temporada');
@@ -47,8 +75,8 @@ export const SeasonRegistration: React.FC = () => {
       }
     };
 
-    fetchSeason();
-  }, [seasonIdentifier]);
+    fetchData();
+  }, [seasonIdentifier, user]);
 
   if (!seasonIdentifier) {
     return (
@@ -90,8 +118,42 @@ export const SeasonRegistration: React.FC = () => {
     );
   }
 
+  // Verificar se o usuário já tem inscrição nesta temporada
+  const existingRegistration = userRegistrations.find(reg => reg.seasonId === season.id);
+  
   // Obter condições de pagamento ativas
-  const activeConditions = season.paymentConditions?.filter(c => c.enabled) || [];
+  let activeConditions = season.paymentConditions?.filter(c => c.enabled) || [];
+  
+  // Se o usuário já está inscrito, filtrar apenas condições compatíveis
+  if (existingRegistration) {
+    const hasStages = existingRegistration.stages && existingRegistration.stages.length > 0;
+    const registrationType = hasStages ? 'por_etapa' : 'por_temporada';
+    
+    // Filtrar apenas condições compatíveis com o tipo de inscrição existente
+    activeConditions = activeConditions.filter(c => c.type === registrationType);
+    
+    // Se não há condições compatíveis, mostrar mensagem específica
+    if (activeConditions.length === 0) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-destructive">Inscrição Incompatível</h1>
+            <p className="text-muted-foreground">
+              Você já está inscrito nesta temporada com o tipo "{registrationType === 'por_temporada' ? 'Por Temporada' : 'Por Etapa'}", 
+              mas não há condições de pagamento ativas para este tipo.
+            </p>
+            <Button 
+              onClick={() => navigate(-1)}
+              variant="outline"
+              className="mt-4"
+            >
+              Voltar
+            </Button>
+          </div>
+        </div>
+      );
+    }
+  }
 
   // Se não há condições ativas, mostrar erro
   if (activeConditions.length === 0) {
@@ -136,14 +198,33 @@ export const SeasonRegistration: React.FC = () => {
             <CardTitle className="text-2xl text-center">{season.name}</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
+            {existingRegistration && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-blue-800 mb-2">
+                    Você já está inscrito nesta temporada
+                  </h3>
+                  <p className="text-blue-700">
+                    Como você já está inscrito com o tipo "{existingRegistration.stages && existingRegistration.stages.length > 0 ? 'Por Etapa' : 'Por Temporada'}", 
+                    apenas opções compatíveis estão disponíveis.
+                  </p>
+                </div>
+              </div>
+            )}
+            
             <div className="text-center mb-6">
-              <h2 className="text-lg font-semibold mb-2">Escolha o tipo de inscrição</h2>
+              <h2 className="text-lg font-semibold mb-2">
+                {existingRegistration ? 'Adicionar mais inscrições' : 'Escolha o tipo de inscrição'}
+              </h2>
               <p className="text-muted-foreground">
-                Selecione como você deseja se inscrever nesta temporada
+                {existingRegistration 
+                  ? 'Selecione as opções adicionais que deseja adicionar à sua inscrição'
+                  : 'Selecione como você deseja se inscrever nesta temporada'
+                }
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className={`grid gap-6 ${activeConditions.length === 1 ? 'grid-cols-1 max-w-md mx-auto' : 'grid-cols-1 md:grid-cols-2'}`}>
               {activeConditions.map((condition) => (
                 <div
                   key={condition.type}
@@ -239,7 +320,7 @@ export const SeasonRegistration: React.FC = () => {
                 }}
                 disabled={!selectedCondition}
               >
-                Continuar
+                {existingRegistration ? 'Adicionar Inscrição' : 'Continuar'}
               </Button>
             </div>
           </CardContent>
