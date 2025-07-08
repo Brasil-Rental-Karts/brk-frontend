@@ -365,6 +365,19 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+      // Rota para inscrição com condição específica
+      {
+        path: "registration/:seasonSlug/:conditionType",
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <LazyWrapper>
+                <SeasonRegistration />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
       // Rota legacy para compatibilidade
       {
         path: "season/:seasonId/register",

@@ -1,5 +1,15 @@
 import api from '../axios';
 
+export interface PaymentCondition {
+  type: 'por_temporada' | 'por_etapa';
+  value: number;
+  description?: string;
+  enabled: boolean;
+  paymentMethods: ('pix' | 'cartao_credito')[];
+  pixInstallments?: number;
+  creditCardInstallments?: number;
+}
+
 export interface SeasonData {
   name: string;
   description: string;
@@ -7,8 +17,11 @@ export interface SeasonData {
   endDate: string;
   status: 'agendado' | 'em_andamento' | 'cancelado' | 'finalizado';
   registrationOpen: boolean;
-  inscriptionValue: number | string; // Decimal vem como string do backend
-  inscriptionType: 'por_temporada' | 'por_etapa';
+  // Nova estrutura para múltiplas condições de pagamento
+  paymentConditions?: PaymentCondition[];
+  // Campos legados para compatibilidade
+  inscriptionValue?: number | string; // Decimal vem como string do backend
+  inscriptionType?: 'por_temporada' | 'por_etapa';
   paymentMethods: ('pix' | 'cartao_credito')[];
   championshipId: string;
   pixInstallments?: number;
@@ -135,5 +148,52 @@ export class SeasonService {
         'Erro ao deletar temporada.'
       );
     }
+  }
+
+  /**
+   * Métodos auxiliares para compatibilidade
+   */
+  static getInscriptionValue(season: Season): number {
+    if (season.paymentConditions && season.paymentConditions.length > 0) {
+      // Retorna o valor da primeira condição ativa por temporada
+      const tempCondition = season.paymentConditions.find(c => c.type === 'por_temporada' && c.enabled);
+      return tempCondition ? tempCondition.value : 0;
+    }
+    return Number(season.inscriptionValue) || 0;
+  }
+
+  static getInscriptionType(season: Season): 'por_temporada' | 'por_etapa' {
+    if (season.paymentConditions && season.paymentConditions.length > 0) {
+      // Se há condições por etapa ativas, retorna por_etapa
+      const hasStageConditions = season.paymentConditions.some(c => c.type === 'por_etapa' && c.enabled);
+      return hasStageConditions ? 'por_etapa' : 'por_temporada';
+    }
+    return season.inscriptionType || 'por_temporada';
+  }
+
+  static hasPaymentCondition(season: Season, type: 'por_temporada' | 'por_etapa'): boolean {
+    return season.paymentConditions?.some(c => c.type === type && c.enabled) || false;
+  }
+
+  static getPaymentCondition(season: Season, type: 'por_temporada' | 'por_etapa'): PaymentCondition | undefined {
+    return season.paymentConditions?.find(c => c.type === type && c.enabled);
+  }
+
+  /**
+   * Métodos auxiliares para métodos de pagamento por condição
+   */
+  static getPaymentMethodsForCondition(season: Season, type: 'por_temporada' | 'por_etapa'): ('pix' | 'cartao_credito')[] {
+    const condition = SeasonService.getPaymentCondition(season, type);
+    return condition?.paymentMethods || [];
+  }
+
+  static getPixInstallmentsForCondition(season: Season, type: 'por_temporada' | 'por_etapa'): number {
+    const condition = SeasonService.getPaymentCondition(season, type);
+    return condition?.pixInstallments || season.pixInstallments || 1;
+  }
+
+  static getCreditCardInstallmentsForCondition(season: Season, type: 'por_temporada' | 'por_etapa'): number {
+    const condition = SeasonService.getPaymentCondition(season, type);
+    return condition?.creditCardInstallments || season.creditCardInstallments || 1;
   }
 } 

@@ -225,7 +225,8 @@ export const AddStageToRegistration = () => {
         }
         return {
           ...season,
-          inscriptionValue: Number(inscriptionValue) || 0
+          inscriptionValue: Number(inscriptionValue) || 0,
+          inscriptionType: SeasonService.getInscriptionType(season)
         };
       });
       setSeasons(filteredSeasons);

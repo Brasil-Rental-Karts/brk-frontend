@@ -116,7 +116,7 @@ const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod, formatInsc
           </div>
           <div className="flex flex-col">
             <span className="text-muted-foreground">Condições de pagamento</span>
-            <span className="font-medium capitalize">{formatInscriptionType(season.inscriptionType)}</span>
+            <span className="font-medium capitalize">{formatInscriptionType(SeasonService.getInscriptionType(season))}</span>
           </div>
         </div>
       </CardContent>
@@ -572,7 +572,7 @@ export const SeasonsTab = ({
                           {formatCurrency(parseFloat(season.inscriptionValue?.toString() || '0'))}
                         </div>
                         <div className="text-xs text-muted-foreground capitalize">
-                          {formatInscriptionType(season.inscriptionType)}
+                          {formatInscriptionType(SeasonService.getInscriptionType(season))}
                         </div>
                       </TableCell>
                       <TableCell className="text-center py-4">

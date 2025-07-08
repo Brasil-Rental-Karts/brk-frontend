@@ -34,6 +34,7 @@ import { PageLoader } from '@/components/ui/loading';
 
 interface SeasonRegistrationFormProps {
   seasonId: string;
+  selectedCondition?: 'por_temporada' | 'por_etapa';
   onSuccess?: (registrationId: string) => void;
   onCancel?: () => void;
 }
@@ -217,6 +218,7 @@ StageSelectionComponent.displayName = 'StageSelectionComponent';
 
 export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   seasonId,
+  selectedCondition,
   onSuccess: onSuccessProp,
   onCancel,
 }) => {
@@ -264,6 +266,9 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     }, 5000);
   };
 
+  // Determinar o tipo de inscrição baseado na condição selecionada
+  const inscriptionType = selectedCondition || (season ? SeasonService.getInscriptionType(season) : 'por_temporada');
+  
   // Função para filtrar etapas
   const filterStages = useCallback((allStages: Stage[], registrations: SeasonRegistration[]) => {
     const now = new Date();
@@ -272,13 +277,13 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     const userRegistration = registrations.find(reg => reg.seasonId === season?.id);
     
     // Para temporadas por temporada, se o usuário já está inscrito, não mostrar nenhuma etapa
-    if (season?.inscriptionType === 'por_temporada' && userRegistration) {
+    if (inscriptionType === 'por_temporada' && userRegistration) {
       return [];
     }
     
     // Para temporadas por etapa, verificar quais etapas o usuário já está inscrito
     let userRegisteredStageIds: string[] = [];
-    if (season?.inscriptionType === 'por_etapa' && userRegistration && userRegistration.stages) {
+    if (inscriptionType === 'por_etapa' && userRegistration && userRegistration.stages) {
       userRegisteredStageIds = userRegistration.stages.map(stage => stage.stageId);
     }
     
@@ -292,7 +297,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     });
     
     return availableStages;
-  }, [season?.id, season?.inscriptionType]);
+  }, [season?.id, inscriptionType]);
 
   // Função para carregar dados
   const fetchData = async () => {
@@ -508,9 +513,9 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     
     switch (paymentMethod) {
       case 'pix':
-        return season.pixInstallments || 1;
+        return SeasonService.getPixInstallmentsForCondition(season, inscriptionType);
       case 'cartao_credito':
-        return season.creditCardInstallments || 1;
+        return SeasonService.getCreditCardInstallmentsForCondition(season, inscriptionType);
       default:
         return 1;
     }
@@ -589,7 +594,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     if (!season || !categories.length) return;
 
     // Verificar se há métodos de pagamento válidos
-    const availablePaymentMethods = season.paymentMethods || [];
+    const availablePaymentMethods = SeasonService.getPaymentMethodsForCondition(season, inscriptionType);
     if (availablePaymentMethods.length === 0) {
       console.error('⚠️ [FRONTEND] Temporada sem métodos de pagamento válidos');
       setError('Esta temporada não possui métodos de pagamento configurados. Entre em contato com os organizadores.');
@@ -602,7 +607,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
         name: "Método de Pagamento",
         type: "select",
         mandatory: true,
-        options: (season.paymentMethods || []).map(method => ({
+        options: availablePaymentMethods.map(method => ({
           value: method,
           description: method === 'pix' ? 'PIX - Aprovação Instantânea' : 'Cartão de Crédito'
         }))
@@ -657,7 +662,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     ];
 
     // Adicionar seção de etapas se for inscrição por etapa
-    if (season.inscriptionType === 'por_etapa' && filteredStages.length > 0) {
+    if (inscriptionType === 'por_etapa' && filteredStages.length > 0) {
       config.push({
         section: "Seleção de Etapas",
         detail: "Escolha as etapas que deseja participar",
@@ -712,6 +717,17 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     setFormConfig(config);
   }, [season, categories, filteredStages, selectedPaymentMethod, total, categoryRegistrationCounts]);
 
+  // Função para obter o valor da inscrição baseado na condição selecionada
+  const getInscriptionValue = () => {
+    if (!season) return 0;
+    
+    if (selectedCondition && season.paymentConditions) {
+      const condition = season.paymentConditions.find(c => c.type === selectedCondition && c.enabled);
+      return condition ? condition.value : SeasonService.getInscriptionValue(season);
+    }
+    return SeasonService.getInscriptionValue(season);
+  };
+  
   const calculateTotal = (selectedCategories: string[], selectedStages: string[]) => {
     if (!season || !selectedCategories.length) {
       setTotal(0);
@@ -719,12 +735,15 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     }
     
     let newTotal: number;
-    if (season.inscriptionType === 'por_etapa' && selectedStages.length > 0) {
+    
+    const inscriptionValue = getInscriptionValue();
+    
+    if (inscriptionType === 'por_etapa' && selectedStages.length > 0) {
       // Por etapa: quantidade de categorias x quantidade de etapas x valor da inscrição
-      newTotal = selectedCategories.length * selectedStages.length * Number(season.inscriptionValue);
+      newTotal = selectedCategories.length * selectedStages.length * inscriptionValue;
     } else {
       // Por temporada: quantidade de categorias x valor da inscrição
-      newTotal = selectedCategories.length * Number(season.inscriptionValue);
+      newTotal = selectedCategories.length * inscriptionValue;
     }
     
     // Aplicar comissão da plataforma se ela deve ser cobrada do piloto
@@ -817,10 +836,10 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-left bg-gray-50 p-4 rounded-lg">
                 <div>
-                  <strong>Valor por categoria:</strong> {formatCurrency(Number(season.inscriptionValue))}
+                  <strong>Valor por categoria:</strong> {formatCurrency(getInscriptionValue())}
                 </div>
                 <div>
-                  <strong>Tipo de inscrição:</strong> {season.inscriptionType === 'por_temporada' ? 'Por Temporada' : 'Por Etapa'}
+                  <strong>Tipo de inscrição:</strong> {inscriptionType === 'por_temporada' ? 'Por Temporada' : 'Por Etapa'}
                 </div>
                 <div>
                   <strong>Início:</strong> {new Date(season.startDate).toLocaleDateString('pt-BR')}
@@ -847,7 +866,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
 
   // Verificar se o usuário já está inscrito na temporada (apenas para temporadas por temporada)
   const userRegistration = userRegistrations.find(reg => reg.seasonId === season.id);
-  if (season.inscriptionType === 'por_temporada' && userRegistration) {
+  if (inscriptionType === 'por_temporada' && userRegistration) {
     return (
       <div className="w-full max-w-4xl mx-auto px-6 py-6">
         <Card>
@@ -899,7 +918,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   }
 
   // Verificar se é inscrição por etapa mas não há etapas disponíveis
-  if (season.inscriptionType === 'por_etapa' && filteredStages.length === 0 && stages.length > 0) {
+      if (inscriptionType === 'por_etapa' && filteredStages.length === 0 && stages.length > 0) {
     // Determinar o motivo específico
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -978,7 +997,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
                   <strong>Etapas passadas:</strong> {stages.length - futureStages.length}
                 </div>
                 <div>
-                  <strong>Valor por categoria:</strong> {formatCurrency(Number(season.inscriptionValue))}
+                  <strong>Valor por categoria:</strong> {formatCurrency(getInscriptionValue())}
                 </div>
                 {userRegistration && (
                   <>
@@ -1024,8 +1043,8 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
         <CardContent>
           <div className="flex items-center justify-between text-sm mb-3">
             <div className="flex items-center space-x-4">
-              <span className="text-gray-600">Valor por categoria: <span className="font-medium text-gray-900">{formatCurrency(Number(season.inscriptionValue))}</span></span>
-              <span className="text-gray-600">Tipo: <span className="font-medium text-gray-900">{season.inscriptionType === 'por_temporada' ? 'Por Temporada' : 'Por Etapa'}</span></span>
+              <span className="text-gray-600">Valor por categoria: <span className="font-medium text-gray-900">{formatCurrency(getInscriptionValue())}</span></span>
+              <span className="text-gray-600">Tipo: <span className="font-medium text-gray-900">{inscriptionType === 'por_temporada' ? 'Por Temporada' : 'Por Etapa'}</span></span>
             </div>
           </div>
           
@@ -1056,7 +1075,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
             </div>
           
           {/* Informações sobre parcelamento e taxas */}
-          {season.inscriptionType === 'por_temporada' && (
+          {inscriptionType === 'por_temporada' && (
             <div className="mt-4 space-y-3">
 
 
@@ -1065,11 +1084,11 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-900">Condições de Pagamento:</span>
                   <div className="flex space-x-3">
-                    {(season.paymentMethods || []).includes('pix') && (
-                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">PIX até {season.pixInstallments || 1}x</span>
+                    {SeasonService.getPaymentMethodsForCondition(season, inscriptionType).includes('pix') && (
+                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">PIX até {SeasonService.getPixInstallmentsForCondition(season, inscriptionType)}x</span>
                     )}
-                    {(season.paymentMethods || []).includes('cartao_credito') && (
-                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Cartão até {season.creditCardInstallments || 1}x</span>
+                    {SeasonService.getPaymentMethodsForCondition(season, inscriptionType).includes('cartao_credito') && (
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Cartão até {SeasonService.getCreditCardInstallmentsForCondition(season, inscriptionType)}x</span>
                     )}
                   </div>
                 </div>
