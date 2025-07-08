@@ -31,6 +31,7 @@ const EditProfile = lazy(() => import('@/pages/EditProfile'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const Financial = lazy(() => import('@/pages/Financial').then(module => ({ default: module.Financial })));
 const Admin = lazy(() => import('@/pages/Admin').then(module => ({ default: module.Admin })));
+const CreditCardFeesAdmin = lazy(() => import('@/pages/CreditCardFeesAdmin'));
 const GoogleCallback = lazy(() => import('@/pages/GoogleCallback'));
 const LoginSuccess = lazy(() => import('@/pages/LoginSuccess'));
 const ConfirmEmailInfo = lazy(() => import('@/pages/ConfirmEmailInfo').then(module => ({ default: module.ConfirmEmailInfo })));
@@ -444,6 +445,18 @@ export const router = createBrowserRouter([
             <MainLayout>
               <LazyWrapper>
                 <CreateRaceTrack />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "admin/credit-card-fees",
+        element: (
+          <ProtectedRoute requiredRoles={['Administrator']}>
+            <MainLayout>
+              <LazyWrapper>
+                <CreditCardFeesAdmin />
               </LazyWrapper>
             </MainLayout>
           </ProtectedRoute>

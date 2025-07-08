@@ -359,6 +359,23 @@ export const Admin = () => {
                 
                 <div className="border rounded-lg p-4 sm:p-6">
                   <div className="flex items-center gap-3 mb-4">
+                    <CreditCard className="h-5 w-5 text-purple-600" />
+                    <h3 className="text-lg font-semibold">Taxas do Cartão de Crédito</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Configure as taxas do cartão de crédito para cada campeonato, permitindo personalizar os percentuais e taxas fixas por range de parcelas.
+                  </p>
+                  <Button
+                    onClick={() => navigate('/admin/credit-card-fees')}
+                    className="flex items-center gap-2"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Gerenciar Taxas
+                  </Button>
+                </div>
+                
+                <div className="border rounded-lg p-4 sm:p-6">
+                  <div className="flex items-center gap-3 mb-4">
                     <TrendingUp className="h-5 w-5 text-green-600" />
                     <h3 className="text-lg font-semibold">Outras Funcionalidades</h3>
                   </div>

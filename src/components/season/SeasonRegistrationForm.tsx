@@ -17,6 +17,7 @@ import { CategoryService, Category } from '@/lib/services/category.service';
 import { StageService, Stage } from '@/lib/services/stage.service';
 import { SeasonRegistrationService, CreateRegistrationData, SeasonRegistration } from '@/lib/services/season-registration.service';
 import { ChampionshipService, Championship } from '@/lib/services/championship.service';
+import { CreditCardFeesService, CreditCardFeesRate } from '@/lib/services/credit-card-fees.service';
 import { formatCurrency } from '@/utils/currency';
 import { masks } from '@/utils/masks';
 import { useFormScreen } from '@/hooks/use-form-screen';
@@ -228,13 +229,18 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   const [userRegistrations, setUserRegistrations] = useState<SeasonRegistration[]>([]);
   const [championship, setChampionship] = useState<Championship | null>(null);
   const [total, setTotal] = useState(0);
+  const [totalWithFees, setTotalWithFees] = useState(0);
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
+  const [selectedInstallments, setSelectedInstallments] = useState<number>(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showMobileTooltip, setShowMobileTooltip] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [categoryRegistrationCounts, setCategoryRegistrationCounts] = useState<Record<string, number>>({});
+  const creditCardFeesService = new CreditCardFeesService();
+  const [feeRates, setFeeRates] = useState<Record<number, CreditCardFeesRate>>({});
+  const [loadingFees, setLoadingFees] = useState(false);
 
   // Detectar se é dispositivo móvel
   useEffect(() => {
@@ -340,10 +346,51 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     }
   };
 
+  // Função para buscar taxas configuráveis
+  const fetchFeeRates = async (championshipId: string) => {
+    setLoadingFees(true);
+    try {
+      const rates: Record<number, CreditCardFeesRate> = {};
+      
+      // Buscar taxas para diferentes números de parcelas (1, 2-6, 7-12, 13-21)
+      const installmentsToCheck = [1, 2, 7, 13];
+      
+      await Promise.all(
+        installmentsToCheck.map(async (installments) => {
+          try {
+            const rate = await creditCardFeesService.getRateForInstallments(championshipId, installments);
+            rates[installments] = rate;
+          } catch (error) {
+            console.error(`Erro ao buscar taxa para ${installments} parcelas:`, error);
+            // Usar taxa padrão como fallback
+            rates[installments] = {
+              percentageRate: 3.29, // Default para 3.29%
+              fixedFee: 0.49,
+              isDefault: true
+            };
+          }
+        })
+      );
+      
+      setFeeRates(rates);
+    } catch (error) {
+      console.error('Erro ao buscar taxas configuráveis:', error);
+    } finally {
+      setLoadingFees(false);
+    }
+  };
+
   // Carregar dados diretamente no useEffect
   useEffect(() => {
     fetchData();
   }, [seasonId]);
+
+  // Buscar taxas quando o campeonato for carregado
+  useEffect(() => {
+    if (championship?.id) {
+      fetchFeeRates(championship.id);
+    }
+  }, [championship?.id]);
 
   // Filtrar etapas quando os dados mudarem
   useEffect(() => {
@@ -352,6 +399,37 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       setFilteredStages(filtered);
     }
   }, [stages, userRegistrations, filterStages]);
+
+  // Calcular total com taxas quando método de pagamento ou parcelamento mudar
+  useEffect(() => {
+    if (selectedPaymentMethod === 'cartao_credito') {
+      const totalWithConfigurableFees = calculateTotalWithConfigurableFees(total, selectedPaymentMethod, selectedInstallments);
+      setTotalWithFees(totalWithConfigurableFees);
+      
+      const rate = getConfigurableRate(selectedInstallments);
+      
+      // Debug log
+      console.log('[SeasonRegistrationForm] Total atualizado:', {
+        baseTotal: total,
+        paymentMethod: selectedPaymentMethod,
+        installments: selectedInstallments,
+        totalWithFees: totalWithConfigurableFees,
+        feeRate: rate.percentageRate,
+        fixedFee: rate.fixedFee,
+        isDefault: rate.isDefault
+      });
+    } else {
+      setTotalWithFees(total);
+    }
+  }, [total, selectedPaymentMethod, selectedInstallments, feeRates]);
+
+  // Recalcular total com taxas quando necessário
+  const getCurrentTotalWithFees = useCallback(() => {
+    if (selectedPaymentMethod === 'cartao_credito') {
+      return calculateTotalWithConfigurableFees(total, selectedPaymentMethod, selectedInstallments);
+    }
+    return total;
+  }, [total, selectedPaymentMethod, selectedInstallments, feeRates]);
 
   const {
     isSaving,
@@ -365,6 +443,22 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   } = useFormScreen<any, CreateRegistrationData>({
     createData: (data) => SeasonRegistrationService.create(data),
     transformSubmitData: (data) => {
+      const installmentsCount = data.installments ? parseInt(data.installments, 10) : 1;
+      
+      // Calcular o total com taxas no momento da submissão
+      const finalTotal = getCurrentTotalWithFees();
+      
+      // Debug log para verificar o valor sendo enviado
+      console.log('[SeasonRegistrationForm] Enviando dados para backend:', {
+        paymentMethod: data.pagamento,
+        installments: installmentsCount,
+        baseTotal: total,
+        totalWithFees: totalWithFees,
+        calculatedTotal: finalTotal,
+        categories: data.categorias,
+        stages: data.etapas
+      });
+      
       const transformedData = {
         userId: user?.id || '',
         seasonId: season?.id || '',
@@ -372,7 +466,8 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
         stageIds: data.etapas || [],
         paymentMethod: data.pagamento,
         userDocument: data.cpf,
-        installments: data.installments ? parseInt(data.installments, 10) : 1,
+        installments: installmentsCount,
+        totalAmount: finalTotal, // Enviar o total correto incluindo taxas
       };
       
       return transformedData;
@@ -421,41 +516,72 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     }
   };
 
+  // Função para obter taxa configurável ou padrão
+  const getConfigurableRate = (installments: number) => {
+    // Determinar qual taxa usar baseado no número de parcelas
+    let rateKey = 1; // padrão à vista
+    if (installments >= 2 && installments <= 6) {
+      rateKey = 2;
+    } else if (installments >= 7 && installments <= 12) {
+      rateKey = 7;
+    } else if (installments >= 13 && installments <= 21) {
+      rateKey = 13;
+    }
+    const configurableRate = feeRates[rateKey];
+    if (configurableRate && !configurableRate.isDefault) {
+      return configurableRate;
+    }
+    // Se não houver taxa configurada, lançar erro
+    throw new Error('Taxa de cartão de crédito não configurada para este campeonato e número de parcelas. Solicite ao administrador que configure as taxas no painel.');
+  };
+
+  // Função para calcular o valor total com taxas configuráveis
+  const calculateTotalWithConfigurableFees = (baseTotal: number, paymentMethod: string, installments: number) => {
+    if (paymentMethod !== 'cartao_credito') {
+      return baseTotal;
+    }
+    try {
+      const rate = getConfigurableRate(installments);
+      // Calcular taxa percentual
+      const percentageFee = baseTotal * (rate.percentageRate / 100);
+      // Total com taxas
+      return baseTotal + percentageFee + rate.fixedFee;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao calcular taxa de cartão de crédito.');
+      return baseTotal;
+    }
+  };
+
   // Função para gerar opções de parcelas baseadas no método de pagamento
   const generateInstallmentOptions = (paymentMethod: string) => {
     const maxInstallments = getMaxInstallments(paymentMethod);
-    
     if (maxInstallments < 1) {
       return [];
     }
-
-    // Sempre incluir a opção 1x (à vista)
-    const options = [
-      {
-        value: "1",
-        description: `1x de ${formatCurrency(total)} (à vista)`
-      }
-    ];
-
-    // Adicionar opções de 2x até o máximo permitido
-    if (maxInstallments > 1) {
-      for (let i = 2; i <= maxInstallments; i++) {
+    const options = [];
+    for (let i = 1; i <= maxInstallments; i++) {
+      if (paymentMethod === 'pix') {
         const installmentValue = total / i;
-        
-        if (paymentMethod === 'pix') {
+        options.push({
+          value: i.toString(),
+          description: i === 1 ? `1x de ${formatCurrency(installmentValue)} (à vista)` : `${i}x de ${formatCurrency(installmentValue)}`
+        });
+      } else if (paymentMethod === 'cartao_credito') {
+        try {
+          const totalWithFees = calculateTotalWithConfigurableFees(total, paymentMethod, i);
+          const installmentValue = totalWithFees / i;
+          const rate = getConfigurableRate(i);
           options.push({
             value: i.toString(),
-            description: `${i}x de ${formatCurrency(installmentValue)}`
+            description: i === 1 ? 
+              `1x de ${formatCurrency(installmentValue)} (à vista - taxa ${rate.percentageRate}% + R$ ${Number(rate.fixedFee || 0).toFixed(2)})` :
+              `${i}x de ${formatCurrency(installmentValue)} (taxa ${rate.percentageRate}% + R$ ${Number(rate.fixedFee || 0).toFixed(2)})`
           });
-        } else {
-          options.push({
-            value: i.toString(),
-            description: `${i}x de ${formatCurrency(installmentValue)}`
-          });
+        } catch (err) {
+          // Não adiciona opção se não houver taxa configurada
         }
       }
     }
-
     return options;
   };
 
@@ -617,6 +743,12 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     // Atualizar método de pagamento selecionado
     if (data.pagamento !== selectedPaymentMethod) {
       setSelectedPaymentMethod(data.pagamento || '');
+    }
+    
+    // Atualizar parcelamento selecionado
+    if (data.installments) {
+      const installmentsCount = parseInt(data.installments, 10);
+      setSelectedInstallments(installmentsCount);
     }
     
     // Calcular total baseado nas categorias selecionadas
@@ -899,7 +1031,14 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
             </div>
             <div className="flex items-center gap-2">
               <strong>Total calculado:</strong> 
-              <span className="text-lg font-bold text-primary">{formatCurrency(total)}</span>
+              <span className="text-lg font-bold text-primary">
+                {selectedPaymentMethod === 'cartao_credito' ? formatCurrency(totalWithFees) : formatCurrency(total)}
+                {selectedPaymentMethod === 'cartao_credito' && (
+                  <span className="text-xs text-orange-600 ml-1">
+                    (inclui taxas)
+                  </span>
+                )}
+              </span>
               {championship && !championship.commissionAbsorbedByChampionship && (
                 <>
                   {isMobile ? (
@@ -972,6 +1111,16 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
                   <div className="text-xs text-yellow-800">
                     <strong>PIX Parcelado:</strong> A 1ª parcela será via PIX (pagamento imediato). 
                     As demais parcelas serão PIX enviados automaticamente por email nas datas de vencimento.
+                  </div>
+                </div>
+              )}
+              
+              {/* Informações sobre taxas do cartão de crédito */}
+              {selectedPaymentMethod === 'cartao_credito' && (
+                <div className="mt-3 p-3 bg-orange-50 border-l-4 border-orange-400 rounded-r-md">
+                  <div className="text-xs text-orange-800">
+                    <strong>Taxas do Cartão de Crédito:</strong> Os valores das parcelas já incluem as taxas do gateway de pagamento Asaas. 
+                    Taxas promocionais: À vista 1,99%, 2-6x 2,49%, 7-12x 2,99%, 13-21x 3,29% + R$ 0,49 por transação.
                   </div>
                 </div>
               )}
