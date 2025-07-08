@@ -22,6 +22,7 @@ export const SeasonRegistration: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCondition, setSelectedCondition] = useState<'por_temporada' | 'por_etapa' | null>(null);
+  const [processing, setProcessing] = useState(false);
 
   // Determina o identificador da temporada
   const seasonIdentifier = seasonSlug || seasonId;
@@ -77,6 +78,18 @@ export const SeasonRegistration: React.FC = () => {
 
     fetchData();
   }, [seasonIdentifier, user]);
+
+  const handleContinue = async () => {
+    if (!selectedCondition) return;
+    
+    setProcessing(true);
+    
+    // Simular um pequeno delay para mostrar o loading
+    setTimeout(() => {
+      // Navegar para o formulário com a condição selecionada
+      navigate(`/registration/${seasonIdentifier}/${selectedCondition}`);
+    }, 1000);
+  };
 
   if (!seasonIdentifier) {
     return (
@@ -191,141 +204,157 @@ export const SeasonRegistration: React.FC = () => {
 
   // Se há múltiplas condições, mostrar seleção
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-4xl mx-auto">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl text-center">{season.name}</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            {existingRegistration && (
-              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="text-center">
-                  <h3 className="text-lg font-semibold text-blue-800 mb-2">
-                    Você já está inscrito nesta temporada
-                  </h3>
-                  <p className="text-blue-700">
-                    Como você já está inscrito com o tipo "{existingRegistration.stages && existingRegistration.stages.length > 0 ? 'Por Etapa' : 'Por Temporada'}", 
-                    apenas opções compatíveis estão disponíveis.
-                  </p>
-                </div>
-              </div>
-            )}
-            
-            <div className="text-center mb-6">
-              <h2 className="text-lg font-semibold mb-2">
-                {existingRegistration ? 'Adicionar mais inscrições' : 'Escolha o tipo de inscrição'}
-              </h2>
-              <p className="text-muted-foreground">
-                {existingRegistration 
-                  ? 'Selecione as opções adicionais que deseja adicionar à sua inscrição'
-                  : 'Selecione como você deseja se inscrever nesta temporada'
-                }
-              </p>
-            </div>
-
-            <div className={`grid gap-6 ${activeConditions.length === 1 ? 'grid-cols-1 max-w-md mx-auto' : 'grid-cols-1 md:grid-cols-2'}`}>
-              {activeConditions.map((condition) => (
-                <div
-                  key={condition.type}
-                  className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                    selectedCondition === condition.type
-                      ? 'border-primary bg-primary/5'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => setSelectedCondition(condition.type)}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold">
-                      {condition.type === 'por_temporada' ? 'Por Temporada' : 'Por Etapa'}
+    <>
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-4xl mx-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl text-center">{season.name}</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              {existingRegistration && (
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold text-blue-800 mb-2">
+                      Você já está inscrito nesta temporada
                     </h3>
-                    <div className={`w-4 h-4 rounded-full border-2 ${
+                    <p className="text-blue-700">
+                      Como você já está inscrito com o tipo "{existingRegistration.stages && existingRegistration.stages.length > 0 ? 'Por Etapa' : 'Por Temporada'}", 
+                      apenas opções compatíveis estão disponíveis.
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              <div className="text-center mb-6">
+                <h2 className="text-lg font-semibold mb-2">
+                  {existingRegistration ? 'Adicionar mais inscrições' : 'Escolha o tipo de inscrição'}
+                </h2>
+                <p className="text-muted-foreground">
+                  {existingRegistration 
+                    ? 'Selecione as opções adicionais que deseja adicionar à sua inscrição'
+                    : 'Selecione como você deseja se inscrever nesta temporada'
+                  }
+                </p>
+              </div>
+
+              <div className={`grid gap-6 ${activeConditions.length === 1 ? 'grid-cols-1 max-w-md mx-auto' : 'grid-cols-1 md:grid-cols-2'}`}>
+                {activeConditions.map((condition) => (
+                  <div
+                    key={condition.type}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
                       selectedCondition === condition.type
-                        ? 'border-primary bg-primary'
-                        : 'border-gray-300'
-                    }`}>
-                      {selectedCondition === condition.type && (
-                        <div className="w-2 h-2 bg-white rounded-full m-0.5" />
+                        ? 'border-primary bg-primary/5'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setSelectedCondition(condition.type)}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold">
+                        {condition.type === 'por_temporada' ? 'Por Temporada' : 'Por Etapa'}
+                      </h3>
+                      <div className={`w-4 h-4 rounded-full border-2 ${
+                        selectedCondition === condition.type
+                          ? 'border-primary bg-primary'
+                          : 'border-gray-300'
+                      }`}>
+                        {selectedCondition === condition.type && (
+                          <div className="w-2 h-2 bg-white rounded-full m-0.5" />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Valor:</span>
+                        <span className="font-semibold text-lg">
+                          {formatCurrency(condition.value)}
+                        </span>
+                      </div>
+
+                      {condition.description && (
+                        <div className="text-sm text-gray-600">
+                          {condition.description}
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium text-gray-700">Métodos de pagamento:</div>
+                        <div className="flex flex-wrap gap-2">
+                          {condition.paymentMethods.map((method) => (
+                            <span
+                              key={method}
+                              className={`text-xs px-2 py-1 rounded ${
+                                method === 'pix'
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}
+                            >
+                              {method === 'pix' ? 'PIX' : 'Cartão de Crédito'}
+                              {method === 'pix' && condition.pixInstallments && condition.pixInstallments > 1 && (
+                                <span> até {condition.pixInstallments}x</span>
+                              )}
+                              {method === 'cartao_credito' && condition.creditCardInstallments && condition.creditCardInstallments > 1 && (
+                                <span> até {condition.creditCardInstallments}x</span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {condition.type === 'por_etapa' && (
+                        <div className="text-sm text-gray-600 bg-blue-50 p-2 rounded">
+                          <strong>Por Etapa:</strong> Você escolherá quais etapas participar e pagará apenas pelas etapas selecionadas.
+                        </div>
+                      )}
+
+                      {condition.type === 'por_temporada' && (
+                        <div className="text-sm text-gray-600 bg-green-50 p-2 rounded">
+                          <strong>Por Temporada:</strong> Você se inscreve na temporada completa e pode participar de todas as etapas.
+                        </div>
                       )}
                     </div>
                   </div>
+                ))}
+              </div>
 
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Valor:</span>
-                      <span className="font-semibold text-lg">
-                        {formatCurrency(condition.value)}
-                      </span>
-                    </div>
-
-                    {condition.description && (
-                      <div className="text-sm text-gray-600">
-                        {condition.description}
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <div className="text-sm font-medium text-gray-700">Métodos de pagamento:</div>
-                      <div className="flex flex-wrap gap-2">
-                        {condition.paymentMethods.map((method) => (
-                          <span
-                            key={method}
-                            className={`text-xs px-2 py-1 rounded ${
-                              method === 'pix'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-blue-100 text-blue-800'
-                            }`}
-                          >
-                            {method === 'pix' ? 'PIX' : 'Cartão de Crédito'}
-                            {method === 'pix' && condition.pixInstallments && condition.pixInstallments > 1 && (
-                              <span> até {condition.pixInstallments}x</span>
-                            )}
-                            {method === 'cartao_credito' && condition.creditCardInstallments && condition.creditCardInstallments > 1 && (
-                              <span> até {condition.creditCardInstallments}x</span>
-                            )}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {condition.type === 'por_etapa' && (
-                      <div className="text-sm text-gray-600 bg-blue-50 p-2 rounded">
-                        <strong>Por Etapa:</strong> Você escolherá quais etapas participar e pagará apenas pelas etapas selecionadas.
-                      </div>
-                    )}
-
-                    {condition.type === 'por_temporada' && (
-                      <div className="text-sm text-gray-600 bg-green-50 p-2 rounded">
-                        <strong>Por Temporada:</strong> Você se inscreve na temporada completa e pode participar de todas as etapas.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex justify-center mt-8 space-x-4">
-              <Button
-                variant="outline"
-                onClick={() => navigate(-1)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={() => {
-                  if (selectedCondition) {
-                    // Navegar para o formulário com a condição selecionada
-                    navigate(`/registration/${seasonIdentifier}/${selectedCondition}`);
-                  }
-                }}
-                disabled={!selectedCondition}
-              >
-                {existingRegistration ? 'Adicionar Inscrição' : 'Continuar'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="flex justify-center mt-8 space-x-4">
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(-1)}
+                  disabled={processing}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleContinue}
+                  disabled={!selectedCondition || processing}
+                >
+                  {processing ? 'Processando...' : (existingRegistration ? 'Adicionar Inscrição' : 'Continuar')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
+
+      {/* Processing Overlay */}
+      {processing && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 text-center">
+            <div className="mb-4">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Processando Inscrição</h3>
+            <p className="text-gray-600 mb-4">
+              Sua inscrição está sendo processada. Por favor, aguarde e não feche esta tela.
+            </p>
+            <div className="text-sm text-gray-500">
+              Este processo pode levar alguns segundos...
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }; 

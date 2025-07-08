@@ -220,6 +220,11 @@ const validateVisibleFields = (data: any, config: FormSectionConfig[]) => {
           if (!value || !Array.isArray(value) || value.length === 0) {
             errors[field.id] = `${field.name} é obrigatório`;
           }
+        } else if (field.type === "custom") {
+          // For custom fields, check if it's an array and if it's empty
+          if (!value || !Array.isArray(value) || value.length === 0) {
+            errors[field.id] = `${field.name} é obrigatório`;
+          }
         } else if (field.type !== "checkbox") {
           // For other fields except checkbox, check if empty
           if (!value || (typeof value === "string" && value.trim() === "")) {
