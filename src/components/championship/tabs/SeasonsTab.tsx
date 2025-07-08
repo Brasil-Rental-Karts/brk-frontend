@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "brk-design-system";
 import { Card, CardHeader, CardContent } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { PlusCircle, Calendar, Trophy, MoreVertical, DollarSign, Loader2 } from "lucide-react";
+import { PlusCircle, Calendar, Trophy, MoreVertical, DollarSign, Loader2, CreditCard } from "lucide-react";
 import { EmptyState } from "brk-design-system";
 import {
   DropdownMenu,
@@ -30,7 +30,7 @@ import {
 import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
 import { Pagination } from "brk-design-system";
 import { usePagination } from "@/hooks/usePagination";
-import { SeasonService, Season } from "@/lib/services/season.service";
+import { SeasonService, Season, PaymentCondition } from "@/lib/services/season.service";
 
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { formatDateToBrazilian, getYearFromDate, compareDates, formatCurrency } from "@/utils/date";
@@ -62,13 +62,94 @@ const filterFields: FilterField[] = [
   }
 ];
 
-const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod, formatInscriptionType }: { 
+// Função auxiliar para formatar condições de pagamento
+const formatPaymentConditions = (season: Season) => {
+  if (!season.paymentConditions || season.paymentConditions.length === 0) {
+    // Fallback para dados legados
+    const inscriptionType = SeasonService.getInscriptionType(season);
+    const inscriptionValue = SeasonService.getInscriptionValue(season);
+    return {
+      hasMultipleConditions: false,
+      conditions: [{
+        type: inscriptionType,
+        value: inscriptionValue,
+        description: inscriptionType === 'por_temporada' ? 'Pagamento por temporada' : 'Pagamento por etapa',
+        enabled: true,
+        paymentMethods: season.paymentMethods || []
+      }]
+    };
+  }
+
+  const activeConditions = season.paymentConditions.filter(c => c.enabled);
+  
+  return {
+    hasMultipleConditions: activeConditions.length > 1,
+    conditions: activeConditions
+  };
+};
+
+// Função auxiliar para formatar método de pagamento
+const formatPaymentMethod = (method: string) => {
+  switch (method) {
+    case 'pix':
+      return 'PIX';
+    case 'cartao_credito':
+      return 'Cartão de Crédito';
+    default:
+      return method;
+  }
+};
+
+// Função auxiliar para formatar tipo de inscrição
+const formatInscriptionType = (inscriptionType: string) => {
+  switch (inscriptionType) {
+    case 'por_temporada':
+      return 'Por Temporada';
+    case 'por_etapa':
+      return 'Por Etapa';
+    default:
+      return inscriptionType;
+  }
+};
+
+// Componente para exibir condições de pagamento
+const PaymentConditionsDisplay = ({ conditions, isCompact = false }: { 
+  conditions: PaymentCondition[], 
+  isCompact?: boolean 
+}) => {
+  if (conditions.length === 1) {
+    const condition = conditions[0];
+    return (
+      <div className={`${isCompact ? 'text-xs' : 'text-sm'} text-muted-foreground capitalize`}>
+        {formatInscriptionType(condition.type)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      {conditions.map((condition, index) => (
+        <div key={index} className={`${isCompact ? 'text-xs' : 'text-sm'} text-muted-foreground`}>
+          <span className="capitalize">{formatInscriptionType(condition.type)}</span>
+          {condition.paymentMethods.length > 0 && (
+            <span className="ml-1">
+              • {condition.paymentMethods.map(formatPaymentMethod).join(', ')}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod }: { 
   season: Season, 
   onAction: (action: string, seasonId: string) => void, 
   getStatusBadge: (status: string) => JSX.Element, 
-  formatPeriod: (startDate: string, endDate: string) => string,
-  formatInscriptionType: (inscriptionType: string) => string
+  formatPeriod: (startDate: string, endDate: string) => string
 }) => {
+  const paymentInfo = formatPaymentConditions(season);
+  
   return (
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -112,11 +193,26 @@ const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod, formatInsc
           </div>
           <div className="flex flex-col">
             <span className="text-muted-foreground">Inscrição</span>
-            <span className="font-medium">{formatCurrency(parseFloat(season.inscriptionValue?.toString() || '0'))}</span>
+            <div className="space-y-1">
+              {paymentInfo.hasMultipleConditions ? (
+                paymentInfo.conditions.map((condition, index) => (
+                  <div key={index} className="text-sm">
+                    <span className="font-medium">{formatCurrency(condition.value)}</span>
+                    <span className="text-muted-foreground ml-1 capitalize">
+                      ({formatInscriptionType(condition.type)})
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <span className="font-medium">
+                  {formatCurrency(paymentInfo.conditions[0].value)}
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex flex-col">
             <span className="text-muted-foreground">Condições de pagamento</span>
-            <span className="font-medium capitalize">{formatInscriptionType(season.inscriptionType)}</span>
+            <PaymentConditionsDisplay conditions={paymentInfo.conditions} />
           </div>
         </div>
       </CardContent>
@@ -354,17 +450,6 @@ export const SeasonsTab = ({
     return `${start.toLocaleDateString('pt-BR')} - ${end.toLocaleDateString('pt-BR')}`;
   };
 
-  const formatInscriptionType = (inscriptionType: string) => {
-    switch (inscriptionType) {
-      case 'por_temporada':
-        return 'Por Temporada';
-      case 'por_etapa':
-        return 'Por Etapa';
-      default:
-        return inscriptionType;
-    }
-  };
-
   const handleFiltersChange = useCallback((newFilters: FilterValues) => {
     setFilters(newFilters);
     if (!isMobile) {
@@ -460,7 +545,6 @@ export const SeasonsTab = ({
                   onAction={handleSeasonAction}
                   getStatusBadge={getStatusBadge}
                   formatPeriod={formatPeriod}
-                  formatInscriptionType={formatInscriptionType}
                 />
               </div>
             ))}
@@ -568,12 +652,35 @@ export const SeasonsTab = ({
                         </div>
                       </TableCell>
                       <TableCell className="text-center py-4">
-                        <div className="text-sm font-medium">
-                          {formatCurrency(parseFloat(season.inscriptionValue?.toString() || '0'))}
-                        </div>
-                        <div className="text-xs text-muted-foreground capitalize">
-                          {formatInscriptionType(season.inscriptionType)}
-                        </div>
+                        {(() => {
+                          const paymentInfo = formatPaymentConditions(season);
+                          return (
+                            <div className="space-y-1">
+                              {paymentInfo.hasMultipleConditions ? (
+                                paymentInfo.conditions.map((condition, index) => (
+                                  <div key={index} className="text-sm">
+                                    <div className="font-medium">
+                                      {formatCurrency(condition.value)}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground capitalize">
+                                      {formatInscriptionType(condition.type)}
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <>
+                                  <div className="text-sm font-medium">
+                                    {formatCurrency(paymentInfo.conditions[0].value)}
+                                  </div>
+                                  <PaymentConditionsDisplay 
+                                    conditions={paymentInfo.conditions} 
+                                    isCompact={true} 
+                                  />
+                                </>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="text-center py-4">
                         <DropdownMenu>

@@ -220,7 +220,8 @@ export const AdminPilotRegistration = () => {
         }
         return {
           ...season,
-          inscriptionValue: Number(inscriptionValue) || 0
+          inscriptionValue: Number(inscriptionValue) || 0,
+          inscriptionType: SeasonService.getInscriptionType(season)
         };
       });
       setSeasons(processedSeasons);
@@ -250,7 +251,8 @@ export const AdminPilotRegistration = () => {
         }
         return {
           ...season,
-          inscriptionValue: Number(inscriptionValue) || 0
+          inscriptionValue: Number(inscriptionValue) || 0,
+          inscriptionType: SeasonService.getInscriptionType(season)
         };
       });
       setSeasons(filteredSeasons);
