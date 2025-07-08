@@ -1022,108 +1022,62 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div>
-              <strong>Valor por categoria:</strong> {formatCurrency(Number(season.inscriptionValue))}
-            </div>
-            <div>
-              <strong>Tipo:</strong> {season.inscriptionType === 'por_temporada' ? 'Por Temporada' : 'Por Etapa'}
-            </div>
-            <div className="flex items-center gap-2">
-              <strong>Total calculado:</strong> 
-              <span className="text-lg font-bold text-primary">
-                {selectedPaymentMethod === 'cartao_credito' ? formatCurrency(totalWithFees) : formatCurrency(total)}
-                {selectedPaymentMethod === 'cartao_credito' && (
-                  <span className="text-xs text-orange-600 ml-1">
-                    (inclui taxas)
-                  </span>
-                )}
-              </span>
-              {championship && !championship.commissionAbsorbedByChampionship && (
-                <>
-                  {isMobile ? (
-                    <div className="relative">
-                      <button
-                        onClick={handleMobileTooltipClick}
-                        className="focus:outline-none"
-                      >
-                        <svg className="w-4 h-4 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                      {showMobileTooltip && (
-                        <div className="fixed inset-x-4 top-1/2 transform -translate-y-1/2 z-50">
-                          <div className="bg-popover text-popover-foreground border rounded-md p-4 shadow-md">
-                            <div className="text-sm">
-                              <p className="font-semibold mb-1">Taxa de Serviço</p>
-                              <p>Uma taxa de {Math.round(championship.platformCommissionPercentage || 10)}% corresponde ao serviço destinado à manutenção e ao aprimoramento da plataforma BRK.</p>
-                              <p className="mt-1">Ela nos permite manter o sistema estável, lançar novas funcionalidades e garantir que todos os pilotos tenham uma experiência cada vez mais completa dentro e fora das pistas.</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div>
-                            <svg className="w-4 h-4 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          <div className="text-sm">
-                            <p className="font-semibold mb-1">Taxa de Serviço</p>
-                            <p>Uma taxa de {Math.round(championship.platformCommissionPercentage || 10)}% corresponde ao serviço destinado à manutenção e ao aprimoramento da plataforma BRK.</p>
-                            <p className="mt-1">Ela nos permite manter o sistema estável, lançar novas funcionalidades e garantir que todos os pilotos tenham uma experiência cada vez mais completa dentro e fora das pistas.</p>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                </>
-              )}
+          <div className="flex items-center justify-between text-sm mb-3">
+            <div className="flex items-center space-x-4">
+              <span className="text-gray-600">Valor por categoria: <span className="font-medium text-gray-900">{formatCurrency(Number(season.inscriptionValue))}</span></span>
+              <span className="text-gray-600">Tipo: <span className="font-medium text-gray-900">{season.inscriptionType === 'por_temporada' ? 'Por Temporada' : 'Por Etapa'}</span></span>
             </div>
           </div>
           
-          {/* Informações sobre parcelamento */}
-          {season.inscriptionType === 'por_temporada' && (
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-semibold text-blue-900 mb-2">Condições de Pagamento:</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
-                {(season.paymentMethods || []).includes('pix') && (
-                  <div>
-                    <strong>PIX:</strong> até {season.pixInstallments || 1}x
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
+                  <span className="text-sm font-medium text-gray-900">Total da Inscrição</span>
+                  {selectedPaymentMethod === 'cartao_credito' && (
+                    <span className="text-xs text-orange-600 bg-orange-100 px-2 py-0.5 rounded">Taxas da operadora incluídas</span>
+                  )}
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold text-gray-900">
+                    {selectedPaymentMethod === 'cartao_credito' ? formatCurrency(totalWithFees) : formatCurrency(total)}
                   </div>
-                )}
-                {(season.paymentMethods || []).includes('cartao_credito') && (
-                  <div>
-                    <strong>Cartão:</strong> até {season.creditCardInstallments || 1}x
-                  </div>
-                )}
+                  {championship && !championship.commissionAbsorbedByChampionship && (
+                    <div className="text-xs text-gray-500">
+                      Serviço da plataforma {Math.round(championship.platformCommissionPercentage || 10)}% incluído
+                    </div>
+                  )}
+                </div>
               </div>
               
-              {/* Explicação sobre PIX parcelado */}
-              {selectedPaymentMethod === 'pix' && (
-                <div className="mt-3 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-md">
-                  <div className="text-xs text-yellow-800">
-                    <strong>PIX Parcelado:</strong> A 1ª parcela será via PIX (pagamento imediato). 
-                    As demais parcelas serão PIX enviados automaticamente por email nas datas de vencimento.
+
+            </div>
+          
+          {/* Informações sobre parcelamento e taxas */}
+          {season.inscriptionType === 'por_temporada' && (
+            <div className="mt-4 space-y-3">
+
+
+              {/* Condições de Pagamento */}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-900">Condições de Pagamento:</span>
+                  <div className="flex space-x-3">
+                    {(season.paymentMethods || []).includes('pix') && (
+                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">PIX até {season.pixInstallments || 1}x</span>
+                    )}
+                    {(season.paymentMethods || []).includes('cartao_credito') && (
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Cartão até {season.creditCardInstallments || 1}x</span>
+                    )}
                   </div>
                 </div>
-              )}
-              
-              {/* Informações sobre taxas do cartão de crédito */}
-              {selectedPaymentMethod === 'cartao_credito' && (
-                <div className="mt-3 p-3 bg-orange-50 border-l-4 border-orange-400 rounded-r-md">
-                  <div className="text-xs text-orange-800">
-                    <strong>Taxas do Cartão de Crédito:</strong> Os valores das parcelas já incluem as taxas do gateway de pagamento Asaas. 
-                    Taxas promocionais: À vista 1,99%, 2-6x 2,49%, 7-12x 2,99%, 13-21x 3,29% + R$ 0,49 por transação.
-                  </div>
-                </div>
-              )}
+              </div>
+
+
+
+
             </div>
           )}
         </CardContent>
