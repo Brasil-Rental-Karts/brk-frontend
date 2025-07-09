@@ -222,17 +222,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
       setLoading(true);
       setError(null);
       
-      console.log('🔍 [FRONTEND] Buscando classificação para temporada:', seasonId);
       const classification = await ChampionshipClassificationService.getSeasonClassificationOptimized(seasonId);
-      
-      console.log('📊 [FRONTEND] Classificação recebida:', {
-        hasData: !!classification,
-        totalCategories: classification?.totalCategories,
-        totalPilots: classification?.totalPilots,
-        categoriesCount: Object.keys(classification?.classificationsByCategory || {}).length,
-        categories: Object.keys(classification?.classificationsByCategory || {}),
-        lastUpdated: classification?.lastUpdated
-      });
       
       setSeasonClassification(classification);
 
@@ -293,16 +283,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
 
   // Dados processados
   const { allPilots, filteredPilots } = useMemo(() => {
-    console.log('🔄 [FRONTEND] Processando dados de classificação:', {
-      hasSeasonClassification: !!seasonClassification,
-      hasClassificationsByCategory: !!seasonClassification?.classificationsByCategory,
-      selectedCategoryId: filters.categoryId,
-      selectedSeasonId: selectedSeasonId,
-      filterSeasonId: filters.seasonId
-    });
-
     if (!seasonClassification || !seasonClassification.classificationsByCategory) {
-      console.log('⚠️ [FRONTEND] Sem dados de classificação para processar');
       return { allPilots: [], filteredPilots: [] };
     }
 
@@ -311,18 +292,9 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
       ([_, data]) => data && data.category
     );
 
-    console.log('📋 [FRONTEND] Categorias válidas encontradas:', {
-      total: validCategories.length,
-      categories: validCategories.map(([id, data]) => ({ id, name: data.category?.name, pilotsCount: data.pilots?.length }))
-    });
-
     const allPilotsArray: ClassificationEntry[] = [];
     validCategories.forEach(([_, categoryData]) => {
       if (categoryData && categoryData.pilots && Array.isArray(categoryData.pilots)) {
-        console.log('👥 [FRONTEND] Adicionando pilotos da categoria:', {
-          categoryName: categoryData.category?.name,
-          pilotsCount: categoryData.pilots.length
-        });
         allPilotsArray.push(...categoryData.pilots);
       }
     });
@@ -349,12 +321,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
         })
       : seasonClassification.classificationsByCategory[filters.categoryId]?.pilots || [];
 
-    console.log('✅ [FRONTEND] Dados processados:', {
-      allPilotsCount: allPilotsArray.length,
-      filteredPilotsCount: filteredPilotsArray.length,
-      selectedCategory: filters.categoryId,
-      isOrderedByPoints: (!filters.categoryId || filters.categoryId === 'all')
-    });
+
 
     return {
       allPilots: allPilotsArray,
@@ -457,7 +424,6 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
     switch (action) {
       case "view":
         // TODO: Implementar visualização de detalhes do piloto
-        console.log('Ver detalhes do piloto:', entry.user.name);
         break;
       default:
         break;

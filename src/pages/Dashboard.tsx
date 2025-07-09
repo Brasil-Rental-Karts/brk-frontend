@@ -175,30 +175,23 @@ export const Dashboard = () => {
   useEffect(() => {
     const fetchRaceTracks = async () => {
       try {
-        console.log('Dashboard: upcomingRaces:', upcomingRaces);
         const allStages = upcomingRaces.map(race => race.stage);
-        console.log('Dashboard: allStages:', allStages);
         const uniqueRaceTrackIds = [...new Set(allStages.map(stage => stage.raceTrackId).filter(Boolean))];
-        console.log('Dashboard: uniqueRaceTrackIds:', uniqueRaceTrackIds);
         
         // Se não há raceTrackIds, não fazer nada
         if (uniqueRaceTrackIds.length === 0) {
-          console.log('Dashboard: Nenhum raceTrackId encontrado');
           return;
         }
         
         const raceTracksData: Record<string, any> = {};
         for (const raceTrackId of uniqueRaceTrackIds) {
           try {
-            console.log(`Dashboard: Buscando kartódromo ${raceTrackId}...`);
             const raceTrack = await RaceTrackService.getById(raceTrackId);
-            console.log(`Dashboard: kartódromo ${raceTrackId} carregado:`, raceTrack);
             raceTracksData[raceTrackId] = raceTrack;
           } catch (err) {
             console.error(`Erro ao buscar kartódromo ${raceTrackId}:`, err);
           }
         }
-        console.log('Dashboard: raceTracksData final:', raceTracksData);
         setRaceTracks(raceTracksData);
       } catch (err) {
         console.error('Erro ao buscar kartódromos:', err);
@@ -206,10 +199,7 @@ export const Dashboard = () => {
     };
 
     if (upcomingRaces.length > 0 && !loadingRaces) {
-      console.log('Dashboard: Iniciando busca de kartódromos...');
       fetchRaceTracks();
-    } else {
-      console.log('Dashboard: Aguardando carregamento das etapas...', { upcomingRacesLength: upcomingRaces.length, loadingRaces });
     }
   }, [upcomingRaces, loadingRaces]);
 
@@ -587,7 +577,6 @@ export const Dashboard = () => {
                         {(() => {
                           const raceTrackId = race.stage.raceTrackId;
                           const raceTrack = raceTracks[raceTrackId];
-                          console.log('Dashboard render: raceTrackId:', raceTrackId, 'raceTrack:', raceTrack);
                           const trackName = raceTrackId && raceTrack 
                             ? raceTrack.name 
                             : 'Carregando...';
@@ -704,7 +693,6 @@ export const Dashboard = () => {
                     {(() => {
                       const raceTrackId = selectedRace?.stage?.raceTrackId;
                       const raceTrack = raceTracks[raceTrackId];
-                      console.log('Dashboard modal render: raceTrackId:', raceTrackId, 'raceTrack:', raceTrack);
                       return raceTrackId && raceTrack 
                         ? raceTrack.name 
                         : 'Carregando...';
@@ -715,7 +703,6 @@ export const Dashboard = () => {
               {(() => {
                 const raceTrackId = selectedRace?.stage?.raceTrackId;
                 const raceTrack = raceTracks[raceTrackId];
-                console.log('Dashboard modal address render: raceTrackId:', raceTrackId, 'raceTrack:', raceTrack);
                 return raceTrackId && raceTrack?.address ? (
                   <p className="text-xs text-muted-foreground pl-11">
                     {raceTrack.address}

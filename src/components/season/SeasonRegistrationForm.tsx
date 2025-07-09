@@ -411,19 +411,6 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     if (selectedPaymentMethod === 'cartao_credito') {
       const totalWithConfigurableFees = calculateTotalWithConfigurableFees(total, selectedPaymentMethod, selectedInstallments);
       setTotalWithFees(totalWithConfigurableFees);
-      
-      const rate = getConfigurableRate(selectedInstallments);
-      
-      // Debug log
-      console.log('[SeasonRegistrationForm] Total atualizado:', {
-        baseTotal: total,
-        paymentMethod: selectedPaymentMethod,
-        installments: selectedInstallments,
-        totalWithFees: totalWithConfigurableFees,
-        feeRate: rate.percentageRate,
-        fixedFee: rate.fixedFee,
-        isDefault: rate.isDefault
-      });
     } else {
       setTotalWithFees(total);
     }
@@ -454,16 +441,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       // Calcular o total com taxas no momento da submissão
       const finalTotal = getCurrentTotalWithFees();
       
-      // Debug log para verificar o valor sendo enviado
-      console.log('[SeasonRegistrationForm] Enviando dados para backend:', {
-        paymentMethod: data.pagamento,
-        installments: installmentsCount,
-        baseTotal: total,
-        totalWithFees: totalWithFees,
-        calculatedTotal: finalTotal,
-        categories: data.categorias,
-        stages: data.etapas
-      });
+
       
       const transformedData = {
         userId: user?.id || '',

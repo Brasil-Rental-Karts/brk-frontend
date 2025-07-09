@@ -1365,7 +1365,6 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     try {
       const dataToSave = results || stageResults;
       await StageService.saveStageResults(selectedStageId, dataToSave);
-      console.log('Resultados da etapa salvos com sucesso');
     } catch (error) {
       console.error('Erro ao salvar resultados da etapa:', error);
     }
@@ -1709,15 +1708,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           }
           
           if (headerRow === -1 || positionColumn === -1 || kartColumn === -1) {
-            console.log(`Sheet "${sheetName}": Colunas POS e # não encontradas, pulando...`);
             continue;
-          }
-          
-          // Log para debug das colunas encontradas
-          console.log(`Sheet "${sheetName}": POS=${positionColumn}, #=${kartColumn}, TMV=${bestLapColumn}`);
-          
-          if (bestLapColumn === -1) {
-            console.log(`Sheet "${sheetName}": Coluna TMV não encontrada - melhores voltas não serão importadas`);
           }
           
           // Processar as linhas de dados (começando após o cabeçalho)
@@ -1770,9 +1761,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                     const normalizedTime = bestLapValue.replace(',', '.');
                     updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'bestLap', normalizedTime);
                     bestLapCount++;
-                    console.log(`Melhor volta importada: Kart ${kartNumber} - ${normalizedTime}`);
                   } else {
-                    console.log(`Formato de tempo inválido ignorado: Kart ${kartNumber} - "${bestLapValue}"`);
+                    // Formato de tempo inválido ignorado
                   }
                 }
                 
@@ -1792,9 +1782,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           totalBestLapCount += bestLapCount;
           allNotFoundKarts.push(...notFoundKarts);
           
-          if (processedCount > 0 || ncCount > 0 || bestLapCount > 0) {
-            console.log(`Sheet "${sheetName}": ${processedCount} posições importadas, ${ncCount} NC, ${bestLapCount} melhores voltas`);
-          }
+
         }
         
         // Feedback detalhado final
@@ -2673,13 +2661,6 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                           >
                             {(() => {
                               const pilotKartAssignments = fleetDrawResults[category.id]?.[pilot.userId];
-                              console.log('Pilot kart assignments:', {
-                                categoryId: category.id,
-                                pilotId: pilot.userId,
-                                batteryIndex: selectedBatteryIndex,
-                                assignments: pilotKartAssignments,
-                                fleetDrawResults: fleetDrawResults
-                              });
                               if (pilotKartAssignments && pilotKartAssignments[selectedBatteryIndex]) {
                                 return (
                                   <div className="flex items-center justify-between">
