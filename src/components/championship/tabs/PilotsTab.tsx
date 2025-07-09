@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Button } from "brk-design-system";
 import { Card, CardHeader, CardContent } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { Users, Mail, Phone, Calendar, MoreVertical, Eye, Loader2 } from "lucide-react";
+import { Users, Mail, Phone, Calendar, MoreVertical, Eye, Loader2, Download } from "lucide-react";
 import { EmptyState } from "brk-design-system";
 import {
   DropdownMenu,
@@ -29,6 +29,7 @@ import {
 import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
 import { Pagination } from "brk-design-system";
 import { useIsMobile } from "@/hooks/use-mobile";
+import * as XLSX from 'xlsx';
 
 import { SeasonRegistrationService, SeasonRegistration } from "@/lib/services/season-registration.service";
 import { SeasonService } from "@/lib/services/season.service";
@@ -46,13 +47,20 @@ interface PilotsTabProps {
 }
 
 // Configuração inicial dos filtros
-const createFilterFields = (seasonOptions: { value: string; label: string }[] = []): FilterField[] => [
+const createFilterFields = (seasonOptions: { value: string; label: string }[] = [], categoryOptions: { value: string; label: string }[] = []): FilterField[] => [
   {
     key: 'seasonId',
     label: 'Temporada',
     type: 'combobox',
     placeholder: 'Todas as temporadas',
     options: seasonOptions
+  },
+  {
+    key: 'categoryId',
+    label: 'Categoria',
+    type: 'combobox',
+    placeholder: 'Todas as categorias',
+    options: categoryOptions
   },
   {
     key: 'status',
@@ -66,23 +74,6 @@ const createFilterFields = (seasonOptions: { value: string; label: string }[] = 
       { value: 'confirmed', label: 'Confirmado' },
       { value: 'cancelled', label: 'Cancelado' },
       { value: 'expired', label: 'Expirado' }
-    ]
-  },
-  {
-    key: 'paymentStatus',
-    label: 'Status do Pagamento',
-    type: 'combobox',
-    placeholder: 'Todos os status de pagamento',
-    options: [
-      { value: 'all', label: 'Todos os status de pagamento' },
-      { value: 'pending', label: 'Pendente' },
-      { value: 'processing', label: 'Processando' },
-      { value: 'paid', label: 'Pago' },
-      { value: 'failed', label: 'Falhou' },
-      { value: 'cancelled', label: 'Cancelado' },
-      { value: 'refunded', label: 'Reembolsado' },
-      { value: 'exempt', label: 'Isento' },
-      { value: 'direct_payment', label: 'Pagamento Direto' }
     ]
   }
 ];
@@ -210,6 +201,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [seasonOptions, setSeasonOptions] = useState<{ value: string; label: string }[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<{ value: string; label: string }[]>([]);
   const [, setSeasons] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -235,7 +227,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
   const mobileItemsPerPage = 5;
 
   // Memoizar a configuração dos filtros para evitar re-renders
-  const filterFields = useMemo(() => createFilterFields(seasonOptions), [seasonOptions]);
+  const filterFields = useMemo(() => createFilterFields(seasonOptions, categoryOptions), [seasonOptions, categoryOptions]);
 
   // Buscar temporadas do campeonato
   const fetchSeasons = useCallback(async () => {
@@ -259,8 +251,45 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     }
   }, [championshipId]);
 
+  // Buscar categorias do campeonato
+  const fetchCategories = useCallback(async () => {
+    try {
+      // Buscar todas as temporadas do campeonato
+      const seasonsData = await SeasonService.getByChampionshipId(championshipId, 1, 100);
+      
+      // Buscar categorias de todas as temporadas
+      const allCategories: any[] = [];
+      for (const season of seasonsData.data) {
+        try {
+          const categories = await CategoryService.getBySeasonId(season.id);
+          allCategories.push(...categories);
+        } catch (err) {
+          console.error(`Error loading categories for season ${season.id}:`, err);
+        }
+      }
+      
+      // Remover duplicatas baseado no ID da categoria
+      const uniqueCategories = allCategories.filter((category, index, self) => 
+        index === self.findIndex(c => c.id === category.id)
+      );
+      
+      const newCategoryOptions = [
+        { value: 'all', label: 'Todas as categorias' },
+        ...uniqueCategories.map((category: any) => ({
+          value: category.id,
+          label: category.name
+        }))
+      ];
+      setCategoryOptions(newCategoryOptions);
+      return uniqueCategories;
+    } catch (err: any) {
+      console.error('Error loading categories:', err);
+      return [];
+    }
+  }, [championshipId]);
+
   // Buscar registrações de todas as temporadas ou de uma específica
-  const fetchRegistrations = useCallback(async (_seasons: any[] = []) => {
+  const fetchRegistrations = useCallback(async (_seasons: any[] = [], _categories: any[] = []) => {
     try {
       setLoading(true);
       setError(null);
@@ -275,6 +304,13 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         allRegistrations = await SeasonRegistrationService.getByChampionshipId(championshipId);
       }
 
+      // Aplicar filtro por categoria se selecionado
+      if (filters.categoryId && filters.categoryId !== 'all') {
+        allRegistrations = allRegistrations.filter(reg => 
+          reg.categories && reg.categories.some(rc => rc.category.id === filters.categoryId)
+        );
+      }
+
       setRegistrations(allRegistrations);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar inscrições');
@@ -282,7 +318,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     } finally {
       setLoading(false);
     }
-  }, [filters.seasonId, championshipId]);
+  }, [filters.seasonId, filters.categoryId, championshipId]);
 
   // Carregar dados iniciais
   useEffect(() => {
@@ -291,8 +327,9 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     const initializeData = async () => {
       try {
         const seasons = await fetchSeasons();
+        const categories = await fetchCategories();
         if (mounted) {
-          await fetchRegistrations(seasons);
+          await fetchRegistrations(seasons, categories);
         }
       } catch (error) {
         console.error('Error initializing data:', error);
@@ -317,13 +354,13 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         return false;
       }
 
-      // Filtro por status da inscrição
-      if (filters.status && filters.status !== 'all' && registration.status !== filters.status) {
+      // Filtro por categoria
+      if (filters.categoryId && filters.categoryId !== 'all' && !registration.categories?.some(rc => rc.category.id === filters.categoryId)) {
         return false;
       }
 
-      // Filtro por status do pagamento
-      if (filters.paymentStatus && filters.paymentStatus !== 'all' && registration.paymentStatus !== filters.paymentStatus) {
+      // Filtro por status da inscrição
+      if (filters.status && filters.status !== 'all' && registration.status !== filters.status) {
         return false;
       }
 
@@ -539,6 +576,91 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
            registration.paymentStatus === 'direct_payment';
   };
 
+  // Função para exportar dados para Excel
+  const exportToExcel = useCallback(() => {
+    if (processedRegistrations.length === 0) {
+      alert('Não há dados para exportar');
+      return;
+    }
+
+    try {
+      // Preparar dados para exportação
+      const exportData = processedRegistrations.map(registration => {
+        const categories = registration.categories?.map(rc => rc.category.name).join(', ') || 'Sem categorias';
+        const categoryBallasts = registration.categories?.map(rc => `${rc.category.name} (${rc.category.ballast}kg)`).join(', ') || 'Sem categorias';
+        
+        return {
+          'Nome do Piloto': registration.user.name,
+          'Email': registration.user.email,
+          'Telefone': registration.user.phone || 'Não informado',
+          'Temporada': registration.season.name,
+          'Categorias': categories,
+          'Categorias com Lastro': categoryBallasts,
+          'Status da Inscrição': registration.status === 'confirmed' ? 'Confirmado' : 
+                                registration.status === 'payment_pending' ? 'Aguardando pagamento' :
+                                registration.status === 'pending' ? 'Pendente' :
+                                registration.status === 'cancelled' ? 'Cancelado' :
+                                registration.status === 'expired' ? 'Expirado' : registration.status,
+          'Status do Pagamento': registration.paymentStatus === 'exempt' ? 'Isento' :
+                                registration.paymentStatus === 'direct_payment' ? 'Pagamento Direto' :
+                                registration.paymentStatus === 'paid' ? 'Pago' :
+                                registration.paymentStatus === 'pending' ? 'Pendente' :
+                                registration.paymentStatus === 'processing' ? 'Processando' :
+                                registration.paymentStatus === 'failed' ? 'Falhou' :
+                                registration.paymentStatus === 'cancelled' ? 'Cancelado' :
+                                registration.paymentStatus === 'refunded' ? 'Reembolsado' : registration.paymentStatus,
+          'Valor': `R$ ${Number(registration.amount).toFixed(2).replace('.', ',')}`,
+          'Método de Pagamento': registration.paymentMethod ? 
+                                (registration.paymentMethod === 'pix' ? 'PIX' : 
+                                 registration.paymentMethod === 'cartao_credito' ? 'Cartão de Crédito' : 
+                                 registration.paymentMethod) : 'Não informado',
+          'Data de Inscrição': formatDateToBrazilian(registration.createdAt),
+          'Piloto Confirmado': isPilotConfirmed(registration) ? 'Sim' : 'Não'
+        };
+      });
+
+      // Ordenar por categoria
+      exportData.sort((a, b) => {
+        const categoryA = a['Categorias'] || '';
+        const categoryB = b['Categorias'] || '';
+        return categoryA.localeCompare(categoryB, 'pt-BR');
+      });
+
+      // Criar workbook e worksheet
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Pilotos');
+
+      // Ajustar largura das colunas
+      const colWidths = [
+        { wch: 25 }, // Nome do Piloto
+        { wch: 30 }, // Email
+        { wch: 15 }, // Telefone
+        { wch: 20 }, // Temporada
+        { wch: 30 }, // Categorias
+        { wch: 40 }, // Categorias com Lastro
+        { wch: 20 }, // Status da Inscrição
+        { wch: 20 }, // Status do Pagamento
+        { wch: 12 }, // Valor
+        { wch: 20 }, // Método de Pagamento
+        { wch: 15 }, // Data de Inscrição
+        { wch: 15 }  // Piloto Confirmado
+      ];
+      ws['!cols'] = colWidths;
+
+      // Gerar nome do arquivo com data atual
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const fileName = `pilotos_campeonato_${dateStr}.xlsx`;
+
+      // Exportar arquivo
+      XLSX.writeFile(wb, fileName);
+    } catch (error) {
+      console.error('Erro ao exportar para Excel:', error);
+      alert('Erro ao exportar dados para Excel');
+    }
+  }, [processedRegistrations]);
+
   if (loading) {
     return (
       <Card className="w-full">
@@ -596,8 +718,21 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
             className="w-full"
           />
         </div>
-        <div className="text-sm text-muted-foreground">
-          {processedRegistrations.length} piloto{processedRegistrations.length !== 1 ? 's' : ''} encontrado{processedRegistrations.length !== 1 ? 's' : ''}
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-muted-foreground">
+            {processedRegistrations.length} piloto{processedRegistrations.length !== 1 ? 's' : ''} encontrado{processedRegistrations.length !== 1 ? 's' : ''}
+          </div>
+          {processedRegistrations.length > 0 && (
+            <Button
+              onClick={exportToExcel}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Exportar Excel
+            </Button>
+          )}
         </div>
       </div>
 

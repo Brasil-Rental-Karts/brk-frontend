@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'b
 import { Calendar, CreditCard, RefreshCw, AlertTriangle, CheckCircle, Clock, Search, Filter } from 'lucide-react';
 import { usePaymentManagement } from '@/hooks/use-payment-management';
 import { OverduePayment } from '@/lib/services/payment-management.service';
-import { formatCurrency } from '@/utils/date';
+import { formatCurrency } from '@/utils/currency';
 import { formatDateToBrazilian } from '@/utils/date';
 
 export const OverduePaymentsTable = () => {
@@ -48,7 +48,10 @@ export const OverduePaymentsTable = () => {
     if (searchTerm) {
       filtered = filtered.filter(payment => 
         payment.registrationId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (payment.registration?.userId && payment.registration.userId.toLowerCase().includes(searchTerm.toLowerCase()))
+        (payment.registration?.user?.name && payment.registration.user.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (payment.registration?.user?.email && payment.registration.user.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (payment.registration?.season?.championship?.name && payment.registration.season.championship.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (payment.registration?.season?.name && payment.registration.season.name.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -168,7 +171,7 @@ export const OverduePaymentsTable = () => {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por ID da inscrição ou usuário..."
+                  placeholder="Buscar por nome do piloto, email ou competição..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -194,7 +197,7 @@ export const OverduePaymentsTable = () => {
             </div>
             <div className="bg-muted rounded-lg p-4">
               <div className="text-2xl font-bold">
-                {formatCurrency(filteredPayments.reduce((sum, p) => sum + p.value, 0))}
+                {formatCurrency(filteredPayments.reduce((sum, p) => sum + (Number(p.value) || 0), 0))}
               </div>
               <div className="text-sm text-muted-foreground">Valor Total</div>
             </div>
@@ -209,7 +212,7 @@ export const OverduePaymentsTable = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Inscrição</TableHead>
+                  <TableHead>Piloto / Competição</TableHead>
                   <TableHead 
                     className="cursor-pointer hover:bg-muted"
                     onClick={() => handleSort('dueDate')}
@@ -247,10 +250,12 @@ export const OverduePaymentsTable = () => {
                     <TableRow key={payment.id}>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{payment.registrationId}</div>
-                          {payment.registration?.userId && (
+                          <div className="font-medium">
+                            {payment.registration?.user?.name || 'Nome não disponível'}
+                          </div>
+                          {payment.registration?.season?.championship?.name && payment.registration?.season?.name && (
                             <div className="text-sm text-muted-foreground">
-                              Usuário: {payment.registration.userId}
+                              {payment.registration.season.championship.name} / {payment.registration.season.name}
                             </div>
                           )}
                         </div>
@@ -262,7 +267,7 @@ export const OverduePaymentsTable = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">{formatCurrency(payment.value)}</div>
+                        <div className="font-medium">{formatCurrency(payment.value || 0)}</div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
@@ -313,12 +318,23 @@ export const OverduePaymentsTable = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
-                    <span className="text-muted-foreground">Inscrição:</span>
-                    <div className="font-semibold">{selectedPayment.registrationId}</div>
+                    <span className="text-muted-foreground">Piloto:</span>
+                    <div className="font-semibold">
+                      {selectedPayment.registration?.user?.name || 'Nome não disponível'}
+                    </div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Valor:</span>
-                    <div className="font-semibold">{formatCurrency(selectedPayment.value)}</div>
+                    <div className="font-semibold">{formatCurrency(selectedPayment.value || 0)}</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Competição:</span>
+                    <div className="font-semibold">
+                      {selectedPayment.registration?.season?.championship?.name && selectedPayment.registration?.season?.name 
+                        ? `${selectedPayment.registration.season.championship.name} / ${selectedPayment.registration.season.name}`
+                        : 'Não disponível'
+                      }
+                    </div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Vencimento Atual:</span>

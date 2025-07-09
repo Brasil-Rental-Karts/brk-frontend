@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from 'brk-design-system';
 import { Input } from 'brk-design-system';
 import { Label } from 'brk-design-system';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from 'brk-design-system';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from 'brk-design-system';
 import { Alert, AlertDescription } from 'brk-design-system';
 import { Badge } from 'brk-design-system';
-import { Calendar, CreditCard, RefreshCw, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'brk-design-system';
+import { Calendar, CreditCard, RefreshCw, AlertTriangle, CheckCircle, Clock, Search, Filter } from 'lucide-react';
 import { usePaymentManagement } from '@/hooks/use-payment-management';
+import { formatCurrency } from '@/utils/currency';
 import { OverduePayment } from '@/lib/services/payment-management.service';
-import { formatCurrency } from '@/utils/date';
 import { formatDateToBrazilian } from '@/utils/date';
 
 interface OverduePaymentManagementProps {
@@ -158,8 +159,23 @@ export const OverduePaymentManagement = ({
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
+                    <span className="text-muted-foreground">Piloto:</span>
+                    <div className="font-semibold">
+                      {payment.registration?.user?.name || 'Nome não disponível'}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Competição:</span>
+                    <div className="font-semibold">
+                      {payment.registration?.season?.championship?.name && payment.registration?.season?.name 
+                        ? `${payment.registration.season.championship.name} / ${payment.registration.season.name}`
+                        : 'Não disponível'
+                      }
+                    </div>
+                  </div>
+                  <div>
                     <span className="text-muted-foreground">Valor:</span>
-                    <div className="font-semibold">{formatCurrency(payment.value)}</div>
+                    <div className="font-semibold">{formatCurrency(payment.value || 0)}</div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Vencimento:</span>
@@ -201,8 +217,23 @@ export const OverduePaymentManagement = ({
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
+                    <span className="text-muted-foreground">Piloto:</span>
+                    <div className="font-semibold">
+                      {selectedPayment.registration?.user?.name || 'Nome não disponível'}
+                    </div>
+                  </div>
+                  <div>
                     <span className="text-muted-foreground">Valor:</span>
-                    <div className="font-semibold">{formatCurrency(selectedPayment.value)}</div>
+                    <div className="font-semibold">{formatCurrency(selectedPayment.value || 0)}</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Competição:</span>
+                    <div className="font-semibold">
+                      {selectedPayment.registration?.season?.championship?.name && selectedPayment.registration?.season?.name 
+                        ? `${selectedPayment.registration.season.championship.name} / ${selectedPayment.registration.season.name}`
+                        : 'Não disponível'
+                      }
+                    </div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Vencimento Atual:</span>

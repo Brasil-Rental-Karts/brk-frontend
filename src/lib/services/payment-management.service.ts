@@ -4,7 +4,7 @@ export interface OverduePayment {
   id: string;
   registrationId: string;
   billingType: string;
-  value: number;
+  value: number | string;
   dueDate: string;
   status: string;
   installmentNumber?: number;
@@ -21,6 +21,19 @@ export interface OverduePayment {
     amount: number;
     paymentStatus: string;
     createdAt: string;
+    user?: {
+      id: string;
+      name: string;
+      email: string;
+    };
+    season?: {
+      id: string;
+      name: string;
+      championship?: {
+        id: string;
+        name: string;
+      };
+    };
   };
 }
 

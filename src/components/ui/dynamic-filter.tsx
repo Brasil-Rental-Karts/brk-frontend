@@ -130,7 +130,7 @@ export const DynamicFilter = ({
             placeholder={placeholder}
             value={value}
             onChange={(e) => updateFilter(field.key, e.target.value)}
-            className="w-full min-w-[100px] max-w-[140px] text-sm h-9"
+            className="w-full min-w-[180px] max-w-[220px] text-sm h-9"
           />
         );
 
@@ -144,7 +144,7 @@ export const DynamicFilter = ({
             searchPlaceholder={`Buscar ${field.label.toLowerCase()}...`}
             emptyText={`Nenhum ${field.label.toLowerCase()} encontrado`}
             onValueChange={(newValue) => updateFilter(field.key, newValue)}
-            className="w-[140px] h-9"
+            className="w-[220px] h-9"
           />
         );
 
@@ -155,7 +155,7 @@ export const DynamicFilter = ({
             value={value}
             onValueChange={(newValue) => updateFilter(field.key, newValue)}
           >
-            <SelectTrigger className="w-full min-w-[100px] max-w-[140px] text-sm h-9">
+            <SelectTrigger className="w-full min-w-[180px] max-w-[220px] text-sm h-9">
               <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent>
@@ -175,7 +175,7 @@ export const DynamicFilter = ({
               <Button
                 variant="outline"
                 className={cn(
-                  "w-full min-w-[100px] max-w-[140px] justify-start text-left font-normal text-sm h-9",
+                  "w-full min-w-[180px] max-w-[220px] justify-start text-left font-normal text-sm h-9",
                   !value && "text-muted-foreground"
                 )}
               >

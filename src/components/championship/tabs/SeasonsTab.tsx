@@ -33,7 +33,8 @@ import { usePagination } from "@/hooks/usePagination";
 import { SeasonService, Season, PaymentCondition } from "@/lib/services/season.service";
 
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
-import { formatDateToBrazilian, getYearFromDate, compareDates, formatCurrency } from "@/utils/date";
+import { formatDateToBrazilian, getYearFromDate, compareDates } from "@/utils/date";
+import { formatCurrency } from "@/utils/currency";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { InlineLoader } from '@/components/ui/loading';
 import { Loading } from '@/components/ui/loading';

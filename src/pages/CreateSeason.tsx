@@ -2,7 +2,7 @@ import React, { useCallback, useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { SeasonService, SeasonData, PaymentCondition } from '../lib/services/season.service';
 import { ChampionshipService } from '../lib/services/championship.service';
-import { formatDateForDisplay, formatDateToISO, formatCurrency } from '../utils/date';
+import { formatDateForDisplay, formatDateToISO } from '../utils/date';
 import { useChampionship } from '../hooks/use-championship';
 import { PaymentConditions } from '../components/ui/payment-conditions';
 import { Button } from 'brk-design-system';
