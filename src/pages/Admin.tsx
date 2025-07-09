@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from "brk-design-system";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input } from "brk-design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
-import { Plus, Users, CreditCard, Trophy, TrendingUp, MapPin, RefreshCw, Database, UserPlus, Calendar, Tag } from "lucide-react";
+import { Plus, Users, CreditCard, Trophy, TrendingUp, MapPin, RefreshCw, Database, UserPlus, Calendar, Tag, AlertTriangle } from "lucide-react";
 import { AdminPilotRegistration } from "@/components/admin/AdminPilotRegistration";
 import { AddStageToRegistration } from "@/components/admin/AddStageToRegistration";
 import { RaceTrackManagement } from "@/components/admin/RaceTrackManagement";
+import { OverduePaymentsTable } from "@/components/admin/OverduePaymentsTable";
 import { useAdminStats, usePreloadUsersCache, useUpdateCategoriesCache } from "@/hooks/use-admin-stats";
 import { toast } from "sonner";
 
@@ -29,7 +30,7 @@ export const Admin = () => {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
-    if (tabParam && ['overview', 'pilot-registration', 'race-tracks', 'system'].includes(tabParam)) {
+    if (tabParam && ['overview', 'pilot-registration', 'overdue-payments', 'race-tracks', 'system'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, []);
@@ -92,9 +93,10 @@ export const Admin = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4 sm:space-y-6">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto sm:h-10">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto sm:h-10">
           <TabsTrigger value="overview" className="text-xs sm:text-sm py-2 sm:py-1.5">Visão Geral</TabsTrigger>
           <TabsTrigger value="pilot-registration" className="text-xs sm:text-sm py-2 sm:py-1.5">Inscrições</TabsTrigger>
+          <TabsTrigger value="overdue-payments" className="text-xs sm:text-sm py-2 sm:py-1.5">Pagamentos Vencidos</TabsTrigger>
           <TabsTrigger value="race-tracks" className="text-xs sm:text-sm py-2 sm:py-1.5">Kartódromos</TabsTrigger>
           <TabsTrigger value="system" className="text-xs sm:text-sm py-2 sm:py-1.5">Sistema</TabsTrigger>
         </TabsList>
@@ -317,6 +319,10 @@ export const Admin = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="overdue-payments" className="space-y-4 sm:space-y-6">
+          <OverduePaymentsTable />
         </TabsContent>
 
         <TabsContent value="race-tracks" className="space-y-4 sm:space-y-6">
