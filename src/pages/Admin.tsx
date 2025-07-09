@@ -2,9 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input } from "brk-design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
-import { Plus, Users, CreditCard, Trophy, TrendingUp, MapPin, RefreshCw, Database, UserPlus, Calendar, Tag, AlertTriangle } from "lucide-react";
+import { Plus, Users, CreditCard, Trophy, TrendingUp, MapPin, RefreshCw, Database, UserPlus, Tag, AlertTriangle } from "lucide-react";
 import { AdminPilotRegistration } from "@/components/admin/AdminPilotRegistration";
-import { AddStageToRegistration } from "@/components/admin/AddStageToRegistration";
 import { RaceTrackManagement } from "@/components/admin/RaceTrackManagement";
 import { OverduePaymentsTable } from "@/components/admin/OverduePaymentsTable";
 import { useAdminStats, usePreloadUsersCache, useUpdateCategoriesCache } from "@/hooks/use-admin-stats";
@@ -252,52 +251,27 @@ export const Admin = () => {
             </p>
           </div>
 
-          {/* Grid Layout das Funcionalidades */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            {/* Nova Inscrição Administrativa */}
-            <Card className="h-fit">
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                    <UserPlus className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg sm:text-xl text-blue-700 dark:text-blue-300">
-                      Nova Inscrição Administrativa
-                    </CardTitle>
-                  </div>
+          {/* Nova Inscrição Administrativa - Largura Total */}
+          <Card>
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                  <UserPlus className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
-                <CardDescription className="text-sm">
-                  Crie novas inscrições com status administrativo (isento ou pagamento direto) para pilotos em temporadas.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <AdminPilotRegistration />
-              </CardContent>
-            </Card>
-
-            {/* Adicionar Etapas */}
-            <Card className="h-fit">
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                    <Calendar className="h-5 w-5 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg sm:text-xl text-green-700 dark:text-green-300">
-                      Adicionar Etapas
-                    </CardTitle>
-                  </div>
+                <div>
+                  <CardTitle className="text-lg sm:text-xl text-blue-700 dark:text-blue-300">
+                    Nova Inscrição Administrativa
+                  </CardTitle>
                 </div>
-                <CardDescription className="text-sm">
-                  Adicione etapas adicionais para pilotos já inscritos em temporadas do tipo "Por Etapa".
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <AddStageToRegistration />
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+              <CardDescription className="text-sm">
+                Crie novas inscrições com status administrativo (isento ou pagamento direto) para pilotos em temporadas.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <AdminPilotRegistration />
+            </CardContent>
+          </Card>
 
           {/* Informações Adicionais */}
           <Card className="border-dashed border-2 border-muted">
@@ -312,7 +286,6 @@ export const Admin = () => {
                   <h3 className="font-medium text-foreground mb-1">Dicas de Uso</h3>
                   <div className="text-sm space-y-1">
                     <p><strong>Inscrição Administrativa:</strong> Use para pilotos isentos ou com pagamento direto.</p>
-                    <p><strong>Adicionar Etapas:</strong> Disponível apenas para temporadas "Por Etapa" e pilotos já inscritos.</p>
                     <p><strong>Permissões:</strong> Apenas administradores podem realizar essas operações.</p>
                   </div>
                 </div>

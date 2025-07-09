@@ -159,6 +159,25 @@ export class SeasonRegistrationService {
   }
 
   /**
+   * Buscar inscrições de um usuário em uma temporada específica
+   */
+  static async getUserRegistrationsBySeason(userId: string, seasonId: string): Promise<SeasonRegistration[]> {
+    try {
+      const response = await api.get<{
+        message: string;
+        data: SeasonRegistration[];
+      }>(`/season-registrations/user/${userId}/season/${seasonId}`);
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Error fetching user registrations by season:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao buscar inscrições do usuário na temporada.'
+      );
+    }
+  }
+
+  /**
    * Sincronizar status de pagamento com o Asaas
    */
   static async syncPaymentStatus(registrationId: string): Promise<RegistrationPaymentData[]> {
@@ -319,50 +338,31 @@ export class SeasonRegistrationService {
   }
 
   /**
-   * Criar inscrição administrativa
+   * Criar ou atualizar inscrição administrativa
    */
-  static async createAdminRegistration(data: CreateAdminRegistrationData): Promise<SeasonRegistration> {
+  static async createAdminRegistration(data: CreateAdminRegistrationData): Promise<{
+    registration: SeasonRegistration;
+    isUpdate: boolean;
+  }> {
     try {
       const response = await api.post<{
         message: string;
         data: SeasonRegistration;
+        isUpdate?: boolean;
       }>(`${SeasonRegistrationService.BASE_URL}/admin`, data);
       
-      return response.data.data;
+      return {
+        registration: response.data.data,
+        isUpdate: response.data.isUpdate || false
+      };
     } catch (error: any) {
-      console.error('Error creating admin registration:', error);
+      console.error('Error creating/updating admin registration:', error);
       throw new Error(
         error.response?.data?.message || 
-        'Erro ao criar inscrição administrativa.'
+        'Erro ao criar/atualizar inscrição administrativa.'
       );
     }
   }
 
-  /**
-   * Adicionar etapas a uma inscrição existente
-   */
-  static async addStagesToRegistration(
-    registrationId: string, 
-    data: {
-      stageIds: string[];
-      paymentStatus: 'exempt' | 'direct_payment';
-      amount: number;
-      notes?: string;
-    }
-  ): Promise<SeasonRegistration> {
-    try {
-      const response = await api.post<{
-        message: string;
-        data: SeasonRegistration;
-      }>(`${SeasonRegistrationService.BASE_URL}/${registrationId}/add-stages`, data);
-      
-      return response.data.data;
-    } catch (error: any) {
-      console.error('Error adding stages to registration:', error);
-      throw new Error(
-        error.response?.data?.message || 
-        'Erro ao adicionar etapas à inscrição.'
-      );
-    }
-  }
+
 } 
