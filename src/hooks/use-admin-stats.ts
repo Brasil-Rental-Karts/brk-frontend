@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AdminStatsService, AdminStats, PreloadUsersResult } from '@/lib/services/admin-stats.service';
+import { AdminStatsService, AdminStats, PreloadUsersResult, PreloadCategoriesResult } from '@/lib/services/admin-stats.service';
 
 export const useAdminStats = () => {
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -49,4 +49,25 @@ export const usePreloadUsersCache = () => {
   };
 
   return { preloadUsers, loading, error, result };
+};
+
+export const useUpdateCategoriesCache = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<PreloadCategoriesResult | null>(null);
+
+  const updateCategories = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await AdminStatsService.updateCategoriesCache();
+      setResult(data);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao atualizar cache das categorias');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { updateCategories, loading, error, result };
 }; 

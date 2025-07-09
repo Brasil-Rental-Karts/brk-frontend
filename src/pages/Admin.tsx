@@ -2,17 +2,18 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from "brk-design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
-import { Plus, Users, CreditCard, Trophy, TrendingUp, MapPin, RefreshCw, Database, UserPlus, Calendar } from "lucide-react";
+import { Plus, Users, CreditCard, Trophy, TrendingUp, MapPin, RefreshCw, Database, UserPlus, Calendar, Tag } from "lucide-react";
 import { AdminPilotRegistration } from "@/components/admin/AdminPilotRegistration";
 import { AddStageToRegistration } from "@/components/admin/AddStageToRegistration";
 import { RaceTrackManagement } from "@/components/admin/RaceTrackManagement";
-import { useAdminStats, usePreloadUsersCache } from "@/hooks/use-admin-stats";
+import { useAdminStats, usePreloadUsersCache, useUpdateCategoriesCache } from "@/hooks/use-admin-stats";
 import { toast } from "sonner";
 
 export const Admin = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const { stats, loading, error, refresh } = useAdminStats();
   const { preloadUsers, loading: preloadLoading, error: preloadError, result: preloadResult } = usePreloadUsersCache();
+  const { updateCategories, loading: categoriesLoading, error: categoriesError, result: categoriesResult } = useUpdateCategoriesCache();
   const navigate = useNavigate();
 
   // Handle URL parameters for tab navigation
@@ -51,12 +52,34 @@ export const Admin = () => {
     }
   }, [preloadError]);
 
+  // Handle categories cache result
+  useEffect(() => {
+    if (categoriesResult) {
+      toast.success(`Cache de categorias atualizado com sucesso! ${categoriesResult.totalCategories} categorias e ${categoriesResult.totalPilots} pilotos carregados em ${categoriesResult.duration}`, {
+        duration: 5000,
+      });
+    }
+  }, [categoriesResult]);
+
+  // Handle categories cache error
+  useEffect(() => {
+    if (categoriesError) {
+      toast.error(`Erro ao atualizar cache de categorias: ${categoriesError}`, {
+        duration: 5000,
+      });
+    }
+  }, [categoriesError]);
+
   const handleCreateRaceTrack = () => {
     navigate('/admin/race-tracks/create');
   };
 
   const handlePreloadUsers = async () => {
     await preloadUsers();
+  };
+
+  const handleUpdateCategories = async () => {
+    await updateCategories();
   };
 
   return (
@@ -328,32 +351,60 @@ export const Admin = () => {
                     <h3 className="text-lg font-semibold">Cache Redis</h3>
                   </div>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Atualize o cache Redis com todos os dados dos usuários para melhor performance do sistema.
+                    Atualize o cache Redis com todos os dados dos usuários e categorias para melhor performance do sistema.
                   </p>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <Button
-                      onClick={handlePreloadUsers}
-                      disabled={preloadLoading}
-                      className="flex items-center gap-2 w-full sm:w-auto"
-                    >
-                      {preloadLoading ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                          Atualizando...
-                        </>
-                      ) : (
-                        <>
-                          <Database className="h-4 w-4" />
-                          Atualizar Cache de Usuários
-                        </>
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button
+                        onClick={handlePreloadUsers}
+                        disabled={preloadLoading}
+                        className="flex items-center gap-2 w-full sm:w-auto"
+                      >
+                        {preloadLoading ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                            Atualizando...
+                          </>
+                        ) : (
+                          <>
+                            <Users className="h-4 w-4" />
+                            Atualizar Cache de Usuários
+                          </>
+                        )}
+                      </Button>
+                      {preloadResult && (
+                        <div className="text-sm text-green-600 flex items-center gap-1">
+                          <Users className="h-4 w-4" />
+                          {preloadResult.totalUsers} usuários carregados em {preloadResult.duration}
+                        </div>
                       )}
-                    </Button>
-                    {preloadResult && (
-                      <div className="text-sm text-green-600 flex items-center gap-1">
-                        <Users className="h-4 w-4" />
-                        {preloadResult.totalUsers} usuários carregados em {preloadResult.duration}
-                      </div>
-                    )}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button
+                        onClick={handleUpdateCategories}
+                        disabled={categoriesLoading}
+                        className="flex items-center gap-2 w-full sm:w-auto"
+                      >
+                        {categoriesLoading ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                            Atualizando...
+                          </>
+                        ) : (
+                          <>
+                            <Tag className="h-4 w-4" />
+                            Atualizar Cache de Categorias
+                          </>
+                        )}
+                      </Button>
+                      {categoriesResult && (
+                        <div className="text-sm text-green-600 flex items-center gap-1">
+                          <Tag className="h-4 w-4" />
+                          {categoriesResult.totalCategories} categorias e {categoriesResult.totalPilots} pilotos carregados em {categoriesResult.duration}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
