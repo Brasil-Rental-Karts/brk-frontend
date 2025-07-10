@@ -1519,6 +1519,128 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     }
   };
 
+  // Estados para modal de melhor volta
+  const [showBestLapModal, setShowBestLapModal] = useState(false);
+  const [selectedPilotForBestLap, setSelectedPilotForBestLap] = useState<{
+    categoryId: string;
+    pilotId: string;
+    batteryIndex: number;
+  } | null>(null);
+  const [bestLapTimeInput, setBestLapTimeInput] = useState('');
+
+  // Estados para modal de melhor volta de classificação
+  const [showQualifyingBestLapModal, setShowQualifyingBestLapModal] = useState(false);
+  const [selectedPilotForQualifyingBestLap, setSelectedPilotForQualifyingBestLap] = useState<{
+    categoryId: string;
+    pilotId: string;
+    batteryIndex: number;
+  } | null>(null);
+  const [qualifyingBestLapTimeInput, setQualifyingBestLapTimeInput] = useState('');
+
+  // Função para abrir modal de melhor volta
+  const openBestLapModal = (
+    categoryId: string,
+    pilotId: string,
+    batteryIndex: number
+  ) => {
+    const currentBestLap = stageResults[categoryId]?.[pilotId]?.[batteryIndex]?.bestLap || '';
+    setSelectedPilotForBestLap({ categoryId, pilotId, batteryIndex });
+    setBestLapTimeInput(currentBestLap);
+    setShowBestLapModal(true);
+  };
+
+  // Função para fechar modal de melhor volta
+  const closeBestLapModal = () => {
+    setShowBestLapModal(false);
+    setSelectedPilotForBestLap(null);
+    setBestLapTimeInput('');
+  };
+
+  // Função para salvar melhor volta
+  const saveBestLap = async () => {
+    if (!selectedPilotForBestLap) return;
+    
+    const { categoryId, pilotId, batteryIndex } = selectedPilotForBestLap;
+    
+    // Validar formato do tempo
+    const timePattern = /^(\d{1,2}:)?\d{1,2}[.,]\d{1,3}$/;
+    if (bestLapTimeInput.trim() && !timePattern.test(bestLapTimeInput.trim())) {
+      toast.error('Formato de tempo inválido. Use MM:SS.sss ou SS.sss');
+      return;
+    }
+
+    const updatedResults = { ...stageResults };
+    if (!updatedResults[categoryId]) updatedResults[categoryId] = {};
+    if (!updatedResults[categoryId][pilotId]) updatedResults[categoryId][pilotId] = {};
+    if (!updatedResults[categoryId][pilotId][batteryIndex]) updatedResults[categoryId][pilotId][batteryIndex] = {};
+    
+    // Normalizar formato (trocar vírgula por ponto se necessário)
+    const normalizedTime = bestLapTimeInput.trim().replace(',', '.');
+    updatedResults[categoryId][pilotId][batteryIndex].bestLap = normalizedTime || null;
+    
+    setStageResults(updatedResults);
+    
+    try {
+      await StageService.saveStageResults(selectedStageId, updatedResults);
+      closeBestLapModal();
+      toast.success('Melhor volta salva!');
+    } catch (error) {
+      toast.error('Erro ao salvar melhor volta');
+    }
+  };
+
+  // Função para abrir modal de melhor volta de classificação
+  const openQualifyingBestLapModal = (
+    categoryId: string,
+    pilotId: string,
+    batteryIndex: number
+  ) => {
+    const currentQualifyingBestLap = stageResults[categoryId]?.[pilotId]?.[batteryIndex]?.qualifyingBestLap || '';
+    setSelectedPilotForQualifyingBestLap({ categoryId, pilotId, batteryIndex });
+    setQualifyingBestLapTimeInput(currentQualifyingBestLap);
+    setShowQualifyingBestLapModal(true);
+  };
+
+  // Função para fechar modal de melhor volta de classificação
+  const closeQualifyingBestLapModal = () => {
+    setShowQualifyingBestLapModal(false);
+    setSelectedPilotForQualifyingBestLap(null);
+    setQualifyingBestLapTimeInput('');
+  };
+
+  // Função para salvar melhor volta de classificação
+  const saveQualifyingBestLap = async () => {
+    if (!selectedPilotForQualifyingBestLap) return;
+    
+    const { categoryId, pilotId, batteryIndex } = selectedPilotForQualifyingBestLap;
+    
+    // Validar formato do tempo
+    const timePattern = /^(\d{1,2}:)?\d{1,2}[.,]\d{1,3}$/;
+    if (qualifyingBestLapTimeInput.trim() && !timePattern.test(qualifyingBestLapTimeInput.trim())) {
+      toast.error('Formato de tempo inválido. Use MM:SS.sss ou SS.sss');
+      return;
+    }
+
+    const updatedResults = { ...stageResults };
+    if (!updatedResults[categoryId]) updatedResults[categoryId] = {};
+    if (!updatedResults[categoryId][pilotId]) updatedResults[categoryId][pilotId] = {};
+    if (!updatedResults[categoryId][pilotId][batteryIndex]) updatedResults[categoryId][pilotId][batteryIndex] = {};
+    
+    // Normalizar formato (trocar vírgula por ponto se necessário)
+    const normalizedTime = qualifyingBestLapTimeInput.trim().replace(',', '.');
+    updatedResults[categoryId][pilotId][batteryIndex].qualifyingBestLap = normalizedTime || null;
+    
+    setStageResults(updatedResults);
+    
+    try {
+      await StageService.saveStageResults(selectedStageId, updatedResults);
+      closeQualifyingBestLapModal();
+      toast.success('Melhor volta de classificação salva!');
+    } catch (error) {
+      toast.error('Erro ao salvar melhor volta de classificação');
+    }
+  };
+
   // Função para ordenar os pilotos por categoria
   const getSortedPilots = (categoryPilots: any[], category: any) => {
     const sorted = [...categoryPilots];
@@ -1753,13 +1875,17 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                 }
                 
                 // Processar melhor volta se disponível
-                if (bestLapColumn >= 0 && bestLapValue && importType === 'race' && bestLapValue !== 'NC') {
+                if (bestLapColumn >= 0 && bestLapValue && bestLapValue !== 'NC') {
                   // Validar formato de tempo (exemplo: 47.123, 1:23.456, 47,123)
                   const timePattern = /^(\d{1,2}:)?\d{1,2}[.,]\d{1,3}$/;
                   if (timePattern.test(bestLapValue)) {
                     // Normalizar formato (trocar vírgula por ponto se necessário)
                     const normalizedTime = bestLapValue.replace(',', '.');
-                    updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'bestLap', normalizedTime);
+                    if (importType === 'qualification') {
+                      updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'qualifyingBestLap', normalizedTime);
+                    } else {
+                      updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'bestLap', normalizedTime);
+                    }
                     bestLapCount++;
                   } else {
                     // Formato de tempo inválido ignorado
@@ -2584,10 +2710,15 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                           <div className="grid grid-cols-1 gap-3 mt-3">
                             <div className="flex flex-col">
                               <span className="text-xs text-gray-500 mb-1">Melhor Volta</span>
-                              <div className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 min-h-[49px] flex items-center justify-center">
+                              <button
+                                className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 hover:bg-gray-200 transition-colors min-h-[49px] flex items-center justify-center"
+                                onClick={() => openBestLapModal(category.id, pilot.userId, selectedBatteryIndex)}
+                              >
                                 {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.bestLap ? (
-                                  <div className="flex items-center gap-2">
-                                    <span>{stageResults[category.id][pilot.userId][selectedBatteryIndex].bestLap}</span>
+                                  <div className="flex items-center justify-center gap-1">
+                                    <span className="font-medium">
+                                      {stageResults[category.id][pilot.userId][selectedBatteryIndex].bestLap}
+                                    </span>
                                     {(() => {
                                       // Verificar se é a melhor volta da categoria
                                       const categoryResults = stageResults[category.id] || {};
@@ -2619,7 +2750,22 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                                 ) : (
                                   <span className="text-gray-400">-</span>
                                 )}
-                              </div>
+                              </button>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs text-gray-500 mb-1">Melhor Volta Classificação</span>
+                              <button
+                                className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 hover:bg-gray-200 transition-colors min-h-[49px] flex items-center justify-center"
+                                onClick={() => openQualifyingBestLapModal(category.id, pilot.userId, selectedBatteryIndex)}
+                              >
+                                {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.qualifyingBestLap ? (
+                                  <span className="font-medium">
+                                    {stageResults[category.id][pilot.userId][selectedBatteryIndex].qualifyingBestLap}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -2643,6 +2789,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                         <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('classificacao')}>
                           Posição Classificação {sortColumn === 'classificacao' && (sortDirection === 'asc' ? '↑' : '↓')}
                         </th>
+                        <th className="px-2 py-1 text-left">Melhor Volta Classificação</th>
                         <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('corrida')}>
                           Posição Corrida {sortColumn === 'corrida' && (sortDirection === 'asc' ? '↑' : '↓')}
                         </th>
@@ -2706,6 +2853,25 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                               <span className="text-gray-400">-</span>
                             )}
                           </td>
+                          {/* Melhor Volta Classificação */}
+                          <td 
+                            className="px-2 py-1 cursor-pointer hover:bg-gray-50 rounded transition-colors text-center"
+                            onClick={() => openQualifyingBestLapModal(category.id, pilot.userId, selectedBatteryIndex)}
+                          >
+                            {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.qualifyingBestLap ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="font-medium">
+                                  {stageResults[category.id][pilot.userId][selectedBatteryIndex].qualifyingBestLap}
+                                </span>
+                                <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-gray-400">-</span>
+                                <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            )}
+                          </td>
                           {/* Posição Corrida */}
                           <td
                             className="px-2 py-1 cursor-pointer hover:bg-gray-50 rounded transition-colors text-center"
@@ -2720,7 +2886,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                             )}
                           </td>
                           {/* Melhor Volta */}
-                          <td className="px-2 py-1 text-center">
+                          <td 
+                            className="px-2 py-1 cursor-pointer hover:bg-gray-50 rounded transition-colors text-center"
+                            onClick={() => openBestLapModal(category.id, pilot.userId, selectedBatteryIndex)}
+                          >
                             {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.bestLap ? (
                               <div className="flex items-center justify-center gap-1">
                                 <span className="font-medium">
@@ -2753,9 +2922,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                                   }
                                   return null;
                                 })()}
+                                <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                               </div>
                             ) : (
-                              <span className="text-gray-400">-</span>
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-gray-400">-</span>
+                                <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -3147,6 +3320,180 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
               ) : (
                 'Importar'
               )}
+            </Button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+
+    {/* Modal de Melhor Volta */}
+    {showBestLapModal && selectedPilotForBestLap && createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black bg-opacity-50"
+          onClick={closeBestLapModal}
+        />
+        
+        {/* Modal Content */}
+        <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden flex flex-col z-10">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Editar Melhor Volta</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Digite o tempo da melhor volta do piloto.
+              </p>
+            </div>
+            <button
+              onClick={closeBestLapModal}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          {/* Content */}
+          <div className="flex-1 p-6">
+            <div className="space-y-4">
+              {/* Informações do formato */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-blue-900 mb-2">
+                  Formato de tempo:
+                </h3>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• <strong>MM:SS.sss</strong> (ex: 1:23.456)</li>
+                  <li>• <strong>SS.sss</strong> (ex: 47.123)</li>
+                  <li>• Deixe em branco para remover o tempo</li>
+                </ul>
+              </div>
+              
+              {/* Input de tempo */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Tempo da melhor volta
+                </label>
+                <input
+                  type="text"
+                  value={bestLapTimeInput}
+                  onChange={(e) => setBestLapTimeInput(e.target.value)}
+                  placeholder="Ex: 1:23.456 ou 47.123"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono"
+                />
+              </div>
+              
+              {/* Preview do tempo */}
+              {bestLapTimeInput.trim() && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-sm text-green-800">
+                    <strong>Tempo:</strong> {bestLapTimeInput.trim()}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+            <Button 
+              variant="outline" 
+              onClick={closeBestLapModal}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={saveBestLap}
+              className="bg-orange-500 hover:bg-orange-600 text-black"
+            >
+              Salvar
+            </Button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+
+    {/* Modal de Melhor Volta de Classificação */}
+    {showQualifyingBestLapModal && selectedPilotForQualifyingBestLap && createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black bg-opacity-50"
+          onClick={closeQualifyingBestLapModal}
+        />
+        
+        {/* Modal Content */}
+        <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden flex flex-col z-10">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Editar Melhor Volta de Classificação</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Digite o tempo da melhor volta de classificação do piloto.
+              </p>
+            </div>
+            <button
+              onClick={closeQualifyingBestLapModal}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          {/* Content */}
+          <div className="flex-1 p-6">
+            <div className="space-y-4">
+              {/* Informações do formato */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-blue-900 mb-2">
+                  Formato de tempo:
+                </h3>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• <strong>MM:SS.sss</strong> (ex: 1:23.456)</li>
+                  <li>• <strong>SS.sss</strong> (ex: 47.123)</li>
+                  <li>• Deixe em branco para remover o tempo</li>
+                </ul>
+              </div>
+              
+              {/* Input de tempo */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Tempo da melhor volta de classificação
+                </label>
+                <input
+                  type="text"
+                  value={qualifyingBestLapTimeInput}
+                  onChange={(e) => setQualifyingBestLapTimeInput(e.target.value)}
+                  placeholder="Ex: 1:23.456 ou 47.123"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono"
+                />
+              </div>
+              
+              {/* Preview do tempo */}
+              {qualifyingBestLapTimeInput.trim() && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-sm text-green-800">
+                    <strong>Tempo:</strong> {qualifyingBestLapTimeInput.trim()}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+            <Button 
+              variant="outline" 
+              onClick={closeQualifyingBestLapModal}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={saveQualifyingBestLap}
+              className="bg-orange-500 hover:bg-orange-600 text-black"
+            >
+              Salvar
             </Button>
           </div>
         </div>
