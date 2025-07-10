@@ -202,6 +202,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   const [stageResults, setStageResults] = useState<any>({});
   const [showKartSelectionModal, setShowKartSelectionModal] = useState(false);
   const [selectedPilotForKartChange, setSelectedPilotForKartChange] = useState<{categoryId: string, pilotId: string, batteryIndex: number} | null>(null);
+  const [kartLoading, setKartLoading] = useState(false);
   // Adicionar estados para seleção de posição
   const [showPositionSelectionModal, setShowPositionSelectionModal] = useState(false);
   const [selectedPilotForPosition, setSelectedPilotForPosition] = useState<{
@@ -210,6 +211,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     batteryIndex: number;
     type: 'startPosition' | 'finishPosition';
   } | null>(null);
+  const [positionLoading, setPositionLoading] = useState(false);
   // Estado para ordenação da tabela
   const [sortColumn, setSortColumn] = useState<string>('piloto');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -1420,6 +1422,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   const closeKartSelectionModal = () => {
     setShowKartSelectionModal(false);
     setSelectedPilotForKartChange(null);
+    setKartLoading(false);
   };
 
   // Função para alterar kart de um piloto
@@ -1427,6 +1430,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     if (!selectedPilotForKartChange) return;
 
     const { categoryId, pilotId, batteryIndex } = selectedPilotForKartChange;
+    setKartLoading(true);
 
     // Atualizar os resultados do sorteio
     const updatedResults = { ...fleetDrawResults };
@@ -1453,6 +1457,49 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     } catch (error) {
       toast.error('Erro ao salvar alteração do kart');
       console.error('Erro ao salvar kart:', error);
+    } finally {
+      setKartLoading(false);
+    }
+  };
+
+  // Função para limpar kart
+  const clearPilotKart = async () => {
+    if (!selectedPilotForKartChange) return;
+
+    const { categoryId, pilotId, batteryIndex } = selectedPilotForKartChange;
+    setKartLoading(true);
+
+    // Atualizar os resultados do sorteio
+    const updatedResults = { ...fleetDrawResults };
+    if (!updatedResults[categoryId]) {
+      updatedResults[categoryId] = {};
+    }
+    if (!updatedResults[categoryId][pilotId]) {
+      updatedResults[categoryId][pilotId] = {};
+    }
+
+    // Remover completamente a entrada da bateria
+    if (updatedResults[categoryId][pilotId][batteryIndex]) {
+      delete updatedResults[categoryId][pilotId][batteryIndex];
+    }
+
+    setFleetDrawResults(updatedResults);
+
+    // Salvar no backend
+    try {
+      const dataWithFleetAssignments = {
+        results: updatedResults,
+        categoryFleetAssignments: categoryFleetAssignments
+      };
+      await StageService.saveKartDrawAssignments(selectedStageId, dataWithFleetAssignments);
+      
+      closeKartSelectionModal();
+      toast.success('Kart removido com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao remover kart');
+      console.error('Erro ao remover kart:', error);
+    } finally {
+      setKartLoading(false);
     }
   };
 
@@ -1498,12 +1545,15 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   const closePositionSelectionModal = () => {
     setShowPositionSelectionModal(false);
     setSelectedPilotForPosition(null);
+    setPositionLoading(false);
   };
 
   // Função para alterar posição
   const changePilotPosition = async (position: number) => {
     if (!selectedPilotForPosition) return;
     const { categoryId, pilotId, batteryIndex, type } = selectedPilotForPosition;
+    setPositionLoading(true);
+    
     const updatedResults = { ...stageResults };
     if (!updatedResults[categoryId]) updatedResults[categoryId] = {};
     if (!updatedResults[categoryId][pilotId]) updatedResults[categoryId][pilotId] = {};
@@ -1516,6 +1566,33 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       toast.success('Posição salva!');
     } catch (error) {
       toast.error('Erro ao salvar posição');
+    } finally {
+      setPositionLoading(false);
+    }
+  };
+
+  // Função para limpar posição
+  const clearPilotPosition = async () => {
+    if (!selectedPilotForPosition) return;
+    const { categoryId, pilotId, batteryIndex, type } = selectedPilotForPosition;
+    setPositionLoading(true);
+    
+    const updatedResults = { ...stageResults };
+    if (!updatedResults[categoryId]) updatedResults[categoryId] = {};
+    if (!updatedResults[categoryId][pilotId]) updatedResults[categoryId][pilotId] = {};
+    if (!updatedResults[categoryId][pilotId][batteryIndex]) updatedResults[categoryId][pilotId][batteryIndex] = {};
+
+    delete updatedResults[categoryId][pilotId][batteryIndex][type];
+    setStageResults(updatedResults);
+    
+    try {
+      await StageService.saveStageResults(selectedStageId, updatedResults);
+      closePositionSelectionModal();
+      toast.success(`${type === 'startPosition' ? 'Posição de classificação' : 'Posição de corrida'} removida!`);
+    } catch (error) {
+      toast.error('Erro ao remover posição');
+    } finally {
+      setPositionLoading(false);
     }
   };
 
@@ -1527,6 +1604,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     batteryIndex: number;
   } | null>(null);
   const [bestLapTimeInput, setBestLapTimeInput] = useState('');
+  const [bestLapLoading, setBestLapLoading] = useState(false);
 
   // Estados para modal de melhor volta de classificação
   const [showQualifyingBestLapModal, setShowQualifyingBestLapModal] = useState(false);
@@ -1536,6 +1614,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     batteryIndex: number;
   } | null>(null);
   const [qualifyingBestLapTimeInput, setQualifyingBestLapTimeInput] = useState('');
+  const [qualifyingBestLapLoading, setQualifyingBestLapLoading] = useState(false);
 
   // Função para abrir modal de melhor volta
   const openBestLapModal = (
@@ -1554,6 +1633,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     setShowBestLapModal(false);
     setSelectedPilotForBestLap(null);
     setBestLapTimeInput('');
+    setBestLapLoading(false);
   };
 
   // Função para salvar melhor volta
@@ -1568,6 +1648,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       toast.error('Formato de tempo inválido. Use MM:SS.sss ou SS.sss');
       return;
     }
+
+    setBestLapLoading(true);
 
     const updatedResults = { ...stageResults };
     if (!updatedResults[categoryId]) updatedResults[categoryId] = {};
@@ -1586,6 +1668,34 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       toast.success('Melhor volta salva!');
     } catch (error) {
       toast.error('Erro ao salvar melhor volta');
+    } finally {
+      setBestLapLoading(false);
+    }
+  };
+
+  // Função para limpar melhor volta
+  const clearBestLap = async () => {
+    if (!selectedPilotForBestLap) return;
+    
+    const { categoryId, pilotId, batteryIndex } = selectedPilotForBestLap;
+    setBestLapLoading(true);
+    
+    const updatedResults = { ...stageResults };
+    if (!updatedResults[categoryId]) updatedResults[categoryId] = {};
+    if (!updatedResults[categoryId][pilotId]) updatedResults[categoryId][pilotId] = {};
+    if (!updatedResults[categoryId][pilotId][batteryIndex]) updatedResults[categoryId][pilotId][batteryIndex] = {};
+
+    delete updatedResults[categoryId][pilotId][batteryIndex].bestLap;
+    setStageResults(updatedResults);
+    
+    try {
+      await StageService.saveStageResults(selectedStageId, updatedResults);
+      closeBestLapModal();
+      toast.success('Melhor volta removida!');
+    } catch (error) {
+      toast.error('Erro ao remover melhor volta');
+    } finally {
+      setBestLapLoading(false);
     }
   };
 
@@ -1606,6 +1716,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     setShowQualifyingBestLapModal(false);
     setSelectedPilotForQualifyingBestLap(null);
     setQualifyingBestLapTimeInput('');
+    setQualifyingBestLapLoading(false);
   };
 
   // Função para salvar melhor volta de classificação
@@ -1620,6 +1731,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       toast.error('Formato de tempo inválido. Use MM:SS.sss ou SS.sss');
       return;
     }
+
+    setQualifyingBestLapLoading(true);
 
     const updatedResults = { ...stageResults };
     if (!updatedResults[categoryId]) updatedResults[categoryId] = {};
@@ -1638,6 +1751,34 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       toast.success('Melhor volta de classificação salva!');
     } catch (error) {
       toast.error('Erro ao salvar melhor volta de classificação');
+    } finally {
+      setQualifyingBestLapLoading(false);
+    }
+  };
+
+  // Função para limpar melhor volta de classificação
+  const clearQualifyingBestLap = async () => {
+    if (!selectedPilotForQualifyingBestLap) return;
+    
+    const { categoryId, pilotId, batteryIndex } = selectedPilotForQualifyingBestLap;
+    setQualifyingBestLapLoading(true);
+    
+    const updatedResults = { ...stageResults };
+    if (!updatedResults[categoryId]) updatedResults[categoryId] = {};
+    if (!updatedResults[categoryId][pilotId]) updatedResults[categoryId][pilotId] = {};
+    if (!updatedResults[categoryId][pilotId][batteryIndex]) updatedResults[categoryId][pilotId][batteryIndex] = {};
+
+    delete updatedResults[categoryId][pilotId][batteryIndex].qualifyingBestLap;
+    setStageResults(updatedResults);
+    
+    try {
+      await StageService.saveStageResults(selectedStageId, updatedResults);
+      closeQualifyingBestLapModal();
+      toast.success('Melhor volta de classificação removida!');
+    } catch (error) {
+      toast.error('Erro ao remover melhor volta de classificação');
+    } finally {
+      setQualifyingBestLapLoading(false);
     }
   };
 
@@ -3146,7 +3287,23 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
             <Button 
               variant="outline" 
+              onClick={clearPilotKart}
+              className="text-red-600 border-red-600 hover:bg-red-50"
+              disabled={kartLoading}
+            >
+              {kartLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Removendo...
+                </>
+              ) : (
+                'Limpar'
+              )}
+            </Button>
+            <Button 
+              variant="outline" 
               onClick={closeKartSelectionModal}
+              disabled={kartLoading}
             >
               Cancelar
             </Button>
@@ -3208,7 +3365,23 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
             <Button 
               variant="outline" 
+              onClick={clearPilotPosition}
+              className="text-red-600 border-red-600 hover:bg-red-50"
+              disabled={positionLoading}
+            >
+              {positionLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Removendo...
+                </>
+              ) : (
+                'Limpar'
+              )}
+            </Button>
+            <Button 
+              variant="outline" 
               onClick={closePositionSelectionModal}
+              disabled={positionLoading}
             >
               Cancelar
             </Button>
@@ -3398,15 +3571,39 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
             <Button 
               variant="outline" 
+              onClick={clearBestLap}
+              className="text-red-600 border-red-600 hover:bg-red-50"
+              disabled={bestLapLoading}
+            >
+              {bestLapLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Removendo...
+                </>
+              ) : (
+                'Limpar'
+              )}
+            </Button>
+            <Button 
+              variant="outline" 
               onClick={closeBestLapModal}
+              disabled={bestLapLoading}
             >
               Cancelar
             </Button>
             <Button 
               onClick={saveBestLap}
               className="bg-orange-500 hover:bg-orange-600 text-black"
+              disabled={bestLapLoading}
             >
-              Salvar
+              {bestLapLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                'Salvar'
+              )}
             </Button>
           </div>
         </div>
@@ -3485,15 +3682,39 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
             <Button 
               variant="outline" 
+              onClick={clearQualifyingBestLap}
+              className="text-red-600 border-red-600 hover:bg-red-50"
+              disabled={qualifyingBestLapLoading}
+            >
+              {qualifyingBestLapLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Removendo...
+                </>
+              ) : (
+                'Limpar'
+              )}
+            </Button>
+            <Button 
+              variant="outline" 
               onClick={closeQualifyingBestLapModal}
+              disabled={qualifyingBestLapLoading}
             >
               Cancelar
             </Button>
             <Button 
               onClick={saveQualifyingBestLap}
               className="bg-orange-500 hover:bg-orange-600 text-black"
+              disabled={qualifyingBestLapLoading}
             >
-              Salvar
+              {qualifyingBestLapLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                'Salvar'
+              )}
             </Button>
           </div>
         </div>
