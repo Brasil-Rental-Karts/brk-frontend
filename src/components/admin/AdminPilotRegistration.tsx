@@ -1,17 +1,15 @@
-import { useState, useEffect, useRef } from "react";
-import { Button } from "brk-design-system";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "brk-design-system";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "brk-design-system";
-import { Input } from "brk-design-system";
-import { Label } from "brk-design-system";
-import { Checkbox } from "brk-design-system";
-import { Textarea } from "brk-design-system";
-import { toast } from "sonner";
-import { UserService } from "@/lib/services/user.service";
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from 'brk-design-system';
+import { Button, Badge, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Checkbox, Textarea } from 'brk-design-system';
+import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, Eye, UserCheck, UserX, AlertCircle, CheckCircle, XCircle, Clock, DollarSign, Users, Flag, Settings, ChevronDown, ChevronRight, ChevronUp, ChevronLeft, RefreshCw, RotateCcw, Play, Pause, SkipBack, SkipForward, FastForward, Rewind, Volume2, VolumeX, Mic, MicOff, Camera, CameraOff, Video, VideoOff, Image, File, Folder, FolderOpen, FolderPlus, FolderMinus, FolderX, FilePlus, FileMinus, FileX, FileCheck, FileEdit, FileSearch, FileImage, FileVideo, FileAudio, FileArchive, FileCode, FileSpreadsheet, FileJson } from 'lucide-react';
+import { UserService, User as UserType } from '@/lib/services/user.service';
+import { SeasonRegistrationService, SeasonRegistration } from '@/lib/services/season-registration.service';
+import { CategoryService, Category as CategoryType } from '@/lib/services/category.service';
+import { Loading } from '@/components/ui/loading';
+import { toast } from 'sonner';
+import { formatName } from '@/utils/name';
 import { SeasonService, Season as SeasonType, PaymentCondition } from "@/lib/services/season.service";
-import { CategoryService } from "@/lib/services/category.service";
 import { StageService } from "@/lib/services/stage.service";
-import { SeasonRegistrationService } from "@/lib/services/season-registration.service";
 import { formatCurrency } from "@/utils/currency";
 import { X, User, Trophy, Calendar, CreditCard, Tag, MapPin, FileText } from "lucide-react";
 import { ChampionshipService } from "@/lib/services/championship.service";
@@ -50,18 +48,18 @@ const extractNumericValue = (formattedValue: string): number => {
   return parseFloat(cleanValue) || 0;
 };
 
-interface User {
+interface UserData {
   id: string;
   name: string;
   email: string;
 }
 
-interface Championship {
+interface ChampionshipData {
   id: string;
   name: string;
 }
 
-interface Season {
+interface SeasonData {
   id: string;
   name: string;
   championshipId: string;
@@ -70,25 +68,25 @@ interface Season {
   paymentConditions?: any[];
 }
 
-interface Category {
+interface CategoryData {
   id: string;
   name: string;
 }
 
-interface Stage {
+interface StageData {
   id: string;
   name: string;
 }
 
 export const AdminPilotRegistration = () => {
-  const [users, setUsers] = useState<User[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
   const [userSearchTerm, setUserSearchTerm] = useState('');
-  const [championships, setChampionships] = useState<Championship[]>([]);
-  const [seasons, setSeasons] = useState<Season[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [stages, setStages] = useState<Stage[]>([]);
-  const [availableStages, setAvailableStages] = useState<Stage[]>([]);
+  const [championships, setChampionships] = useState<ChampionshipData[]>([]);
+  const [seasons, setSeasons] = useState<SeasonData[]>([]);
+  const [categories, setCategories] = useState<CategoryData[]>([]);
+  const [stages, setStages] = useState<StageData[]>([]);
+  const [availableStages, setAvailableStages] = useState<StageData[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -96,7 +94,7 @@ export const AdminPilotRegistration = () => {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [selectedChampionshipId, setSelectedChampionshipId] = useState<string>("");
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>("");
-  const [selectedSeason, setSelectedSeason] = useState<Season | null>(null);
+  const [selectedSeason, setSelectedSeason] = useState<SeasonData | null>(null);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [selectedStageIds, setSelectedStageIds] = useState<string[]>([]);
   const [paymentStatus, setPaymentStatus] = useState<'exempt' | 'direct_payment'>('exempt');
@@ -541,7 +539,7 @@ export const AdminPilotRegistration = () => {
               {showUserDropdown && !selectedUserId && filteredUsers && filteredUsers.length > 0 && (
                 <ul className="absolute z-[9999] bg-white border border-gray-300 rounded-md shadow-lg w-full max-h-48 overflow-auto mt-1">
                   {filteredUsers.map((user) => {
-                    const userText = `${user.name} (${user.email})`;
+                    const userText = `${formatName(user.name)} (${user.email})`;
                     return (
                       <li
                         key={user.id}

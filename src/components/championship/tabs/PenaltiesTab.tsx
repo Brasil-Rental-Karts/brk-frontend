@@ -45,6 +45,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "brk-design-system";
+import { formatName } from '@/utils/name';
 
 interface PenaltiesTabProps {
   championshipId: string;
@@ -275,12 +276,12 @@ const PenaltyCard = ({ penalty, onAction, getPenaltyIcon, getStatusIcon }: {
 
           <div className="flex justify-between items-center py-2 border-b border-gray-100">
             <span className="text-sm text-gray-600">Piloto</span>
-            <span className="text-sm font-medium break-words text-right">{penalty.user?.name || 'N/A'}</span>
+            <span className="text-sm font-medium break-words text-right">{formatName(penalty.user?.name || 'N/A')}</span>
           </div>
 
           <div className="flex justify-between items-center py-2 border-b border-gray-100">
             <span className="text-sm text-gray-600">Aplicada por</span>
-            <span className="text-sm font-medium break-words text-right">{penalty.appliedByUser?.name || 'N/A'}</span>
+            <span className="text-sm font-medium break-words text-right">{formatName(penalty.appliedByUser?.name || 'N/A')}</span>
           </div>
 
           <div className="flex justify-between items-center py-2">
@@ -940,13 +941,14 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
                       )}
                     </div>
                   </TableHead>
+                  <TableHead className="text-center">Recurso</TableHead>
                   <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {processedPenalties.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       Nenhuma punição encontrada com os filtros aplicados
                     </TableCell>
                   </TableRow>
@@ -980,7 +982,7 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
                       </TableCell>
                       <TableCell className="text-center py-4">
                         <div className="font-medium">
-                          {penalty.user?.name || 'N/A'}
+                          {formatName(penalty.user?.name || 'N/A')}
                         </div>
                       </TableCell>
                       <TableCell className="text-center py-4">
@@ -993,6 +995,20 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
                         <div className="text-sm">
                           {formatDate(penalty.createdAt)}
                         </div>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        {penalty.appealReason ? (
+                                                      <div className="text-xs space-y-1">
+                              <div className="font-medium text-blue-600">
+                                Recorrido por {formatName(penalty.appealedByUser?.name || 'N/A')}
+                              </div>
+                            <div className="max-w-xs truncate" title={penalty.appealReason}>
+                              {penalty.appealReason}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-center py-4">
                         <DropdownMenu>
@@ -1047,7 +1063,7 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
             <DialogDescription>
               Tem certeza que deseja aplicar esta punição?
               <br />
-              <strong>Piloto:</strong> {penaltyToApply?.user?.name || 'N/A'}
+              <strong>Piloto:</strong> {formatName(penaltyToApply?.user?.name || 'N/A')}
               <br />
               <strong>Tipo:</strong> {penaltyToApply ? PenaltyService.getPenaltyTypeLabel(penaltyToApply.type) : 'N/A'}
               <br />
@@ -1088,7 +1104,7 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
             <DialogDescription>
               Tem certeza que deseja cancelar esta punição?
               <br />
-              <strong>Piloto:</strong> {penaltyToCancel?.user?.name || 'N/A'}
+              <strong>Piloto:</strong> {formatName(penaltyToCancel?.user?.name || 'N/A')}
               <br />
               <strong>Tipo:</strong> {penaltyToCancel ? PenaltyService.getPenaltyTypeLabel(penaltyToCancel.type) : 'N/A'}
               <br />

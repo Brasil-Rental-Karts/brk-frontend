@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { Button } from "brk-design-system";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "brk-design-system";
@@ -18,6 +18,7 @@ import { ChampionshipStaffService, StaffMember, StaffPermissions } from "@/lib/s
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Loading } from '@/components/ui/loading';
+import { formatName } from '@/utils/name';
 
 interface StaffTabProps {
   championshipId: string;
@@ -279,7 +280,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                     <div className="flex items-center gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-semibold">{member.user.name}</h4>
+                          <h4 className="font-semibold">{formatName(member.user.name)}</h4>
                           {member.isOwner ? (
                             <Badge variant="default" className="bg-yellow-500 hover:bg-yellow-600">
                               <Crown className="h-3 w-3 mr-1" />
@@ -413,7 +414,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
           <DialogHeader>
             <DialogTitle>Confirmar remoção</DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja remover <strong>"{memberToDelete?.user.name}"</strong> da equipe?
+                              Tem certeza que deseja remover <strong>"{memberToDelete?.user.name ? formatName(memberToDelete.user.name) : 'Usuário'}"</strong> da equipe?
               <br />
               Esta ação não pode ser desfeita.
             </DialogDescription>
@@ -451,7 +452,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
           <DialogHeader>
             <DialogTitle>Editar Permissões</DialogTitle>
             <DialogDescription>
-              Configure as permissões de acesso para <strong>"{memberToEdit?.user.name}"</strong>
+                              Configure as permissões de acesso para <strong>"{memberToEdit?.user.name ? formatName(memberToEdit.user.name) : 'Usuário'}"</strong>
             </DialogDescription>
           </DialogHeader>
           

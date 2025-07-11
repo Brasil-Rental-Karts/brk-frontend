@@ -7,13 +7,7 @@ import { SeasonRegistrationService, SeasonRegistration } from '@/lib/services/se
 import { Loading } from '@/components/ui/loading';
 import { StageParticipationService, StageParticipation } from '@/lib/services/stage-participation.service';
 import { toast } from "sonner";
-// Função utilitária para formatação de nomes
-function formatName(name: string): string {
-  return name
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
-}
+import { formatName } from '@/utils/name';
 import { useAuth } from '@/contexts/AuthContext';
 import { StageService } from '@/lib/services/stage.service';
 import {

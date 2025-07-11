@@ -1,20 +1,11 @@
-import React from 'react';
-import { Penalty, PenaltyService, PenaltyType, PenaltyStatus } from '../../lib/services/penalty.service';
-import { Button } from 'brk-design-system';
-import { Badge } from 'brk-design-system';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
-import { 
-  AlertTriangle, 
-  Clock, 
-  MapPin, 
-  UserX, 
-  Ban, 
-  CheckCircle, 
-  XCircle, 
-  RotateCcw,
-  Edit,
-  Trash2
-} from 'lucide-react';
+import { Button, Badge } from 'brk-design-system';
+import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, Eye, AlertCircle, CheckCircle, XCircle, Clock, Calendar, MapPin, Users, Trophy, Flag, Settings, ChevronDown, ChevronRight, ChevronUp, ChevronLeft, RefreshCw, RotateCcw, Play, Pause, SkipBack, SkipForward, FastForward, Rewind, Volume2, VolumeX, Mic, MicOff, Camera, CameraOff, Video, VideoOff, Image, FileText, File, Folder, FolderOpen, FolderPlus, FolderMinus, FolderX, FilePlus, FileMinus, FileX, FileCheck, FileEdit, FileSearch, FileImage, FileVideo, FileAudio, FileArchive, FileCode, FileSpreadsheet, FileJson, UserX, Ban, AlertTriangle } from 'lucide-react';
+import { PenaltyService, PenaltyType, Penalty, PenaltyStatus } from '@/lib/services/penalty.service';
+import { Loading } from '@/components/ui/loading';
+import { toast } from 'sonner';
+import { formatName } from '@/utils/name';
 
 interface PenaltyListProps {
   penalties: Penalty[];
@@ -184,7 +175,7 @@ export const PenaltyList: React.FC<PenaltyListProps> = ({
                 </div>
                 {penalty.appealedByUser && (
                   <div>
-                    <span className="font-semibold">Recorrida por:</span> {penalty.appealedByUser.name}
+                    <span className="font-semibold">Recorrida por:</span> {formatName(penalty.appealedByUser.name)}
                   </div>
                 )}
                 <div>

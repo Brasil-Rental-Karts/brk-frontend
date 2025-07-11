@@ -28,6 +28,7 @@ import { SeasonService, Season } from "@/lib/services/season.service";
 import { ChampionshipClassificationService, SeasonClassification, ClassificationEntry } from "@/lib/services/championship-classification.service";
 import { Loading } from '@/components/ui/loading';
 import { InlineLoader } from '@/components/ui/loading';
+import { formatName } from '@/utils/name';
 
 interface ClassificationTabProps {
   championshipId: string;
@@ -97,7 +98,7 @@ const ClassificationCard = ({ entry, position, onAction }: {
             {renderPositionBadge(position)}
           </div>
           <div>
-            <h3 className="text-lg font-semibold tracking-tight">{entry.user.name}</h3>
+                            <h3 className="text-lg font-semibold tracking-tight">{formatName(entry.user.name)}</h3>
             {entry.user.nickname && (
               <p className="text-sm text-muted-foreground">@{entry.user.nickname}</p>
             )}
@@ -588,7 +589,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
                         </TableCell>
                         <TableCell>
                           <div className="space-y-1">
-                            <div className="font-medium">{entry.user.name}</div>
+                            <div className="font-medium">{formatName(entry.user.name)}</div>
                             {entry.user.nickname && (
                               <div className="text-xs text-muted-foreground">@{entry.user.nickname}</div>
                             )}

@@ -5,12 +5,14 @@ import { SeasonService, Season } from '../lib/services/season.service';
 import { CategoryService, Category } from '../lib/services/category.service';
 import { StageService, Stage } from '../lib/services/stage.service';
 import { SeasonRegistrationService } from '../lib/services/season-registration.service';
+import { StageParticipationService } from '../lib/services/stage-participation.service';
 import { FormScreen } from '@/components/ui/FormScreen';
 import { FormSectionConfig } from '@/components/ui/dynamic-form';
 import { Loading } from '@/components/ui/loading';
 import { Card, CardContent } from 'brk-design-system';
 import { PageHeader } from '@/components/ui/page-header';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatName } from '@/utils/name';
 
 interface SeasonRegistration {
   id: string;
@@ -62,6 +64,7 @@ export const CreatePenalty = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
   const [pilots, setPilots] = useState<SeasonRegistration[]>([]);
+  const [selectedStageId, setSelectedStageId] = useState<string>('');
 
   // Carregar temporadas do campeonato
   useEffect(() => {
@@ -210,7 +213,7 @@ export const CreatePenalty = () => {
             await loadCategoriesForStage(penaltyData.stageId);
           }
           if (penaltyData.categoryId && penaltyData.seasonId) {
-            await loadPilotsForCategory(penaltyData.categoryId, penaltyData.seasonId);
+            await loadPilotsForCategory(penaltyData.categoryId, penaltyData.seasonId, penaltyData.stageId);
           }
         } else {
           setInitialValues({
@@ -297,18 +300,42 @@ export const CreatePenalty = () => {
   }, []);
 
   // Carregar pilotos quando categoria for selecionada
-  const loadPilotsForCategory = useCallback(async (categoryId: string, seasonId: string) => {
+  const loadPilotsForCategory = useCallback(async (categoryId: string, seasonId: string, stageId?: string) => {
     if (!categoryId || !seasonId) {
       setPilots([]);
       return;
     }
     try {
       const registrationsRes = await SeasonRegistrationService.getBySeasonId(seasonId);
-      // Filtrar apenas pilotos confirmados da categoria selecionada
+      
+      // Buscar participações da etapa selecionada
+      let stageParticipations: any[] = [];
+      try {
+        let targetStageId = stageId || selectedStageId;
+        
+        // Se não temos stageId, buscar todas as etapas da temporada e usar a primeira como padrão
+        if (!targetStageId) {
+          const stagesRes = await StageService.getBySeasonId(seasonId);
+          if (stagesRes.length > 0) {
+            targetStageId = stagesRes[0].id;
+          }
+        }
+        
+        if (targetStageId) {
+          stageParticipations = await StageParticipationService.getStageParticipations(targetStageId);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar participações da etapa:', error);
+      }
+      
+      // Filtrar pilotos confirmados na categoria e etapa específica
       const confirmedPilots = registrationsRes.filter((reg: any) => 
-        (reg.status === 'confirmed' || reg.status === 'paid') && 
-        reg.categories?.some((cat: any) => cat.categoryId === categoryId)
+        reg.categories?.some((cat: any) => cat.categoryId === categoryId) &&
+        stageParticipations.some(
+          (part) => part.userId === reg.userId && part.categoryId === categoryId && part.status === 'confirmed'
+        )
       );
+      
       setPilots(confirmedPilots);
       
       // Atualizar opções de piloto no formulário
@@ -323,7 +350,7 @@ export const CreatePenalty = () => {
                     ...field, 
                     options: confirmedPilots.map(p => ({ 
                       value: p.userId, 
-                      description: `${p.user.name} (${p.user.email})` 
+                      description: `${formatName(p.user.name)}` 
                     }))
                   };
                 }
@@ -337,7 +364,7 @@ export const CreatePenalty = () => {
     } catch (err: any) {
       console.error('Erro ao carregar pilotos:', err);
     }
-  }, []);
+  }, [selectedStageId]);
 
   // Event handlers para mudanças de campo
   const onFieldChange = useCallback(async (fieldId: string, value: any, formData: any, formActions: { setValue: (name: string, value: any) => void }) => {
@@ -348,6 +375,7 @@ export const CreatePenalty = () => {
         formActions.setValue('categoryId', '');
         formActions.setValue('userId', '');
       }
+      setSelectedStageId('');
       await loadStagesForSeason(value);
     }
     
@@ -357,7 +385,13 @@ export const CreatePenalty = () => {
         formActions.setValue('categoryId', '');
         formActions.setValue('userId', '');
       }
+      setSelectedStageId(value);
       await loadCategoriesForStage(value);
+      
+      // Se já há uma categoria selecionada, recarregar os pilotos para a nova etapa
+      if (formData.categoryId) {
+        await loadPilotsForCategory(formData.categoryId, formData.seasonId, value);
+      }
     }
 
     if (fieldId === 'categoryId') {
@@ -365,7 +399,7 @@ export const CreatePenalty = () => {
       if (formActions.setValue) {
         formActions.setValue('userId', '');
       }
-      await loadPilotsForCategory(value, formData.seasonId);
+      await loadPilotsForCategory(value, formData.seasonId, formData.stageId);
     }
   }, [loadStagesForSeason, loadCategoriesForStage, loadPilotsForCategory]);
 
