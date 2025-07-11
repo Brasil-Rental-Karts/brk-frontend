@@ -1668,6 +1668,16 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   const [qualifyingBestLapTimeInput, setQualifyingBestLapTimeInput] = useState('');
   const [qualifyingBestLapLoading, setQualifyingBestLapLoading] = useState(false);
 
+  // Estados para modal de tempo total
+  const [showTotalTimeModal, setShowTotalTimeModal] = useState(false);
+  const [selectedPilotForTotalTime, setSelectedPilotForTotalTime] = useState<{
+    categoryId: string;
+    pilotId: string;
+    batteryIndex: number;
+  } | null>(null);
+  const [totalTimeInput, setTotalTimeInput] = useState('');
+  const [totalTimeLoading, setTotalTimeLoading] = useState(false);
+
   // Função para abrir modal de melhor volta
   const openBestLapModal = (
     categoryId: string,
@@ -1834,6 +1844,89 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     }
   };
 
+  // Função para abrir modal de tempo total
+  const openTotalTimeModal = (
+    categoryId: string,
+    pilotId: string,
+    batteryIndex: number
+  ) => {
+    const currentTotalTime = stageResults[categoryId]?.[pilotId]?.[batteryIndex]?.totalTime || '';
+    setSelectedPilotForTotalTime({ categoryId, pilotId, batteryIndex });
+    setTotalTimeInput(currentTotalTime);
+    setShowTotalTimeModal(true);
+  };
+
+  // Função para fechar modal de tempo total
+  const closeTotalTimeModal = () => {
+    setShowTotalTimeModal(false);
+    setSelectedPilotForTotalTime(null);
+    setTotalTimeInput('');
+    setTotalTimeLoading(false);
+  };
+
+  // Função para salvar tempo total
+  const saveTotalTime = async () => {
+    if (!selectedPilotForTotalTime) return;
+    
+    const { categoryId, pilotId, batteryIndex } = selectedPilotForTotalTime;
+    
+    // Validar formato do tempo
+    const timePattern = /^\d{1,2}:\d{2}[.,]\d{1,3}$/;
+    if (totalTimeInput.trim() && !timePattern.test(totalTimeInput.trim())) {
+      toast.error('Formato de tempo inválido. Use MM:SS.sss (ex: 14:34.610)');
+      return;
+    }
+
+    setTotalTimeLoading(true);
+
+    const updatedResults = { ...stageResults };
+    if (!updatedResults[categoryId]) updatedResults[categoryId] = {};
+    if (!updatedResults[categoryId][pilotId]) updatedResults[categoryId][pilotId] = {};
+    if (!updatedResults[categoryId][pilotId][batteryIndex]) updatedResults[categoryId][pilotId][batteryIndex] = {};
+    
+    // Normalizar formato (trocar vírgula por ponto se necessário)
+    const normalizedTime = totalTimeInput.trim().replace(',', '.');
+    updatedResults[categoryId][pilotId][batteryIndex].totalTime = normalizedTime || null;
+    
+    setStageResults(updatedResults);
+    
+    try {
+      await StageService.saveStageResults(selectedStageId, updatedResults);
+      closeTotalTimeModal();
+      toast.success('Tempo total salvo!');
+    } catch (error) {
+      toast.error('Erro ao salvar tempo total');
+    } finally {
+      setTotalTimeLoading(false);
+    }
+  };
+
+  // Função para limpar tempo total
+  const clearTotalTime = async () => {
+    if (!selectedPilotForTotalTime) return;
+    
+    const { categoryId, pilotId, batteryIndex } = selectedPilotForTotalTime;
+    setTotalTimeLoading(true);
+    
+    const updatedResults = { ...stageResults };
+    if (!updatedResults[categoryId]) updatedResults[categoryId] = {};
+    if (!updatedResults[categoryId][pilotId]) updatedResults[categoryId][pilotId] = {};
+    if (!updatedResults[categoryId][pilotId][batteryIndex]) updatedResults[categoryId][pilotId][batteryIndex] = {};
+
+    delete updatedResults[categoryId][pilotId][batteryIndex].totalTime;
+    setStageResults(updatedResults);
+    
+    try {
+      await StageService.saveStageResults(selectedStageId, updatedResults);
+      closeTotalTimeModal();
+      toast.success('Tempo total removido!');
+    } catch (error) {
+      toast.error('Erro ao remover tempo total');
+    } finally {
+      setTotalTimeLoading(false);
+    }
+  };
+
   // Função para filtrar penalidades por categoria e bateria
   const getFilteredPenalties = (categoryId: string, batteryIndex: number) => {
     return penalties.filter(penalty => 
@@ -1894,29 +1987,37 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   const getSortedPilots = (categoryPilots: any[], category: any) => {
     const sorted = [...categoryPilots];
     sorted.sort((a, b) => {
-      const getValue = (pilot: any, col: string) => {
-        const kart = fleetDrawResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.kart || 0;
-        const peso = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.weight;
-        const start = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.startPosition || 0;
-        const finish = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition || 0;
-        const bestLap = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.bestLap;
-        const nome = formatName(pilot.user?.name || pilot.userId);
-        switch (col) {
-          case 'kart': return kart;
-          case 'peso': return peso === false ? 0 : 1;
-          case 'classificacao': return start;
-          case 'corrida': return finish;
-          case 'bestLap': 
-            if (!bestLap) return 999999; // Coloca pilotos sem tempo no final
-            // Converter tempo para milissegundos para comparação
-            const [minutes, seconds] = bestLap.includes(':') 
-              ? bestLap.split(':') 
-              : ['0', bestLap];
-            return parseFloat(minutes) * 60000 + parseFloat(seconds) * 1000;
-          case 'piloto': return nome;
-          default: return nome;
-        }
-      };
+              const getValue = (pilot: any, col: string) => {
+          const kart = fleetDrawResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.kart || 0;
+          const peso = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.weight;
+          const start = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.startPosition || 0;
+          const finish = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition || 0;
+          const bestLap = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.bestLap;
+          const totalTime = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalTime;
+          const nome = formatName(pilot.user?.name || pilot.userId);
+          switch (col) {
+            case 'kart': return kart;
+            case 'peso': return peso === false ? 0 : 1;
+            case 'classificacao': return start;
+            case 'corrida': return finish;
+            case 'bestLap': 
+              if (!bestLap) return 999999; // Coloca pilotos sem tempo no final
+              // Converter tempo para milissegundos para comparação
+              const [minutes, seconds] = bestLap.includes(':') 
+                ? bestLap.split(':') 
+                : ['0', bestLap];
+              return parseFloat(minutes) * 60000 + parseFloat(seconds) * 1000;
+            case 'totalTime':
+              if (!totalTime) return 999999; // Coloca pilotos sem tempo no final
+              // Converter tempo para milissegundos para comparação
+              const [totalMinutes, totalSeconds] = totalTime.includes(':') 
+                ? totalTime.split(':') 
+                : ['0', totalTime];
+              return parseFloat(totalMinutes) * 60000 + parseFloat(totalSeconds) * 1000;
+            case 'piloto': return nome;
+            default: return nome;
+          }
+        };
       let vA = getValue(a, sortColumn);
       let vB = getValue(b, sortColumn);
       if (typeof vA === 'string' && typeof vB === 'string') {
@@ -2044,6 +2145,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
         let totalProcessedCount = 0;
         let totalNcCount = 0;
         let totalBestLapCount = 0;
+        let totalTimeCount = 0;
         const allNotFoundKarts: number[] = [];
         
         // Processar todas as sheets
@@ -2056,6 +2158,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           let positionColumn = -1;
           let kartColumn = -1;
           let bestLapColumn = -1;
+          let totalTimeColumn = -1;
           
           for (let i = 0; i < data.length; i++) {
             const row = data[i] as any[];
@@ -2072,6 +2175,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
               if (cell === 'tmv' || cell === 'tempo melhor volta' || cell === 'melhor volta') {
                 bestLapColumn = j;
               }
+              // Procurar pela coluna TT (Tempo Total)
+              if (cell === 'tt' || cell === 'tempo total' || cell === 'total') {
+                totalTimeColumn = j;
+              }
             }
             if (headerRow >= 0 && positionColumn >= 0 && kartColumn >= 0) {
               break;
@@ -2086,6 +2193,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           let processedCount = 0;
           let ncCount = 0;
           let bestLapCount = 0;
+          let totalTimeCountLocal = 0;
           const notFoundKarts: number[] = [];
           
           for (let i = headerRow + 1; i < data.length; i++) {
@@ -2095,7 +2203,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
             const positionValue = String(row[positionColumn]).trim().toUpperCase();
             const kartNumber = Number(row[kartColumn]);
             const bestLapValue = bestLapColumn >= 0 ? String(row[bestLapColumn] || '').trim() : '';
-            
+            const totalTimeValue = totalTimeColumn >= 0 ? String(row[totalTimeColumn] || '').trim() : '';
+
             // Validar se o kart é um número válido
             if (isNaN(kartNumber)) continue;
             
@@ -2124,7 +2233,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                 }
                 
                 // Processar melhor volta se disponível
-                if (bestLapColumn >= 0 && bestLapValue && bestLapValue !== 'NC') {
+                if (bestLapColumn >= 0 && bestLapValue && bestLapValue !== 'NC' && positionValue !== 'NC' && positionValue !== 'DQ') {
                   // Validar formato de tempo (exemplo: 47.123, 1:23.456, 47,123)
                   const timePattern = /^(\d{1,2}:)?\d{1,2}[.,]\d{1,3}$/;
                   if (timePattern.test(bestLapValue)) {
@@ -2136,6 +2245,20 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                       updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'bestLap', normalizedTime);
                     }
                     bestLapCount++;
+                  } else {
+                    // Formato de tempo inválido ignorado
+                  }
+                }
+                
+                // Processar tempo total se disponível (apenas para corrida)
+                if (importType === 'race' && totalTimeColumn >= 0 && totalTimeValue && totalTimeValue !== 'NC' && positionValue !== 'NC' && positionValue !== 'DQ') {
+                  // Validar formato de tempo (exemplo: 00:14:34.610, 14:34.610, 14:34,610)
+                  const timePattern = /^(\d{1,2}:)?\d{1,2}:\d{2}[.,]\d{1,3}$/;
+                  if (timePattern.test(totalTimeValue)) {
+                    // Normalizar formato (trocar vírgula por ponto se necessário)
+                    const normalizedTime = totalTimeValue.replace(',', '.');
+                    updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'totalTime', normalizedTime);
+                    totalTimeCountLocal++;
                   } else {
                     // Formato de tempo inválido ignorado
                   }
@@ -2155,13 +2278,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           totalProcessedCount += processedCount;
           totalNcCount += ncCount;
           totalBestLapCount += bestLapCount;
+          totalTimeCount += totalTimeCountLocal;
           allNotFoundKarts.push(...notFoundKarts);
           
 
         }
         
         // Feedback detalhado final
-        if (totalProcessedCount > 0 || totalNcCount > 0 || totalBestLapCount > 0) {
+        if (totalProcessedCount > 0 || totalNcCount > 0 || totalBestLapCount > 0 || totalTimeCount > 0) {
           let message = '';
           if (totalProcessedCount > 0) {
             message += `${totalProcessedCount} ${importType === 'race' ? 'posições de corrida' : 'posições de classificação'} importadas`;
@@ -2174,6 +2298,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
             if (message) message += ' • ';
             message += `${totalBestLapCount} melhores voltas importadas`;
           }
+          if (totalTimeCount > 0) {
+            if (message) message += ' • ';
+            message += `${totalTimeCount} tempos totais importados`;
+          }
           if (workbook.SheetNames.length > 1) {
             message += ` (processadas ${workbook.SheetNames.length} sheets)`;
           }
@@ -2185,7 +2313,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           toast.warning(`Karts não encontrados no sorteio: ${uniqueNotFoundKarts.join(', ')}`);
         }
         
-        if (totalProcessedCount === 0 && totalNcCount === 0 && totalBestLapCount === 0) {
+        if (totalProcessedCount === 0 && totalNcCount === 0 && totalBestLapCount === 0 && totalTimeCount === 0) {
           toast.error('Nenhum resultado foi importado. Verifique se o arquivo está no formato correto.');
         }
       }
@@ -3044,6 +3172,25 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                               </button>
                             </div>
                           </div>
+                          
+                          {/* Quarta linha: Tempo Total */}
+                          <div className="grid grid-cols-1 gap-3 mt-3">
+                            <div className="flex flex-col">
+                              <span className="text-xs text-gray-500 mb-1">Tempo Total</span>
+                              <button
+                                className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 hover:bg-gray-200 transition-colors min-h-[49px] flex items-center justify-center"
+                                onClick={() => openTotalTimeModal(category.id, pilot.userId, selectedBatteryIndex)}
+                              >
+                                {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalTime ? (
+                                  <span className="font-medium">
+                                    {stageResults[category.id][pilot.userId][selectedBatteryIndex].totalTime}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -3071,6 +3218,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                         </th>
                         <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('bestLap')}>
                           Melhor Volta {sortColumn === 'bestLap' && (sortDirection === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('totalTime')}>
+                          Tempo Total {sortColumn === 'totalTime' && (sortDirection === 'asc' ? '↑' : '↓')}
                         </th>
                         <th className="px-2 py-1 text-right">
                           Ações
@@ -3201,6 +3351,26 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                                   }
                                   return null;
                                 })()}
+                                <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-gray-400">-</span>
+                                <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            )}
+                          </td>
+                          
+                          {/* Tempo Total */}
+                          <td 
+                            className="px-2 py-1 cursor-pointer hover:bg-gray-50 rounded transition-colors text-center"
+                            onClick={() => openTotalTimeModal(category.id, pilot.userId, selectedBatteryIndex)}
+                          >
+                            {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalTime ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="font-medium">
+                                  {stageResults[category.id][pilot.userId][selectedBatteryIndex].totalTime}
+                                </span>
                                 <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                               </div>
                             ) : (
@@ -4001,6 +4171,111 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
               onClick={saveQualifyingBestLap}
               className="bg-orange-500 hover:bg-orange-600 text-black"
               disabled={qualifyingBestLapLoading}
+            >
+              Salvar
+            </Button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+
+    {/* Modal de Tempo Total */}
+    {showTotalTimeModal && selectedPilotForTotalTime && createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black bg-opacity-50"
+          onClick={closeTotalTimeModal}
+        />
+        
+        {/* Modal Content */}
+        <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden flex flex-col z-10">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Editar Tempo Total</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Digite o tempo total da corrida do piloto.
+              </p>
+            </div>
+            <button
+              onClick={closeTotalTimeModal}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              disabled={totalTimeLoading}
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          {/* Loading Overlay */}
+          {totalTimeLoading && (
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-20">
+              <Loading type="spinner" size="md" message="" />
+            </div>
+          )}
+          
+          {/* Content */}
+          <div className="flex-1 p-6">
+            <div className="space-y-4">
+              {/* Informações do formato */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-blue-900 mb-2">
+                  Formato de tempo:
+                </h3>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• <strong>MM:SS.sss</strong> (ex: 14:34.610)</li>
+                  <li>• Deixe em branco para remover o tempo</li>
+                </ul>
+              </div>
+              
+              {/* Input de tempo */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Tempo total da corrida
+                </label>
+                <input
+                  type="text"
+                  value={totalTimeInput}
+                  onChange={(e) => setTotalTimeInput(e.target.value)}
+                  placeholder="Ex: 14:34.610"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono"
+                  disabled={totalTimeLoading}
+                />
+              </div>
+              
+              {/* Preview do tempo */}
+              {totalTimeInput.trim() && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-sm text-green-800">
+                    <strong>Tempo:</strong> {totalTimeInput.trim()}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+            <Button 
+              variant="outline" 
+              onClick={clearTotalTime}
+              className="text-red-600 border-red-600 hover:bg-red-50"
+              disabled={totalTimeLoading}
+            >
+              Limpar
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={closeTotalTimeModal}
+              disabled={totalTimeLoading}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={saveTotalTime}
+              className="bg-orange-500 hover:bg-orange-600 text-black"
+              disabled={totalTimeLoading}
             >
               Salvar
             </Button>
