@@ -41,6 +41,7 @@ import PaymentInfo from "../pilots/PaymentInfo";
 import { PilotDetailsModal } from "../pilots/PilotDetailsModal";
 import { InlineLoader } from '@/components/ui/loading';
 import { Loading } from '@/components/ui/loading';
+import { formatName } from '@/utils/name';
 
 interface PilotsTabProps {
   championshipId: string;
@@ -87,7 +88,7 @@ const PilotCard = ({ registration, onAction, getStatusBadge }: {
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="flex-1 pr-2">
-          <h3 className="text-lg font-semibold tracking-tight">{registration.user.name}</h3>
+                          <h3 className="text-lg font-semibold tracking-tight">{formatName(registration.user.name)}</h3>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
           {getStatusBadge(registration)}
@@ -590,7 +591,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         const categoryBallasts = registration.categories?.map(rc => `${rc.category.name} (${rc.category.ballast}kg)`).join(', ') || 'Sem categorias';
         
         return {
-          'Nome do Piloto': registration.user.name,
+                          'Nome do Piloto': formatName(registration.user.name),
           'Email': registration.user.email,
           'Telefone': registration.user.phone || 'Não informado',
           'Temporada': registration.season.name,
@@ -817,7 +818,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                     <TableRow key={registration.id} className="hover:bg-muted/50">
                       <TableCell className="py-4">
                         <div className="space-y-2">
-                          <div className="font-medium">{registration.user.name}</div>
+                          <div className="font-medium">{formatName(registration.user.name)}</div>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <Mail className="h-3 w-3" />
                             {registration.user.email}
@@ -937,7 +938,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
           <DialogHeader>
             <DialogTitle>Trocar Categorias</DialogTitle>
             <DialogDescription>
-              Selecione as novas categorias para {selectedRegistration?.user.name}. 
+                              Selecione as novas categorias para {formatName(selectedRegistration?.user.name)}. 
               A quantidade deve ser a mesma da inscrição original ({selectedRegistration?.categories?.length || 0} categoria{selectedRegistration?.categories?.length !== 1 ? 's' : ''}).
             </DialogDescription>
           </DialogHeader>

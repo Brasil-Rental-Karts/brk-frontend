@@ -23,6 +23,7 @@ const CreateGridType = lazy(() => import('@/pages/CreateGridType').then(module =
 const CreateScoringSystem = lazy(() => import('@/pages/CreateScoringSystem').then(module => ({ default: module.CreateScoringSystem })));
 const CreateStage = lazy(() => import('@/pages/CreateStage').then(module => ({ default: module.CreateStage })));
 const CreateRaceTrack = lazy(() => import('@/pages/CreateRaceTrack'));
+const CreatePenalty = lazy(() => import('@/pages/CreatePenalty'));
 const SeasonRegistration = lazy(() => import('@/pages/SeasonRegistration').then(module => ({ default: module.SeasonRegistration })));
 const RegistrationPayment = lazy(() => import('@/pages/RegistrationPayment').then(module => ({ default: module.RegistrationPayment })));
 const PaymentDetails = lazy(() => import('@/pages/PaymentDetails').then(module => ({ default: module.PaymentDetails })));
@@ -335,6 +336,30 @@ export const router = createBrowserRouter([
             <MainFullWidthLayout>
               <LazyWrapper>
                 <CreateScoringSystem />
+              </LazyWrapper>
+            </MainFullWidthLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "championship/:championshipId/penalties/new",
+        element: (
+          <ProtectedRoute>
+            <MainFullWidthLayout>
+              <LazyWrapper>
+                <CreatePenalty />
+              </LazyWrapper>
+            </MainFullWidthLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "championship/:championshipId/penalties/edit/:penaltyId",
+        element: (
+          <ProtectedRoute>
+            <MainFullWidthLayout>
+              <LazyWrapper>
+                <CreatePenalty />
               </LazyWrapper>
             </MainFullWidthLayout>
           </ProtectedRoute>

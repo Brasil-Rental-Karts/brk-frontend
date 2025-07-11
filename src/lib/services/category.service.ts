@@ -84,6 +84,21 @@ export class CategoryService {
   }
 
   /**
+   * Retrieves categories for a given stage.
+   * @param stageId - The ID of the stage.
+   * @returns A list of categories for the stage.
+   */
+  static async getByStageId(stageId: string): Promise<Category[]> {
+    try {
+      const response = await api.get<Category[]>(`${CategoryService.BASE_URL}/stage/${stageId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to retrieve categories for stage ID ${stageId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Retrieves categories by name.
    * @param name - The name of the category.
    * @returns A list of categories with the given name.

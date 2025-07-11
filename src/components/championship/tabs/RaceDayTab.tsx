@@ -1,21 +1,17 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "brk-design-system";
 import { Button, Badge } from "brk-design-system";
-import { ChevronDown, MoreHorizontal, CheckCircle, XCircle, Loader2, ChevronRight, Plus, Minus, GripVertical, Edit, Copy, Trash2, Circle, X, Share2, Search, Upload, BarChart3 } from "lucide-react";
+import { ChevronDown, MoreVertical, CheckCircle, XCircle, Loader2, ChevronRight, Plus, Minus, GripVertical, Edit, Copy, Trash2, Circle, X, Share2, Search, Upload, BarChart3, AlertTriangle, Clock, MapPin, Ban } from "lucide-react";
 import { CategoryService, Category } from '@/lib/services/category.service';
 import { SeasonRegistrationService, SeasonRegistration } from '@/lib/services/season-registration.service';
 import { Loading } from '@/components/ui/loading';
 import { StageParticipationService, StageParticipation } from '@/lib/services/stage-participation.service';
 import { toast } from "sonner";
-// Função utilitária para formatação de nomes
-function formatName(name: string): string {
-  return name
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
-}
+import { formatName } from '@/utils/name';
 import { useAuth } from '@/contexts/AuthContext';
 import { StageService } from '@/lib/services/stage.service';
+import { PenaltyService, Penalty, PenaltyType, PenaltyStatus } from '@/lib/services/penalty.service';
+import { useNavigate } from 'react-router-dom';
 import {
   DndContext,
   closestCenter,
@@ -71,6 +67,7 @@ interface SeasonWithStages {
 interface RaceDayTabProps {
   seasons: SeasonWithStages[];
   championshipName?: string;
+  championshipId?: string;
 }
 
 interface ScheduleItem {
@@ -139,8 +136,17 @@ const RaceDayHeader: React.FC<{
   </div>
 );
 
-export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipName }) => {
+export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipName, championshipId }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  
+  // Ler parâmetros da URL para restaurar estado
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlSeason = urlParams.get('season');
+  const urlStage = urlParams.get('stage');
+  const urlCategory = urlParams.get('category');
+  const urlBattery = urlParams.get('battery');
+  
   // Filtrar temporadas válidas
   const validSeasons = seasons.filter(s => s.status === 'agendado' || s.status === 'em_andamento');
   // Função para pegar etapa mais próxima
@@ -169,12 +175,22 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   }
   // Estado de seleção
   const [selectedSeasonId, setSelectedSeasonId] = useState(() => {
+    // Se há parâmetro de temporada na URL, usar ele
+    if (urlSeason !== null) {
+      return urlSeason;
+    }
     if (validSeasons.length > 0) return validSeasons[0].id;
     return seasons[0]?.id || "";
   });
   const selectedSeason = seasons.find((s: SeasonWithStages) => s.id === selectedSeasonId) || seasons[0];
   const stages = selectedSeason?.stages || [];
-  const [selectedStageId, setSelectedStageId] = useState(() => getClosestStage(stages) || "");
+  const [selectedStageId, setSelectedStageId] = useState(() => {
+    // Se há parâmetro de etapa na URL, usar ele
+    if (urlStage !== null) {
+      return urlStage;
+    }
+    return getClosestStage(stages) || "";
+  });
   const selectedStage = stages.find(s => s.id === selectedStageId) || stages[0];
   
   const [categories, setCategories] = useState<Category[]>([]);
@@ -195,9 +211,21 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   const [categoryFleetAssignments, setCategoryFleetAssignments] = useState<{[categoryId: string]: string}>({});
   const [drawVersion, setDrawVersion] = useState(0);
   const [openKartTooltip, setOpenKartTooltip] = useState<string | null>(null);
-  const [selectedOverviewCategory, setSelectedOverviewCategory] = useState<string | null>(null);
+  const [selectedOverviewCategory, setSelectedOverviewCategory] = useState<string | null>(() => {
+    // Se há parâmetro de categoria na URL, usar ele
+    if (urlCategory !== null) {
+      return urlCategory;
+    }
+    return null;
+  });
   // Novo estado para bateria selecionada
-  const [selectedBatteryIndex, setSelectedBatteryIndex] = useState<number>(0);
+  const [selectedBatteryIndex, setSelectedBatteryIndex] = useState<number>(() => {
+    // Se há parâmetro de bateria na URL, usar ele
+    if (urlBattery !== null) {
+      return Number(urlBattery);
+    }
+    return 0;
+  });
   const [pilotWeights, setPilotWeights] = useState<Record<string, boolean>>({});
   const [stageResults, setStageResults] = useState<any>({});
   const [showKartSelectionModal, setShowKartSelectionModal] = useState(false);
@@ -227,6 +255,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   const [showLapTimesChart, setShowLapTimesChart] = useState(false);
   const [selectedPilotsForChart, setSelectedPilotsForChart] = useState<string[]>([]);
   const [lapTimesLoading, setLapTimesLoading] = useState(false);
+  
+  // Estados para penalidades
+  const [penalties, setPenalties] = useState<Penalty[]>([]);
+  const [penaltiesLoading, setPenaltiesLoading] = useState(false);
 
   // Cores fixas para cada piloto baseado no userId
   const getPilotColor = (userId: string): string => {
@@ -981,7 +1013,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                         variant="ghost"
                         className="text-gray-500 hover:text-gray-700"
                       >
-                        <MoreHorizontal className="w-4 h-4" />
+                        <MoreVertical className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -1402,6 +1434,26 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     }
   }, [selectedOverviewCategory, selectedStageId]);
 
+  // Carregar penalidades da etapa
+  const loadPenalties = async () => {
+    if (!selectedStageId) return;
+    setPenaltiesLoading(true);
+    try {
+      const penaltiesData = await PenaltyService.getPenaltiesByStageId(selectedStageId);
+      setPenalties(penaltiesData);
+    } catch (error) {
+      console.error('Erro ao carregar penalidades da etapa:', error);
+      toast.error('Erro ao carregar penalidades');
+    } finally {
+      setPenaltiesLoading(false);
+    }
+  };
+
+  // Carregar penalidades quando a etapa muda
+  useEffect(() => {
+    loadPenalties();
+  }, [selectedStageId]);
+
   // Salvar resultados automaticamente quando mudam
   useEffect(() => {
     if (Object.keys(stageResults).length > 0) {
@@ -1616,6 +1668,16 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   const [qualifyingBestLapTimeInput, setQualifyingBestLapTimeInput] = useState('');
   const [qualifyingBestLapLoading, setQualifyingBestLapLoading] = useState(false);
 
+  // Estados para modal de tempo total
+  const [showTotalTimeModal, setShowTotalTimeModal] = useState(false);
+  const [selectedPilotForTotalTime, setSelectedPilotForTotalTime] = useState<{
+    categoryId: string;
+    pilotId: string;
+    batteryIndex: number;
+  } | null>(null);
+  const [totalTimeInput, setTotalTimeInput] = useState('');
+  const [totalTimeLoading, setTotalTimeLoading] = useState(false);
+
   // Função para abrir modal de melhor volta
   const openBestLapModal = (
     categoryId: string,
@@ -1782,33 +1844,180 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     }
   };
 
+  // Função para abrir modal de tempo total
+  const openTotalTimeModal = (
+    categoryId: string,
+    pilotId: string,
+    batteryIndex: number
+  ) => {
+    const currentTotalTime = stageResults[categoryId]?.[pilotId]?.[batteryIndex]?.totalTime || '';
+    setSelectedPilotForTotalTime({ categoryId, pilotId, batteryIndex });
+    setTotalTimeInput(currentTotalTime);
+    setShowTotalTimeModal(true);
+  };
+
+  // Função para fechar modal de tempo total
+  const closeTotalTimeModal = () => {
+    setShowTotalTimeModal(false);
+    setSelectedPilotForTotalTime(null);
+    setTotalTimeInput('');
+    setTotalTimeLoading(false);
+  };
+
+  // Função para salvar tempo total
+  const saveTotalTime = async () => {
+    if (!selectedPilotForTotalTime) return;
+    
+    const { categoryId, pilotId, batteryIndex } = selectedPilotForTotalTime;
+    
+    // Validar formato do tempo
+    const timePattern = /^\d{1,2}:\d{2}[.,]\d{1,3}$/;
+    if (totalTimeInput.trim() && !timePattern.test(totalTimeInput.trim())) {
+      toast.error('Formato de tempo inválido. Use MM:SS.sss (ex: 14:34.610)');
+      return;
+    }
+
+    setTotalTimeLoading(true);
+
+    const updatedResults = { ...stageResults };
+    if (!updatedResults[categoryId]) updatedResults[categoryId] = {};
+    if (!updatedResults[categoryId][pilotId]) updatedResults[categoryId][pilotId] = {};
+    if (!updatedResults[categoryId][pilotId][batteryIndex]) updatedResults[categoryId][pilotId][batteryIndex] = {};
+    
+    // Normalizar formato (trocar vírgula por ponto se necessário)
+    const normalizedTime = totalTimeInput.trim().replace(',', '.');
+    updatedResults[categoryId][pilotId][batteryIndex].totalTime = normalizedTime || null;
+    
+    setStageResults(updatedResults);
+    
+    try {
+      await StageService.saveStageResults(selectedStageId, updatedResults);
+      closeTotalTimeModal();
+      toast.success('Tempo total salvo!');
+    } catch (error) {
+      toast.error('Erro ao salvar tempo total');
+    } finally {
+      setTotalTimeLoading(false);
+    }
+  };
+
+  // Função para limpar tempo total
+  const clearTotalTime = async () => {
+    if (!selectedPilotForTotalTime) return;
+    
+    const { categoryId, pilotId, batteryIndex } = selectedPilotForTotalTime;
+    setTotalTimeLoading(true);
+    
+    const updatedResults = { ...stageResults };
+    if (!updatedResults[categoryId]) updatedResults[categoryId] = {};
+    if (!updatedResults[categoryId][pilotId]) updatedResults[categoryId][pilotId] = {};
+    if (!updatedResults[categoryId][pilotId][batteryIndex]) updatedResults[categoryId][pilotId][batteryIndex] = {};
+
+    delete updatedResults[categoryId][pilotId][batteryIndex].totalTime;
+    setStageResults(updatedResults);
+    
+    try {
+      await StageService.saveStageResults(selectedStageId, updatedResults);
+      closeTotalTimeModal();
+      toast.success('Tempo total removido!');
+    } catch (error) {
+      toast.error('Erro ao remover tempo total');
+    } finally {
+      setTotalTimeLoading(false);
+    }
+  };
+
+  // Função para filtrar penalidades por categoria e bateria
+  const getFilteredPenalties = (categoryId: string, batteryIndex: number) => {
+    return penalties.filter(penalty => 
+      penalty.categoryId === categoryId && 
+      penalty.batteryIndex === batteryIndex
+    );
+  };
+
+  // Função para obter ícone do tipo de penalidade
+  const getPenaltyTypeIcon = (type: PenaltyType) => {
+    switch (type) {
+      case PenaltyType.TIME_PENALTY:
+        return <Clock className="w-4 h-4" />;
+      case PenaltyType.POSITION_PENALTY:
+        return <MapPin className="w-4 h-4" />;
+      case PenaltyType.DISQUALIFICATION:
+        return <Ban className="w-4 h-4" />;
+      case PenaltyType.WARNING:
+        return <AlertTriangle className="w-4 h-4" />;
+      default:
+        return <AlertTriangle className="w-4 h-4" />;
+    }
+  };
+
+  // Função para obter descrição do tipo de penalidade
+  const getPenaltyTypeDescription = (type: PenaltyType) => {
+    switch (type) {
+      case PenaltyType.TIME_PENALTY:
+        return 'Penalidade de Tempo';
+      case PenaltyType.POSITION_PENALTY:
+        return 'Penalidade de Posição';
+      case PenaltyType.DISQUALIFICATION:
+        return 'Desqualificação';
+      case PenaltyType.WARNING:
+        return 'Advertência';
+      default:
+        return 'Penalidade';
+    }
+  };
+
+  // Função para obter cor do status da penalidade
+  const getPenaltyStatusColor = (status: PenaltyStatus) => {
+    switch (status) {
+      case PenaltyStatus.APPLIED:
+        return 'bg-green-100 text-green-800';
+      case PenaltyStatus.PENDING:
+        return 'bg-yellow-100 text-yellow-800';
+      case PenaltyStatus.CANCELLED:
+        return 'bg-gray-100 text-gray-800';
+      case PenaltyStatus.APPEALED:
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   // Função para ordenar os pilotos por categoria
   const getSortedPilots = (categoryPilots: any[], category: any) => {
     const sorted = [...categoryPilots];
     sorted.sort((a, b) => {
-      const getValue = (pilot: any, col: string) => {
-        const kart = fleetDrawResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.kart || 0;
-        const peso = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.weight;
-        const start = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.startPosition || 0;
-        const finish = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition || 0;
-        const bestLap = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.bestLap;
-        const nome = formatName(pilot.user?.name || pilot.userId);
-        switch (col) {
-          case 'kart': return kart;
-          case 'peso': return peso === false ? 0 : 1;
-          case 'classificacao': return start;
-          case 'corrida': return finish;
-          case 'bestLap': 
-            if (!bestLap) return 999999; // Coloca pilotos sem tempo no final
-            // Converter tempo para milissegundos para comparação
-            const [minutes, seconds] = bestLap.includes(':') 
-              ? bestLap.split(':') 
-              : ['0', bestLap];
-            return parseFloat(minutes) * 60000 + parseFloat(seconds) * 1000;
-          case 'piloto': return nome;
-          default: return nome;
-        }
-      };
+              const getValue = (pilot: any, col: string) => {
+          const kart = fleetDrawResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.kart || 0;
+          const peso = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.weight;
+          const start = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.startPosition || 0;
+          const finish = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition || 0;
+          const bestLap = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.bestLap;
+          const totalTime = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalTime;
+          const nome = formatName(pilot.user?.name || pilot.userId);
+          switch (col) {
+            case 'kart': return kart;
+            case 'peso': return peso === false ? 0 : 1;
+            case 'classificacao': return start;
+            case 'corrida': return finish;
+            case 'bestLap': 
+              if (!bestLap) return 999999; // Coloca pilotos sem tempo no final
+              // Converter tempo para milissegundos para comparação
+              const [minutes, seconds] = bestLap.includes(':') 
+                ? bestLap.split(':') 
+                : ['0', bestLap];
+              return parseFloat(minutes) * 60000 + parseFloat(seconds) * 1000;
+            case 'totalTime':
+              if (!totalTime) return 999999; // Coloca pilotos sem tempo no final
+              // Converter tempo para milissegundos para comparação
+              const [totalMinutes, totalSeconds] = totalTime.includes(':') 
+                ? totalTime.split(':') 
+                : ['0', totalTime];
+              return parseFloat(totalMinutes) * 60000 + parseFloat(totalSeconds) * 1000;
+            case 'piloto': return nome;
+            default: return nome;
+          }
+        };
       let vA = getValue(a, sortColumn);
       let vB = getValue(b, sortColumn);
       if (typeof vA === 'string' && typeof vB === 'string') {
@@ -1936,6 +2145,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
         let totalProcessedCount = 0;
         let totalNcCount = 0;
         let totalBestLapCount = 0;
+        let totalTimeCount = 0;
         const allNotFoundKarts: number[] = [];
         
         // Processar todas as sheets
@@ -1948,6 +2158,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           let positionColumn = -1;
           let kartColumn = -1;
           let bestLapColumn = -1;
+          let totalTimeColumn = -1;
           
           for (let i = 0; i < data.length; i++) {
             const row = data[i] as any[];
@@ -1964,6 +2175,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
               if (cell === 'tmv' || cell === 'tempo melhor volta' || cell === 'melhor volta') {
                 bestLapColumn = j;
               }
+              // Procurar pela coluna TT (Tempo Total)
+              if (cell === 'tt' || cell === 'tempo total' || cell === 'total') {
+                totalTimeColumn = j;
+              }
             }
             if (headerRow >= 0 && positionColumn >= 0 && kartColumn >= 0) {
               break;
@@ -1978,6 +2193,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           let processedCount = 0;
           let ncCount = 0;
           let bestLapCount = 0;
+          let totalTimeCountLocal = 0;
           const notFoundKarts: number[] = [];
           
           for (let i = headerRow + 1; i < data.length; i++) {
@@ -1987,7 +2203,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
             const positionValue = String(row[positionColumn]).trim().toUpperCase();
             const kartNumber = Number(row[kartColumn]);
             const bestLapValue = bestLapColumn >= 0 ? String(row[bestLapColumn] || '').trim() : '';
-            
+            const totalTimeValue = totalTimeColumn >= 0 ? String(row[totalTimeColumn] || '').trim() : '';
+
             // Validar se o kart é um número válido
             if (isNaN(kartNumber)) continue;
             
@@ -2016,7 +2233,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                 }
                 
                 // Processar melhor volta se disponível
-                if (bestLapColumn >= 0 && bestLapValue && bestLapValue !== 'NC') {
+                if (bestLapColumn >= 0 && bestLapValue && bestLapValue !== 'NC' && positionValue !== 'NC' && positionValue !== 'DQ') {
                   // Validar formato de tempo (exemplo: 47.123, 1:23.456, 47,123)
                   const timePattern = /^(\d{1,2}:)?\d{1,2}[.,]\d{1,3}$/;
                   if (timePattern.test(bestLapValue)) {
@@ -2028,6 +2245,20 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                       updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'bestLap', normalizedTime);
                     }
                     bestLapCount++;
+                  } else {
+                    // Formato de tempo inválido ignorado
+                  }
+                }
+                
+                // Processar tempo total se disponível (apenas para corrida)
+                if (importType === 'race' && totalTimeColumn >= 0 && totalTimeValue && totalTimeValue !== 'NC' && positionValue !== 'NC' && positionValue !== 'DQ') {
+                  // Validar formato de tempo (exemplo: 00:14:34.610, 14:34.610, 14:34,610)
+                  const timePattern = /^(\d{1,2}:)?\d{1,2}:\d{2}[.,]\d{1,3}$/;
+                  if (timePattern.test(totalTimeValue)) {
+                    // Normalizar formato (trocar vírgula por ponto se necessário)
+                    const normalizedTime = totalTimeValue.replace(',', '.');
+                    updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'totalTime', normalizedTime);
+                    totalTimeCountLocal++;
                   } else {
                     // Formato de tempo inválido ignorado
                   }
@@ -2047,13 +2278,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           totalProcessedCount += processedCount;
           totalNcCount += ncCount;
           totalBestLapCount += bestLapCount;
+          totalTimeCount += totalTimeCountLocal;
           allNotFoundKarts.push(...notFoundKarts);
           
 
         }
         
         // Feedback detalhado final
-        if (totalProcessedCount > 0 || totalNcCount > 0 || totalBestLapCount > 0) {
+        if (totalProcessedCount > 0 || totalNcCount > 0 || totalBestLapCount > 0 || totalTimeCount > 0) {
           let message = '';
           if (totalProcessedCount > 0) {
             message += `${totalProcessedCount} ${importType === 'race' ? 'posições de corrida' : 'posições de classificação'} importadas`;
@@ -2066,6 +2298,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
             if (message) message += ' • ';
             message += `${totalBestLapCount} melhores voltas importadas`;
           }
+          if (totalTimeCount > 0) {
+            if (message) message += ' • ';
+            message += `${totalTimeCount} tempos totais importados`;
+          }
           if (workbook.SheetNames.length > 1) {
             message += ` (processadas ${workbook.SheetNames.length} sheets)`;
           }
@@ -2077,7 +2313,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
           toast.warning(`Karts não encontrados no sorteio: ${uniqueNotFoundKarts.join(', ')}`);
         }
         
-        if (totalProcessedCount === 0 && totalNcCount === 0 && totalBestLapCount === 0) {
+        if (totalProcessedCount === 0 && totalNcCount === 0 && totalBestLapCount === 0 && totalTimeCount === 0) {
           toast.error('Nenhum resultado foi importado. Verifique se o arquivo está no formato correto.');
         }
       }
@@ -2369,7 +2605,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                   size="sm"
                   className="h-8 w-8 p-0"
                 >
-                  <MoreHorizontal className="h-4 w-4" />
+                  <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -2509,7 +2745,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                   size="sm"
                   className="h-8 w-8 p-0"
                 >
-                  <MoreHorizontal className="h-4 w-4" />
+                  <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -2590,7 +2826,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                   size="sm"
                   className="h-8 w-8 p-0"
                 >
-                  <MoreHorizontal className="h-4 w-4" />
+                  <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -2743,7 +2979,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" size="sm" className="rounded-full px-3 h-8 text-xs font-semibold">
-                          <MoreHorizontal className="w-4 h-4" />
+                          <MoreVertical className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -2851,47 +3087,74 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                           <div className="grid grid-cols-1 gap-3 mt-3">
                             <div className="flex flex-col">
                               <span className="text-xs text-gray-500 mb-1">Melhor Volta</span>
-                              <button
-                                className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 hover:bg-gray-200 transition-colors min-h-[49px] flex items-center justify-center"
-                                onClick={() => openBestLapModal(category.id, pilot.userId, selectedBatteryIndex)}
-                              >
-                                {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.bestLap ? (
-                                  <div className="flex items-center justify-center gap-1">
-                                    <span className="font-medium">
-                                      {stageResults[category.id][pilot.userId][selectedBatteryIndex].bestLap}
-                                    </span>
-                                    {(() => {
-                                      // Verificar se é a melhor volta da categoria
-                                      const categoryResults = stageResults[category.id] || {};
-                                      const allBestLaps = Object.values(categoryResults).map((pilotData: any) => 
-                                        pilotData?.[selectedBatteryIndex]?.bestLap
-                                      ).filter(Boolean);
-                                      
-                                      if (allBestLaps.length === 0) return null;
-                                      
-                                      // Converter tempos para comparação
-                                      const convertTimeToMs = (time: string) => {
-                                        const [minutes, seconds] = time.includes(':') 
-                                          ? time.split(':') 
-                                          : ['0', time];
-                                        return parseFloat(minutes) * 60000 + parseFloat(seconds) * 1000;
-                                      };
-                                      
-                                      const currentTime = stageResults[category.id][pilot.userId][selectedBatteryIndex].bestLap;
-                                      const bestTime = allBestLaps.reduce((best, current) => {
-                                        return convertTimeToMs(current) < convertTimeToMs(best) ? current : best;
-                                      });
-                                      
-                                      if (currentTime === bestTime) {
-                                        return <span className="text-orange-500 font-bold">🏆</span>;
-                                      }
-                                      return null;
-                                    })()}
-                                  </div>
-                                ) : (
-                                  <span className="text-gray-400">-</span>
-                                )}
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  className="flex-1 py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 hover:bg-gray-200 transition-colors min-h-[49px] flex items-center justify-center"
+                                  onClick={() => openBestLapModal(category.id, pilot.userId, selectedBatteryIndex)}
+                                >
+                                  {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.bestLap ? (
+                                    <div className="flex items-center justify-center gap-1">
+                                      <span className="font-medium">
+                                        {stageResults[category.id][pilot.userId][selectedBatteryIndex].bestLap}
+                                      </span>
+                                      {(() => {
+                                        // Verificar se é a melhor volta da categoria
+                                        const categoryResults = stageResults[category.id] || {};
+                                        const allBestLaps = Object.values(categoryResults).map((pilotData: any) => 
+                                          pilotData?.[selectedBatteryIndex]?.bestLap
+                                        ).filter(Boolean);
+                                        
+                                        if (allBestLaps.length === 0) return null;
+                                        
+                                        // Converter tempos para comparação
+                                        const convertTimeToMs = (time: string) => {
+                                          const [minutes, seconds] = time.includes(':') 
+                                            ? time.split(':') 
+                                            : ['0', time];
+                                          return parseFloat(minutes) * 60000 + parseFloat(seconds) * 1000;
+                                        };
+                                        
+                                        const currentTime = stageResults[category.id][pilot.userId][selectedBatteryIndex].bestLap;
+                                        const bestTime = allBestLaps.reduce((best, current) => {
+                                          return convertTimeToMs(current) < convertTimeToMs(best) ? current : best;
+                                        });
+                                        
+                                        if (currentTime === bestTime) {
+                                          return <span className="text-orange-500 font-bold">🏆</span>;
+                                        }
+                                        return null;
+                                      })()}
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-400">-</span>
+                                  )}
+                                </button>
+                                
+                                {/* Menu de contexto para mobile */}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <MoreVertical className="w-3 h-3" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem 
+                                      onClick={() => {
+                                        if (championshipId) {
+                                          navigate(`/championship/${championshipId}/penalties/new?seasonId=${selectedSeasonId}&stageId=${selectedStageId}&categoryId=${category.id}&userId=${pilot.userId}&batteryIndex=${selectedBatteryIndex}&returnTab=race-day&returnSeason=${selectedSeasonId}&returnStage=${selectedStageId}&returnCategory=${category.id}&returnBattery=${selectedBatteryIndex}`);
+                                        }
+                                      }}
+                                    >
+                                      <AlertTriangle className="w-4 h-4 mr-2" />
+                                      Aplicar Punição
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             </div>
                             <div className="flex flex-col">
                               <span className="text-xs text-gray-500 mb-1">Melhor Volta Classificação</span>
@@ -2902,6 +3165,25 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                                 {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.qualifyingBestLap ? (
                                   <span className="font-medium">
                                     {stageResults[category.id][pilot.userId][selectedBatteryIndex].qualifyingBestLap}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {/* Quarta linha: Tempo Total */}
+                          <div className="grid grid-cols-1 gap-3 mt-3">
+                            <div className="flex flex-col">
+                              <span className="text-xs text-gray-500 mb-1">Tempo Total</span>
+                              <button
+                                className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 hover:bg-gray-200 transition-colors min-h-[49px] flex items-center justify-center"
+                                onClick={() => openTotalTimeModal(category.id, pilot.userId, selectedBatteryIndex)}
+                              >
+                                {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalTime ? (
+                                  <span className="font-medium">
+                                    {stageResults[category.id][pilot.userId][selectedBatteryIndex].totalTime}
                                   </span>
                                 ) : (
                                   <span className="text-gray-400">-</span>
@@ -2936,6 +3218,12 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                         </th>
                         <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('bestLap')}>
                           Melhor Volta {sortColumn === 'bestLap' && (sortDirection === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('totalTime')}>
+                          Tempo Total {sortColumn === 'totalTime' && (sortDirection === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="px-2 py-1 text-right">
+                          Ações
                         </th>
                       </tr>
                     </thead>
@@ -3072,12 +3360,187 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                               </div>
                             )}
                           </td>
+                          
+                          {/* Tempo Total */}
+                          <td 
+                            className="px-2 py-1 cursor-pointer hover:bg-gray-50 rounded transition-colors text-center"
+                            onClick={() => openTotalTimeModal(category.id, pilot.userId, selectedBatteryIndex)}
+                          >
+                            {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalTime ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="font-medium">
+                                  {stageResults[category.id][pilot.userId][selectedBatteryIndex].totalTime}
+                                </span>
+                                <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-gray-400">-</span>
+                                <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            )}
+                          </td>
+                          
+                          {/* Coluna de ações */}
+                          <td className="px-2 py-1 text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <MoreVertical className="w-3 h-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem 
+                                  onClick={() => {
+                                    // Navegar para a página de criação de punição com os dados pré-preenchidos
+                                    if (championshipId) {
+                                      const penaltyData = {
+                                        seasonId: selectedSeasonId,
+                                        stageId: selectedStageId,
+                                        categoryId: category.id,
+                                        userId: pilot.userId,
+                                        batteryIndex: selectedBatteryIndex,
+                                        pilotName: formatName(pilot.user?.name || pilot.userId),
+                                        categoryName: category.name,
+                                        stageName: stages.find(s => s.id === selectedStageId)?.name || 'Etapa',
+                                        seasonName: seasons.find(s => s.id === selectedSeasonId)?.name || 'Temporada'
+                                      };
+                                      
+                                      // Navegar para a página de criação de punição
+                                      navigate(`/championship/${championshipId}/penalties/new?seasonId=${selectedSeasonId}&stageId=${selectedStageId}&categoryId=${category.id}&userId=${pilot.userId}&batteryIndex=${selectedBatteryIndex}&returnTab=race-day&returnSeason=${selectedSeasonId}&returnStage=${selectedStageId}&returnCategory=${category.id}&returnBattery=${selectedBatteryIndex}`);
+                                    }
+                                  }}
+                                >
+                                  <AlertTriangle className="w-4 h-4 mr-2" />
+                                  Aplicar Punição
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               </div>
+              
+              {/* Listagem de Penalidades */}
+              {(() => {
+                if (penaltiesLoading) {
+                  return (
+                    <div className="mt-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                          <AlertTriangle className="w-5 h-5 text-orange-500" />
+                          Penalidades da Bateria {selectedBatteryIndex + 1}
+                        </h4>
+                      </div>
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <Loading type="spinner" size="sm" message="Carregando penalidades..." />
+                      </div>
+                    </div>
+                  );
+                }
+                
+                const categoryPenalties = getFilteredPenalties(category.id, selectedBatteryIndex);
+                if (categoryPenalties.length === 0) {
+                  return (
+                    <div className="mt-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                          <AlertTriangle className="w-5 h-5 text-orange-500" />
+                          Penalidades da Bateria {selectedBatteryIndex + 1}
+                        </h4>
+                      </div>
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div className="text-center text-green-700">
+                          <CheckCircle className="w-5 h-5 mx-auto mb-2" />
+                          <p className="text-sm font-medium">Nenhuma penalidade aplicada nesta bateria</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div className="mt-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5 text-orange-500" />
+                        Penalidades da Bateria {selectedBatteryIndex + 1}
+                      </h4>
+                      <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+                        {categoryPenalties.length} penalidade{categoryPenalties.length !== 1 ? 's' : ''}
+                      </Badge>
+                    </div>
+                    
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="space-y-3">
+                        {categoryPenalties.map((penalty) => (
+                          <div key={penalty.id} className="bg-white rounded-lg border border-red-200 p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="flex items-center gap-1">
+                                    {getPenaltyTypeIcon(penalty.type)}
+                                    <span className="text-sm font-medium text-gray-600">
+                                      {getPenaltyTypeDescription(penalty.type)}
+                                    </span>
+                                  </div>
+                                  <span className="font-semibold text-gray-900">
+                                    {formatName(penalty.user?.name || penalty.userId)}
+                                  </span>
+                                  <Badge className={getPenaltyStatusColor(penalty.status)}>
+                                    {PenaltyService.getPenaltyStatusLabel(penalty.status)}
+                                  </Badge>
+                                </div>
+                                
+                                <div className="text-sm text-gray-700 mb-2">
+                                  <strong>Motivo:</strong> {penalty.reason}
+                                </div>
+                                
+                                {penalty.description && (
+                                  <div className="text-sm text-gray-600 mb-2">
+                                    <strong>Descrição:</strong> {penalty.description}
+                                  </div>
+                                )}
+                                
+                                <div className="flex flex-wrap gap-4 text-xs text-gray-500">
+                                  {penalty.timePenaltySeconds && (
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="w-3 h-3" />
+                                      {penalty.timePenaltySeconds}s de penalidade
+                                    </span>
+                                  )}
+                                  {penalty.positionPenalty && (
+                                    <span className="flex items-center gap-1">
+                                      <MapPin className="w-3 h-3" />
+                                      {penalty.positionPenalty} posição{penalty.positionPenalty !== 1 ? 's' : ''} de penalidade
+                                    </span>
+                                  )}
+
+                                </div>
+                              </div>
+                              
+                              <div className="text-xs text-gray-400 text-right ml-4">
+                                <div>Aplicada por</div>
+                                <div className="font-medium">{formatName(penalty.appliedByUser?.name || 'N/A')}</div>
+                                <div className="mt-1">
+                                  {new Date(penalty.createdAt).toLocaleDateString('pt-BR')}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           );
         })()
@@ -3708,6 +4171,111 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
               onClick={saveQualifyingBestLap}
               className="bg-orange-500 hover:bg-orange-600 text-black"
               disabled={qualifyingBestLapLoading}
+            >
+              Salvar
+            </Button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+
+    {/* Modal de Tempo Total */}
+    {showTotalTimeModal && selectedPilotForTotalTime && createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black bg-opacity-50"
+          onClick={closeTotalTimeModal}
+        />
+        
+        {/* Modal Content */}
+        <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden flex flex-col z-10">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Editar Tempo Total</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Digite o tempo total da corrida do piloto.
+              </p>
+            </div>
+            <button
+              onClick={closeTotalTimeModal}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              disabled={totalTimeLoading}
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          {/* Loading Overlay */}
+          {totalTimeLoading && (
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-20">
+              <Loading type="spinner" size="md" message="" />
+            </div>
+          )}
+          
+          {/* Content */}
+          <div className="flex-1 p-6">
+            <div className="space-y-4">
+              {/* Informações do formato */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-blue-900 mb-2">
+                  Formato de tempo:
+                </h3>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• <strong>MM:SS.sss</strong> (ex: 14:34.610)</li>
+                  <li>• Deixe em branco para remover o tempo</li>
+                </ul>
+              </div>
+              
+              {/* Input de tempo */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Tempo total da corrida
+                </label>
+                <input
+                  type="text"
+                  value={totalTimeInput}
+                  onChange={(e) => setTotalTimeInput(e.target.value)}
+                  placeholder="Ex: 14:34.610"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono"
+                  disabled={totalTimeLoading}
+                />
+              </div>
+              
+              {/* Preview do tempo */}
+              {totalTimeInput.trim() && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-sm text-green-800">
+                    <strong>Tempo:</strong> {totalTimeInput.trim()}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+            <Button 
+              variant="outline" 
+              onClick={clearTotalTime}
+              className="text-red-600 border-red-600 hover:bg-red-50"
+              disabled={totalTimeLoading}
+            >
+              Limpar
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={closeTotalTimeModal}
+              disabled={totalTimeLoading}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={saveTotalTime}
+              className="bg-orange-500 hover:bg-orange-600 text-black"
+              disabled={totalTimeLoading}
             >
               Salvar
             </Button>

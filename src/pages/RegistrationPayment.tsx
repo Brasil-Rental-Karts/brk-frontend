@@ -14,6 +14,7 @@ import { CreditCardPayment } from '@/components/payment/CreditCardPayment';
 import { formatCurrency } from '@/utils/currency';
 import { Loading } from '@/components/ui/loading';
 import { PageLoader } from '@/components/ui/loading';
+import { formatName } from '@/utils/name';
 
 const InstallmentList: React.FC<{ payments: RegistrationPaymentData[] }> = ({ payments }) => {
   const getStatusBadge = (status: string) => {
@@ -506,7 +507,7 @@ export const RegistrationPayment: React.FC = () => {
               
               <div>
                 <h4 className="font-semibold text-sm text-muted-foreground mb-2">Piloto</h4>
-                <p className="font-medium">{registration.user.name}</p>
+                <p className="font-medium">{formatName(registration.user.name)}</p>
               </div>
             </div>
 

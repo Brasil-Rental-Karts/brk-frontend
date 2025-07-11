@@ -26,6 +26,7 @@ import { Stage } from "@/lib/types/stage";
 import { Loading } from '@/components/ui/loading';
 import { RaceDayTab } from "@/components/championship/tabs/RaceDayTab";
 import { ClassificationTab } from "@/components/championship/tabs/ClassificationTab";
+import { PenaltiesTab } from "@/components/championship/tabs/PenaltiesTab";
 
 // Estende a interface base da temporada para incluir as categorias
 type Season = BaseSeason & { categories?: Category[]; stages?: Stage[] };
@@ -55,6 +56,7 @@ export const Championship = () => {
     'classificacao': 'classificacao',
     'regulations': 'regulamento',
     'regulamento': 'regulamento',
+    'penalties': 'penalties',
     'race-day': 'race-day',
     'edit-data': 'config-edit',
     'config-edit': 'config-edit',
@@ -99,6 +101,7 @@ export const Championship = () => {
       'pilotos': 'pilots',
       'classificacao': 'classification',
       'regulamento': 'regulations',
+      'penalties': 'penalties',
       'race-day': 'raceDay',
       'config-edit': 'editChampionship',
       'config-grid': 'gridTypes',
@@ -249,6 +252,15 @@ export const Championship = () => {
                   Regulamento
                 </TabsTrigger>
               )}
+              {permissions?.penalties && (
+                <TabsTrigger 
+                  value="penalties" 
+                  disabled={!hasSeasons}
+                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+                >
+                  Punições
+                </TabsTrigger>
+              )}
               {permissions?.raceDay && (
                 <TabsTrigger 
                   value="race-day" 
@@ -324,9 +336,15 @@ export const Championship = () => {
             </TabsContent>
           )}
 
+          {permissions?.penalties && hasSeasons && (
+            <TabsContent value="penalties" className="mt-0 ring-0 focus-visible:outline-none">
+              <PenaltiesTab championshipId={id} />
+            </TabsContent>
+          )}
+
           {permissions?.raceDay && hasSeasons && (
             <TabsContent value="race-day" className="mt-0 ring-0 focus-visible:outline-none">
-              <RaceDayTab seasons={championship.seasons || []} championshipName={championship.name} />
+              <RaceDayTab seasons={championship.seasons || []} championshipName={championship.name} championshipId={id} />
             </TabsContent>
           )}
 

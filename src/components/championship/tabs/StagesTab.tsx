@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "brk-design-system";
 import { Card, CardHeader, CardContent } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { PlusCircle, MapPin, Clock, Users, MoreVertical, Calendar, Flag, Link as LinkIcon } from "lucide-react";
+import { PlusCircle, MapPin, Clock, Users, MoreVertical, Calendar, Flag, Link as LinkIcon, Eye } from "lucide-react";
 import { InlineLoader } from "@/components/ui/loading";
 import { EmptyState } from "brk-design-system";
 import {
@@ -44,6 +44,7 @@ import {
 } from "brk-design-system";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { RaceTrackService } from '@/lib/services/race-track.service';
+import { StageDetailsModal } from '@/components/championship/modals/StageDetailsModal';
 
 
 type Season = BaseSeason & { categories?: Category[], stages?: Stage[] };
@@ -96,6 +97,15 @@ const StageCard = ({ stage, onAction, getStageStatusBadge, raceTrack }: {
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
             {getStageStatusBadge(stage)}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8"
+              onClick={() => onAction("details", stage.id)}
+              title="Ver detalhes"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -108,6 +118,9 @@ const StageCard = ({ stage, onAction, getStageStatusBadge, raceTrack }: {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onAction("duplicate", stage.id)}>
                   Duplicar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onAction("details", stage.id)}>
+                  Ver Detalhes
                 </DropdownMenuItem>
                 <DropdownMenuItem 
                   onClick={() => onAction("delete", stage.id)}
@@ -182,6 +195,10 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
   const [stageToDelete, setStageToDelete] = useState<Stage | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Estados para o modal de detalhes
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedStage, setSelectedStage] = useState<Stage | null>(null);
 
   // Buscar dados dos kartódromos
   useEffect(() => {
@@ -428,6 +445,10 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
         break;
       case "delete":
         handleDeleteStage(stage);
+        break;
+      case "details":
+        setSelectedStage(stage);
+        setShowDetailsModal(true);
         break;
       default:
         console.warn(`Unknown action: ${action}`);
@@ -708,6 +729,9 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
                             <DropdownMenuItem onClick={() => handleStageAction("duplicate", stage.id)}>
                               Duplicar
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStageAction("details", stage.id)}>
+                              Ver Detalhes
+                            </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => handleStageAction("delete", stage.id)}
                               className="text-destructive"
@@ -741,6 +765,15 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
         </Card>
       )}
 
+      {/* Modal de detalhes da etapa */}
+      <StageDetailsModal
+        stage={selectedStage}
+        isOpen={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false);
+          setSelectedStage(null);
+        }}
+      />
 
       {/* Modal de confirmação de exclusão */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

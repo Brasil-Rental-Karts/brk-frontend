@@ -33,6 +33,7 @@ import {
   attendsEventsLabels, 
   interestCategoryLabels 
 } from '@/lib/enums/profile';
+import { formatName } from '@/utils/name';
 
 interface PilotDetailsModalProps {
   isOpen: boolean;
@@ -159,7 +160,7 @@ export function PilotDetailsModal({ isOpen, onClose, registrationId }: PilotDeta
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-500">Nome Completo</label>
-                    <p className="text-sm">{pilotDetails.user.name}</p>
+                    <p className="text-sm">{formatName(pilotDetails.user.name)}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">Apelido</label>
