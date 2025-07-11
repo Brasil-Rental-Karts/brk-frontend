@@ -313,6 +313,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                                     pilots: 'Pilotos',
                                     classification: 'Classificação',
                                     regulations: 'Regulamentos',
+                                    penalties: 'Punições',
                                     raceDay: 'Race Day',
                                     editChampionship: 'Editar Campeonato',
                                     gridTypes: 'Tipos de Grid',
@@ -521,6 +522,16 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                 />
                 <label htmlFor="regulations" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   Regulamentos
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="penalties"
+                  checked={permissions.penalties || false}
+                  onCheckedChange={(checked) => handlePermissionChange('penalties', checked as boolean)}
+                />
+                <label htmlFor="penalties" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Punições
                 </label>
               </div>
               <div className="flex items-center space-x-2">
