@@ -274,6 +274,13 @@ const PenaltyCard = ({ penalty, onAction, getPenaltyIcon, getStatusIcon }: {
             </div>
           )}
 
+          {penalty.batteryIndex !== undefined && penalty.batteryIndex !== null && (
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">Bateria</span>
+              <span className="text-sm font-medium">Bateria {penalty.batteryIndex + 1}</span>
+            </div>
+          )}
+
           <div className="flex justify-between items-center py-2 border-b border-gray-100">
             <span className="text-sm text-gray-600">Piloto</span>
             <span className="text-sm font-medium break-words text-right">{formatName(penalty.user?.name || 'N/A')}</span>
@@ -927,6 +934,7 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
                     </div>
                   </TableHead>
                   <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-center">Bateria</TableHead>
                   <TableHead 
                     className="cursor-pointer hover:bg-muted/50 text-center"
                     onClick={() => handleSort("createdAt")}
@@ -948,7 +956,7 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
               <TableBody>
                 {processedPenalties.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       Nenhuma punição encontrada com os filtros aplicados
                     </TableCell>
                   </TableRow>
@@ -990,6 +998,14 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
                           {getStatusIcon(penalty.status)}
                           <span className="ml-1">{PenaltyService.getPenaltyStatusLabel(penalty.status)}</span>
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <div className="text-sm">
+                          {penalty.batteryIndex !== undefined && penalty.batteryIndex !== null 
+                            ? `Bateria ${penalty.batteryIndex + 1}` 
+                            : '-'
+                          }
+                        </div>
                       </TableCell>
                       <TableCell className="text-center py-4">
                         <div className="text-sm">

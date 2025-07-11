@@ -41,6 +41,7 @@ const PENALTY_INITIAL_VALUES = {
   positionPenalty: undefined,
   suspensionStages: undefined,
   suspensionUntil: '',
+  batteryIndex: undefined,
   championshipId: '',
   seasonId: '',
   stageId: '',
@@ -65,6 +66,7 @@ export const CreatePenalty = () => {
   const [stages, setStages] = useState<Stage[]>([]);
   const [pilots, setPilots] = useState<SeasonRegistration[]>([]);
   const [selectedStageId, setSelectedStageId] = useState<string>('');
+  const [categoryBatteries, setCategoryBatteries] = useState<{ value: number; description: string }[]>([]);
 
   // Carregar temporadas do campeonato
   useEffect(() => {
@@ -106,6 +108,14 @@ export const CreatePenalty = () => {
               { 
                 id: "userId", 
                 name: "Piloto", 
+                type: "select", 
+                mandatory: true, 
+                options: [],
+                conditionalField: { dependsOn: 'categoryId', showWhen: (value: string) => !!value }
+              },
+              { 
+                id: "batteryIndex", 
+                name: "Bateria", 
                 type: "select", 
                 mandatory: true, 
                 options: [],
@@ -299,6 +309,44 @@ export const CreatePenalty = () => {
     }
   }, []);
 
+  // Carregar baterias quando categoria for selecionada
+  const loadBatteriesForCategory = useCallback(async (categoryId: string) => {
+    if (!categoryId) {
+      setCategoryBatteries([]);
+      return;
+    }
+    try {
+      const category = categories.find(c => c.id === categoryId);
+      if (category && category.batteriesConfig) {
+        const batteryOptions = category.batteriesConfig.map((battery, index) => ({
+          value: index,
+          description: battery.name
+        }));
+        setCategoryBatteries(batteryOptions);
+        
+        // Atualizar opções de bateria no formulário
+        setFormConfig(prevConfig => 
+          prevConfig.map(section => {
+            if (section.section === "Contexto da Punição") {
+              return {
+                ...section,
+                fields: section.fields.map(field => {
+                  if (field.id === 'batteryIndex') {
+                    return { ...field, options: batteryOptions };
+                  }
+                  return field;
+                })
+              };
+            }
+            return section;
+          })
+        );
+      }
+    } catch (err: any) {
+      console.error('Erro ao carregar baterias:', err);
+    }
+  }, [categories]);
+
   // Carregar pilotos quando categoria for selecionada
   const loadPilotsForCategory = useCallback(async (categoryId: string, seasonId: string, stageId?: string) => {
     if (!categoryId || !seasonId) {
@@ -395,11 +443,13 @@ export const CreatePenalty = () => {
     }
 
     if (fieldId === 'categoryId') {
-      // Resetar piloto
+      // Resetar piloto e bateria
       if (formActions.setValue) {
         formActions.setValue('userId', '');
+        formActions.setValue('batteryIndex', '');
       }
       await loadPilotsForCategory(value, formData.seasonId, formData.stageId);
+      await loadBatteriesForCategory(value);
     }
   }, [loadStagesForSeason, loadCategoriesForStage, loadPilotsForCategory]);
 
@@ -417,6 +467,9 @@ export const CreatePenalty = () => {
     }
     if (!data.userId) {
       throw new Error('Selecione o piloto.');
+    }
+    if (data.batteryIndex === undefined || data.batteryIndex === null || data.batteryIndex === '') {
+      throw new Error('Selecione a bateria.');
     }
     if (!data.type) {
       throw new Error('Selecione o tipo de punição.');
@@ -456,6 +509,12 @@ export const CreatePenalty = () => {
       cleanData.suspensionStages = Number(cleanData.suspensionStages);
     } else {
       delete cleanData.suspensionStages;
+    }
+    
+    if (cleanData.batteryIndex !== undefined && cleanData.batteryIndex !== null && cleanData.batteryIndex !== '') {
+      cleanData.batteryIndex = Number(cleanData.batteryIndex);
+    } else {
+      delete cleanData.batteryIndex;
     }
     
     if (!cleanData.suspensionUntil) delete cleanData.suspensionUntil;

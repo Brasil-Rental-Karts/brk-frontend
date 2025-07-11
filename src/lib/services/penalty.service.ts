@@ -23,6 +23,7 @@ export interface CreatePenaltyData {
   positionPenalty?: number;
   suspensionStages?: number;
   suspensionUntil?: string;
+  batteryIndex?: number;
   userId: string;
   championshipId: string;
   seasonId?: string;
@@ -38,6 +39,7 @@ export interface UpdatePenaltyData {
   positionPenalty?: number;
   suspensionStages?: number;
   suspensionUntil?: string;
+  batteryIndex?: number;
 }
 
 export interface AppealPenaltyData {
@@ -54,6 +56,7 @@ export interface Penalty {
   positionPenalty?: number;
   suspensionStages?: number;
   suspensionUntil?: string;
+  batteryIndex?: number;
   userId: string;
   championshipId: string;
   seasonId?: string;
