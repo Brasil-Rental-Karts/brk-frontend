@@ -3238,11 +3238,19 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
             <button
               onClick={closeKartSelectionModal}
               className="text-gray-400 hover:text-gray-600 transition-colors"
+              disabled={kartLoading}
             >
               <X className="w-6 h-6" />
             </button>
-                                  </div>
-                                  
+          </div>
+          
+          {/* Loading Overlay */}
+          {kartLoading && (
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-20">
+              <Loading type="spinner" size="md" message="" />
+            </div>
+          )}
+          
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
             <div className="space-y-4">
@@ -3260,15 +3268,16 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                     selectedPilotForKartChange.batteryIndex, 
                     selectedPilotForKartChange.pilotId
                   ).map((kart) => (
-                                        <button
+                    <button
                       key={kart}
                       onClick={() => changePilotKart(kart)}
                       className="w-12 h-12 rounded-full bg-orange-500 text-black font-bold text-sm border-2 border-orange-600 hover:bg-orange-600 transition-colors flex items-center justify-center"
+                      disabled={kartLoading}
                     >
                       {kart}
-                                        </button>
+                    </button>
                   ))}
-                                </div>
+                </div>
                 
                 {getAvailableKarts(
                   selectedPilotForKartChange.categoryId, 
@@ -3277,11 +3286,11 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                 ).length === 0 && (
                   <div className="text-center py-4 text-gray-500">
                     Nenhum kart disponível para esta bateria.
-                        </div>
+                  </div>
                 )}
-                      </div>
-                    </div>
               </div>
+            </div>
+          </div>
           
           {/* Footer */}
           <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
@@ -3291,14 +3300,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
               className="text-red-600 border-red-600 hover:bg-red-50"
               disabled={kartLoading}
             >
-              {kartLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Removendo...
-                </>
-              ) : (
-                'Limpar'
-              )}
+              Limpar
             </Button>
             <Button 
               variant="outline" 
@@ -3334,10 +3336,19 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
             <button
               onClick={closePositionSelectionModal}
               className="text-gray-400 hover:text-gray-600 transition-colors"
+              disabled={positionLoading}
             >
               <X className="w-6 h-6" />
             </button>
           </div>
+          
+          {/* Loading Overlay */}
+          {positionLoading && (
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-20">
+              <Loading type="spinner" size="md" message=""  />
+            </div>
+          )}
+          
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
             <div className="grid grid-cols-6 gap-2">
@@ -3354,6 +3365,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                     key={pos}
                     onClick={() => changePilotPosition(pos)}
                     className="w-12 h-12 rounded-full bg-orange-500 text-black font-bold text-sm border-2 border-orange-600 hover:bg-orange-600 transition-colors flex items-center justify-center"
+                    disabled={positionLoading}
                   >
                     {pos}
                   </button>
@@ -3369,14 +3381,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
               className="text-red-600 border-red-600 hover:bg-red-50"
               disabled={positionLoading}
             >
-              {positionLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Removendo...
-                </>
-              ) : (
-                'Limpar'
-              )}
+              Limpar
             </Button>
             <Button 
               variant="outline" 
@@ -3522,10 +3527,18 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
             <button
               onClick={closeBestLapModal}
               className="text-gray-400 hover:text-gray-600 transition-colors"
+              disabled={bestLapLoading}
             >
               <X className="w-6 h-6" />
             </button>
           </div>
+          
+          {/* Loading Overlay */}
+          {bestLapLoading && (
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-20">
+              <Loading type="spinner" size="md" message="" />
+            </div>
+          )}
           
           {/* Content */}
           <div className="flex-1 p-6">
@@ -3553,6 +3566,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                   onChange={(e) => setBestLapTimeInput(e.target.value)}
                   placeholder="Ex: 1:23.456 ou 47.123"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono"
+                  disabled={bestLapLoading}
                 />
               </div>
               
@@ -3575,14 +3589,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
               className="text-red-600 border-red-600 hover:bg-red-50"
               disabled={bestLapLoading}
             >
-              {bestLapLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Removendo...
-                </>
-              ) : (
-                'Limpar'
-              )}
+              Limpar
             </Button>
             <Button 
               variant="outline" 
@@ -3596,14 +3603,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
               className="bg-orange-500 hover:bg-orange-600 text-black"
               disabled={bestLapLoading}
             >
-              {bestLapLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                'Salvar'
-              )}
+              Salvar
             </Button>
           </div>
         </div>
@@ -3633,10 +3633,18 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
             <button
               onClick={closeQualifyingBestLapModal}
               className="text-gray-400 hover:text-gray-600 transition-colors"
+              disabled={qualifyingBestLapLoading}
             >
               <X className="w-6 h-6" />
             </button>
           </div>
+          
+          {/* Loading Overlay */}
+          {qualifyingBestLapLoading && (
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-20">
+              <Loading type="spinner" size="md" message=""  />
+            </div>
+          )}
           
           {/* Content */}
           <div className="flex-1 p-6">
@@ -3664,6 +3672,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                   onChange={(e) => setQualifyingBestLapTimeInput(e.target.value)}
                   placeholder="Ex: 1:23.456 ou 47.123"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono"
+                  disabled={qualifyingBestLapLoading}
                 />
               </div>
               
@@ -3686,14 +3695,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
               className="text-red-600 border-red-600 hover:bg-red-50"
               disabled={qualifyingBestLapLoading}
             >
-              {qualifyingBestLapLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Removendo...
-                </>
-              ) : (
-                'Limpar'
-              )}
+              Limpar
             </Button>
             <Button 
               variant="outline" 
@@ -3707,14 +3709,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
               className="bg-orange-500 hover:bg-orange-600 text-black"
               disabled={qualifyingBestLapLoading}
             >
-              {qualifyingBestLapLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                'Salvar'
-              )}
+              Salvar
             </Button>
           </div>
         </div>
