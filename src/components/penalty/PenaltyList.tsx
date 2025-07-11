@@ -36,8 +36,7 @@ export const PenaltyList: React.FC<PenaltyListProps> = ({
         return <Clock className="h-4 w-4" />;
       case PenaltyType.POSITION_PENALTY:
         return <MapPin className="h-4 w-4" />;
-      case PenaltyType.SUSPENSION:
-        return <Ban className="h-4 w-4" />;
+
       case PenaltyType.WARNING:
         return <AlertTriangle className="h-4 w-4" />;
       default:
@@ -151,19 +150,7 @@ export const PenaltyList: React.FC<PenaltyListProps> = ({
                   </div>
                 )}
 
-                {penalty.suspensionStages && (
-                  <div>
-                    <h4 className="font-semibold text-sm text-gray-600">Suspensão</h4>
-                    <p className="text-sm">{penalty.suspensionStages} etapas</p>
-                  </div>
-                )}
 
-                {penalty.suspensionUntil && (
-                  <div>
-                    <h4 className="font-semibold text-sm text-gray-600">Suspenso até</h4>
-                    <p className="text-sm">{formatDate(penalty.suspensionUntil)}</p>
-                  </div>
-                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">

@@ -90,7 +90,7 @@ const createFilterFields = (
       { value: PenaltyType.DISQUALIFICATION, label: 'Desqualificação' },
       { value: PenaltyType.TIME_PENALTY, label: 'Penalidade de Tempo' },
       { value: PenaltyType.POSITION_PENALTY, label: 'Penalidade de Posição' },
-      { value: PenaltyType.SUSPENSION, label: 'Suspensão' },
+      
       { value: PenaltyType.WARNING, label: 'Advertência' }
     ]
   },
@@ -260,19 +260,7 @@ const PenaltyCard = ({ penalty, onAction, getPenaltyIcon, getStatusIcon }: {
             </div>
           )}
 
-          {penalty.suspensionStages && (
-            <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Suspensão</span>
-              <span className="text-sm font-medium">{penalty.suspensionStages} etapas</span>
-            </div>
-          )}
 
-          {penalty.suspensionUntil && (
-            <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Suspenso até</span>
-              <span className="text-sm font-medium">{formatDate(penalty.suspensionUntil)}</span>
-            </div>
-          )}
 
           {penalty.batteryIndex !== undefined && penalty.batteryIndex !== null && (
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
@@ -543,8 +531,7 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
         return <Clock className="h-4 w-4" />;
       case PenaltyType.POSITION_PENALTY:
         return <MapPin className="h-4 w-4" />;
-      case PenaltyType.SUSPENSION:
-        return <Ban className="h-4 w-4" />;
+
       case PenaltyType.WARNING:
         return <AlertTriangle className="h-4 w-4" />;
       default:

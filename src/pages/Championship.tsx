@@ -344,7 +344,7 @@ export const Championship = () => {
 
           {permissions?.raceDay && hasSeasons && (
             <TabsContent value="race-day" className="mt-0 ring-0 focus-visible:outline-none">
-              <RaceDayTab seasons={championship.seasons || []} championshipName={championship.name} />
+              <RaceDayTab seasons={championship.seasons || []} championshipName={championship.name} championshipId={id} />
             </TabsContent>
           )}
 

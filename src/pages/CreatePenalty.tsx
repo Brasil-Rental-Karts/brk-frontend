@@ -39,8 +39,6 @@ const PENALTY_INITIAL_VALUES = {
   description: '',
   timePenaltySeconds: undefined,
   positionPenalty: undefined,
-  suspensionStages: undefined,
-  suspensionUntil: '',
   batteryIndex: undefined,
   championshipId: '',
   seasonId: '',
@@ -57,6 +55,19 @@ export const CreatePenalty = () => {
   // Verificar se está em modo de edição
   const isEditMode = !!penaltyId;
   const penaltyData = location.state?.penalty;
+  
+  // Ler parâmetros da URL para pré-preenchimento
+  const urlParams = new URLSearchParams(location.search);
+  const urlSeasonId = urlParams.get('seasonId');
+  const urlStageId = urlParams.get('stageId');
+  const urlCategoryId = urlParams.get('categoryId');
+  const urlUserId = urlParams.get('userId');
+  const urlBatteryIndex = urlParams.get('batteryIndex');
+  const returnTab = urlParams.get('returnTab') || 'penalties';
+  const returnSeason = urlParams.get('returnSeason');
+  const returnStage = urlParams.get('returnStage');
+  const returnCategory = urlParams.get('returnCategory');
+  const returnBattery = urlParams.get('returnBattery');
 
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const [initialValues, setInitialValues] = useState<Record<string, any>>(PENALTY_INITIAL_VALUES);
@@ -71,9 +82,11 @@ export const CreatePenalty = () => {
   // Carregar temporadas do campeonato
   useEffect(() => {
     const fetchSeasons = async () => {
+      if (!championshipId) return;
+      
       setIsLoading(true);
       try {
-        const seasonsRes = await SeasonService.getByChampionshipId(championshipId || '');
+        const seasonsRes = await SeasonService.getByChampionshipId(championshipId);
         setSeasons(seasonsRes.data);
         
         // Configurar formulário inicial
@@ -136,7 +149,6 @@ export const CreatePenalty = () => {
                   { value: PenaltyType.DISQUALIFICATION, description: 'Desqualificação' },
                   { value: PenaltyType.TIME_PENALTY, description: 'Penalidade de Tempo' },
                   { value: PenaltyType.POSITION_PENALTY, description: 'Penalidade de Posição' },
-                  { value: PenaltyType.SUSPENSION, description: 'Suspensão' },
                   { value: PenaltyType.WARNING, description: 'Advertência' }
                 ]
               },
@@ -154,21 +166,7 @@ export const CreatePenalty = () => {
                  mandatory: false, 
                  conditionalField: { dependsOn: 'type', showWhen: (value: string) => value === PenaltyType.POSITION_PENALTY }
                },
-               { 
-                 id: "suspensionStages", 
-                 name: "Quantidade de etapas de suspensão", 
-                 type: "input", 
-                 mandatory: false, 
-                 conditionalField: { dependsOn: 'type', showWhen: (value: string) => value === PenaltyType.SUSPENSION }
-               },
-               { 
-                 id: "suspensionUntil", 
-                 name: "Suspensão até (data)", 
-                 type: "inputMask", 
-                 mask: "date",
-                 mandatory: false,
-                 conditionalField: { dependsOn: 'type', showWhen: (value: string) => value === PenaltyType.SUSPENSION }
-               },
+
             ],
           },
           {
@@ -211,8 +209,7 @@ export const CreatePenalty = () => {
             description: penaltyData.description || '',
             timePenaltySeconds: penaltyData.timePenaltySeconds ? String(penaltyData.timePenaltySeconds) : '',
             positionPenalty: penaltyData.positionPenalty ? String(penaltyData.positionPenalty) : '',
-            suspensionStages: penaltyData.suspensionStages ? String(penaltyData.suspensionStages) : '',
-            suspensionUntil: penaltyData.suspensionUntil ? new Date(penaltyData.suspensionUntil).toISOString().split('T')[0] : '',
+
           });
           
           // Carregar dados dependentes se disponíveis
@@ -226,24 +223,50 @@ export const CreatePenalty = () => {
             await loadPilotsForCategory(penaltyData.categoryId, penaltyData.seasonId, penaltyData.stageId);
           }
         } else {
+          // Verificar se há parâmetros da URL para pré-preenchimento
+          const hasUrlParams = urlSeasonId || urlStageId || urlCategoryId || urlUserId || urlBatteryIndex;
+          
           setInitialValues({
             ...PENALTY_INITIAL_VALUES,
             championshipId: championshipId || '',
+            seasonId: urlSeasonId || '',
+            stageId: urlStageId || '',
+            categoryId: urlCategoryId || '',
+            userId: urlUserId || '',
           });
+          
+          // Se há parâmetros da URL, carregar dados dependentes
+          if (hasUrlParams) {
+            if (urlSeasonId) {
+              await loadStagesForSeason(urlSeasonId);
+            }
+            if (urlStageId) {
+              await loadCategoriesForStage(urlStageId);
+            }
+            if (urlCategoryId && urlSeasonId) {
+              await loadPilotsForCategory(urlCategoryId, urlSeasonId, urlStageId || undefined);
+              // Carregar baterias se há categoria selecionada
+              await loadBatteriesForCategory(urlCategoryId);
+              
+              // Aguardar um pouco para garantir que as baterias foram carregadas
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
+          }
         }
         
-        // Debug: log the championshipId
-        console.log('Championship ID:', championshipId);
-        console.log('Is edit mode:', isEditMode);
-        console.log('Penalty data:', penaltyData);
+        // Debug: log penalty data if in edit mode
+        if (isEditMode && penaltyData) {
+          console.log('Penalty data:', penaltyData);
+        }
       } catch (err: any) {
         console.error('Erro ao carregar temporadas:', err);
       } finally {
         setIsLoading(false);
       }
     };
-    if (championshipId) fetchSeasons();
-  }, [championshipId, isEditMode, penaltyData]);
+    
+    fetchSeasons();
+  }, [championshipId, isEditMode, penaltyData, urlSeasonId, urlStageId, urlCategoryId, urlUserId, urlBatteryIndex]);
 
   // Carregar etapas quando temporada for selecionada
   const loadStagesForSeason = useCallback(async (seasonId: string) => {
@@ -316,9 +339,10 @@ export const CreatePenalty = () => {
       return;
     }
     try {
-      const category = categories.find(c => c.id === categoryId);
-      if (category && category.batteriesConfig) {
-        const batteryOptions = category.batteriesConfig.map((battery, index) => ({
+      // Buscar a categoria diretamente da API para garantir que temos os dados mais recentes
+      const categoryRes = await CategoryService.getById(categoryId);
+      if (categoryRes && categoryRes.batteriesConfig) {
+        const batteryOptions = categoryRes.batteriesConfig.map((battery, index) => ({
           value: index,
           description: battery.name
         }));
@@ -345,7 +369,7 @@ export const CreatePenalty = () => {
     } catch (err: any) {
       console.error('Erro ao carregar baterias:', err);
     }
-  }, [categories]);
+  }, []);
 
   // Carregar pilotos quando categoria for selecionada
   const loadPilotsForCategory = useCallback(async (categoryId: string, seasonId: string, stageId?: string) => {
@@ -412,7 +436,7 @@ export const CreatePenalty = () => {
     } catch (err: any) {
       console.error('Erro ao carregar pilotos:', err);
     }
-  }, [selectedStageId]);
+  }, [selectedStageId, loadStagesForSeason, loadCategoriesForStage, loadBatteriesForCategory]);
 
   // Event handlers para mudanças de campo
   const onFieldChange = useCallback(async (fieldId: string, value: any, formData: any, formActions: { setValue: (name: string, value: any) => void }) => {
@@ -451,7 +475,40 @@ export const CreatePenalty = () => {
       await loadPilotsForCategory(value, formData.seasonId, formData.stageId);
       await loadBatteriesForCategory(value);
     }
-  }, [loadStagesForSeason, loadCategoriesForStage, loadPilotsForCategory]);
+  }, [loadStagesForSeason, loadCategoriesForStage, loadPilotsForCategory, loadBatteriesForCategory]);
+
+  // Efeito para definir o valor da bateria quando as opções são carregadas
+  useEffect(() => {
+    if (categoryBatteries.length > 0 && urlBatteryIndex !== null) {
+      // Atualizar os valores iniciais para incluir a bateria
+      setInitialValues(prev => ({
+        ...prev,
+        batteryIndex: Number(urlBatteryIndex)
+      }));
+      
+      // Também atualizar o formConfig para garantir que as opções estão disponíveis
+      setFormConfig(prevConfig => 
+        prevConfig.map(section => {
+          if (section.section === "Contexto da Punição") {
+            return {
+              ...section,
+              fields: section.fields.map(field => {
+                if (field.id === 'batteryIndex') {
+                  return { 
+                    ...field, 
+                    options: categoryBatteries,
+                    defaultValue: Number(urlBatteryIndex)
+                  };
+                }
+                return field;
+              })
+            };
+          }
+          return section;
+        })
+      );
+    }
+  }, [categoryBatteries, urlBatteryIndex]);
 
   // Transformar dados para envio
   const transformSubmitData = useCallback((data: any) => {
@@ -485,9 +542,7 @@ export const CreatePenalty = () => {
     if (data.type === PenaltyType.POSITION_PENALTY && (!data.positionPenalty || data.positionPenalty <= 0)) {
       throw new Error('Informe a quantidade de posições de penalidade.');
     }
-    if (data.type === PenaltyType.SUSPENSION && !data.suspensionStages && !data.suspensionUntil) {
-      throw new Error('Informe a quantidade de etapas ou data de suspensão.');
-    }
+
 
     // Limpar campos vazios e converter tipos
     const cleanData = { ...data };
@@ -505,11 +560,7 @@ export const CreatePenalty = () => {
       delete cleanData.positionPenalty;
     }
     
-    if (cleanData.suspensionStages) {
-      cleanData.suspensionStages = Number(cleanData.suspensionStages);
-    } else {
-      delete cleanData.suspensionStages;
-    }
+
     
     if (cleanData.batteryIndex !== undefined && cleanData.batteryIndex !== null && cleanData.batteryIndex !== '') {
       cleanData.batteryIndex = Number(cleanData.batteryIndex);
@@ -517,7 +568,7 @@ export const CreatePenalty = () => {
       delete cleanData.batteryIndex;
     }
     
-    if (!cleanData.suspensionUntil) delete cleanData.suspensionUntil;
+
     if (!cleanData.description) delete cleanData.description;
 
     // Garantir que championshipId seja incluído
@@ -535,12 +586,26 @@ export const CreatePenalty = () => {
   }, []);
 
   const onSuccess = useCallback(() => {
-    navigate(`/championship/${championshipId}?tab=penalties`);
-  }, [navigate, championshipId]);
+    let returnUrl = `/championship/${championshipId}?tab=${returnTab}`;
+    
+    // Se há parâmetros de retorno específicos, incluí-los na URL
+    if (returnSeason && returnStage && returnCategory && returnBattery) {
+      returnUrl += `&season=${returnSeason}&stage=${returnStage}&category=${returnCategory}&battery=${returnBattery}`;
+    }
+    
+    navigate(returnUrl);
+  }, [navigate, championshipId, returnTab, returnSeason, returnStage, returnCategory, returnBattery]);
 
   const onCancel = useCallback(() => {
-    navigate(`/championship/${championshipId}?tab=penalties`);
-  }, [navigate, championshipId]);
+    let returnUrl = `/championship/${championshipId}?tab=${returnTab}`;
+    
+    // Se há parâmetros de retorno específicos, incluí-los na URL
+    if (returnSeason && returnStage && returnCategory && returnBattery) {
+      returnUrl += `&season=${returnSeason}&stage=${returnStage}&category=${returnCategory}&battery=${returnBattery}`;
+    }
+    
+    navigate(returnUrl);
+  }, [navigate, championshipId, returnTab, returnSeason, returnStage, returnCategory, returnBattery]);
 
   // Função customizada para lidar com criação e edição
   const handleSubmit = useCallback(async (data: any) => {
@@ -551,10 +616,17 @@ export const CreatePenalty = () => {
     }
   }, [isEditMode, penaltyId]);
 
-  // Debug: log user info
-  console.log('User info:', user);
-  console.log('Is authenticated:', isAuthenticated);
-  console.log('User role:', user?.role);
+  // Debug: log user info (apenas uma vez)
+  useEffect(() => {
+    console.log('=== CREATE PENALTY DEBUG ===');
+    console.log('User info:', user);
+    console.log('Is authenticated:', isAuthenticated);
+    console.log('User role:', user?.role);
+    console.log('Championship ID:', championshipId);
+    console.log('Is edit mode:', isEditMode);
+    console.log('URL params:', { urlSeasonId, urlStageId, urlCategoryId, urlUserId, urlBatteryIndex });
+    console.log('===========================');
+  }, [user, isAuthenticated, championshipId, isEditMode, urlSeasonId, urlStageId, urlCategoryId, urlUserId, urlBatteryIndex]);
 
   // Verificar se o usuário está autenticado
   if (!isAuthenticated) {

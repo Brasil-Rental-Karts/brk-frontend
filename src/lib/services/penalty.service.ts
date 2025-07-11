@@ -4,7 +4,6 @@ export enum PenaltyType {
   DISQUALIFICATION = 'disqualification',
   TIME_PENALTY = 'time_penalty',
   POSITION_PENALTY = 'position_penalty',
-  SUSPENSION = 'suspension',
   WARNING = 'warning'
 }
 
@@ -21,8 +20,6 @@ export interface CreatePenaltyData {
   description?: string;
   timePenaltySeconds?: number;
   positionPenalty?: number;
-  suspensionStages?: number;
-  suspensionUntil?: string;
   batteryIndex?: number;
   userId: string;
   championshipId: string;
@@ -37,8 +34,6 @@ export interface UpdatePenaltyData {
   description?: string;
   timePenaltySeconds?: number;
   positionPenalty?: number;
-  suspensionStages?: number;
-  suspensionUntil?: string;
   batteryIndex?: number;
 }
 
@@ -54,8 +49,6 @@ export interface Penalty {
   description?: string;
   timePenaltySeconds?: number;
   positionPenalty?: number;
-  suspensionStages?: number;
-  suspensionUntil?: string;
   batteryIndex?: number;
   userId: string;
   championshipId: string;
@@ -190,8 +183,6 @@ export class PenaltyService {
         return 'Penalidade de Tempo';
       case PenaltyType.POSITION_PENALTY:
         return 'Penalidade de Posição';
-      case PenaltyType.SUSPENSION:
-        return 'Suspensão';
       case PenaltyType.WARNING:
         return 'Advertência';
       default:
@@ -237,8 +228,6 @@ export class PenaltyService {
         return 'bg-orange-100 text-orange-800';
       case PenaltyType.POSITION_PENALTY:
         return 'bg-yellow-100 text-yellow-800';
-      case PenaltyType.SUSPENSION:
-        return 'bg-purple-100 text-purple-800';
       case PenaltyType.WARNING:
         return 'bg-blue-100 text-blue-800';
       default:
