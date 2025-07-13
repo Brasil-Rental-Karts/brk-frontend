@@ -1237,14 +1237,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                                           Confirmado
                                         </Badge>
                                       )}
-                                      {!canConfirmResult.canConfirm && !isConfirmed && (
-                                        <Badge variant="secondary" className={`text-xs ${
-                                          canConfirmResult.reason === 'category_full' ? 'bg-red-100 text-red-800' :
-                                          canConfirmResult.reason === 'payment_overdue' ? 'bg-orange-100 text-orange-800' :
-                                          canConfirmResult.reason === 'payment_pending' ? 'bg-yellow-100 text-yellow-800' :
-                                          'bg-gray-100 text-gray-800'
-                                        }`}>
-                                          {canConfirmResult.message}
+                                      {pilot.paymentStatus === 'pending' && (
+                                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 text-xs">
+                                          Aguardando pagamento
+                                        </Badge>
+                                      )}
+                                      {pilot.paymentStatus === 'overdue' && (
+                                        <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs">
+                                          Pagamento em atraso
                                         </Badge>
                                       )}
                                     </div>
@@ -1254,22 +1254,17 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                                         <TooltipTrigger asChild>
                                           <button
                                             onClick={() => {
-                                              if (canConfirmResult.canConfirm || isConfirmed) {
-                                                handleToggleConfirm(pilot, category.id, isConfirmed);
-                                              }
+                                              handleToggleConfirm(pilot, category.id, isConfirmed);
                                             }}
-                                            className={`flex items-center space-x-1 ${
-                                              !canConfirmResult.canConfirm && !isConfirmed ? 'cursor-not-allowed opacity-50' : ''
-                                            }`}
-                                            disabled={isLoading || (!canConfirmResult.canConfirm && !isConfirmed)}
+                                            className="flex items-center space-x-1"
+                                            disabled={isLoading}
                                           >
-                                            {getPilotStatusIcon(canConfirmResult, isLoading)}
+                                            {getPilotStatusIcon(canConfirmResult, isLoading, isConfirmed)}
                                           </button>
                                         </TooltipTrigger>
                                         <TooltipContent>
                                           {isLoading ? 'Processando...' :
                                            isConfirmed ? 'Cancelar participação' :
-                                           !canConfirmResult.canConfirm ? canConfirmResult.message :
                                            'Confirmar participação'}
                                         </TooltipContent>
                                       </Tooltip>
@@ -2450,29 +2445,17 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   };
 
   // Função para obter o ícone do status do piloto
-  const getPilotStatusIcon = (canConfirmResult: any, isLoading: boolean) => {
+  const getPilotStatusIcon = (canConfirmResult: any, isLoading: boolean, isConfirmed: boolean) => {
     if (isLoading) {
       return <Loader2 className="w-4 h-4 animate-spin text-gray-400" />;
     }
 
-    if (canConfirmResult.canConfirm) {
-      return <Circle className="w-4 h-4 text-gray-400" />;
+    if (isConfirmed) {
+      return <CheckCircle className="w-4 h-4 text-green-600" />;
     }
 
-    switch (canConfirmResult.reason) {
-      case 'already_confirmed':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'category_full':
-        return <XCircle className="w-4 h-4 text-red-600" />;
-      case 'payment_overdue':
-        return <XCircle className="w-4 h-4 text-orange-600" />;
-      case 'payment_pending':
-        return <XCircle className="w-4 h-4 text-yellow-600" />;
-      case 'not_registered_stage':
-        return <XCircle className="w-4 h-4 text-gray-600" />;
-      default:
-        return <XCircle className="w-4 h-4 text-red-600" />;
-    }
+    // Sempre mostrar círculo neutro para pilotos não confirmados
+    return <Circle className="w-4 h-4 text-gray-400" />;
   };
 
   return (
