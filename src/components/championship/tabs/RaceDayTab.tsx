@@ -1479,6 +1479,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     const { categoryId, pilotId, batteryIndex } = selectedPilotForKartChange;
     setKartLoading(true);
 
+    // Obter o kart atual do piloto (se houver)
+    const currentKart = fleetDrawResults[categoryId]?.[pilotId]?.[batteryIndex]?.kart;
+    
+    // Verificar se o novo kart já está sendo usado por outro piloto
+    const pilotUsingKart = Object.entries(fleetDrawResults[categoryId] || {}).find(([otherPilotId, batteryResults]) => {
+      return otherPilotId !== pilotId && batteryResults[batteryIndex]?.kart === newKart;
+    });
+
     // Atualizar os resultados do sorteio
     const updatedResults = { ...fleetDrawResults };
     if (!updatedResults[categoryId]) {
@@ -1487,6 +1495,17 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     if (!updatedResults[categoryId][pilotId]) {
       updatedResults[categoryId][pilotId] = {};
     }
+    
+    // Se o kart já está sendo usado por outro piloto, limpar a atribuição anterior
+    if (pilotUsingKart) {
+      const [otherPilotId] = pilotUsingKart;
+      if (!updatedResults[categoryId][otherPilotId]) {
+        updatedResults[categoryId][otherPilotId] = {};
+      }
+      delete updatedResults[categoryId][otherPilotId][batteryIndex];
+    }
+    
+    // Atribuir o novo kart ao piloto
     updatedResults[categoryId][pilotId][batteryIndex] = { kart: newKart };
 
     setFleetDrawResults(updatedResults);
@@ -1500,7 +1519,12 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       await StageService.saveKartDrawAssignments(selectedStageId, dataWithFleetAssignments);
       
       closeKartSelectionModal();
-      toast.success('Kart alterado com sucesso!');
+      
+      if (pilotUsingKart) {
+        toast.success(`Kart ${newKart} transferido do piloto anterior para ${formatName(registrations.find(r => r.userId === pilotId)?.user?.name || pilotId)}!`);
+      } else {
+        toast.success('Kart alterado com sucesso!');
+      }
     } catch (error) {
       toast.error('Erro ao salvar alteração do kart');
       console.error('Erro ao salvar kart:', error);
@@ -1550,8 +1574,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     }
   };
 
-  // Função para obter karts disponíveis para uma categoria e bateria
-  const getAvailableKarts = (categoryId: string, batteryIndex: number, currentPilotId: string) => {
+  // Função para obter todos os karts da frota (incluindo os já utilizados)
+  const getAvailableKarts = (categoryId: string, batteryIndex: number, currentPilotId: string): Array<{kart: number, isUsed: boolean, usedBy: string | null}> => {
     const assignedFleetId = categoryFleetAssignments[categoryId];
     if (!assignedFleetId) return [];
 
@@ -1566,15 +1590,19 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       .filter(kart => !inactiveKartsForFleet.includes(kart - 1));
 
     // Obter karts já utilizados por outros pilotos nesta bateria
-    const usedKarts = new Set<number>();
+    const usedKarts = new Map<number, string>(); // kart -> pilotId
     Object.entries(fleetDrawResults[categoryId] || {}).forEach(([pilotId, batteryResults]) => {
       if (pilotId !== currentPilotId && batteryResults[batteryIndex]) {
-        usedKarts.add(batteryResults[batteryIndex].kart);
+        usedKarts.set(batteryResults[batteryIndex].kart, pilotId);
       }
     });
 
-    // Retornar karts disponíveis
-    return allActiveKarts.filter(kart => !usedKarts.has(kart));
+    // Retornar todos os karts ativos com informação de uso
+    return allActiveKarts.map(kart => ({
+      kart,
+      isUsed: usedKarts.has(kart),
+      usedBy: usedKarts.get(kart) || null
+    }));
   };
 
   // Função para abrir modal de seleção de posição
@@ -3704,24 +3732,40 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   Karts Disponíveis
                 </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Selecione um kart da frota para a bateria {selectedPilotForKartChange.batteryIndex + 1}
-                </p>
+                              <p className="text-sm text-gray-600 mb-4">
+                Selecione um kart da frota para a bateria {selectedPilotForKartChange.batteryIndex + 1}. 
+                Karts em vermelho estão sendo usados por outros pilotos e serão transferidos automaticamente.
+              </p>
                 
                 <div className="grid grid-cols-6 gap-2">
                   {getAvailableKarts(
                     selectedPilotForKartChange.categoryId, 
                     selectedPilotForKartChange.batteryIndex, 
                     selectedPilotForKartChange.pilotId
-                  ).map((kart) => (
-                    <button
-                      key={kart}
-                      onClick={() => changePilotKart(kart)}
-                      className="w-12 h-12 rounded-full bg-orange-500 text-black font-bold text-sm border-2 border-orange-600 hover:bg-orange-600 transition-colors flex items-center justify-center"
-                      disabled={kartLoading}
-                    >
-                      {kart}
-                    </button>
+                  ).map((kartInfo) => (
+                    <TooltipProvider key={kartInfo.kart}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => changePilotKart(kartInfo.kart)}
+                            className={`w-12 h-12 rounded-full font-bold text-sm border-2 transition-colors flex items-center justify-center ${
+                              kartInfo.isUsed 
+                                ? 'bg-red-500 text-white border-red-600 hover:bg-red-600' 
+                                : 'bg-orange-500 text-black border-orange-600 hover:bg-orange-600'
+                            }`}
+                            disabled={kartLoading}
+                          >
+                            {kartInfo.kart}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {kartInfo.isUsed 
+                            ? `Kart ${kartInfo.kart} - Em uso por ${formatName(registrations.find(r => r.userId === kartInfo.usedBy)?.user?.name || kartInfo.usedBy)}`
+                            : `Kart ${kartInfo.kart} - Disponível`
+                          }
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   ))}
                 </div>
                 
