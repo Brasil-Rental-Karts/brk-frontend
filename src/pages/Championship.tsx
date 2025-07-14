@@ -322,10 +322,6 @@ export const Championship = () => {
             <TabsContent value="temporadas" className="mt-0 ring-0 focus-visible:outline-none">
               <SeasonsTab 
                 championshipId={id} 
-                seasons={championship.seasons || []}
-                isLoading={contextLoading.seasons}
-                error={contextError.seasons}
-                onRefresh={() => window.location.reload()}
               />
             </TabsContent>
           )}
@@ -381,8 +377,6 @@ export const Championship = () => {
           {permissions?.raceDay && hasSeasons && (
             <TabsContent value="race-day" className="mt-0 ring-0 focus-visible:outline-none">
               <RaceDayTab 
-                seasons={championship.seasons || []}
-                championshipName={championship.name}
                 championshipId={id}
               />
             </TabsContent>

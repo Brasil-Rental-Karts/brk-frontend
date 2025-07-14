@@ -59,8 +59,6 @@ interface SeasonWithStages {
 }
 
 interface RaceDayTabProps {
-  seasons: SeasonWithStages[];
-  championshipName?: string;
   championshipId?: string;
 }
 
@@ -93,8 +91,9 @@ const RaceDayHeader: React.FC<{
               onSelectSeason(seasonId);
               // Resetar para a primeira etapa da nova temporada
               const newSeason = seasons.find(s => s.id === seasonId);
-              if (newSeason?.stages?.length) {
-                onSelectStage(newSeason.stages[0].id);
+              const newSeasonStages = stages.filter(stage => stage.seasonId === seasonId);
+              if (newSeasonStages.length > 0) {
+                onSelectStage(newSeasonStages[0].id);
               }
             }}
           >
@@ -130,7 +129,7 @@ const RaceDayHeader: React.FC<{
   </div>
 );
 
-export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipName, championshipId }) => {
+export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   
@@ -142,9 +141,15 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     getRaceTracks,
     getStages,
     getStageParticipations,
+    getSeasons,
+    getChampionshipInfo,
     loading: contextLoading, 
     error: contextError
   } = useChampionshipData();
+  
+  // Obter temporadas e dados do campeonato do contexto
+  const seasons = getSeasons();
+  const championship = getChampionshipInfo();
   
   // Ler parâmetros da URL para restaurar estado
   const urlParams = new URLSearchParams(window.location.search);
@@ -154,7 +159,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   const urlBattery = urlParams.get('battery');
   
   // Filtrar temporadas válidas
-  const validSeasons = seasons.filter(s => s.status === 'agendado' || s.status === 'em_andamento');
+  const validSeasons = seasons.filter((s: any) => s.status === 'agendado' || s.status === 'em_andamento');
   // Função para pegar etapa mais próxima
   function getClosestStage(stages: any[]) {
     if (!stages || stages.length === 0) return undefined;
@@ -2408,7 +2413,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       
       message += `🏆 ${seasonName}\n`;
       message += `\n`;
-      message += `#BRK #Kart #Corrida #${championshipName?.replace(/\s+/g, '') || 'Championship'}`;
+              message += `#BRK #Kart #Corrida #${championship?.name?.replace(/\s+/g, '') || 'Championship'}`;
       
       // Copiar para clipboard
       await navigator.clipboard.writeText(message);
@@ -2535,9 +2540,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                   const seasonId = e.target.value;
                   setSelectedSeasonId(seasonId);
                   const newSeason = seasons.find(s => s.id === seasonId);
-                  if (newSeason?.stages?.length) {
-                    setSelectedStageId(getClosestStage(newSeason.stages) || newSeason.stages[0].id);
-                  } else {
+                          const newSeasonStages = stages.filter(stage => stage.seasonId === seasonId);
+        if (newSeasonStages.length > 0) {
+          setSelectedStageId(getClosestStage(newSeasonStages) || newSeasonStages[0].id);
+        } else {
                     setSelectedStageId("");
                   }
                 }}

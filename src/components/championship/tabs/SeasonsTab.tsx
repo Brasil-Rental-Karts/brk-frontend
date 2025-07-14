@@ -31,6 +31,7 @@ import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynami
 import { Pagination } from "brk-design-system";
 import { usePagination } from "@/hooks/usePagination";
 import { SeasonService, Season, PaymentCondition } from "@/lib/services/season.service";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { formatDateToBrazilian, getYearFromDate, compareDates } from "@/utils/date";
@@ -41,10 +42,6 @@ import { Loading } from '@/components/ui/loading';
 
 interface SeasonsTabProps {
   championshipId: string;
-  seasons: Season[];
-  isLoading: boolean;
-  error: string | null;
-  onRefresh: () => void;
 }
 
 // Configuração dos filtros
@@ -226,13 +223,15 @@ const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod }: {
  * Exibe e gerencia as temporadas de um campeonato específico
  */
 export const SeasonsTab = ({ 
-  championshipId, 
-  seasons: initialSeasons,
-  isLoading, 
-  error: initialError, 
-  onRefresh 
+  championshipId 
 }: SeasonsTabProps) => {
   const navigate = useNavigate();
+  const { 
+    getSeasons, 
+    loading: contextLoading, 
+    error: contextError,
+    removeSeason: removeSeasonFromContext
+  } = useChampionshipData();
   const isMobile = useIsMobile();
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortBy, setSortBy] = useState<keyof Season>("name");
@@ -244,12 +243,15 @@ export const SeasonsTab = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Obter dados do contexto
+  const seasons = getSeasons();
+
   // Aplicar filtros e ordenação aos dados
   const filteredSeasons = useMemo(() => {
-    let result = [...initialSeasons];
+    let result = [...seasons];
 
     // Aplicar filtros
-    result = result.filter(season => {
+    result = result.filter((season: Season) => {
       // Filtro por ano baseado no período (startDate) usando função utilitária
       if (filters.year) {
         const seasonYear = getYearFromDate(season.startDate);
@@ -262,7 +264,7 @@ export const SeasonsTab = ({
     });
 
     // Aplicar ordenação
-    result.sort((a, b) => {
+    result.sort((a: Season, b: Season) => {
       let aValue: any = a[sortBy];
       let bValue: any = b[sortBy];
 
@@ -286,7 +288,7 @@ export const SeasonsTab = ({
     });
 
     return result;
-  }, [initialSeasons, filters, sortBy, sortOrder]);
+  }, [seasons, filters, sortBy, sortOrder]);
 
   // --- Lógica para Desktop (Paginação) ---
   const pagination = usePagination(filteredSeasons.length, 5, 1);
@@ -361,7 +363,7 @@ export const SeasonsTab = ({
   };
 
   const handleDuplicateSeason = (seasonId: string) => {
-    const seasonToDuplicate = initialSeasons.find((s) => s.id === seasonId);
+    const seasonToDuplicate = seasons.find((s: Season) => s.id === seasonId);
     if (!seasonToDuplicate) return;
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -390,8 +392,8 @@ export const SeasonsTab = ({
     try {
       await SeasonService.delete(seasonToDelete.id);
       
-      // Atualizar a lista de temporadas notificando o componente pai
-      onRefresh();
+      // Atualizar a lista de temporadas usando o contexto
+      removeSeasonFromContext(seasonToDelete.id);
       
       // Fechar o modal
       setShowDeleteDialog(false);
@@ -410,7 +412,7 @@ export const SeasonsTab = ({
   };
 
   const handleSeasonAction = (action: string, seasonId: string) => {
-    const season = initialSeasons.find(s => s.id === seasonId);
+    const season = seasons.find((s: Season) => s.id === seasonId);
     if (!season) return;
 
     switch (action) {
@@ -469,7 +471,7 @@ export const SeasonsTab = ({
     pagination.actions.setItemsPerPage(itemsPerPage);
   };
 
-  if (initialSeasons.length === 0 && Object.keys(filters).length === 0) {
+  if (seasons.length === 0 && Object.keys(filters).length === 0) {
     return (
       <EmptyState
         icon={Trophy}

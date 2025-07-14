@@ -703,27 +703,37 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
 
   // Funções de atualização específicas para temporadas
   const addSeason = useCallback((season: Season) => {
-    setChampionshipData(prev => ({
-      ...prev,
-      seasons: [...prev.seasons, season],
-      lastUpdated: {
-        ...prev.lastUpdated,
-        seasons: new Date(),
-      },
-    }));
+    console.log('🔍 ChampionshipContext: addSeason chamada com:', season);
+    setChampionshipData(prev => {
+      const newData = {
+        ...prev,
+        seasons: [...prev.seasons, season],
+        lastUpdated: {
+          ...prev.lastUpdated,
+          seasons: new Date(),
+        },
+      };
+      console.log('✅ ChampionshipContext: Temporada adicionada ao contexto:', newData.seasons.length, 'temporadas');
+      return newData;
+    });
   }, []);
 
   const updateSeason = useCallback((seasonId: string, updatedSeason: Partial<Season>) => {
-    setChampionshipData(prev => ({
-      ...prev,
-      seasons: prev.seasons.map(season => 
-        season.id === seasonId ? { ...season, ...updatedSeason } : season
-      ),
-      lastUpdated: {
-        ...prev.lastUpdated,
-        seasons: new Date(),
-      },
-    }));
+    console.log('🔍 ChampionshipContext: updateSeason chamada com:', { seasonId, updatedSeason });
+    setChampionshipData(prev => {
+      const newData = {
+        ...prev,
+        seasons: prev.seasons.map(season => 
+          season.id === seasonId ? { ...season, ...updatedSeason } : season
+        ),
+        lastUpdated: {
+          ...prev.lastUpdated,
+          seasons: new Date(),
+        },
+      };
+      console.log('✅ ChampionshipContext: Temporada atualizada no contexto:', newData.seasons.length, 'temporadas');
+      return newData;
+    });
   }, []);
 
   const removeSeason = useCallback((seasonId: string) => {
@@ -739,14 +749,17 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
 
   // Funções de atualização específicas para categorias
   const addCategory = useCallback((category: Category) => {
-    setChampionshipData(prev => ({
-      ...prev,
-      categories: [...prev.categories, category],
-      lastUpdated: {
-        ...prev.lastUpdated,
-        categories: new Date(),
-      },
-    }));
+    setChampionshipData(prev => {
+      const newData = {
+        ...prev,
+        categories: [...prev.categories, category],
+        lastUpdated: {
+          ...prev.lastUpdated,
+          categories: new Date(),
+        },
+      };
+      return newData;
+    });
   }, []);
 
   const updateCategory = useCallback((categoryId: string, updatedCategory: Partial<Category>) => {
@@ -1136,27 +1149,29 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
 
   // Carregar classificações quando o championshipId mudar
   useEffect(() => {
-    if (championshipId) {
+    if (championshipId && championshipData.seasons.length > 0) {
       championshipData.seasons.forEach(season => {
-        const shouldFetchClassification = !getClassification(season.id);
+        // Só buscar classificação se a temporada ainda existe e não tem dados carregados
+        const shouldFetchClassification = !championshipData.classifications[season.id];
         if (shouldFetchClassification) {
-          refreshClassification(season.id);
+          fetchClassification(season.id);
         }
       });
     }
-  }, [championshipId, championshipData.seasons, refreshClassification, getClassification]);
+  }, [championshipId, championshipData.seasons.length]);
 
   // Carregar regulamentos quando o championshipId mudar
   useEffect(() => {
-    if (championshipId) {
+    if (championshipId && championshipData.seasons.length > 0) {
       championshipData.seasons.forEach(season => {
-        const shouldFetchRegulations = !getRegulations(season.id).length;
+        // Só buscar regulamentos se a temporada ainda existe e não tem dados carregados
+        const shouldFetchRegulations = !championshipData.regulations[season.id] || championshipData.regulations[season.id].length === 0;
         if (shouldFetchRegulations) {
-          refreshRegulations(season.id);
+          fetchRegulations(season.id);
         }
       });
     }
-  }, [championshipId, championshipData.seasons, refreshRegulations, getRegulations]);
+  }, [championshipId, championshipData.seasons.length]);
 
   // Carregar participações de etapas quando as etapas mudarem
   useEffect(() => {

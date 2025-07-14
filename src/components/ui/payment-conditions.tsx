@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, forwardRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
 import { Button } from 'brk-design-system';
 import { Input } from 'brk-design-system';
@@ -22,6 +22,8 @@ interface PaymentConditionsProps {
   value: PaymentCondition[];
   onChange: (conditions: PaymentCondition[]) => void;
   error?: string;
+  onBlur?: () => void;
+  name?: string;
 }
 
 // Função para formatar valor sem R$
@@ -61,11 +63,13 @@ const createInstallmentOptions = () => {
   return options;
 };
 
-export const PaymentConditions: React.FC<PaymentConditionsProps> = ({
+export const PaymentConditions = forwardRef<HTMLDivElement, PaymentConditionsProps>(({
   value = [],
   onChange,
-  error
-}) => {
+  error,
+  onBlur,
+  name
+}, ref) => {
   const [conditions, setConditions] = useState<PaymentCondition[]>(value);
   const [editingValues, setEditingValues] = useState<{ [key: number]: string }>({});
 
@@ -154,7 +158,7 @@ export const PaymentConditions: React.FC<PaymentConditionsProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div ref={ref} className="space-y-4" onBlur={onBlur}>
       <div className="flex items-center justify-between">
         <Label className="text-sm font-medium">Condições de Pagamento</Label>
         <Button
@@ -247,64 +251,64 @@ export const PaymentConditions: React.FC<PaymentConditionsProps> = ({
                 <div className="flex items-center space-x-2">
                   <input 
                     type="checkbox" 
-                    id={`credit-${index}`}
+                    id={`cartao-${index}`}
                     checked={condition.paymentMethods.includes('cartao_credito')}
                     onChange={(e) => handlePaymentMethodChange(index, 'cartao_credito', e.target.checked)}
                   />
-                  <Label htmlFor={`credit-${index}`} className="text-sm">Cartão de Crédito</Label>
+                  <Label htmlFor={`cartao-${index}`} className="text-sm">Cartão de Crédito</Label>
                 </div>
               </div>
-
-              {/* Configurações de Parcelas */}
-              {(condition.paymentMethods.includes('pix') || condition.paymentMethods.includes('cartao_credito')) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-                  {condition.paymentMethods.includes('pix') && (
-                    <div>
-                      <Label htmlFor={`pix-installments-${index}`}>Parcelas PIX</Label>
-                      <select
-                        id={`pix-installments-${index}`}
-                        value={condition.pixInstallments || 1}
-                        onChange={(e) => updateCondition(index, 'pixInstallments', parseInt(e.target.value))}
-                        className="w-full p-2 border border-input rounded-md bg-background"
-                      >
-                        {createInstallmentOptions().map(option => (
-                          <option key={option.value} value={option.value}>
-                            {option.description}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  {condition.paymentMethods.includes('cartao_credito') && (
-                    <div>
-                      <Label htmlFor={`credit-installments-${index}`}>Parcelas Cartão de Crédito</Label>
-                      <select
-                        id={`credit-installments-${index}`}
-                        value={condition.creditCardInstallments || 1}
-                        onChange={(e) => updateCondition(index, 'creditCardInstallments', parseInt(e.target.value))}
-                        className="w-full p-2 border border-input rounded-md bg-background"
-                      >
-                        {createInstallmentOptions().map(option => (
-                          <option key={option.value} value={option.value}>
-                            {option.description}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
+            {/* Configurações de Parcelas */}
+            {condition.paymentMethods.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {condition.paymentMethods.includes('pix') && (
+                  <div>
+                    <Label htmlFor={`pix-installments-${index}`}>Parcelas PIX</Label>
+                    <select
+                      id={`pix-installments-${index}`}
+                      value={condition.pixInstallments || 1}
+                      onChange={(e) => updateCondition(index, 'pixInstallments', parseInt(e.target.value))}
+                      className="w-full p-2 border border-input rounded-md bg-background"
+                    >
+                      {createInstallmentOptions().map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.description}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {condition.paymentMethods.includes('cartao_credito') && (
+                  <div>
+                    <Label htmlFor={`credit-installments-${index}`}>Parcelas Cartão</Label>
+                    <select
+                      id={`credit-installments-${index}`}
+                      value={condition.creditCardInstallments || 1}
+                      onChange={(e) => updateCondition(index, 'creditCardInstallments', parseInt(e.target.value))}
+                      className="w-full p-2 border border-input rounded-md bg-background"
+                    >
+                      {createInstallmentOptions().map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.description}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Descrição */}
             <div>
-              <Label htmlFor={`description-${index}`}>Descrição (opcional)</Label>
+              <Label htmlFor={`description-${index}`}>Descrição (Opcional)</Label>
               <Textarea
                 id={`description-${index}`}
                 value={condition.description || ''}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateCondition(index, 'description', e.target.value)}
-                placeholder="Descrição da condição de pagamento..."
+                onChange={(e) => updateCondition(index, 'description', e.target.value)}
+                placeholder="Ex: Pagamento à vista ou em até 3x"
                 className="w-full"
-                rows={2}
               />
             </div>
           </CardContent>
@@ -316,39 +320,8 @@ export const PaymentConditions: React.FC<PaymentConditionsProps> = ({
           {error}
         </div>
       )}
-
-      {conditions.length > 0 && (
-        <div className="bg-muted p-4 rounded-lg">
-          <h4 className="font-medium mb-2">Resumo das Condições</h4>
-          <div className="space-y-2">
-            {conditions
-              .filter(c => c.enabled)
-              .map((condition, index) => (
-                <div key={index} className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="capitalize">
-                      {condition.type === 'por_temporada' ? 'Por Temporada' : 'Por Etapa'}
-                      {condition.description && ` - ${condition.description}`}
-                    </span>
-                    <span className="font-medium">{formatCurrency(condition.value)}</span>
-                  </div>
-                  {condition.paymentMethods.length > 0 && (
-                    <div className="text-xs text-muted-foreground ml-4">
-                      Métodos: {condition.paymentMethods.map(method => 
-                        method === 'pix' ? 'PIX' : 'Cartão de Crédito'
-                      ).join(', ')}
-                    </div>
-                  )}
-                </div>
-              ))}
-            {conditions.filter(c => c.enabled).length === 0 && (
-              <p className="text-muted-foreground text-sm">
-                Nenhuma condição ativa configurada
-              </p>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
-}; 
+});
+
+PaymentConditions.displayName = 'PaymentConditions'; 

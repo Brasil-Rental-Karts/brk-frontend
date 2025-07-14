@@ -121,7 +121,12 @@ export const useFormScreen = <TData, TSubmit>({
 
   const loadData = useCallback(async () => {
     if (!isEditMode || !fetchData) {
-      setInitialData(defaultInitialValues || {});
+      // Se há dados iniciais (como dados duplicados), aplicar transformInitialData se disponível
+      let initialDataToSet = defaultInitialValues || {};
+      if (defaultInitialValues && transformInitialData) {
+        initialDataToSet = transformInitialData(defaultInitialValues as TData);
+      }
+      setInitialData(initialDataToSet);
       setIsLoading(false);
       setTimeout(() => setFormInitialized(true), 100);
       return;
