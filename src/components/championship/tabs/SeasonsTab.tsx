@@ -469,34 +469,6 @@ export const SeasonsTab = ({
     pagination.actions.setItemsPerPage(itemsPerPage);
   };
 
-  if (isLoading) {
-    return (
-      <Card className="w-full">
-        <div className="p-6">
-          <Loading type="spinner" size="lg" />
-        </div>
-      </Card>
-    );
-  }
-
-  if (initialError) {
-    return (
-      <Card className="w-full">
-        <div className="p-6">
-          <Alert variant="destructive">
-            <AlertTitle>Erro ao carregar temporadas</AlertTitle>
-            <AlertDescription>{initialError}</AlertDescription>
-          </Alert>
-          <div className="mt-4">
-            <Button onClick={onRefresh} variant="outline">
-              Tentar novamente
-            </Button>
-          </div>
-        </div>
-      </Card>
-    );
-  }
-
   if (initialSeasons.length === 0 && Object.keys(filters).length === 0) {
     return (
       <EmptyState

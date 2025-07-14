@@ -63,7 +63,8 @@ export const Dashboard = () => {
   const { 
     loadingChampionships, 
     championshipsError, 
-    refreshChampionships 
+    refreshChampionships,
+    championshipsOrganized
   } = useDashboardChampionships();
   
   // Hooks para dados do usuário
@@ -329,7 +330,7 @@ export const Dashboard = () => {
                   </Button>
                 </div>
               </div>
-            ) : (
+            ) : championshipsOrganized.length === 0 ? (
               <EmptyState
                 icon={Trophy}
                 title="Você ainda não organizou nenhum campeonato"
@@ -338,6 +339,45 @@ export const Dashboard = () => {
                   onClick: () => nav.goToCreateChampionship(),
                 }}
               />
+            ) : (
+              <div className="space-y-4">
+                {championshipsOrganized.map((championship) => (
+                  <div
+                    key={championship.id}
+                    className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => {
+                      const siteUrl = import.meta.env.VITE_SITE_URL;
+                      window.location.href = `${siteUrl}/campeonato/${championship.slug}`;
+                    }}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-medium text-sm truncate flex-1 mr-2" title={championship.name}>
+                        {championship.name}
+                      </h3>
+                      <Badge variant="outline" className="text-xs">
+                        {championship.isOwner ? 'Proprietário' : 'Staff'}
+                      </Badge>
+                    </div>
+                    
+                    {championship.shortDescription && (
+                      <p className="text-xs text-muted-foreground mb-2 overflow-hidden" style={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical'
+                      }}>
+                        {championship.shortDescription}
+                      </p>
+                    )}
+                    
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      <span>
+                        {championship.createdAt ? formatDateToBrazilian(championship.createdAt) : 'Data não disponível'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </Card>
         )}

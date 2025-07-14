@@ -14,7 +14,6 @@ import { AsaasAccountTab } from "@/components/championship/settings/AsaasAccount
 import { EditChampionshipTab } from "@/components/championship/settings/EditChampionshipTab";
 import { SponsorsTab } from "@/components/championship/settings/SponsorsTab";
 import { StaffTab } from "@/components/championship/settings/StaffTab";
-import { useChampionship } from "@/hooks/use-championship";
 import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 import { Alert, AlertDescription } from "brk-design-system";
@@ -45,7 +44,13 @@ export const Championship = () => {
   const isMobile = useIsMobile();
 
   // Usar o contexto de dados do campeonato
-  const { setChampionshipId, getStaff, loading: contextLoading, error: contextError } = useChampionshipData();
+  const { 
+    setChampionshipId, 
+    getStaff, 
+    getChampionshipInfo,
+    loading: contextLoading, 
+    error: contextError 
+  } = useChampionshipData();
 
   // Mapeamento de tabs (aceita inglês e português)
   const tabMapping: { [key: string]: string } = {
@@ -77,14 +82,8 @@ export const Championship = () => {
     'config-asaas': 'config-asaas',
   };
 
-  const {
-    championship,
-    loading,
-    error,
-    refresh
-  } = useChampionship(id);
-
-  // Obter staff do contexto
+  // Obter dados do campeonato do contexto
+  const championship = getChampionshipInfo();
   const staffMembers = getStaff();
   
   // Determinar permissões baseado no staff
@@ -193,7 +192,7 @@ export const Championship = () => {
   }, [searchParams, championship, activeTab, setSearchParams, permissions]);
   
   // Loading state
-  if (loading || permissionsLoading) {
+  if (contextLoading.championshipInfo || permissionsLoading) {
     return (
       <div className="container mx-auto p-4 space-y-6">
         <Loading type="spinner" size="lg" />
@@ -202,17 +201,17 @@ export const Championship = () => {
   }
 
   // Error state
-  if (error || contextError.staff || !championship || !id) {
+  if (contextError.championshipInfo || contextError.staff || !championship || !id) {
     return (
       <div className="container mx-auto p-4">
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            {error || contextError.staff || "Campeonato não encontrado"}
+            {contextError.championshipInfo || contextError.staff || "Campeonato não encontrado"}
           </AlertDescription>
         </Alert>
         <div className="mt-4">
-          <Button onClick={refresh} variant="outline">
+          <Button onClick={() => window.location.reload()} variant="outline">
             Tentar novamente
           </Button>
         </div>
@@ -324,9 +323,9 @@ export const Championship = () => {
               <SeasonsTab 
                 championshipId={id} 
                 seasons={championship.seasons || []}
-                isLoading={loading}
-                error={error}
-                onRefresh={refresh}
+                isLoading={contextLoading.seasons}
+                error={contextError.seasons}
+                onRefresh={() => window.location.reload()}
               />
             </TabsContent>
           )}
@@ -336,9 +335,9 @@ export const Championship = () => {
               <CategoriesTab 
                 championshipId={id}
                 seasons={championship.seasons || []}
-                isLoading={loading}
-                error={error}
-                onRefresh={refresh}
+                isLoading={contextLoading.categories}
+                error={contextError.categories}
+                onRefresh={() => window.location.reload()}
               />
             </TabsContent>
           )}
@@ -348,9 +347,9 @@ export const Championship = () => {
               <StagesTab 
                 championshipId={id}
                 seasons={championship.seasons || []}
-                isLoading={loading}
-                error={error}
-                onRefresh={refresh}
+                isLoading={contextLoading.stages}
+                error={contextError.stages}
+                onRefresh={() => window.location.reload()}
               />
             </TabsContent>
           )}
@@ -369,13 +368,7 @@ export const Championship = () => {
 
           {permissions?.regulations && hasSeasons && (
             <TabsContent value="regulamento" className="mt-0 ring-0 focus-visible:outline-none">
-              <RegulationTab 
-                championshipId={id}
-                seasons={championship.seasons || []}
-                isLoading={loading}
-                error={error}
-                onRefresh={refresh}
-              />
+              <RegulationTab championshipId={id} />
             </TabsContent>
           )}
 

@@ -487,34 +487,6 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
   const isDataLoading = isLoading || contextLoading.seasons || contextLoading.stages;
   const dataError = initialError || contextError.seasons || contextError.stages;
 
-  if (isDataLoading) {
-    return (
-      <Card className="w-full">
-        <div className="p-6">
-          <InlineLoader size="lg" />
-        </div>
-      </Card>
-    );
-  }
-
-  if (dataError) {
-    return (
-      <Card className="w-full">
-        <div className="p-6">
-          <Alert variant="destructive">
-            <AlertTitle>Erro ao carregar etapas</AlertTitle>
-            <AlertDescription>{dataError}</AlertDescription>
-          </Alert>
-          <div className="mt-4">
-            <Button onClick={onRefresh} variant="outline">
-              Tentar novamente
-            </Button>
-          </div>
-        </div>
-      </Card>
-    );
-  }
-
   if (filteredStages.length === 0 && Object.keys(filters).length === 0) {
     return (
       <EmptyState

@@ -11,6 +11,8 @@ import { ChampionshipStaffService, StaffMember } from '@/lib/services/championsh
 import { SeasonRegistrationService, SeasonRegistration } from '@/lib/services/season-registration.service';
 import { PenaltyService, Penalty } from '@/lib/services/penalty.service';
 import { ChampionshipClassificationService } from '@/lib/services/championship-classification.service';
+import { RegulationService, Regulation } from '@/lib/services/regulation.service';
+import { ChampionshipService } from '@/lib/services/championship.service';
 
 // Interface para dados de classificação do Redis
 interface ClassificationUser {
@@ -45,6 +47,7 @@ interface RedisClassificationData {
 }
 
 interface ChampionshipData {
+  championshipInfo: Championship | null;
   seasons: Season[];
   categories: Category[];
   stages: Stage[];
@@ -53,7 +56,9 @@ interface ChampionshipData {
   registrations: SeasonRegistration[];
   penalties: Penalty[];
   classifications: Record<string, RedisClassificationData>;
+  regulations: Record<string, Regulation[]>;
   lastUpdated: {
+    championshipInfo: Date | null;
     seasons: Date | null;
     categories: Date | null;
     stages: Date | null;
@@ -62,6 +67,7 @@ interface ChampionshipData {
     registrations: Date | null;
     penalties: Date | null;
     classifications: Date | null;
+    regulations: Date | null;
   };
 }
 
@@ -69,6 +75,7 @@ interface ChampionshipContextType {
   championshipId: string | null;
   championshipData: ChampionshipData;
   loading: {
+    championshipInfo: boolean;
     seasons: boolean;
     categories: boolean;
     stages: boolean;
@@ -77,8 +84,10 @@ interface ChampionshipContextType {
     registrations: boolean;
     penalties: boolean;
     classifications: boolean;
+    regulations: boolean;
   };
   error: {
+    championshipInfo: string | null;
     seasons: string | null;
     categories: string | null;
     stages: string | null;
@@ -87,6 +96,7 @@ interface ChampionshipContextType {
     registrations: string | null;
     penalties: string | null;
     classifications: string | null;
+    regulations: string | null;
   };
   
   // Funções de busca
@@ -98,6 +108,8 @@ interface ChampionshipContextType {
   fetchRegistrations: () => Promise<void>;
   fetchPenalties: () => Promise<void>;
   fetchClassification: (seasonId: string) => Promise<void>;
+  fetchRegulations: (seasonId: string) => Promise<void>;
+  fetchChampionshipInfo: () => Promise<void>;
   
   // Funções de atualização
   refreshSeasons: () => Promise<void>;
@@ -108,6 +120,7 @@ interface ChampionshipContextType {
   refreshRegistrations: () => Promise<void>;
   refreshPenalties: () => Promise<void>;
   refreshClassification: (seasonId: string) => Promise<void>;
+  refreshRegulations: (seasonId: string) => Promise<void>;
   
   // Funções de cache
   getSeasons: () => Season[];
@@ -118,6 +131,8 @@ interface ChampionshipContextType {
   getRegistrations: () => SeasonRegistration[];
   getPenalties: () => Penalty[];
   getClassification: (seasonId: string) => RedisClassificationData | null;
+  getRegulations: (seasonId: string) => Regulation[];
+  getChampionshipInfo: () => Championship | null;
   
   // Funções de atualização específicas
   addSeason: (season: Season) => void;
@@ -147,6 +162,11 @@ interface ChampionshipContextType {
   updateClassification: (seasonId: string, classification: RedisClassificationData) => void;
   removeClassification: (seasonId: string) => void;
   
+  addRegulation: (seasonId: string, regulation: Regulation) => void;
+  updateRegulation: (seasonId: string, regulationId: string, updatedRegulation: Partial<Regulation>) => void;
+  removeRegulation: (seasonId: string, regulationId: string) => void;
+  updateRegulationsOrder: (seasonId: string, regulations: Regulation[]) => void;
+  
   // Funções de limpeza
   clearCache: () => void;
   setChampionshipId: (id: string | null) => void;
@@ -161,6 +181,7 @@ interface ChampionshipProviderProps {
 export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ children }) => {
   const [championshipId, setChampionshipId] = useState<string | null>(null);
   const [championshipData, setChampionshipData] = useState<ChampionshipData>({
+    championshipInfo: null,
     seasons: [],
     categories: [],
     stages: [],
@@ -169,7 +190,9 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     registrations: [],
     penalties: [],
     classifications: {},
+    regulations: {},
     lastUpdated: {
+      championshipInfo: null,
       seasons: null,
       categories: null,
       stages: null,
@@ -178,10 +201,12 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       registrations: null,
       penalties: null,
       classifications: null,
+      regulations: null,
     },
   });
   
   const [loading, setLoading] = useState({
+    championshipInfo: false,
     seasons: false,
     categories: false,
     stages: false,
@@ -190,9 +215,11 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     registrations: false,
     penalties: false,
     classifications: false,
+    regulations: false,
   });
   
   const [error, setError] = useState({
+    championshipInfo: null,
     seasons: null,
     categories: null,
     stages: null,
@@ -201,6 +228,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     registrations: null,
     penalties: null,
     classifications: null,
+    regulations: null,
   });
 
   // Usar refs para controlar o estado de loading sem causar re-renders
@@ -213,6 +241,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     registrations: false,
     penalties: false,
     classifications: false,
+    regulations: false,
   });
 
   // Ref para controlar se já buscamos as temporadas
@@ -491,6 +520,63 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }
   }, [championshipId]);
 
+  // Função para buscar regulamentos
+  const fetchRegulations = useCallback(async (seasonId: string) => {
+    if (!championshipId || loadingRef.current.regulations) return;
+
+    loadingRef.current.regulations = true;
+    setLoading(prev => ({ ...prev, regulations: true }));
+    setError(prev => ({ ...prev, regulations: null }));
+
+    try {
+      const regulationsData = await RegulationService.getBySeasonId(seasonId);
+      setChampionshipData(prev => ({
+        ...prev,
+        regulations: {
+          ...prev.regulations,
+          [seasonId]: regulationsData,
+        },
+        lastUpdated: {
+          ...prev.lastUpdated,
+          regulations: new Date(),
+        },
+      }));
+    } catch (err: any) {
+      setError(prev => ({ ...prev, regulations: err.message || 'Erro ao carregar regulamentos' }));
+    } finally {
+      loadingRef.current.regulations = false;
+      setLoading(prev => ({ ...prev, regulations: false }));
+    }
+  }, [championshipId]);
+
+  // Função para buscar dados do campeonato
+  const fetchChampionshipInfo = useCallback(async () => {
+    if (!championshipId) return;
+    // Só busca se ainda não carregou
+    if (championshipData.championshipInfo && championshipData.championshipInfo.id === championshipId) return;
+    setLoading(prev => ({ ...prev, championshipInfo: true }));
+    setError(prev => ({ ...prev, championshipInfo: null }));
+    try {
+      const info = await ChampionshipService.getById(championshipId);
+      setChampionshipData(prev => ({
+        ...prev,
+        championshipInfo: info,
+        lastUpdated: {
+          ...prev.lastUpdated,
+          championshipInfo: new Date(),
+        },
+      }));
+    } catch (err: any) {
+      setError(prev => ({ ...prev, championshipInfo: err.message || 'Erro ao carregar campeonato' }));
+    } finally {
+      setLoading(prev => ({ ...prev, championshipInfo: false }));
+    }
+  }, [championshipId, championshipData.championshipInfo]);
+
+  const getChampionshipInfo = useCallback(() => {
+    return championshipData.championshipInfo;
+  }, [championshipData.championshipInfo]);
+
   // Funções de refresh (força atualização)
   const refreshSeasons = useCallback(async () => {
     await fetchSeasons();
@@ -524,6 +610,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     await fetchClassification(seasonId);
   }, [fetchClassification]);
 
+  const refreshRegulations = useCallback(async (seasonId: string) => {
+    await fetchRegulations(seasonId);
+  }, [fetchRegulations]);
+
   // Funções de cache (retornam dados em cache)
   const getSeasons = useCallback(() => {
     return championshipData.seasons;
@@ -556,6 +646,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   const getClassification = useCallback((seasonId: string) => {
     return championshipData.classifications[seasonId] || null;
   }, [championshipData.classifications]);
+
+  const getRegulations = useCallback((seasonId: string) => {
+    return championshipData.regulations[seasonId] || [];
+  }, [championshipData.regulations]);
 
   // Funções de atualização específicas para temporadas
   const addSeason = useCallback((season: Season) => {
@@ -804,9 +898,69 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }));
   }, []);
 
+  // Funções de atualização específicas para regulamentos
+  const addRegulation = useCallback((seasonId: string, regulation: Regulation) => {
+    setChampionshipData(prev => ({
+      ...prev,
+      regulations: {
+        ...prev.regulations,
+        [seasonId]: [...(prev.regulations[seasonId] || []), regulation],
+      },
+      lastUpdated: {
+        ...prev.lastUpdated,
+        regulations: new Date(),
+      },
+    }));
+  }, []);
+
+  const updateRegulation = useCallback((seasonId: string, regulationId: string, updatedRegulation: Partial<Regulation>) => {
+    setChampionshipData(prev => ({
+      ...prev,
+      regulations: {
+        ...prev.regulations,
+        [seasonId]: prev.regulations[seasonId]?.map(reg =>
+          reg.id === regulationId ? { ...reg, ...updatedRegulation } : reg
+        ) || [],
+      },
+      lastUpdated: {
+        ...prev.lastUpdated,
+        regulations: new Date(),
+      },
+    }));
+  }, []);
+
+  const removeRegulation = useCallback((seasonId: string, regulationId: string) => {
+    setChampionshipData(prev => ({
+      ...prev,
+      regulations: {
+        ...prev.regulations,
+        [seasonId]: prev.regulations[seasonId]?.filter(reg => reg.id !== regulationId) || [],
+      },
+      lastUpdated: {
+        ...prev.lastUpdated,
+        regulations: new Date(),
+      },
+    }));
+  }, []);
+
+  const updateRegulationsOrder = useCallback((seasonId: string, regulations: Regulation[]) => {
+    setChampionshipData(prev => ({
+      ...prev,
+      regulations: {
+        ...prev.regulations,
+        [seasonId]: regulations,
+      },
+      lastUpdated: {
+        ...prev.lastUpdated,
+        regulations: new Date(),
+      },
+    }));
+  }, []);
+
   // Função para limpar cache
   const clearCache = useCallback(() => {
     setChampionshipData({
+      championshipInfo: null,
       seasons: [],
       categories: [],
       stages: [],
@@ -815,7 +969,9 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       registrations: [],
       penalties: [],
       classifications: {},
+      regulations: {},
       lastUpdated: {
+        championshipInfo: null,
         seasons: null,
         categories: null,
         stages: null,
@@ -824,9 +980,11 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         registrations: null,
         penalties: null,
         classifications: null,
+        regulations: null,
       },
     });
     setError({
+      championshipInfo: null,
       seasons: null,
       categories: null,
       stages: null,
@@ -835,6 +993,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       registrations: null,
       penalties: null,
       classifications: null,
+      regulations: null,
     });
     
     // Resetar os refs de controle
@@ -934,6 +1093,25 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }
   }, [championshipId, championshipData.seasons, refreshClassification, getClassification]);
 
+  // Carregar regulamentos quando o championshipId mudar
+  useEffect(() => {
+    if (championshipId) {
+      championshipData.seasons.forEach(season => {
+        const shouldFetchRegulations = !getRegulations(season.id).length;
+        if (shouldFetchRegulations) {
+          refreshRegulations(season.id);
+        }
+      });
+    }
+  }, [championshipId, championshipData.seasons, refreshRegulations, getRegulations]);
+
+  // Carregar dados do campeonato quando o championshipId mudar
+  useEffect(() => {
+    if (championshipId) {
+      fetchChampionshipInfo();
+    }
+  }, [championshipId, fetchChampionshipInfo]);
+
   const value: ChampionshipContextType = {
     championshipId,
     championshipData,
@@ -947,6 +1125,9 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     fetchRegistrations,
     fetchPenalties,
     fetchClassification,
+    fetchRegulations,
+    fetchChampionshipInfo,
+    getChampionshipInfo,
     refreshSeasons,
     refreshCategories,
     refreshStages,
@@ -955,6 +1136,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     refreshRegistrations,
     refreshPenalties,
     refreshClassification,
+    refreshRegulations,
     getSeasons,
     getCategories,
     getStages,
@@ -963,6 +1145,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     getRegistrations,
     getPenalties,
     getClassification,
+    getRegulations,
     addSeason,
     updateSeason,
     removeSeason,
@@ -983,6 +1166,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     removePenalty,
     updateClassification,
     removeClassification,
+    addRegulation,
+    updateRegulation,
+    removeRegulation,
+    updateRegulationsOrder,
     clearCache,
     setChampionshipId,
   };

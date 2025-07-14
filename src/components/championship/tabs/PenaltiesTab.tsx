@@ -788,56 +788,6 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
   const dataError = contextError.penalties || contextError.seasons || contextError.categories || contextError.stages;
 
   // Mostrar loading primeiro, antes de qualquer outra verificação
-  if (isDataLoading) {
-    return (
-      <div className="space-y-6">
-        {/* Título da aba */}
-        <div className="border-b border-gray-200 pb-4">
-          <h2 className="text-2xl font-bold text-gray-900">Punições</h2>
-          <p className="text-sm text-gray-600 mt-1">
-            Gerencie as punições aplicadas no campeonato
-          </p>
-        </div>
-
-        {/* Loading state */}
-        <Card className="w-full">
-          <div className="p-6">
-            <InlineLoader size="lg" />
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
-  if (dataError) {
-    return (
-      <div className="space-y-6">
-        {/* Título da aba */}
-        <div className="border-b border-gray-200 pb-4">
-          <h2 className="text-2xl font-bold text-gray-900">Punições</h2>
-          <p className="text-sm text-gray-600 mt-1">
-            Gerencie as punições aplicadas no campeonato
-          </p>
-        </div>
-
-        <Card className="w-full">
-          <div className="p-6">
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Erro ao carregar punições</AlertTitle>
-              <AlertDescription>{dataError}</AlertDescription>
-            </Alert>
-            <div className="mt-4">
-              <Button onClick={() => window.location.reload()} variant="outline">
-                Tentar novamente
-              </Button>
-            </div>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
   if (filteredPenalties.length === 0 && Object.keys(filters).length === 0) {
     return (
       <div className="space-y-6">

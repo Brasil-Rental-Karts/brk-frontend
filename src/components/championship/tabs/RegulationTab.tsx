@@ -29,27 +29,15 @@ import remarkGfm from "remark-gfm";
 import { Switch } from "@radix-ui/react-switch";
 import { PDFGenerator, RegulationPDFData } from "@/utils/pdf-generator";
 import { InlineLoader } from '@/components/ui/loading';
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 interface RegulationTabProps {
   championshipId: string;
-  seasons: Season[];
-  isLoading?: boolean;
-  error?: string | null;
-  onRefresh?: () => void;
 }
 
-export const RegulationTab = ({ 
-  championshipId, 
-  seasons, 
-  isLoading = false, 
-  error = null, 
-  onRefresh 
-}: RegulationTabProps) => {
+export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
   const [selectedSeason, setSelectedSeason] = useState<string>("");
   const [seasonData, setSeasonData] = useState<Season | null>(null);
-  const [championshipData, setChampionshipData] = useState<Championship | null>(null);
-  const [regulations, setRegulations] = useState<Regulation[]>([]);
-  const [loading, setLoading] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [editingRegulation, setEditingRegulation] = useState<Regulation | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -61,52 +49,64 @@ export const RegulationTab = ({
   });
   const [showMarkdownHelp, setShowMarkdownHelp] = useState(false);
 
+  // Usar o contexto de dados do campeonato
+  const { 
+    getSeasons, 
+    getRegulations,
+    fetchRegulations,
+    refreshRegulations,
+    addRegulation,
+    updateRegulation,
+    removeRegulation,
+    updateRegulationsOrder,
+    getChampionshipInfo,
+    loading: contextLoading, 
+    error: contextError
+  } = useChampionshipData();
+
+  // Obter dados do contexto
+  const contextSeasons = getSeasons();
+  const championshipData = getChampionshipInfo();
+
   // Carregar dados da temporada selecionada
   useEffect(() => {
     if (selectedSeason) {
       SeasonService.getById(selectedSeason).then(setSeasonData).catch(() => setSeasonData(null));
       loadRegulations(selectedSeason);
     } else {
-      setRegulations([]);
       setSeasonData(null);
     }
   }, [selectedSeason]);
 
-  // Carregar dados do campeonato
-  useEffect(() => {
-    if (championshipId) {
-      ChampionshipService.getById(championshipId)
-        .then(setChampionshipData)
-        .catch(() => setChampionshipData(null));
-    }
-  }, [championshipId]);
-
   const loadRegulations = async (seasonId: string) => {
     try {
-      setLoading(true);
-      const data = await RegulationService.getBySeasonIdOrdered(seasonId);
-      setRegulations(data);
+      // Buscar regulamentos do contexto
+      let regulations = getRegulations(seasonId);
+      
+      // Se não existe no contexto, buscar do backend
+      if (regulations.length === 0) {
+        await fetchRegulations(seasonId);
+        regulations = getRegulations(seasonId);
+      }
     } catch (error) {
       console.error("Error loading regulations:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleCreateRegulation = async () => {
     try {
-      setLoading(true);
       const newRegulation = await RegulationService.create({
         ...formData,
         seasonId: selectedSeason
       });
-      setRegulations(prev => [...prev, newRegulation]);
+      
+      // Adicionar ao contexto
+      addRegulation(selectedSeason, newRegulation);
+      
       setShowCreateForm(false);
       setFormData({ title: "", content: "", seasonId: "" });
     } catch (error) {
       console.error("Error creating regulation:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -114,21 +114,19 @@ export const RegulationTab = ({
     if (!editingRegulation) return;
     
     try {
-      setLoading(true);
       const updatedRegulation = await RegulationService.update(editingRegulation.id, {
         title: formData.title,
         content: formData.content
       });
-      setRegulations(prev => 
-        prev.map(reg => reg.id === editingRegulation.id ? updatedRegulation : reg)
-      );
+      
+      // Atualizar no contexto
+      updateRegulation(selectedSeason, editingRegulation.id, updatedRegulation);
+      
       setShowEditForm(false);
       setEditingRegulation(null);
       setFormData({ title: "", content: "", seasonId: "" });
     } catch (error) {
       console.error("Error updating regulation:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -136,13 +134,12 @@ export const RegulationTab = ({
     if (!confirm("Tem certeza que deseja excluir esta seção do regulamento?")) return;
     
     try {
-      setLoading(true);
       await RegulationService.delete(id);
-      setRegulations(prev => prev.filter(reg => reg.id !== id));
+      
+      // Remover do contexto
+      removeRegulation(selectedSeason, id);
     } catch (error) {
       console.error("Error deleting regulation:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -157,15 +154,19 @@ export const RegulationTab = ({
   function handleDragEnd(event: any) {
     const { active, over } = event;
     if (active.id !== over?.id) {
-      const oldIndex = regulations.findIndex(item => item.id === active.id);
-      const newIndex = regulations.findIndex(item => item.id === over.id);
-      const items = arrayMove(regulations, oldIndex, newIndex);
-      setRegulations(items);
+      const currentRegulations = getRegulations(selectedSeason);
+      const oldIndex = currentRegulations.findIndex(item => item.id === active.id);
+      const newIndex = currentRegulations.findIndex(item => item.id === over.id);
+      const items = arrayMove(currentRegulations, oldIndex, newIndex);
+      
+      // Atualizar ordem no contexto
+      updateRegulationsOrder(selectedSeason, items);
+      
       // Update order in backend
       RegulationService.reorder({
         seasonId: selectedSeason,
         regulationIds: items.map(item => item.id)
-      }).catch(() => loadRegulations(selectedSeason));
+      }).catch(() => refreshRegulations(selectedSeason));
     }
   }
 
@@ -189,8 +190,14 @@ export const RegulationTab = ({
   };
 
   const handleGeneratePDF = async () => {
-    if (!championshipData || !seasonData || regulations.length === 0) {
+    if (!championshipData || !seasonData) {
       alert('Não é possível gerar o PDF. Verifique se há regulamentos cadastrados.');
+      return;
+    }
+
+    const regulations = getRegulations(selectedSeason);
+    if (regulations.length === 0) {
+      alert('Não há regulamentos cadastrados para gerar o PDF.');
       return;
     }
 
@@ -224,23 +231,6 @@ export const RegulationTab = ({
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <InlineLoader size="lg" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Título da aba */}
@@ -261,7 +251,7 @@ export const RegulationTab = ({
           className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <option value="">Selecione uma temporada</option>
-          {seasons.map((season) => (
+          {contextSeasons.map((season) => (
             <option key={season.id} value={season.id}>
               {season.name}
             </option>
@@ -329,7 +319,7 @@ export const RegulationTab = ({
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <h3 className="text-lg font-semibold">Seções do Regulamento</h3>
             <div className="flex flex-col sm:flex-row gap-2">
-              {regulations.length > 0 && (
+              {getRegulations(selectedSeason).length > 0 && (
                 <Button 
                   onClick={handleGeneratePDF}
                   variant="outline"
@@ -447,7 +437,7 @@ export const RegulationTab = ({
                   <Button variant="outline" onClick={() => setShowCreateForm(false)}>
                     Cancelar
                   </Button>
-                  <Button onClick={handleCreateRegulation} disabled={loading || !formData.title || !formData.content}>
+                  <Button onClick={handleCreateRegulation} disabled={!formData.title || !formData.content}>
                     Criar
                   </Button>
                 </div>
@@ -547,7 +537,7 @@ export const RegulationTab = ({
                   <Button variant="outline" onClick={() => setShowEditForm(false)}>
                     Cancelar
                   </Button>
-                  <Button onClick={handleUpdateRegulation} disabled={loading || !formData.title || !formData.content}>
+                  <Button onClick={handleUpdateRegulation} disabled={!formData.title || !formData.content}>
                     Salvar
                   </Button>
                 </div>
@@ -556,11 +546,11 @@ export const RegulationTab = ({
           )}
 
           {/* Regulations List */}
-          {loading ? (
+          {contextLoading.regulations ? (
             <div className="space-y-4">
               <InlineLoader size="md" />
             </div>
-          ) : regulations.length === 0 ? (
+          ) : getRegulations(selectedSeason).length === 0 ? (
             <Alert>
               <AlertDescription>
                 Nenhuma seção do regulamento encontrada para esta temporada.
@@ -568,8 +558,8 @@ export const RegulationTab = ({
             </Alert>
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={regulations.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                {regulations.map((regulation, index) => (
+              <SortableContext items={getRegulations(selectedSeason).map(i => i.id)} strategy={verticalListSortingStrategy}>
+                {getRegulations(selectedSeason).map((regulation, index) => (
                   <SortableRegulationCard
                     key={regulation.id}
                     regulation={regulation}

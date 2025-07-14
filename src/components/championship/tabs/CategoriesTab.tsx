@@ -362,8 +362,8 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
   const handleItemsPerPageChange = (items: number) => pagination.actions.setItemsPerPage(items);
 
   // Determinar loading e error
-  const isDataLoading = isLoading || contextLoading.seasons || contextLoading.categories;
-  const dataError = initialError || contextError.seasons || contextError.categories;
+  const isDataLoading = contextLoading.seasons || contextLoading.categories;
+  const dataError = contextError.seasons || contextError.categories;
 
   if (isDataLoading) {
     return (

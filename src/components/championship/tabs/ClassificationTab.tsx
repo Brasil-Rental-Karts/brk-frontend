@@ -527,34 +527,6 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
   const isDataLoading = contextLoading.seasons || contextLoading.categories || contextLoading.classifications;
   const dataError = contextError.seasons || contextError.categories || contextError.classifications;
 
-  if (isDataLoading) {
-    return (
-      <Card className="w-full">
-        <div className="p-6">
-          <Loading type="spinner" size="lg" />
-        </div>
-      </Card>
-    );
-  }
-
-  if (dataError) {
-    return (
-      <Card className="w-full">
-        <div className="p-6">
-          <Alert variant="destructive">
-            <AlertTitle>Erro ao carregar classificação</AlertTitle>
-            <AlertDescription>{dataError}</AlertDescription>
-          </Alert>
-          <div className="mt-4">
-            <Button onClick={() => fetchSeasons()} variant="outline">
-              Tentar novamente
-            </Button>
-          </div>
-        </div>
-      </Card>
-    );
-  }
-
   if (!selectedSeasonId) {
     return (
       <EmptyState

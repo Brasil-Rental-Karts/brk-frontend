@@ -579,22 +579,8 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     }
   }, [processedRegistrations]);
 
-  // Determinar loading e error
-  const isDataLoading = contextLoading.registrations || contextLoading.seasons || contextLoading.categories;
-  const dataError = contextError.registrations || contextError.seasons || contextError.categories;
-
-  if (isDataLoading) {
-    return (
-      <Card className="w-full">
-        <div className="p-6">
-          <InlineLoader size="lg" />
-        </div>
-      </Card>
-    );
-  }
-
   // Verificar se o contexto está pronto e se há dados
-  if (contextRegistrations.length === 0 && !isDataLoading) {
+  if (contextRegistrations.length === 0 && !contextLoading.registrations) {
     return (
       <Card className="w-full">
         <div className="p-6">
@@ -608,13 +594,13 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     );
   }
 
-  if (dataError) {
+  if (contextError.registrations) {
     return (
       <Card className="w-full">
         <div className="p-6">
           <Alert variant="destructive">
             <AlertTitle>Erro ao carregar pilotos</AlertTitle>
-            <AlertDescription>{dataError}</AlertDescription>
+            <AlertDescription>{contextError.registrations}</AlertDescription>
           </Alert>
           <div className="mt-4">
             <Button onClick={() => window.location.reload()} variant="outline">
@@ -626,7 +612,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     );
   }
 
-  if (processedRegistrations.length === 0 && Object.keys(filters).length === 0 && !isDataLoading) {
+  if (processedRegistrations.length === 0 && Object.keys(filters).length === 0 && !contextLoading.registrations) {
     return (
       <EmptyState
         icon={Users}

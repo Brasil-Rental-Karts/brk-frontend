@@ -5,6 +5,7 @@ export interface UseDashboardChampionshipsReturn {
   loadingChampionships: boolean;
   championshipsError: string | null;
   refreshChampionships: () => Promise<void>;
+  championshipsOrganized: any[];
 }
 
 export const useDashboardChampionships = (): UseDashboardChampionshipsReturn => {
@@ -44,5 +45,6 @@ export const useDashboardChampionships = (): UseDashboardChampionshipsReturn => 
     loadingChampionships,
     championshipsError,
     refreshChampionships,
+    championshipsOrganized,
   };
 }; 
