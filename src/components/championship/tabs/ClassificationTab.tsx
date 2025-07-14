@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Button } from "brk-design-system";
 import { Card, CardHeader, CardContent } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { Trophy, Medal, Target, Star, Users, MoreVertical } from "lucide-react";
+import { Trophy, Medal, Target, Star, Users, MoreVertical, RefreshCw } from "lucide-react";
 import { EmptyState } from "brk-design-system";
 import {
   DropdownMenu,
@@ -25,10 +25,44 @@ import { usePagination } from "@/hooks/usePagination";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 import { SeasonService, Season } from "@/lib/services/season.service";
-import { ChampionshipClassificationService, SeasonClassification, ClassificationEntry } from "@/lib/services/championship-classification.service";
+import { ChampionshipClassificationService } from "@/lib/services/championship-classification.service";
+import { CategoryService } from "@/lib/services/category.service";
 import { Loading } from '@/components/ui/loading';
 import { InlineLoader } from '@/components/ui/loading';
 import { formatName } from '@/utils/name';
+import { toast } from "sonner";
+
+// Interfaces para a nova estrutura de dados do Redis
+interface ClassificationUser {
+  id: string;
+  name: string;
+  nickname: string | null;
+}
+
+interface ClassificationPilot {
+  totalPoints: number;
+  totalStages: number;
+  wins: number;
+  podiums: number;
+  polePositions: number;
+  fastestLaps: number;
+  bestPosition: number | null;
+  averagePosition: string | null;
+  lastCalculatedAt: string;
+  user: ClassificationUser;
+  categoryId?: string; // Adicionado para identificação
+}
+
+interface RedisClassificationData {
+  lastUpdated: string;
+  totalCategories: number;
+  totalPilots: number;
+  classificationsByCategory: {
+    [categoryId: string]: {
+      pilots: ClassificationPilot[];
+    };
+  };
+}
 
 interface ClassificationTabProps {
   championshipId: string;
@@ -54,9 +88,9 @@ const createFilterFields = (seasonOptions: { value: string; label: string }[] = 
 
 // Componente Card para Mobile
 const ClassificationCard = ({ entry, position, onAction }: { 
-  entry: ClassificationEntry, 
+  entry: ClassificationPilot, 
   position: number, 
-  onAction: (action: string, entry: ClassificationEntry) => void 
+  onAction: (action: string, entry: ClassificationPilot) => void 
 }) => {
   const renderPositionBadge = (position: number) => {
     if (position === 1) {
@@ -118,9 +152,6 @@ const ClassificationCard = ({ entry, position, onAction }: {
         </DropdownMenu>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center gap-2">
-          <span className="font-medium">{entry.category.name}</span>
-        </div>
         
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex flex-col">
@@ -184,13 +215,17 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterValues>({});
+  const [updatingCache, setUpdatingCache] = useState(false);
   
   // Dados básicos
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>("");
   
   // Dados de classificação do Redis
-  const [seasonClassification, setSeasonClassification] = useState<SeasonClassification | null>(null);
+  const [seasonClassification, setSeasonClassification] = useState<RedisClassificationData | null>(null);
+  
+  // Dados das categorias para mapear IDs para nomes
+  const [categories, setCategories] = useState<{[key: string]: {id: string, name: string}}>({});
 
   // Carregar dados iniciais
   const fetchSeasons = useCallback(async () => {
@@ -215,6 +250,27 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
     }
   }, [championshipId]);
 
+  // Carregar categorias da temporada selecionada
+  const fetchCategories = useCallback(async (seasonId: string) => {
+    try {
+      const categoriesData = await CategoryService.getBySeasonId(seasonId);
+      
+      // Criar mapa de categorias por ID
+      const categoriesMap: {[key: string]: {id: string, name: string}} = {};
+      categoriesData.forEach((category: any) => {
+        categoriesMap[category.id] = {
+          id: category.id,
+          name: category.name
+        };
+      });
+      
+      setCategories(categoriesMap);
+    } catch (err: any) {
+      console.error('Erro ao carregar categorias:', err);
+      setCategories({});
+    }
+  }, []);
+
   // Carregar classificação da temporada
   const fetchClassification = useCallback(async (seasonId: string) => {
     if (!seasonId) return;
@@ -223,8 +279,10 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
       setLoading(true);
       setError(null);
       
-      const classification = await ChampionshipClassificationService.getSeasonClassificationOptimized(seasonId);
+      // Usar o método que consome diretamente do Redis
+      const classification = await ChampionshipClassificationService.getSeasonClassificationFromRedis(seasonId);
       
+      // A estrutura vem diretamente do Redis, sem processamento adicional
       setSeasonClassification(classification);
 
     } catch (err: any) {
@@ -245,11 +303,14 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
 
   useEffect(() => {
     if (selectedSeasonId) {
-      fetchClassification(selectedSeasonId);
+      // Carregar categorias primeiro, depois classificação
+      fetchCategories(selectedSeasonId).then(() => {
+        fetchClassification(selectedSeasonId);
+      });
       // Sincronizar o filtro com a temporada selecionada
       setFilters(prev => ({ ...prev, seasonId: selectedSeasonId }));
     }
-  }, [selectedSeasonId, fetchClassification]);
+  }, [selectedSeasonId, fetchClassification, fetchCategories]);
 
   // Opções dos filtros
   const { seasonOptions, categoryOptions } = useMemo(() => {
@@ -262,14 +323,11 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
       { value: 'all', label: 'Todas as categorias' }
     ];
 
-    if (seasonClassification?.classificationsByCategory) {
-      const validCategories = Object.entries(seasonClassification.classificationsByCategory).filter(
-        ([_, data]) => data && data.category
-      );
-      
-      categoryOpts.push(...validCategories.map(([categoryId, data]) => ({
-        value: categoryId,
-        label: `${data.category.name}`
+    // Usar categorias da temporada selecionada em vez dos dados do Redis
+    if (selectedSeasonId && Object.keys(categories).length > 0) {
+      categoryOpts.push(...Object.values(categories).map(category => ({
+        value: category.id,
+        label: category.name
       })));
     }
 
@@ -277,7 +335,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
       seasonOptions: seasonOpts,
       categoryOptions: categoryOpts
     };
-  }, [seasons, seasonClassification]);
+  }, [seasons, selectedSeasonId, categories]);
 
   // Configuração dos filtros
   const filterFields = useMemo(() => createFilterFields(seasonOptions, categoryOptions), [seasonOptions, categoryOptions]);
@@ -290,13 +348,18 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
 
     // Verificar se há categorias válidas
     const validCategories = Object.entries(seasonClassification.classificationsByCategory).filter(
-      ([_, data]) => data && data.category
+      ([_, data]) => data && data.pilots && data.pilots.length > 0
     );
 
-    const allPilotsArray: ClassificationEntry[] = [];
-    validCategories.forEach(([_, categoryData]) => {
+    const allPilotsArray: ClassificationPilot[] = [];
+    validCategories.forEach(([categoryId, categoryData]) => {
       if (categoryData && categoryData.pilots && Array.isArray(categoryData.pilots)) {
-        allPilotsArray.push(...categoryData.pilots);
+        // Adicionar categoriaId a cada piloto para identificação
+        const pilotsWithCategory = categoryData.pilots.map(pilot => ({
+          ...pilot,
+          categoryId
+        }));
+        allPilotsArray.push(...pilotsWithCategory);
       }
     });
 
@@ -320,9 +383,20 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
           }
           return 0;
         })
-      : seasonClassification.classificationsByCategory[filters.categoryId]?.pilots || [];
-
-
+      : (() => {
+          // Verificar se a categoria selecionada existe nos dados do Redis
+          const categoryPilots = seasonClassification.classificationsByCategory[filters.categoryId]?.pilots || [];
+          
+          // Se não há pilotos no Redis para essa categoria, retornar array vazio
+          if (categoryPilots.length === 0) {
+            return [];
+          }
+          
+          return categoryPilots.map(pilot => ({
+            ...pilot,
+            categoryId: filters.categoryId
+          }));
+        })();
 
     return {
       allPilots: allPilotsArray,
@@ -338,7 +412,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
   }, [isMobile, filteredPilots, pagination.info.startIndex, pagination.info.endIndex]);
 
   // --- Lógica para Mobile (Scroll Infinito) ---
-  const [visibleMobilePilots, setVisibleMobilePilots] = useState<ClassificationEntry[]>([]);
+  const [visibleMobilePilots, setVisibleMobilePilots] = useState<ClassificationPilot[]>([]);
   const [mobilePage, setMobilePage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -421,7 +495,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
     }
   }, [isMobile, pagination.actions, selectedSeasonId]);
 
-  const handlePilotAction = (action: string, entry: ClassificationEntry) => {
+  const handlePilotAction = (action: string, entry: ClassificationPilot) => {
     switch (action) {
       case "view":
         // TODO: Implementar visualização de detalhes do piloto
@@ -433,6 +507,31 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
 
   const handlePageChange = (page: number) => pagination.actions.setCurrentPage(page);
   const handleItemsPerPageChange = (items: number) => pagination.actions.setItemsPerPage(items);
+
+  // Função para atualizar cache da classificação
+  const handleUpdateClassificationCache = useCallback(async () => {
+    if (!selectedSeasonId) return;
+    
+    try {
+      setUpdatingCache(true);
+      setError(null);
+      
+      // Atualizar cache da classificação
+      await ChampionshipClassificationService.updateSeasonClassificationCache(selectedSeasonId);
+      
+      // Recarregar dados após atualização do cache
+      await fetchClassification(selectedSeasonId);
+      
+      // Mostrar toast de sucesso
+      toast.success('Classificação atualizada com sucesso!');
+      
+    } catch (err: any) {
+      setError(err.message || 'Erro ao atualizar cache da classificação');
+      toast.error('Erro ao atualizar classificação');
+    } finally {
+      setUpdatingCache(false);
+    }
+  }, [selectedSeasonId, fetchClassification]);
 
   if (loading) {
     return (
@@ -503,7 +602,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
         </p>
       </div>
 
-      {/* Header com filtros */}
+      {/* Header com filtros e botão de atualizar cache */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div className="flex-1 w-full sm:w-auto">
           <DynamicFilter
@@ -512,7 +611,27 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
             className="w-full"
           />
         </div>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={handleUpdateClassificationCache}
+            disabled={updatingCache || !selectedSeasonId}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${updatingCache ? 'animate-spin' : ''}`} />
+            {updatingCache ? 'Atualizando...' : 'Atualizar Classificação'}
+          </Button>
+        </div>
       </div>
+
+      {/* Mensagens de feedback */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertTitle>Erro</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Classificação */}
       {filteredPilots.length === 0 ? (
@@ -527,10 +646,15 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
           <div className="border-b border-gray-200 pb-4">
             <h3 className="text-lg font-semibold text-gray-900">
               {filters.categoryId && filters.categoryId !== 'all' 
-                ? `${categoryOptions.find(opt => opt.value === filters.categoryId)?.label}`
+                ? categories[filters.categoryId]?.name || `Categoria ${filters.categoryId.slice(0, 8)}...`
                 : 'Classificação Geral'
               }
             </h3>
+            {filters.categoryId && filters.categoryId !== 'all' && filteredPilots.length === 0 && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Nenhum piloto encontrado para esta categoria na classificação atual.
+              </p>
+            )}
           </div>
           
           {isMobile ? (
@@ -538,11 +662,11 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
               <div className="space-y-4">
                 {processedPilots.map((entry, index) => {
                   const position = isMobile ? 
-                    filteredPilots.findIndex(p => p.user.id === entry.user.id && p.category.id === entry.category.id) + 1 :
+                    filteredPilots.findIndex(p => p.user.id === entry.user.id && p.categoryId === entry.categoryId) + 1 :
                     pagination.info.startIndex + index + 1;
                   
                   return (
-                    <div key={`${entry.user.id}-${entry.category.id}`} ref={processedPilots.length === index + 1 ? lastPilotElementRef : null}>
+                    <div key={`${entry.user.id}-${entry.categoryId}`} ref={processedPilots.length === index + 1 ? lastPilotElementRef : null}>
                       <ClassificationCard 
                         entry={entry} 
                         position={position}
@@ -583,7 +707,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
                   </TableHeader>
                   <TableBody>
                     {processedPilots.map((entry, index) => (
-                      <TableRow key={`${entry.user.id}-${entry.category.id}`}>
+                      <TableRow key={`${entry.user.id}-${entry.categoryId}`}>
                         <TableCell className="font-medium">
                           {renderPositionBadge(pagination.info.startIndex + index + 1)}
                         </TableCell>
@@ -597,7 +721,14 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">{entry.category.name}</span>
+                            <span className="font-medium">
+                              {entry.categoryId && categories[entry.categoryId]?.name 
+                                ? categories[entry.categoryId].name 
+                                : entry.categoryId 
+                                  ? `Categoria ${entry.categoryId.slice(0, 8)}...` 
+                                  : 'N/A'
+                              }
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell className="text-center">

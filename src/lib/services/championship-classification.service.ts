@@ -4,8 +4,6 @@ export interface ClassificationPilot {
   id: string;
   name: string;
   nickname?: string;
-  profilePicture?: string;
-  active: boolean;
 }
 
 export interface ClassificationCategory {
@@ -17,9 +15,6 @@ export interface ClassificationCategory {
 }
 
 export interface ClassificationEntry {
-  userId: string;
-  categoryId: string;
-  seasonId: string;
   totalPoints: number;
   totalStages: number;
   wins: number;
@@ -127,6 +122,24 @@ export class ChampionshipClassificationService {
   }
 
   /**
+   * Buscar classificação diretamente do Redis (alta performance)
+   */
+  static async getSeasonClassificationFromRedis(seasonId: string): Promise<any> {
+    try {
+      const response = await api.get<{ message: string; data: any }>(
+        `${ChampionshipClassificationService.BASE_URL}/season/${seasonId}/redis`
+      );
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Error fetching season classification from Redis:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao buscar classificação da temporada do Redis.'
+      );
+    }
+  }
+
+  /**
    * Recalcular classificação de uma temporada
    */
   static async recalculateSeasonClassification(seasonId: string): Promise<void> {
@@ -139,6 +152,23 @@ export class ChampionshipClassificationService {
       throw new Error(
         error.response?.data?.message || 
         'Erro ao recalcular classificação da temporada.'
+      );
+    }
+  }
+
+  /**
+   * Atualizar cache da classificação de uma temporada
+   */
+  static async updateSeasonClassificationCache(seasonId: string): Promise<void> {
+    try {
+      await api.post(
+        `${ChampionshipClassificationService.BASE_URL}/season/${seasonId}/update-cache`
+      );
+    } catch (error: any) {
+      console.error('Error updating season classification cache:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao atualizar cache da classificação da temporada.'
       );
     }
   }
