@@ -51,7 +51,7 @@ export const StageDetailsModal = ({ stage, isOpen, onClose }: StageDetailsModalP
   const [raceTrack, setRaceTrack] = useState<any>(null);
 
   // Usar o contexto de dados do campeonato
-  const { getCategories, getRaceTracks, getRegistrations } = useChampionshipData();
+  const { getCategories, getRaceTracks, getRegistrations, getStageParticipations } = useChampionshipData();
 
   const fetchStageDetails = async (stageId: string) => {
     try {
@@ -76,8 +76,8 @@ export const StageDetailsModal = ({ stage, isOpen, onClose }: StageDetailsModalP
       const allRegistrations = getRegistrations();
       const seasonRegistrations = allRegistrations.filter(reg => reg.seasonId === stage!.seasonId);
 
-      // Buscar participações confirmadas da etapa
-      const stageParticipations = await StageParticipationService.getStageParticipations(stageId);
+      // Usar participações do contexto em vez de buscar do backend
+      const stageParticipations = getStageParticipations(stageId);
 
       // Organizar pilotos por categoria usando a mesma lógica do RaceDayTab
       const categoriesWithParticipants: CategoryWithParticipants[] = stageCategories.map(category => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "brk-design-system";
 import { Button, Badge } from "brk-design-system";
 import { ChevronDown, MoreVertical, CheckCircle, XCircle, Loader2, ChevronRight, Plus, Minus, GripVertical, Edit, Copy, Trash2, Circle, X, Share2, Search, Upload, BarChart3, AlertTriangle, Clock, MapPin, Ban } from "lucide-react";
@@ -12,6 +12,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { StageService } from '@/lib/services/stage.service';
 import { PenaltyService, Penalty, PenaltyType, PenaltyStatus } from '@/lib/services/penalty.service';
 import { useNavigate } from 'react-router-dom';
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
+import { Stage as StageType } from "@/lib/types/stage";
 import {
   DndContext,
   closestCenter,
@@ -46,21 +48,13 @@ import { LapTimesService, LapTimes as LapTimesType } from '@/lib/services/lap-ti
 import * as XLSX from 'xlsx';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
-interface Stage {
-  id: string;
-  name: string;
-  date: string;
-  time: string; // HH:MM format
-  raceTrackId?: string;
-  streamLink?: string;
-  briefing?: string;
-}
+
 
 interface SeasonWithStages {
   id: string;
   name: string;
   status?: string;
-  stages?: Stage[];
+  stages?: StageType[];
   inscriptionType?: 'por_temporada' | 'por_etapa';
 }
 
@@ -80,7 +74,7 @@ const RaceDayHeader: React.FC<{
   seasons: SeasonWithStages[];
   selectedSeasonId: string;
   onSelectSeason: (seasonId: string) => void;
-  stages: Stage[];
+  stages: StageType[];
   selectedStageId: string;
   onSelectStage: (stageId: string) => void;
 }> = ({ seasons, selectedSeasonId, onSelectSeason, stages, selectedStageId, onSelectStage }) => (
@@ -140,6 +134,18 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   const { user } = useAuth();
   const navigate = useNavigate();
   
+  // Usar o contexto de dados do campeonato
+  const { 
+    getCategories, 
+    getRegistrations, 
+    getPenalties, 
+    getRaceTracks,
+    getStages,
+    getStageParticipations,
+    loading: contextLoading, 
+    error: contextError
+  } = useChampionshipData();
+  
   // Ler parâmetros da URL para restaurar estado
   const urlParams = new URLSearchParams(window.location.search);
   const urlSeason = urlParams.get('season');
@@ -183,7 +189,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     return seasons[0]?.id || "";
   });
   const selectedSeason = seasons.find((s: SeasonWithStages) => s.id === selectedSeasonId) || seasons[0];
-  const stages = selectedSeason?.stages || [];
+  
+  // Usar etapas do contexto filtradas por temporada (memoizado para evitar recálculos)
+  const allContextStages = useMemo(() => getStages(), []);
+  const stages = useMemo(() => 
+    allContextStages.filter((stage: StageType) => stage.seasonId === selectedSeasonId),
+    [allContextStages, selectedSeasonId]
+  );
+  
   const [selectedStageId, setSelectedStageId] = useState(() => {
     // Se há parâmetro de etapa na URL, usar ele
     if (urlStage !== null) {
@@ -193,9 +206,18 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   });
   const selectedStage = stages.find(s => s.id === selectedStageId) || stages[0];
   
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [registrations, setRegistrations] = useState<SeasonRegistration[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Obter dados do contexto
+  const contextCategories = getCategories();
+  const contextRegistrations = getRegistrations();
+  const contextPenalties = getPenalties();
+  const contextRaceTracks = getRaceTracks();
+  
+  // Filtrar dados por temporada selecionada
+  const categories = contextCategories.filter(cat => cat.seasonId === selectedSeasonId);
+  const registrations = contextRegistrations.filter(reg => reg.season.id === selectedSeasonId);
+  const filteredPenalties = contextPenalties.filter(penalty => penalty.stageId === selectedStageId);
+  
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stageParticipations, setStageParticipations] = useState<StageParticipation[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -257,7 +279,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   const [lapTimesLoading, setLapTimesLoading] = useState(false);
   
   // Estados para penalidades
-  const [penalties, setPenalties] = useState<Penalty[]>([]);
+  // Penalties agora vêm do contexto
   const [penaltiesLoading, setPenaltiesLoading] = useState(false);
 
   // Cores fixas para cada piloto baseado no userId
@@ -495,16 +517,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
    */
   const loadFleets = async () => {
     if (!selectedStage?.id) return;
-    
     try {
-      const stage = await StageService.getById(selectedStage.id);
-      
-      if (stage.fleets && Array.isArray(stage.fleets) && stage.fleets.length > 0) {
-        setFleets(stage.fleets);
-        
+      // Usar selectedStage do contexto diretamente
+      if (selectedStage.fleets && Array.isArray(selectedStage.fleets) && selectedStage.fleets.length > 0) {
+        setFleets(selectedStage.fleets);
         // Carregar estado dos karts inativos
         const newInactiveKarts: { [fleetId: string]: number[] } = {};
-        stage.fleets.forEach((fleet: any) => {
+        selectedStage.fleets.forEach((fleet: any) => {
           if (fleet.inactiveKarts && Array.isArray(fleet.inactiveKarts)) {
             newInactiveKarts[fleet.id] = fleet.inactiveKarts;
           }
@@ -514,11 +533,11 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
         // Se não há frotas salvas, buscar frotas padrão do kartódromo
         if (selectedStage.raceTrackId) {
           try {
-            const raceTrack = await RaceTrackService.getById(selectedStage.raceTrackId);
-            
-            if (raceTrack.defaultFleets && Array.isArray(raceTrack.defaultFleets) && raceTrack.defaultFleets.length > 0) {
+            // Usar dados do contexto em vez de buscar do backend
+            const raceTrack = contextRaceTracks[selectedStage.raceTrackId];
+            if (raceTrack?.defaultFleets && Array.isArray(raceTrack.defaultFleets) && raceTrack.defaultFleets.length > 0) {
               // Converter frotas padrão do kartódromo para o formato esperado
-              const defaultFleets = raceTrack.defaultFleets.map((fleet, index) => ({
+              const defaultFleets = raceTrack.defaultFleets.map((fleet: any, index: number) => ({
                 id: `default-${index + 1}`,
                 name: fleet.name,
                 totalKarts: fleet.kartQuantity
@@ -663,8 +682,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     if (!selectedStage) return;
     
     try {
-      const stageData = await StageService.getStageById(selectedStage.id);
-      const currentSchedule = stageData.schedule || [];
+      // Sempre usar dados do contexto
+      const contextStage = allContextStages.find(s => s.id === selectedStage.id);
+      let currentSchedule: any[] = [];
+      
+      if (contextStage?.schedule && Array.isArray(contextStage.schedule)) {
+        currentSchedule = contextStage.schedule;
+      }
       
       // Se não há cronograma cadastrado e há categorias disponíveis, gerar cronograma padrão automaticamente
       if (currentSchedule.length === 0 && categories.length > 0 && canEditSchedule) {
@@ -821,39 +845,27 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     saveScheduleToDatabase(updatedSchedule);
   };
 
-  // Busca dados ao trocar temporada
+  // Busca dados ao trocar temporada - agora usando contexto
   useEffect(() => {
     if (!selectedSeasonId) {
       setError('Nenhuma temporada selecionada.');
       setLoading(false);
       return;
     }
-    setLoading(true);
+    // Dados já vêm do contexto, não precisamos buscar novamente
+    setLoading(false);
     setError(null);
-    Promise.all([
-      CategoryService.getBySeasonId(selectedSeasonId),
-      SeasonRegistrationService.getBySeasonId(selectedSeasonId)
-    ])
-      .then(([cats, regs]) => {
-        setCategories(cats);
-        setRegistrations(regs);
-      })
-      .catch((err) => {
-        setError(err.message || JSON.stringify(err));
-      })
-      .finally(() => setLoading(false));
   }, [selectedSeasonId]);
 
-  // Buscar participações da etapa selecionada
+  // Buscar participações da etapa selecionada do contexto
   useEffect(() => {
     if (!selectedStageId) {
       setStageParticipations([]);
       return;
     }
-    StageParticipationService.getStageParticipations(selectedStageId)
-      .then(setStageParticipations)
-      .catch(() => setStageParticipations([]));
-  }, [selectedStageId]);
+    const participations = getStageParticipations(selectedStageId);
+    setStageParticipations(participations);
+  }, [selectedStageId, getStageParticipations]);
 
   // Função para alternar status de confirmação do piloto
   const handleToggleConfirm = async (reg: any, catId: string, isConfirmed: boolean) => {
@@ -877,8 +889,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
         if (reg.userId) data.userId = reg.userId;
         await StageParticipationService.confirmParticipation(data);
       }
-      // Atualizar participações
-      const updated = await StageParticipationService.getStageParticipations(selectedStageId);
+      // Atualizar participações do contexto
+      const updated = getStageParticipations(selectedStageId);
       setStageParticipations(updated);
     } catch (err) {
       let msg = 'Erro ao atualizar participação';
@@ -1303,55 +1315,41 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     );
   };
 
-  // Carregar sorteio salvo quando a etapa muda (para mostrar ícones na lista de pilotos e no modal)
+  // Carregar dados do contexto quando a etapa muda
   useEffect(() => {
     if (selectedStageId) {
-      StageService.getKartDrawAssignments(selectedStageId)
-        .then((res) => {
-          if (res) {
-            if (res.results) {
-              setFleetDrawResults(res.results);
-            } else {
-              setFleetDrawResults(res);
-            }
-            if (res.categoryFleetAssignments) {
-              setCategoryFleetAssignments(res.categoryFleetAssignments);
-            }
+      const selectedStage = allContextStages.find(stage => stage.id === selectedStageId);
+      
+      if (selectedStage) {
+        // Usar dados do contexto se disponíveis
+        if (selectedStage.kart_draw_assignments) {
+          if (selectedStage.kart_draw_assignments.results) {
+            setFleetDrawResults(selectedStage.kart_draw_assignments.results);
           }
-        })
-        .catch((error) => {
-          console.error('Erro ao carregar dados do sorteio (etapa):', error);
+          if (selectedStage.kart_draw_assignments.categoryFleetAssignments) {
+            setCategoryFleetAssignments(selectedStage.kart_draw_assignments.categoryFleetAssignments);
+          }
+        } else {
           setFleetDrawResults({});
           setCategoryFleetAssignments({});
-        });
-    }
-  }, [selectedStageId]);
+        }
 
-  // Carregar dados iniciais quando o componente montar
-  useEffect(() => {
-    if (selectedStageId) {
-      // Carregar dados do sorteio
-      StageService.getKartDrawAssignments(selectedStageId)
-        .then((res) => {
-          if (res) {
-            if (res.results) {
-              setFleetDrawResults(res.results);
-            } else {
-              setFleetDrawResults(res);
-            }
-            if (res.categoryFleetAssignments) {
-              setCategoryFleetAssignments(res.categoryFleetAssignments);
-            }
-          }
-        })
-        .catch((error) => {
-          console.error('Erro ao carregar dados iniciais do sorteio:', error);
-        });
-
-      // Carregar resultados da etapa
-      loadStageResults();
+        // Usar resultados da etapa do contexto se disponíveis
+        if (selectedStage.stage_results) {
+          setStageResults(selectedStage.stage_results);
+        } else {
+          setStageResults({});
+        }
+        // Resetar flag de modificação quando dados vêm do contexto
+        setStageResultsModified(false);
+      } else {
+        // Se não encontrado no contexto, limpar estados locais
+        setFleetDrawResults({});
+        setCategoryFleetAssignments({});
+        setStageResults({});
+      }
     }
-  }, [selectedStageId]);
+  }, [selectedStageId, allContextStages]);
 
   // Salvar sorteio no backend ao clicar em 'Realizar Sorteio'
   const handleSaveFleetDraw = async (results?: any) => {
@@ -1376,17 +1374,6 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   }, [selectedOverviewCategory]);
 
 
-
-  // Carregar resultados da etapa
-  const loadStageResults = async () => {
-    if (!selectedStageId) return;
-    try {
-      const results = await StageService.getStageResults(selectedStageId);
-      setStageResults(results || {});
-    } catch (error) {
-      console.error('Erro ao carregar resultados da etapa:', error);
-    }
-  };
 
   // Salvar resultados da etapa
   const saveStageResults = async (results?: any) => {
@@ -1415,11 +1402,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       newResults[categoryId][pilotId][batteryIndex][field] = value;
       return newResults;
     });
+    // Marcar que os dados foram modificados pelo usuário
+    setStageResultsModified(true);
   };
 
-  // Carregar resultados quando a etapa muda
+  // Carregar resultados quando a etapa muda - agora usando contexto
   useEffect(() => {
-    loadStageResults();
+    // Os resultados já são carregados no useEffect principal que usa o contexto
   }, [selectedStageId]);
 
   // Carregar lap times quando categoria é selecionada
@@ -1429,35 +1418,29 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     }
   }, [selectedOverviewCategory, selectedStageId]);
 
-  // Carregar penalidades da etapa
+  // Carregar penalidades da etapa - agora usando contexto
   const loadPenalties = async () => {
-    if (!selectedStageId) return;
-    setPenaltiesLoading(true);
-    try {
-      const penaltiesData = await PenaltyService.getPenaltiesByStageId(selectedStageId);
-      setPenalties(penaltiesData);
-    } catch (error) {
-      console.error('Erro ao carregar penalidades da etapa:', error);
-      toast.error('Erro ao carregar penalidades');
-    } finally {
-      setPenaltiesLoading(false);
-    }
+    // Punições já vêm do contexto, não precisamos buscar novamente
+    // Apenas atualizar se necessário
   };
 
   // Carregar penalidades quando a etapa muda
   useEffect(() => {
-    loadPenalties();
+    // Punições já vêm do contexto filtradas por selectedStageId
   }, [selectedStageId]);
 
-  // Salvar resultados automaticamente quando mudam
+  // Estado para controlar se os dados foram modificados pelo usuário
+  const [stageResultsModified, setStageResultsModified] = useState(false);
+
+  // Salvar resultados automaticamente quando mudam (apenas se foram modificados pelo usuário)
   useEffect(() => {
-    if (Object.keys(stageResults).length > 0) {
+    if (Object.keys(stageResults).length > 0 && stageResultsModified) {
       const timeoutId = setTimeout(() => {
         saveStageResults();
       }, 1000); // Debounce de 1 segundo
       return () => clearTimeout(timeoutId);
     }
-  }, [stageResults]);
+  }, [stageResults, stageResultsModified]);
 
   // Função para abrir modal de seleção de kart
   const openKartSelectionModal = (categoryId: string, pilotId: string, batteryIndex: number) => {
@@ -1635,6 +1618,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     if (!updatedResults[categoryId][pilotId][batteryIndex]) updatedResults[categoryId][pilotId][batteryIndex] = {};
     updatedResults[categoryId][pilotId][batteryIndex][type] = position;
     setStageResults(updatedResults);
+    setStageResultsModified(true);
     try {
       await StageService.saveStageResults(selectedStageId, updatedResults);
       closePositionSelectionModal();
@@ -1659,6 +1643,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
 
     delete updatedResults[categoryId][pilotId][batteryIndex][type];
     setStageResults(updatedResults);
+    setStageResultsModified(true);
     
     try {
       await StageService.saveStageResults(selectedStageId, updatedResults);
@@ -1746,6 +1731,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     updatedResults[categoryId][pilotId][batteryIndex].bestLap = normalizedTime || null;
     
     setStageResults(updatedResults);
+    setStageResultsModified(true);
     
     try {
       await StageService.saveStageResults(selectedStageId, updatedResults);
@@ -1772,6 +1758,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
 
     delete updatedResults[categoryId][pilotId][batteryIndex].bestLap;
     setStageResults(updatedResults);
+    setStageResultsModified(true);
     
     try {
       await StageService.saveStageResults(selectedStageId, updatedResults);
@@ -1829,6 +1816,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     updatedResults[categoryId][pilotId][batteryIndex].qualifyingBestLap = normalizedTime || null;
     
     setStageResults(updatedResults);
+    setStageResultsModified(true);
     
     try {
       await StageService.saveStageResults(selectedStageId, updatedResults);
@@ -1855,6 +1843,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
 
     delete updatedResults[categoryId][pilotId][batteryIndex].qualifyingBestLap;
     setStageResults(updatedResults);
+    setStageResultsModified(true);
     
     try {
       await StageService.saveStageResults(selectedStageId, updatedResults);
@@ -1912,6 +1901,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     updatedResults[categoryId][pilotId][batteryIndex].totalTime = normalizedTime || null;
     
     setStageResults(updatedResults);
+    setStageResultsModified(true);
     
     try {
       await StageService.saveStageResults(selectedStageId, updatedResults);
@@ -1938,6 +1928,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
 
     delete updatedResults[categoryId][pilotId][batteryIndex].totalTime;
     setStageResults(updatedResults);
+    setStageResultsModified(true);
     
     try {
       await StageService.saveStageResults(selectedStageId, updatedResults);
@@ -1952,7 +1943,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
 
   // Função para filtrar penalidades por categoria e bateria
   const getFilteredPenalties = (categoryId: string, batteryIndex: number) => {
-    return penalties.filter(penalty => 
+    return filteredPenalties.filter(penalty => 
       penalty.categoryId === categoryId && 
       penalty.batteryIndex === batteryIndex
     );
@@ -2358,7 +2349,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   // Função para copiar mensagem com emojis
   const copyMessageWithEmojis = async () => {
     try {
-      const stageData = stages.find((s: Stage) => s.id === selectedStageId);
+      const stageData = stages.find((s: StageType) => s.id === selectedStageId);
       if (!stageData) {
         toast.error('Etapa não encontrada');
         return;
@@ -2370,9 +2361,12 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       
       if (stageData.raceTrackId) {
         try {
-          const raceTrack = await RaceTrackService.getById(stageData.raceTrackId);
-          raceTrackName = raceTrack.name;
-          raceTrackAddress = raceTrack.address;
+          // Usar dados do contexto em vez de buscar do backend
+          const raceTrack = contextRaceTracks[stageData.raceTrackId];
+          if (raceTrack) {
+            raceTrackName = raceTrack.name;
+            raceTrackAddress = raceTrack.address;
+          }
         } catch (err) {
           console.error('Erro ao buscar dados do kartódromo:', err);
         }
@@ -2565,7 +2559,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                 value={selectedStageId}
                 onChange={e => setSelectedStageId(e.target.value)}
               >
-                {stages.map((stage: Stage) => (
+                {stages.map((stage: StageType) => (
                   <option key={stage.id} value={stage.id}>{stage.name}</option>
                 ))}
               </select>

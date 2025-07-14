@@ -13,6 +13,7 @@ import { PenaltyService, Penalty } from '@/lib/services/penalty.service';
 import { ChampionshipClassificationService } from '@/lib/services/championship-classification.service';
 import { RegulationService, Regulation } from '@/lib/services/regulation.service';
 import { ChampionshipService } from '@/lib/services/championship.service';
+import { StageParticipationService, StageParticipation } from '@/lib/services/stage-participation.service';
 
 // Interface para dados de classificação do Redis
 interface ClassificationUser {
@@ -55,6 +56,7 @@ interface ChampionshipData {
   staff: StaffMember[];
   registrations: SeasonRegistration[];
   penalties: Penalty[];
+  stageParticipations: Record<string, StageParticipation[]>;
   classifications: Record<string, RedisClassificationData>;
   regulations: Record<string, Regulation[]>;
   lastUpdated: {
@@ -66,6 +68,7 @@ interface ChampionshipData {
     staff: Date | null;
     registrations: Date | null;
     penalties: Date | null;
+    stageParticipations: Date | null;
     classifications: Date | null;
     regulations: Date | null;
   };
@@ -83,6 +86,7 @@ interface ChampionshipContextType {
     staff: boolean;
     registrations: boolean;
     penalties: boolean;
+    stageParticipations: boolean;
     classifications: boolean;
     regulations: boolean;
   };
@@ -95,6 +99,7 @@ interface ChampionshipContextType {
     staff: string | null;
     registrations: string | null;
     penalties: string | null;
+    stageParticipations: string | null;
     classifications: string | null;
     regulations: string | null;
   };
@@ -107,6 +112,7 @@ interface ChampionshipContextType {
   fetchStaff: () => Promise<void>;
   fetchRegistrations: () => Promise<void>;
   fetchPenalties: () => Promise<void>;
+  fetchStageParticipations: (stageId: string) => Promise<void>;
   fetchClassification: (seasonId: string) => Promise<void>;
   fetchRegulations: (seasonId: string) => Promise<void>;
   fetchChampionshipInfo: () => Promise<void>;
@@ -119,6 +125,7 @@ interface ChampionshipContextType {
   refreshStaff: () => Promise<void>;
   refreshRegistrations: () => Promise<void>;
   refreshPenalties: () => Promise<void>;
+  refreshStageParticipations: (stageId: string) => Promise<void>;
   refreshClassification: (seasonId: string) => Promise<void>;
   refreshRegulations: (seasonId: string) => Promise<void>;
   
@@ -130,6 +137,7 @@ interface ChampionshipContextType {
   getStaff: () => StaffMember[];
   getRegistrations: () => SeasonRegistration[];
   getPenalties: () => Penalty[];
+  getStageParticipations: (stageId: string) => StageParticipation[];
   getClassification: (seasonId: string) => RedisClassificationData | null;
   getRegulations: (seasonId: string) => Regulation[];
   getChampionshipInfo: () => Championship | null;
@@ -189,6 +197,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     staff: [],
     registrations: [],
     penalties: [],
+    stageParticipations: {},
     classifications: {},
     regulations: {},
     lastUpdated: {
@@ -200,6 +209,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       staff: null,
       registrations: null,
       penalties: null,
+      stageParticipations: null,
       classifications: null,
       regulations: null,
     },
@@ -214,6 +224,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     staff: false,
     registrations: false,
     penalties: false,
+    stageParticipations: false,
     classifications: false,
     regulations: false,
   });
@@ -227,6 +238,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     staff: null,
     registrations: null,
     penalties: null,
+    stageParticipations: null,
     classifications: null,
     regulations: null,
   });
@@ -240,6 +252,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     staff: false,
     registrations: false,
     penalties: false,
+    stageParticipations: false,
     classifications: false,
     regulations: false,
   });
@@ -491,6 +504,35 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }
   }, [championshipId]);
 
+  // Função para buscar participações de etapas
+  const fetchStageParticipations = useCallback(async (stageId: string) => {
+    if (!championshipId || loadingRef.current.stageParticipations) return;
+    
+    loadingRef.current.stageParticipations = true;
+    setLoading(prev => ({ ...prev, stageParticipations: true }));
+    setError(prev => ({ ...prev, stageParticipations: null }));
+    
+    try {
+      const participationsData = await StageParticipationService.getStageParticipations(stageId);
+      setChampionshipData(prev => ({
+        ...prev,
+        stageParticipations: {
+          ...prev.stageParticipations,
+          [stageId]: participationsData,
+        },
+        lastUpdated: {
+          ...prev.lastUpdated,
+          stageParticipations: new Date(),
+        },
+      }));
+    } catch (err: any) {
+      setError(prev => ({ ...prev, stageParticipations: err.message || 'Erro ao carregar participações da etapa' }));
+    } finally {
+      loadingRef.current.stageParticipations = false;
+      setLoading(prev => ({ ...prev, stageParticipations: false }));
+    }
+  }, [championshipId]);
+
   // Função para buscar classificações
   const fetchClassification = useCallback(async (seasonId: string) => {
     if (!championshipId || loadingRef.current.classifications) return;
@@ -606,6 +648,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     await fetchPenalties();
   }, [fetchPenalties]);
 
+  const refreshStageParticipations = useCallback(async (stageId: string) => {
+    await fetchStageParticipations(stageId);
+  }, [fetchStageParticipations]);
+
   const refreshClassification = useCallback(async (seasonId: string) => {
     await fetchClassification(seasonId);
   }, [fetchClassification]);
@@ -642,6 +688,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   const getPenalties = useCallback(() => {
     return championshipData.penalties;
   }, [championshipData.penalties]);
+
+  const getStageParticipations = useCallback((stageId: string) => {
+    return championshipData.stageParticipations[stageId] || [];
+  }, [championshipData.stageParticipations]);
 
   const getClassification = useCallback((seasonId: string) => {
     return championshipData.classifications[seasonId] || null;
@@ -968,6 +1018,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       staff: [],
       registrations: [],
       penalties: [],
+      stageParticipations: {},
       classifications: {},
       regulations: {},
       lastUpdated: {
@@ -979,6 +1030,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         staff: null,
         registrations: null,
         penalties: null,
+        stageParticipations: null,
         classifications: null,
         regulations: null,
       },
@@ -992,6 +1044,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       staff: null,
       registrations: null,
       penalties: null,
+      stageParticipations: null,
       classifications: null,
       regulations: null,
     });
@@ -1105,6 +1158,18 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }
   }, [championshipId, championshipData.seasons, refreshRegulations, getRegulations]);
 
+  // Carregar participações de etapas quando as etapas mudarem
+  useEffect(() => {
+    if (championshipId && championshipData.stages.length > 0) {
+      championshipData.stages.forEach(stage => {
+        const shouldFetchStageParticipations = !championshipData.stageParticipations[stage.id] || championshipData.stageParticipations[stage.id].length === 0;
+        if (shouldFetchStageParticipations) {
+          fetchStageParticipations(stage.id);
+        }
+      });
+    }
+  }, [championshipId, championshipData.stages.length]);
+
   // Carregar dados do campeonato quando o championshipId mudar
   useEffect(() => {
     if (championshipId) {
@@ -1124,6 +1189,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     fetchStaff,
     fetchRegistrations,
     fetchPenalties,
+    fetchStageParticipations,
     fetchClassification,
     fetchRegulations,
     fetchChampionshipInfo,
@@ -1135,6 +1201,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     refreshStaff,
     refreshRegistrations,
     refreshPenalties,
+    refreshStageParticipations,
     refreshClassification,
     refreshRegulations,
     getSeasons,
@@ -1144,6 +1211,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     getStaff,
     getRegistrations,
     getPenalties,
+    getStageParticipations,
     getClassification,
     getRegulations,
     addSeason,
