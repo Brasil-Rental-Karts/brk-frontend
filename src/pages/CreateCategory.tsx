@@ -8,6 +8,7 @@ import { GridTypeService } from "@/lib/services/grid-type.service";
 import { ScoringSystemService, ScoringSystem } from "@/lib/services/scoring-system.service";
 import { BatteriesConfigForm } from "@/components/category/BatteriesConfigForm";
 import { GridType } from "@/lib/types/grid-type";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 export const CreateCategory = () => {
   const navigate = useNavigate();
@@ -16,6 +17,9 @@ export const CreateCategory = () => {
     championshipId: string;
     categoryId?: string;
   }>();
+
+  // Usar o contexto de dados do campeonato
+  const { getSeasons, addCategory, updateCategory } = useChampionshipData();
 
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -31,13 +35,16 @@ export const CreateCategory = () => {
     const loadDependencies = async () => {
       if (!championshipId) return;
       try {
-        const [seasonsData, gridTypesData, scoringSystemsData] = await Promise.all([
-          SeasonService.getByChampionshipId(championshipId, 1, 1000),
+        // Usar temporadas do contexto em vez de buscar do backend
+        const seasonsData = getSeasons();
+        const filteredSeasons = seasonsData.filter(season => season.championshipId === championshipId);
+        
+        const [gridTypesData, scoringSystemsData] = await Promise.all([
           GridTypeService.getByChampionship(championshipId),
           ScoringSystemService.getByChampionshipId(championshipId),
         ]);
         
-        setAllSeasons(seasonsData.data);
+        setAllSeasons(filteredSeasons);
         setGridTypes(gridTypesData);
         setScoringSystems(scoringSystemsData);
       } catch (error) {
@@ -45,7 +52,7 @@ export const CreateCategory = () => {
       }
     };
     loadDependencies();
-  }, [championshipId]);
+  }, [championshipId, getSeasons]);
 
   useEffect(() => {
     const prepareSeasonsForDropdown = async () => {
@@ -233,8 +240,20 @@ export const CreateCategory = () => {
   }, [navigate, championshipId]);
 
   const fetchData = useCallback(() => CategoryService.getById(currentCategoryId!), [currentCategoryId]);
-  const createData = useCallback((data: CategoryData) => CategoryService.create(data), []);
-  const updateData = useCallback((id: string, data: CategoryData) => CategoryService.update(id, data), []);
+  
+  const createData = useCallback(async (data: CategoryData) => {
+    const createdCategory = await CategoryService.create(data);
+    // Atualizar o contexto com a nova categoria
+    addCategory(createdCategory);
+    return createdCategory;
+  }, [addCategory]);
+  
+  const updateData = useCallback(async (id: string, data: CategoryData) => {
+    const updatedCategory = await CategoryService.update(id, data);
+    // Atualizar o contexto com a categoria atualizada
+    updateCategory(id, updatedCategory);
+    return updatedCategory;
+  }, [updateCategory]);
 
   return (
     <FormScreen

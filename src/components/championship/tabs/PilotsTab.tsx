@@ -34,6 +34,7 @@ import * as XLSX from 'xlsx';
 import { SeasonRegistrationService, SeasonRegistration } from "@/lib/services/season-registration.service";
 import { SeasonService } from "@/lib/services/season.service";
 import { CategoryService, Category } from "@/lib/services/category.service";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { formatDateToBrazilian } from "@/utils/date";
@@ -198,14 +199,20 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortBy, setSortBy] = useState<keyof SeasonRegistration>("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [registrations, setRegistrations] = useState<SeasonRegistration[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [seasonOptions, setSeasonOptions] = useState<{ value: string; label: string }[]>([]);
-  const [categoryOptions, setCategoryOptions] = useState<{ value: string; label: string }[]>([]);
-  const [, setSeasons] = useState<any[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Usar o contexto de dados do campeonato
+  const { 
+    getSeasons,
+    getCategories,
+    getRegistrations,
+    loading: contextLoading, 
+    error: contextError
+  } = useChampionshipData();
+
+  // Obter dados do contexto
+  const contextSeasons = getSeasons();
+  const contextCategories = getCategories();
+  const contextRegistrations = getRegistrations();
 
   // Estados para o modal de edição de categorias
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -228,125 +235,27 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
   const mobileItemsPerPage = 5;
 
   // Memoizar a configuração dos filtros para evitar re-renders
+  const seasonOptions = useMemo(() => [
+    { value: 'all', label: 'Todas as temporadas' },
+    ...contextSeasons.map((season: any) => ({
+      value: season.id,
+      label: season.name
+    }))
+  ], [contextSeasons]);
+
+  const categoryOptions = useMemo(() => [
+    { value: 'all', label: 'Todas as categorias' },
+    ...contextCategories.map((category: any) => ({
+      value: category.id,
+      label: category.name
+    }))
+  ], [contextCategories]);
+
   const filterFields = useMemo(() => createFilterFields(seasonOptions, categoryOptions), [seasonOptions, categoryOptions]);
 
-  // Buscar temporadas do campeonato
-  const fetchSeasons = useCallback(async () => {
-    try {
-      const seasonsData = await SeasonService.getByChampionshipId(championshipId, 1, 100);
-      
-      // Atualizar opções do filtro
-      const newSeasonOptions = [
-        { value: 'all', label: 'Todas as temporadas' },
-        ...seasonsData.data.map((season: any) => ({
-          value: season.id,
-          label: season.name
-        }))
-      ];
-      setSeasonOptions(newSeasonOptions);
-      setSeasons(seasonsData.data);
-      return seasonsData.data;
-    } catch (err: any) {
-      console.error('Error loading seasons:', err);
-      return [];
-    }
-  }, [championshipId]);
-
-  // Buscar categorias do campeonato
-  const fetchCategories = useCallback(async () => {
-    try {
-      // Buscar todas as temporadas do campeonato
-      const seasonsData = await SeasonService.getByChampionshipId(championshipId, 1, 100);
-      
-      // Buscar categorias de todas as temporadas
-      const allCategories: any[] = [];
-      for (const season of seasonsData.data) {
-        try {
-          const categories = await CategoryService.getBySeasonId(season.id);
-          allCategories.push(...categories);
-        } catch (err) {
-          console.error(`Error loading categories for season ${season.id}:`, err);
-        }
-      }
-      
-      // Remover duplicatas baseado no ID da categoria
-      const uniqueCategories = allCategories.filter((category, index, self) => 
-        index === self.findIndex(c => c.id === category.id)
-      );
-      
-      const newCategoryOptions = [
-        { value: 'all', label: 'Todas as categorias' },
-        ...uniqueCategories.map((category: any) => ({
-          value: category.id,
-          label: category.name
-        }))
-      ];
-      setCategoryOptions(newCategoryOptions);
-      return uniqueCategories;
-    } catch (err: any) {
-      console.error('Error loading categories:', err);
-      return [];
-    }
-  }, [championshipId]);
-
-  // Buscar registrações de todas as temporadas ou de uma específica
-  const fetchRegistrations = useCallback(async (_seasons: any[] = [], _categories: any[] = []) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      let allRegistrations: SeasonRegistration[] = [];
-      
-      if (filters.seasonId && filters.seasonId !== 'all') {
-        // Se filtro por temporada específica
-        allRegistrations = await SeasonRegistrationService.getBySeasonId(filters.seasonId as string);
-      } else {
-        // Buscar todas as inscrições do campeonato diretamente
-        allRegistrations = await SeasonRegistrationService.getByChampionshipId(championshipId);
-      }
-
-      // Aplicar filtro por categoria se selecionado
-      if (filters.categoryId && filters.categoryId !== 'all') {
-        allRegistrations = allRegistrations.filter(reg => 
-          reg.categories && reg.categories.some(rc => rc.category.id === filters.categoryId)
-        );
-      }
-
-      setRegistrations(allRegistrations);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar inscrições');
-      setRegistrations([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters.seasonId, filters.categoryId, championshipId]);
-
-  // Carregar dados iniciais
-  useEffect(() => {
-    let mounted = true;
-    
-    const initializeData = async () => {
-      try {
-        const seasons = await fetchSeasons();
-        const categories = await fetchCategories();
-        if (mounted) {
-          await fetchRegistrations(seasons, categories);
-        }
-      } catch (error) {
-        console.error('Error initializing data:', error);
-      }
-    };
-    
-    initializeData();
-    
-    return () => {
-      mounted = false;
-    };
-  }, [championshipId]);
-
-  // Aplicar filtros e ordenação aos dados
+  // Usar inscrições do contexto e aplicar filtros
   const processedRegistrations = useMemo(() => {
-    let result = [...registrations];
+    let result = [...contextRegistrations];
 
     // Aplicar filtros
     result = result.filter(registration => {
@@ -387,9 +296,16 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     });
 
     return result;
-  }, [registrations, filters, sortBy, sortOrder]);
+  }, [contextRegistrations, filters, sortBy, sortOrder]);
+
+
+
+
 
   // --- Lógica para Desktop (Paginação) ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   const paginationInfo = useMemo(() => {
     const totalItems = processedRegistrations.length;
     const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -468,14 +384,16 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
   const handleItemsPerPageChange = (items: number) => setItemsPerPage(items);
 
   const handleRegistrationAction = async (action: string, registrationId: string) => {
-    const registration = registrations.find(r => r.id === registrationId);
+    const registration = contextRegistrations.find((r: SeasonRegistration) => r.id === registrationId);
     if (!registration) return;
 
     switch (action) {
       case "changeCategories":
         try {
-          const categories = await CategoryService.getBySeasonId(registration.season.id);
-          setAvailableCategories(categories);
+          // Usar categorias do contexto em vez de buscar do backend
+          const allCategories = getCategories();
+          const seasonCategories = allCategories.filter(cat => cat.seasonId === registration.season.id);
+          setAvailableCategories(seasonCategories);
           setSelectedCategoryIds(registration.categories?.map(rc => rc.category.id) || []);
           setSelectedRegistration(registration);
           setCategoryError(null);
@@ -547,8 +465,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         categoryIds: selectedCategoryIds
       });
 
-      // Atualizar a lista de inscrições
-      await fetchRegistrations();
+      // A lista será atualizada automaticamente pelo contexto
       
       // Fechar modal
       setShowCategoryModal(false);
@@ -662,7 +579,11 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     }
   }, [processedRegistrations]);
 
-  if (loading) {
+  // Determinar loading e error
+  const isDataLoading = contextLoading.registrations || contextLoading.seasons || contextLoading.categories;
+  const dataError = contextError.registrations || contextError.seasons || contextError.categories;
+
+  if (isDataLoading) {
     return (
       <Card className="w-full">
         <div className="p-6">
@@ -672,16 +593,31 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     );
   }
 
-  if (error) {
+  // Verificar se o contexto está pronto e se há dados
+  if (contextRegistrations.length === 0 && !isDataLoading) {
+    return (
+      <Card className="w-full">
+        <div className="p-6">
+          <EmptyState
+            icon={Users}
+            title="Nenhum piloto inscrito"
+            description="Ainda não há pilotos inscritos nas temporadas deste campeonato"
+          />
+        </div>
+      </Card>
+    );
+  }
+
+  if (dataError) {
     return (
       <Card className="w-full">
         <div className="p-6">
           <Alert variant="destructive">
             <AlertTitle>Erro ao carregar pilotos</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>{dataError}</AlertDescription>
           </Alert>
           <div className="mt-4">
-            <Button onClick={() => fetchRegistrations()} variant="outline">
+            <Button onClick={() => window.location.reload()} variant="outline">
               Tentar novamente
             </Button>
           </div>
@@ -690,7 +626,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     );
   }
 
-  if (processedRegistrations.length === 0 && Object.keys(filters).length === 0) {
+  if (processedRegistrations.length === 0 && Object.keys(filters).length === 0 && !isDataLoading) {
     return (
       <EmptyState
         icon={Users}

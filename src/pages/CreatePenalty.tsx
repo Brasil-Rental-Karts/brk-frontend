@@ -13,6 +13,7 @@ import { Card, CardContent } from 'brk-design-system';
 import { PageHeader } from '@/components/ui/page-header';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatName } from '@/utils/name';
+import { useChampionshipData } from '@/contexts/ChampionshipContext';
 
 interface SeasonRegistration {
   id: string;
@@ -79,6 +80,9 @@ export const CreatePenalty = () => {
   const [selectedStageId, setSelectedStageId] = useState<string>('');
   const [categoryBatteries, setCategoryBatteries] = useState<{ value: number; description: string }[]>([]);
 
+  // Usar o contexto de dados do campeonato
+  const { getSeasons, getStages, getRegistrations } = useChampionshipData();
+
   // Carregar temporadas do campeonato
   useEffect(() => {
     const fetchSeasons = async () => {
@@ -86,8 +90,10 @@ export const CreatePenalty = () => {
       
       setIsLoading(true);
       try {
-        const seasonsRes = await SeasonService.getByChampionshipId(championshipId);
-        setSeasons(seasonsRes.data);
+        // Usar temporadas do contexto em vez de buscar do backend
+        const allSeasons = getSeasons();
+        const filteredSeasons = allSeasons.filter(season => season.championshipId === championshipId);
+        setSeasons(filteredSeasons);
         
         // Configurar formulário inicial
         const baseConfig: FormSectionConfig[] = [
@@ -100,7 +106,7 @@ export const CreatePenalty = () => {
                 name: "Temporada", 
                 type: "select", 
                 mandatory: true, 
-                options: seasonsRes.data.map(s => ({ value: s.id, description: s.name }))
+                options: filteredSeasons.map(s => ({ value: s.id, description: s.name }))
               },
               { 
                 id: "stageId", 
@@ -266,7 +272,7 @@ export const CreatePenalty = () => {
     };
     
     fetchSeasons();
-  }, [championshipId, isEditMode, penaltyData, urlSeasonId, urlStageId, urlCategoryId, urlUserId, urlBatteryIndex]);
+  }, [championshipId, isEditMode, penaltyData, urlSeasonId, urlStageId, urlCategoryId, urlUserId, urlBatteryIndex, getSeasons]);
 
   // Carregar etapas quando temporada for selecionada
   const loadStagesForSeason = useCallback(async (seasonId: string) => {
@@ -275,10 +281,12 @@ export const CreatePenalty = () => {
       return;
     }
     try {
-      const stagesRes = await StageService.getBySeasonId(seasonId);
-      setStages(stagesRes);
+      // Usar etapas do contexto em vez de buscar do backend
+      const allStages = getStages();
+      const seasonStages = allStages.filter(stage => stage.seasonId === seasonId);
+      setStages(seasonStages);
       
-      // Atualizar opções de etapa no formulário
+      // Atualizar opções do formulário
       setFormConfig(prevConfig => 
         prevConfig.map(section => {
           if (section.section === "Contexto da Punição") {
@@ -286,7 +294,7 @@ export const CreatePenalty = () => {
               ...section,
               fields: section.fields.map(field => {
                 if (field.id === 'stageId') {
-                  return { ...field, options: stagesRes.map(s => ({ value: s.id, description: s.name })) };
+                  return { ...field, options: seasonStages.map(s => ({ value: s.id, description: s.name })) };
                 }
                 return field;
               })
@@ -295,10 +303,11 @@ export const CreatePenalty = () => {
           return section;
         })
       );
-    } catch (err: any) {
-      console.error('Erro ao carregar etapas:', err);
+    } catch (error) {
+      console.error('Erro ao carregar etapas:', error);
+      setStages([]);
     }
-  }, []);
+  }, [getStages]);
 
   // Carregar categorias quando etapa for selecionada
   const loadCategoriesForStage = useCallback(async (stageId: string) => {
@@ -378,7 +387,9 @@ export const CreatePenalty = () => {
       return;
     }
     try {
-      const registrationsRes = await SeasonRegistrationService.getBySeasonId(seasonId);
+      // Usar inscrições do contexto em vez de buscar do backend
+      const allRegistrations = getRegistrations();
+      const registrationsRes = allRegistrations.filter(reg => reg.seasonId === seasonId);
       
       // Buscar participações da etapa selecionada
       let stageParticipations: any[] = [];

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Button } from "brk-design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
@@ -15,7 +15,7 @@ import { EditChampionshipTab } from "@/components/championship/settings/EditCham
 import { SponsorsTab } from "@/components/championship/settings/SponsorsTab";
 import { StaffTab } from "@/components/championship/settings/StaffTab";
 import { useChampionship } from "@/hooks/use-championship";
-import { useStaffPermissions } from "@/hooks/use-staff-permissions";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 import { Alert, AlertDescription } from "brk-design-system";
 import { AlertTriangle } from "lucide-react";
@@ -27,6 +27,8 @@ import { Loading } from '@/components/ui/loading';
 import { RaceDayTab } from "@/components/championship/tabs/RaceDayTab";
 import { ClassificationTab } from "@/components/championship/tabs/ClassificationTab";
 import { PenaltiesTab } from "@/components/championship/tabs/PenaltiesTab";
+import { StaffMember } from "@/lib/services/championship-staff.service";
+import { UserPermissions } from "@/hooks/use-staff-permissions";
 
 // Estende a interface base da temporada para incluir as categorias
 type Season = BaseSeason & { categories?: Category[]; stages?: Stage[] };
@@ -41,6 +43,9 @@ export const Championship = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("temporadas");
   const isMobile = useIsMobile();
+
+  // Usar o contexto de dados do campeonato
+  const { setChampionshipId, getStaff, loading: contextLoading, error: contextError } = useChampionshipData();
 
   // Mapeamento de tabs (aceita inglês e português)
   const tabMapping: { [key: string]: string } = {
@@ -79,7 +84,45 @@ export const Championship = () => {
     refresh
   } = useChampionship(id);
 
-  const { permissions, loading: permissionsLoading } = useStaffPermissions(id || '');
+  // Obter staff do contexto
+  const staffMembers = getStaff();
+  
+  // Determinar permissões baseado no staff
+  const permissions = useMemo((): UserPermissions | null => {
+    if (!staffMembers.length) return null;
+    
+    // Encontrar o membro atual (assumindo que o primeiro é o owner ou staff principal)
+    const currentMember = staffMembers[0];
+    const staffPermissions = currentMember.permissions;
+    
+    return {
+      seasons: staffPermissions?.seasons || true,
+      categories: staffPermissions?.categories || true,
+      stages: staffPermissions?.stages || true,
+      pilots: staffPermissions?.pilots || true,
+      classification: staffPermissions?.classification || true,
+      regulations: staffPermissions?.regulations || true,
+      penalties: staffPermissions?.penalties || true,
+      raceDay: staffPermissions?.raceDay || true,
+      editChampionship: staffPermissions?.editChampionship || true,
+      gridTypes: staffPermissions?.gridTypes || true,
+      scoringSystems: staffPermissions?.scoringSystems || true,
+      sponsors: staffPermissions?.sponsors || true,
+      staff: staffPermissions?.staff || true,
+      asaasAccount: staffPermissions?.asaasAccount || true,
+    };
+  }, [staffMembers]);
+
+  const permissionsLoading = contextLoading.staff;
+
+  // Configurar o championshipId no contexto quando o ID mudar
+  useEffect(() => {
+    if (id) {
+      setChampionshipId(id);
+    } else {
+      setChampionshipId(null);
+    }
+  }, [id, setChampionshipId]);
 
   // Ler o parâmetro tab da URL ao montar o componente
   useEffect(() => {
@@ -159,13 +202,13 @@ export const Championship = () => {
   }
 
   // Error state
-  if (error || !championship || !id) {
+  if (error || contextError.staff || !championship || !id) {
     return (
       <div className="container mx-auto p-4">
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            {error || "Campeonato não encontrado"}
+            {error || contextError.staff || "Campeonato não encontrado"}
           </AlertDescription>
         </Alert>
         <div className="mt-4">
@@ -344,7 +387,11 @@ export const Championship = () => {
 
           {permissions?.raceDay && hasSeasons && (
             <TabsContent value="race-day" className="mt-0 ring-0 focus-visible:outline-none">
-              <RaceDayTab seasons={championship.seasons || []} championshipName={championship.name} championshipId={id} />
+              <RaceDayTab 
+                seasons={championship.seasons || []}
+                championshipName={championship.name}
+                championshipId={id}
+              />
             </TabsContent>
           )}
 

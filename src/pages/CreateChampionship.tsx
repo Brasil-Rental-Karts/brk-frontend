@@ -19,7 +19,7 @@ import {
 } from "@/utils/cnpj";
 import { masks } from "@/utils/masks";
 import { ChampionshipData, ChampionshipService } from "@/lib/services/championship.service";
-import { useChampionshipContext } from "@/contexts/ChampionshipContext";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 const convertDateToISO = (dateString: string): string | undefined => {
   if (!dateString || dateString.length < 10) return undefined;
@@ -39,7 +39,7 @@ export const CreateChampionship = () => {
   const navigate = useNavigate();
   const [cities, setCities] = useState<City[]>([]);
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
-  const { addChampionship } = useChampionshipContext();
+
 
   const loadCities = useCallback(async (uf: string) => {
     const citiesData = await fetchCitiesByState(uf);
@@ -140,9 +140,8 @@ export const CreateChampionship = () => {
   }, []);
 
   const onSuccess = useCallback((championship: any) => {
-    addChampionship(championship);
     navigate(`/championship/${championship.id}`, { replace: true });
-  }, [addChampionship, navigate]);
+  }, [navigate]);
 
   const onCancel = useCallback(() => {
     navigate('/dashboard');

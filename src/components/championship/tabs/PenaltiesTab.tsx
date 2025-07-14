@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "brk-design-system";
 import { Card, CardHeader, CardContent } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { AlertTriangle, Plus, Filter, Download, MoreVertical, UserX, Clock, MapPin, Ban, CheckCircle, XCircle, RotateCcw, Edit, Trash2 } from "lucide-react";
+import { AlertTriangle, Plus, Filter, Download, MoreVertical, UserX, Clock, MapPin, Ban, CheckCircle, XCircle, RotateCcw, Edit, Trash2, Calendar } from "lucide-react";
 import { EmptyState } from "brk-design-system";
 import {
   DropdownMenu,
@@ -33,9 +33,6 @@ import { usePagination } from "@/hooks/usePagination";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePenalties } from "@/hooks/use-penalties";
 import { Penalty, PenaltyType, PenaltyStatus, PenaltyService } from "@/lib/services/penalty.service";
-import { SeasonService } from "@/lib/services/season.service";
-import { CategoryService, Category } from "@/lib/services/category.service";
-import { StageService, Stage } from "@/lib/services/stage.service";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { InlineLoader } from '@/components/ui/loading';
 import { toast } from "sonner";
@@ -46,6 +43,7 @@ import {
   TooltipTrigger,
 } from "brk-design-system";
 import { formatName } from '@/utils/name';
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 interface PenaltiesTabProps {
   championshipId: string;
@@ -53,9 +51,9 @@ interface PenaltiesTabProps {
 
 type PenaltyWithSeasonName = Penalty & { seasonName?: string; categoryName?: string; stageName?: string };
 
-// Configuração inicial dos filtros
+// Configuração dos filtros incluindo temporada, categoria e etapa
 const createFilterFields = (
-  seasonOptions: { value: string; label: string }[] = [], 
+  seasonOptions: { value: string; label: string }[] = [],
   categoryOptions: { value: string; label: string }[] = [],
   stageOptions: { value: string; label: string }[] = []
 ): FilterField[] => [
@@ -64,21 +62,30 @@ const createFilterFields = (
     label: 'Temporada',
     type: 'combobox',
     placeholder: 'Todas as temporadas',
-    options: seasonOptions
+    options: [
+      { value: 'all', label: 'Todas as temporadas' },
+      ...seasonOptions
+    ]
   },
   {
     key: 'categoryId',
     label: 'Categoria',
     type: 'combobox',
     placeholder: 'Todas as categorias',
-    options: categoryOptions
+    options: [
+      { value: 'all', label: 'Todas as categorias' },
+      ...categoryOptions
+    ]
   },
   {
     key: 'stageId',
     label: 'Etapa',
     type: 'combobox',
     placeholder: 'Todas as etapas',
-    options: stageOptions
+    options: [
+      { value: 'all', label: 'Todas as etapas' },
+      ...stageOptions
+    ]
   },
   {
     key: 'type',
@@ -90,7 +97,6 @@ const createFilterFields = (
       { value: PenaltyType.DISQUALIFICATION, label: 'Desqualificação' },
       { value: PenaltyType.TIME_PENALTY, label: 'Penalidade de Tempo' },
       { value: PenaltyType.POSITION_PENALTY, label: 'Penalidade de Posição' },
-      
       { value: PenaltyType.WARNING, label: 'Advertência' }
     ]
   },
@@ -109,11 +115,14 @@ const createFilterFields = (
   }
 ];
 
-const PenaltyCard = ({ penalty, onAction, getPenaltyIcon, getStatusIcon }: { 
+const PenaltyCard = ({ penalty, onAction, getPenaltyIcon, getStatusIcon, contextSeasons, contextCategories, contextStages }: { 
   penalty: PenaltyWithSeasonName, 
   onAction: (action: string, penaltyId: string) => void, 
   getPenaltyIcon: (type: PenaltyType) => JSX.Element,
-  getStatusIcon: (status: PenaltyStatus) => JSX.Element
+  getStatusIcon: (status: PenaltyStatus) => JSX.Element,
+  contextSeasons: any[],
+  contextCategories: any[],
+  contextStages: any[]
 }) => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR', {
@@ -246,6 +255,34 @@ const PenaltyCard = ({ penalty, onAction, getPenaltyIcon, getStatusIcon }: {
 
         {/* Detalhes da punição */}
         <div className="space-y-3">
+          {/* Informações de contexto */}
+          {penalty.seasonId && (
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">Temporada</span>
+              <span className="text-sm font-medium break-words text-right">
+                {contextSeasons.find(s => s.id === penalty.seasonId)?.name || 'N/A'}
+              </span>
+            </div>
+          )}
+
+          {penalty.categoryId && (
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">Categoria</span>
+              <span className="text-sm font-medium break-words text-right">
+                {contextCategories.find(c => c.id === penalty.categoryId)?.name || 'N/A'}
+              </span>
+            </div>
+          )}
+
+          {penalty.stageId && (
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">Etapa</span>
+              <span className="text-sm font-medium break-words text-right">
+                {contextStages.find(s => s.id === penalty.stageId)?.name || 'N/A'}
+              </span>
+            </div>
+          )}
+
           {penalty.timePenaltySeconds && (
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">Penalidade de Tempo</span>
@@ -259,8 +296,6 @@ const PenaltyCard = ({ penalty, onAction, getPenaltyIcon, getStatusIcon }: {
               <span className="text-sm font-medium">{penalty.positionPenalty} posições</span>
             </div>
           )}
-
-
 
           {penalty.batteryIndex !== undefined && penalty.batteryIndex !== null && (
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
@@ -304,12 +339,26 @@ const PenaltyCard = ({ penalty, onAction, getPenaltyIcon, getStatusIcon }: {
 export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  
+  // Usar o contexto de dados do campeonato
+  const { 
+    getSeasons, 
+    getCategories, 
+    getStages,
+    getPenalties,
+    loading: contextLoading, 
+    error: contextError 
+  } = useChampionshipData();
+
+  // Obter dados do contexto
+  const contextSeasons = getSeasons();
+  const contextCategories = getCategories();
+  const contextStages = getStages();
+  const contextPenalties = getPenalties();
+
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortBy, setSortBy] = useState<keyof Penalty>("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [seasons, setSeasons] = useState<any[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [stages, setStages] = useState<Stage[]>([]);
   const [selectedPenalty, setSelectedPenalty] = useState<Penalty | null>(null);
   const [showAppealModal, setShowAppealModal] = useState(false);
   const [appealReason, setAppealReason] = useState("");
@@ -331,109 +380,59 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
+  // Usar o hook de penalidades apenas para operações CRUD
   const {
-    penalties: penaltiesData,
-    loading: penaltiesLoading,
-    error: penaltiesError,
     createPenalty,
     updatePenalty,
     applyPenalty,
     cancelPenalty,
     appealPenalty,
     deletePenalty,
-    fetchPenaltiesByChampionshipId,
     clearError
   } = usePenalties();
 
-  // Carregar dados iniciais
-  useEffect(() => {
-    const initializeData = async () => {
-      try {
-        // Carregar temporadas do campeonato
-        const seasonsData = await SeasonService.getByChampionshipId(championshipId);
-        setSeasons(seasonsData.data);
+  // Preparar opções dos filtros baseado nos dados do contexto
+  const seasonOptions = useMemo(() => 
+    contextSeasons.map((season) => ({ value: season.id, label: season.name }))
+  , [contextSeasons]);
 
-        // Carregar categorias - vamos buscar por temporada
-        const allCategories: Category[] = [];
-        for (const season of seasonsData.data) {
-          const categoriesData = await CategoryService.getBySeasonId(season.id);
-          allCategories.push(...categoriesData);
-        }
-        setCategories(allCategories);
+  const categoryOptions = useMemo(() => 
+    contextCategories.map((category) => ({ value: category.id, label: category.name }))
+  , [contextCategories]);
 
-        // Carregar etapas - vamos buscar por temporada
-        const allStages: Stage[] = [];
-        for (const season of seasonsData.data) {
-          const stagesData = await StageService.getBySeasonId(season.id);
-          allStages.push(...stagesData);
-        }
-        setStages(allStages);
+  const stageOptions = useMemo(() => 
+    contextStages.map((stage) => ({ value: stage.id, label: stage.name }))
+  , [contextStages]);
 
-        // Carregar punições
-        await fetchPenaltiesByChampionshipId(championshipId);
-      } catch (err) {
-        console.error('Erro ao carregar dados:', err);
-      }
-    };
+  // Filtros com opções dinâmicas
+  const filterFields = useMemo(() => 
+    createFilterFields(seasonOptions, categoryOptions, stageOptions), 
+    [seasonOptions, categoryOptions, stageOptions]
+  );
 
-    initializeData();
-  }, [championshipId, fetchPenaltiesByChampionshipId]);
-
-  // Opções para filtros
-  const filterOptions = useMemo(() => {
-    const seasonOptions = [
-      { value: 'all', label: 'Todas as temporadas' },
-      ...seasons.map(season => ({
-        value: season.id,
-        label: season.name
-      }))
-    ];
-
-    const categoryOptions = [
-      { value: 'all', label: 'Todas as categorias' },
-      ...categories.map(category => ({
-        value: category.id,
-        label: category.name
-      }))
-    ];
-
-    const stageOptions = [
-      { value: 'all', label: 'Todas as etapas' },
-      ...stages.map(stage => ({
-        value: stage.id,
-        label: stage.name
-      }))
-    ];
-
-    return { seasonOptions, categoryOptions, stageOptions };
-  }, [seasons, categories, stages]);
-
-  const filterFields = useMemo(() => createFilterFields(
-    filterOptions.seasonOptions,
-    filterOptions.categoryOptions,
-    filterOptions.stageOptions
-  ), [filterOptions]);
-
-  // Filtrar e ordenar punições
+  // Filtrar e ordenar punições usando dados do contexto
   const filteredPenalties = useMemo(() => {
-    let filtered = penaltiesData.filter(penalty => {
+    let filtered = contextPenalties.filter(penalty => {
       // Filtro por temporada
       if (filters.seasonId && filters.seasonId !== 'all') {
-        if (!penalty.seasonId || penalty.seasonId !== filters.seasonId) {
+        const penaltySeason = contextSeasons.find(s => s.id === penalty.seasonId);
+        if (!penaltySeason || penaltySeason.id !== filters.seasonId) {
           return false;
         }
       }
 
       // Filtro por categoria
       if (filters.categoryId && filters.categoryId !== 'all') {
-        if (!penalty.categoryId || penalty.categoryId !== filters.categoryId) {
+        const penaltyCategory = contextCategories.find(c => c.id === penalty.categoryId);
+        if (!penaltyCategory || penaltyCategory.id !== filters.categoryId) {
           return false;
         }
       }
 
       // Filtro por etapa
       if (filters.stageId && filters.stageId !== 'all') {
-        if (!penalty.stageId || penalty.stageId !== filters.stageId) {
+        const penaltyStage = contextStages.find(s => s.id === penalty.stageId);
+        if (!penaltyStage || penaltyStage.id !== filters.stageId) {
           return false;
         }
       }
@@ -476,7 +475,7 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
     });
 
     return filtered;
-  }, [penaltiesData, filters, sortBy, sortOrder]);
+  }, [contextPenalties, filters, sortBy, sortOrder, contextSeasons, contextCategories, contextStages]);
 
   // --- Lógica para Desktop (Paginação) ---
   const pagination = usePagination(filteredPenalties.length, 5, 1);
@@ -531,7 +530,6 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
         return <Clock className="h-4 w-4" />;
       case PenaltyType.POSITION_PENALTY:
         return <MapPin className="h-4 w-4" />;
-
       case PenaltyType.WARNING:
         return <AlertTriangle className="h-4 w-4" />;
       default:
@@ -733,7 +731,7 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
   };
 
   const handlePenaltyAction = (action: string, penaltyId: string) => {
-    const penalty = penaltiesData.find(p => p.id === penaltyId);
+    const penalty = contextPenalties.find(p => p.id === penaltyId);
     if (!penalty) return;
 
     switch (action) {
@@ -785,46 +783,82 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
   const handlePageChange = (page: number) => pagination.actions.setCurrentPage(page);
   const handleItemsPerPageChange = (items: number) => pagination.actions.setItemsPerPage(items);
 
-  if (penaltiesLoading) {
+  // Determinar loading e error incluindo contexto
+  const isDataLoading = contextLoading.penalties || contextLoading.seasons || contextLoading.categories || contextLoading.stages;
+  const dataError = contextError.penalties || contextError.seasons || contextError.categories || contextError.stages;
+
+  // Mostrar loading primeiro, antes de qualquer outra verificação
+  if (isDataLoading) {
     return (
-      <Card className="w-full">
-        <div className="p-6">
-          <InlineLoader size="lg" />
+      <div className="space-y-6">
+        {/* Título da aba */}
+        <div className="border-b border-gray-200 pb-4">
+          <h2 className="text-2xl font-bold text-gray-900">Punições</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Gerencie as punições aplicadas no campeonato
+          </p>
         </div>
-      </Card>
+
+        {/* Loading state */}
+        <Card className="w-full">
+          <div className="p-6">
+            <InlineLoader size="lg" />
+          </div>
+        </Card>
+      </div>
     );
   }
 
-  if (penaltiesError) {
+  if (dataError) {
     return (
-      <Card className="w-full">
-        <div className="p-6">
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Erro ao carregar punições</AlertTitle>
-            <AlertDescription>{penaltiesError}</AlertDescription>
-          </Alert>
-          <div className="mt-4">
-            <Button onClick={() => window.location.reload()} variant="outline">
-              Tentar novamente
-            </Button>
-          </div>
+      <div className="space-y-6">
+        {/* Título da aba */}
+        <div className="border-b border-gray-200 pb-4">
+          <h2 className="text-2xl font-bold text-gray-900">Punições</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Gerencie as punições aplicadas no campeonato
+          </p>
         </div>
-      </Card>
+
+        <Card className="w-full">
+          <div className="p-6">
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Erro ao carregar punições</AlertTitle>
+              <AlertDescription>{dataError}</AlertDescription>
+            </Alert>
+            <div className="mt-4">
+              <Button onClick={() => window.location.reload()} variant="outline">
+                Tentar novamente
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
     );
   }
 
   if (filteredPenalties.length === 0 && Object.keys(filters).length === 0) {
     return (
-      <EmptyState
-        icon={AlertTriangle}
-        title="Nenhuma punição criada"
-        description="Crie a primeira punição para começar a gerenciar as penalidades do campeonato."
-        action={{
-          label: "Nova Punição",
-          onClick: handleAddPenalty,
-        }}
-      />
+      <div className="space-y-6">
+        {/* Título da aba */}
+        <div className="border-b border-gray-200 pb-4">
+          <h2 className="text-2xl font-bold text-gray-900">Punições</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Gerencie as punições aplicadas no campeonato
+          </p>
+        </div>
+
+        <EmptyState
+          icon={AlertTriangle}
+          title="Nenhuma punição criada"
+          description="Crie a primeira punição para começar a gerenciar as penalidades do campeonato."
+          action={{
+            label: "Nova Punição",
+            onClick: handleAddPenalty,
+          }}
+        />
+      </div>
     );
   }
 
@@ -865,6 +899,9 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
                   onAction={handlePenaltyAction}
                   getPenaltyIcon={getPenaltyIcon}
                   getStatusIcon={getStatusIcon}
+                  contextSeasons={contextSeasons}
+                  contextCategories={contextCategories}
+                  contextStages={contextStages}
                 />
               </div>
             ))}
@@ -916,6 +953,24 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
                   </TableHead>
                   <TableHead className="text-center">
                     <div className="flex items-center justify-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Temporada
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <UserX className="h-4 w-4" />
+                      Categoria
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Etapa
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center">
+                    <div className="flex items-center justify-center gap-2">
                       <UserX className="h-4 w-4" />
                       Piloto
                     </div>
@@ -943,7 +998,7 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
               <TableBody>
                 {processedPenalties.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                       Nenhuma punição encontrada com os filtros aplicados
                     </TableCell>
                   </TableRow>
@@ -976,6 +1031,30 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
                         </div>
                       </TableCell>
                       <TableCell className="text-center py-4">
+                        <div className="text-sm">
+                          {penalty.seasonId 
+                            ? contextSeasons.find(s => s.id === penalty.seasonId)?.name || 'N/A'
+                            : '-'
+                          }
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <div className="text-sm">
+                          {penalty.categoryId 
+                            ? contextCategories.find(c => c.id === penalty.categoryId)?.name || 'N/A'
+                            : '-'
+                          }
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
+                        <div className="text-sm">
+                          {penalty.stageId 
+                            ? contextStages.find(s => s.id === penalty.stageId)?.name || 'N/A'
+                            : '-'
+                          }
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center py-4">
                         <div className="font-medium">
                           {formatName(penalty.user?.name || 'N/A')}
                         </div>
@@ -1001,10 +1080,10 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
                       </TableCell>
                       <TableCell className="text-center py-4">
                         {penalty.appealReason ? (
-                                                      <div className="text-xs space-y-1">
-                              <div className="font-medium text-blue-600">
-                                Recorrido por {formatName(penalty.appealedByUser?.name || 'N/A')}
-                              </div>
+                          <div className="text-xs space-y-1">
+                            <div className="font-medium text-blue-600">
+                              Recorrido por {formatName(penalty.appealedByUser?.name || 'N/A')}
+                            </div>
                             <div className="max-w-xs truncate" title={penalty.appealReason}>
                               {penalty.appealReason}
                             </div>

@@ -19,6 +19,7 @@ import {
   DialogTitle 
 } from 'brk-design-system';
 import { Alert, AlertDescription, AlertTitle } from 'brk-design-system';
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 interface StageDetailsModalProps {
   stage: Stage | null;
@@ -49,31 +50,31 @@ export const StageDetailsModal = ({ stage, isOpen, onClose }: StageDetailsModalP
   const [error, setError] = useState<string | null>(null);
   const [raceTrack, setRaceTrack] = useState<any>(null);
 
+  // Usar o contexto de dados do campeonato
+  const { getCategories, getRaceTracks, getRegistrations } = useChampionshipData();
+
   const fetchStageDetails = async (stageId: string) => {
     try {
       setLoading(true);
       setError(null);
 
-      // Buscar dados do kartódromo
-      if (stage?.raceTrackId) {
-        try {
-          const raceTrackData = await RaceTrackService.getById(stage.raceTrackId);
-          setRaceTrack(raceTrackData);
-        } catch (err) {
-          console.error('Erro ao buscar dados do kartódromo:', err);
-        }
+      // Usar kartódromos do contexto em vez de buscar novamente
+      const allRaceTracks = getRaceTracks();
+      if (stage?.raceTrackId && allRaceTracks[stage.raceTrackId]) {
+        setRaceTrack(allRaceTracks[stage.raceTrackId]);
       }
 
-      // Buscar todas as categorias da etapa
-      const allCategories = await CategoryService.getAll();
+      // Usar categorias do contexto em vez de buscar novamente
+      const allCategories = getCategories();
       
       // Filtrar apenas as categorias que estão na etapa
       const stageCategories = allCategories.filter(category => 
         stage?.categoryIds.includes(category.id)
       );
 
-      // Buscar todas as inscrições da temporada para mostrar todos os pilotos
-      const seasonRegistrations = await SeasonRegistrationService.getBySeasonId(stage!.seasonId);
+      // Usar inscrições do contexto em vez de buscar do backend
+      const allRegistrations = getRegistrations();
+      const seasonRegistrations = allRegistrations.filter(reg => reg.seasonId === stage!.seasonId);
 
       // Buscar participações confirmadas da etapa
       const stageParticipations = await StageParticipationService.getStageParticipations(stageId);

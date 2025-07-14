@@ -24,6 +24,7 @@ import { useFormScreen } from '@/hooks/use-form-screen';
 import { useExternalNavigation } from '@/hooks/use-external-navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRegistrations } from '@/hooks/use-user-registrations';
+import { useChampionshipData } from '@/contexts/ChampionshipContext';
 import {
   Tooltip,
   TooltipContent,
@@ -224,6 +225,14 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  
+  // Usar o contexto de dados do campeonato
+  const { 
+    getCategories,
+    getStages,
+    getSeasons
+  } = useChampionshipData();
+
   const [season, setSeason] = useState<Season | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
@@ -308,10 +317,16 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       // Primeiro, carregar a temporada para obter o ID real
       const seasonData = await SeasonService.getById(seasonId);
       
-      // Carregar dados em paralelo
-      const [categoriesData, stagesData, userRegistrationsData, championshipData] = await Promise.all([
-        CategoryService.getBySeasonId(seasonData.id),
-        StageService.getBySeasonId(seasonData.id),
+      // Usar dados do contexto em vez de buscar novamente
+      const allCategories = getCategories();
+      const allStages = getStages();
+      
+      // Filtrar categorias e etapas da temporada específica
+      const categoriesData = allCategories.filter(cat => cat.seasonId === seasonData.id);
+      const stagesData = allStages.filter(stage => stage.seasonId === seasonData.id);
+      
+      // Carregar dados que não estão no contexto
+      const [userRegistrationsData, championshipData] = await Promise.all([
         SeasonRegistrationService.getMyRegistrations(),
         ChampionshipService.getPublicById(seasonData.championshipId)
       ]);

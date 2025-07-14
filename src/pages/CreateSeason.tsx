@@ -7,6 +7,7 @@ import { useChampionship } from '../hooks/use-championship';
 import { PaymentConditions } from '../components/ui/payment-conditions';
 import { Button } from 'brk-design-system';
 import { Alert, AlertDescription } from 'brk-design-system';
+import { useChampionshipData } from '@/contexts/ChampionshipContext';
 
 type FormPaymentCondition = {
   type: "por_temporada" | "por_etapa";
@@ -32,6 +33,7 @@ export const CreateSeason = () => {
   const navigate = useNavigate();
   const { championshipId, seasonId } = useParams<{ championshipId: string; seasonId?: string }>();
   const { championship } = useChampionship(championshipId!);
+  const { addSeason, updateSeason } = useChampionshipData();
   const isEditMode = seasonId !== 'new' && seasonId !== undefined;
   
   const [formData, setFormData] = useState<FormData>({
@@ -202,9 +204,13 @@ export const CreateSeason = () => {
       };
 
       if (isEditMode && seasonId) {
-        await SeasonService.update(seasonId, submitData);
+        const updatedSeason = await SeasonService.update(seasonId, submitData);
+        // Atualizar o contexto com a temporada atualizada
+        updateSeason(seasonId, updatedSeason);
       } else {
-        await SeasonService.create(submitData);
+        const createdSeason = await SeasonService.create(submitData);
+        // Atualizar o contexto com a nova temporada
+        addSeason(createdSeason);
       }
 
       navigate(`/championship/${championshipId}`, { replace: true });

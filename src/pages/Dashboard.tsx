@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { useNavigation } from "@/router";
 import { useDashboardChampionships } from "@/hooks/use-dashboard-championships";
-import { useChampionshipContext } from "@/contexts/ChampionshipContext";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 import { formatDateToBrazilian } from "@/utils/date";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRegistrations } from "@/hooks/use-user-registrations";
@@ -60,7 +60,6 @@ export const Dashboard = () => {
   const isManager = user?.role === 'Manager' || user?.role === 'Administrator';
   
   // Use context for championships data and hook for loading/error states
-  const { championshipsOrganized } = useChampionshipContext();
   const { 
     loadingChampionships, 
     championshipsError, 
@@ -301,7 +300,7 @@ export const Dashboard = () => {
       {/* Grid principal */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Campeonatos Organizados - Mostra para managers ou para quem tem campeonatos como staff */}
-        {(isManager || championshipsOrganized.length > 0) && (
+        {isManager && (
           <Card className="p-6">
             <div className="mb-4">
               <h2 className="text-xl font-semibold">Organizando</h2>
@@ -330,7 +329,7 @@ export const Dashboard = () => {
                   </Button>
                 </div>
               </div>
-            ) : championshipsOrganized.length === 0 ? (
+            ) : (
               <EmptyState
                 icon={Trophy}
                 title="Você ainda não organizou nenhum campeonato"
@@ -339,74 +338,12 @@ export const Dashboard = () => {
                   onClick: () => nav.goToCreateChampionship(),
                 }}
               />
-            ) : (
-              <div className="space-y-3">
-                {championshipsOrganized.map((championship) => (
-                  <div
-                    key={championship.id}
-                    className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => nav.goToChampionship(championship.id)}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-medium text-sm truncate flex-1 mr-2" title={championship.name}>
-                        {championship.name}
-                      </h3>
-                      <div className="flex gap-1 flex-shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          title="Ver campeonato"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            nav.goToChampionship(championship.id);
-                          }}
-                        >
-                          <Eye className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          title="Gerenciar campeonato"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            nav.goToChampionship(championship.id);
-                          }}
-                        >
-                          <Settings className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    {championship.shortDescription && (
-                      <p className="text-xs text-muted-foreground mb-2 overflow-hidden" style={{
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical'
-                      }}>
-                        {championship.shortDescription}
-                      </p>
-                    )}
-                    
-                    <div className="flex justify-between items-center text-xs text-muted-foreground">
-                      <span>Criado em {formatDateToBrazilian(championship.createdAt)}</span>
-                      <Badge 
-                        variant={championship.isOwner !== false ? "default" : "secondary"} 
-                        className="text-xs"
-                      >
-                        {championship.isOwner !== false ? "Organizador" : "Equipe"}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
             )}
           </Card>
         )}
 
         {/* Campeonatos Participando - Ocupa mais espaço quando não há seção "Organizando" */}
-        <Card className={`p-6 ${!(isManager || championshipsOrganized.length > 0) ? 'lg:col-span-2' : ''}`}>
+        <Card className={`p-6 ${!isManager ? 'lg:col-span-2' : ''}`}>
           <div className="mb-4">
             <h2 className="text-xl font-semibold">Participando</h2>
             <p className="text-sm text-muted-foreground">

@@ -45,6 +45,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { RaceTrackService } from '@/lib/services/race-track.service';
 import { StageDetailsModal } from '@/components/championship/modals/StageDetailsModal';
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 
 type Season = BaseSeason & { categories?: Category[], stages?: Stage[] };
@@ -185,65 +186,59 @@ const StageCard = ({ stage, onAction, getStageStatusBadge, raceTrack }: {
 export const StagesTab = ({ championshipId, seasons, isLoading, error: initialError, onRefresh }: StagesTabProps) => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  // Usar o contexto de dados do campeonato
+  const { 
+    getSeasons, 
+    getCategories, 
+    getStages,
+    getRaceTracks,
+    loading: contextLoading, 
+    error: contextError,
+    refreshStages,
+    removeStage: removeStageFromContext
+  } = useChampionshipData();
+
+  // Obter dados do contexto
+  const contextSeasons = getSeasons();
+  const contextCategories = getCategories();
+  const contextStages = getStages();
+  const contextRaceTracks = getRaceTracks();
+
+  // Estados locais
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortBy, setSortBy] = useState<keyof Stage>("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [raceTracks, setRaceTracks] = useState<Record<string, any>>({});
-
-  // Estados para o modal de exclusão
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [stageToDelete, setStageToDelete] = useState<Stage | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletingStage, setDeletingStage] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  // Estados para o modal de detalhes
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  // Adicionar estados para o modal de detalhes
   const [selectedStage, setSelectedStage] = useState<Stage | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
-  // Buscar dados dos kartódromos
-  useEffect(() => {
-    const fetchRaceTracks = async () => {
-      try {
-        const allStages = seasons.flatMap(season => season.stages || []);
-        const uniqueRaceTrackIds = [...new Set(allStages.map(stage => stage.raceTrackId).filter(Boolean))];
-        
-        const raceTracksData: Record<string, any> = {};
-        for (const raceTrackId of uniqueRaceTrackIds) {
-          try {
-            const raceTrack = await RaceTrackService.getById(raceTrackId);
-            raceTracksData[raceTrackId] = raceTrack;
-          } catch (err) {
-            console.error(`Erro ao buscar kartódromo ${raceTrackId}:`, err);
-          }
-        }
-        setRaceTracks(raceTracksData);
-      } catch (err) {
-        console.error('Erro ao buscar kartódromos:', err);
-      }
-    };
-
-    if (seasons.length > 0) {
-      fetchRaceTracks();
-    }
-  }, [seasons]);
+  // Usar dados do contexto
+  const effectiveSeasons = contextSeasons;
+  const effectiveStages = contextStages;
+  const effectiveRaceTracks = contextRaceTracks;
 
   const seasonOptions = useMemo(() => [
     { value: 'all', label: 'Todas as temporadas' },
-    ...seasons.map((season) => ({ value: season.id, label: season.name }))
-  ], [seasons]);
+    ...effectiveSeasons.map((season) => ({ value: season.id, label: season.name }))
+  ], [effectiveSeasons]);
 
   const filterFields = useMemo(() => createFilterFields(seasonOptions), [seasonOptions]);
   
-  const canCreateStage = useMemo(() => seasons.some((s) => s.status !== 'cancelado'), [seasons]);
+  const canCreateStage = useMemo(() => effectiveSeasons.some((s) => s.status !== 'cancelado'), [effectiveSeasons]);
 
   // Aplicar filtros e ordenação aos dados
   const filteredStages = useMemo(() => {
-    const allStages: StageWithSeasonName[] = seasons.flatMap(season => 
-      (season.stages || []).map(stage => ({
+    const allStages: StageWithSeasonName[] = effectiveStages.map(stage => {
+      const season = effectiveSeasons.find(s => s.id === stage.seasonId);
+      return {
         ...stage,
-        seasonName: season.name
-      }))
-    );
+        seasonName: season?.name || 'Temporada não encontrada'
+      };
+    });
 
     let result = [...allStages];
 
@@ -277,7 +272,7 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
     });
 
     return result;
-  }, [seasons, filters, sortBy, sortOrder]);
+  }, [effectiveStages, effectiveSeasons, filters, sortBy, sortOrder]);
 
 
   // --- Lógica para Desktop (Paginação) ---
@@ -411,18 +406,24 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
   const confirmDeleteStage = async () => {
     if (!stageToDelete) return;
 
-    setIsDeleting(true);
+    setDeletingStage(true);
     setDeleteError(null);
 
     try {
       await StageService.delete(stageToDelete.id);
-      onRefresh(); // Notificar o componente pai
+      
+      // Remover do contexto
+      removeStageFromContext(stageToDelete.id);
+      
+      // Atualizar dados do contexto
+      await refreshStages();
+      
       setShowDeleteDialog(false);
       setStageToDelete(null);
     } catch (err: any) {
       setDeleteError(err.message || 'Erro ao deletar etapa');
     } finally {
-      setIsDeleting(false);
+      setDeletingStage(false);
     }
   };
 
@@ -482,7 +483,11 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
     }
   };
 
-  if (isLoading) {
+  // Determinar loading e error
+  const isDataLoading = isLoading || contextLoading.seasons || contextLoading.stages;
+  const dataError = initialError || contextError.seasons || contextError.stages;
+
+  if (isDataLoading) {
     return (
       <Card className="w-full">
         <div className="p-6">
@@ -492,13 +497,13 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
     );
   }
 
-  if (initialError) {
+  if (dataError) {
     return (
       <Card className="w-full">
         <div className="p-6">
           <Alert variant="destructive">
             <AlertTitle>Erro ao carregar etapas</AlertTitle>
-            <AlertDescription>{initialError}</AlertDescription>
+            <AlertDescription>{dataError}</AlertDescription>
           </Alert>
           <div className="mt-4">
             <Button onClick={onRefresh} variant="outline">
@@ -579,7 +584,7 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
                   stage={stage as StageWithSeasonName} 
                   onAction={handleStageAction}
                   getStageStatusBadge={getStageStatusBadge}
-                  raceTrack={raceTracks[stage.raceTrackId]}
+                  raceTrack={effectiveRaceTracks[stage.raceTrackId]}
                  />
               </div>
             ))}
@@ -685,8 +690,8 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
                       <TableCell className="text-center py-4">
                         <div>
                           <div className="font-medium">
-                            {stage.raceTrackId && raceTracks[stage.raceTrackId] 
-                              ? raceTracks[stage.raceTrackId].name 
+                            {stage.raceTrackId && effectiveRaceTracks[stage.raceTrackId] 
+                              ? effectiveRaceTracks[stage.raceTrackId].name 
                               : 'Carregando...'}
                           </div>
                           {stage.trackLayoutId && (
@@ -798,16 +803,16 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
             <Button 
               variant="outline" 
               onClick={cancelDeleteStage}
-              disabled={isDeleting}
+              disabled={deletingStage}
             >
               Cancelar
             </Button>
             <Button 
               variant="destructive" 
               onClick={confirmDeleteStage}
-              disabled={isDeleting}
+              disabled={deletingStage}
             >
-              {isDeleting ? "Excluindo..." : "Excluir Etapa"}
+              {deletingStage ? "Excluindo..." : "Excluir Etapa"}
             </Button>
           </DialogFooter>
         </DialogContent>
