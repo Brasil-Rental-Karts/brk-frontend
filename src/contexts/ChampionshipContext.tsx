@@ -142,6 +142,9 @@ interface ChampionshipContextType {
   getRegulations: (seasonId: string) => Regulation[];
   getChampionshipInfo: () => Championship | null;
   
+  // Funções de atualização específicas para campeonato
+  updateChampionship: (championshipId: string, updatedChampionship: Championship) => void;
+  
   // Funções de atualização específicas
   addSeason: (season: Season) => void;
   updateSeason: (seasonId: string, updatedSeason: Partial<Season>) => void;
@@ -618,6 +621,18 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   const getChampionshipInfo = useCallback(() => {
     return championshipData.championshipInfo;
   }, [championshipData.championshipInfo]);
+
+  // Função para atualizar dados do campeonato
+  const updateChampionship = useCallback((championshipId: string, updatedChampionship: Championship) => {
+    setChampionshipData(prev => ({
+      ...prev,
+      championshipInfo: updatedChampionship,
+      lastUpdated: {
+        ...prev.lastUpdated,
+        championshipInfo: new Date(),
+      },
+    }));
+  }, []);
 
   // Funções de refresh (força atualização)
   const refreshSeasons = useCallback(async () => {
@@ -1209,6 +1224,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     fetchRegulations,
     fetchChampionshipInfo,
     getChampionshipInfo,
+    updateChampionship,
     refreshSeasons,
     refreshCategories,
     refreshStages,

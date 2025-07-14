@@ -76,7 +76,8 @@ export class ChampionshipService {
       const response = await api.post<Championship>(ChampionshipService.BASE_URL, data);
       return response.data;
     } catch (error: any) {
-      console.error('Error creating championship:', error);
+      console.error('❌ ChampionshipService: Erro ao criar campeonato:', error);
+      console.error('❌ ChampionshipService: Resposta do servidor:', error.response?.data);
       throw new Error(
         error.response?.data?.message || 
         'Erro ao criar campeonato. Tente novamente.'

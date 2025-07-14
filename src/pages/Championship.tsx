@@ -11,7 +11,7 @@ import { RegulationTab } from "@/components/championship/tabs/RegulationTab";
 import { GridTypesTab } from "@/components/championship/settings/GridTypesTab";
 import { ScoringSystemTab } from "@/components/championship/settings/ScoringSystemTab";
 import { AsaasAccountTab } from "@/components/championship/settings/AsaasAccountTab";
-import { EditChampionshipTab } from "@/components/championship/settings/EditChampionshipTab";
+import CreateChampionship from "@/pages/CreateChampionship";
 import { SponsorsTab } from "@/components/championship/settings/SponsorsTab";
 import { StaffTab } from "@/components/championship/settings/StaffTab";
 import { useChampionshipData } from "@/contexts/ChampionshipContext";
@@ -384,7 +384,7 @@ export const Championship = () => {
 
           {permissions?.editChampionship && (
             <TabsContent value="config-edit" className="mt-0 ring-0 focus-visible:outline-none">
-              <EditChampionshipTab championshipId={id} />
+              <CreateChampionship />
             </TabsContent>
           )}
 
