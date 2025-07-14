@@ -346,8 +346,7 @@ export const Dashboard = () => {
                     key={championship.id}
                     className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
                     onClick={() => {
-                      const siteUrl = import.meta.env.VITE_SITE_URL;
-                      window.location.href = `${siteUrl}/campeonato/${championship.slug}`;
+                      nav.goToChampionship(championship.id);
                     }}
                   >
                     <div className="flex justify-between items-start mb-2">
@@ -421,8 +420,14 @@ export const Dashboard = () => {
                   key={participation.championship.id}
                   className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
                   onClick={() => {
-                    const siteUrl = import.meta.env.VITE_SITE_URL;
-                    window.location.href = `${siteUrl}/campeonato/${participation.championship.slug}`;
+                    // Se for staff ou owner, usar navigate interno
+                    if (participation.championship.isOwner || participation.championship.isStaff) {
+                      nav.goToChampionship(participation.championship.id);
+                    } else {
+                      // Se for apenas piloto, ir para a página pública
+                      const siteUrl = import.meta.env.VITE_SITE_URL;
+                      window.location.href = `${siteUrl}/campeonato/${participation.championship.slug}`;
+                    }
                   }}
                 >
                   <div className="flex justify-between items-start mb-2">
