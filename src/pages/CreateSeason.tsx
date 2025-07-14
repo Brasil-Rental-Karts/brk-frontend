@@ -193,7 +193,7 @@ export const CreateSeason = () => {
       endDate: formatDateToISO(data.endDate) || '',
       status: data.status,
       registrationOpen: data.registrationOpen === 'true',
-      paymentConditions: data.paymentConditions.filter((condition: FormPaymentCondition) => condition.enabled),
+      paymentConditions: data.paymentConditions, // Enviar todas as condições, incluindo as inativas
       paymentMethods: [], // Campo legado - será removido
       championshipId: championshipId!,
       pixInstallments: 1, // Campo legado - será removido

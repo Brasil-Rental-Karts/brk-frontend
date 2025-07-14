@@ -115,6 +115,14 @@ const PaymentConditionsDisplay = ({ conditions, isCompact = false }: {
   conditions: PaymentCondition[], 
   isCompact?: boolean 
 }) => {
+  if (conditions.length === 0) {
+    return (
+      <div className={`${isCompact ? 'text-xs' : 'text-sm'} text-muted-foreground`}>
+        Sem condições ativas
+      </div>
+    );
+  }
+  
   if (conditions.length === 1) {
     const condition = conditions[0];
     return (
@@ -192,7 +200,11 @@ const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod }: {
           <div className="flex flex-col">
             <span className="text-muted-foreground">Inscrição</span>
             <div className="space-y-1">
-              {paymentInfo.hasMultipleConditions ? (
+              {paymentInfo.conditions.length === 0 ? (
+                <span className="text-sm text-muted-foreground">
+                  Sem condições ativas
+                </span>
+              ) : paymentInfo.hasMultipleConditions ? (
                 paymentInfo.conditions.map((condition, index) => (
                   <div key={index} className="text-sm">
                     <span className="font-medium">{formatCurrency(condition.value)}</span>
@@ -629,6 +641,16 @@ export const SeasonsTab = ({
                       <TableCell className="text-center py-4">
                         {(() => {
                           const paymentInfo = formatPaymentConditions(season);
+                          
+                          // Verificar se há condições disponíveis
+                          if (paymentInfo.conditions.length === 0) {
+                            return (
+                              <div className="text-sm text-muted-foreground">
+                                Sem condições ativas
+                              </div>
+                            );
+                          }
+                          
                           return (
                             <div className="space-y-1">
                               {paymentInfo.hasMultipleConditions ? (

@@ -83,8 +83,24 @@ export const PaymentConditions = forwardRef<HTMLDivElement, PaymentConditionsPro
   }, [value]);
 
   const addCondition = () => {
+    // Verificar se já existe uma condição por temporada
+    const hasPorTemporada = conditions.some(condition => condition.type === 'por_temporada');
+    // Verificar se já existe uma condição por etapa
+    const hasPorEtapa = conditions.some(condition => condition.type === 'por_etapa');
+    
+    // Determinar qual tipo adicionar
+    let newType: 'por_temporada' | 'por_etapa';
+    if (!hasPorTemporada) {
+      newType = 'por_temporada';
+    } else if (!hasPorEtapa) {
+      newType = 'por_etapa';
+    } else {
+      // Se ambos os tipos já existem, não adicionar mais
+      return;
+    }
+    
     const newCondition: PaymentCondition = {
-      type: 'por_temporada',
+      type: newType,
       value: 0,
       description: '',
       enabled: true,
@@ -157,26 +173,39 @@ export const PaymentConditions = forwardRef<HTMLDivElement, PaymentConditionsPro
     updateCondition(index, 'paymentMethods', updatedMethods);
   };
 
+  // Verificar quais tipos já existem
+  const hasPorTemporada = conditions.some(condition => condition.type === 'por_temporada');
+  const hasPorEtapa = conditions.some(condition => condition.type === 'por_etapa');
+  const canAddMore = !hasPorTemporada || !hasPorEtapa;
+
   return (
     <div ref={ref} className="space-y-4" onBlur={onBlur}>
       <div className="flex items-center justify-between">
         <Label className="text-sm font-medium">Condições de Pagamento</Label>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={addCondition}
-          className="flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Adicionar Condição
-        </Button>
+        {canAddMore && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addCondition}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Adicionar Condição
+          </Button>
+        )}
       </div>
 
       {conditions.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
           <p>Nenhuma condição de pagamento configurada</p>
           <p className="text-sm">Clique em "Adicionar Condição" para começar</p>
+        </div>
+      )}
+
+      {!canAddMore && conditions.length > 0 && (
+        <div className="text-center py-4 text-muted-foreground bg-muted/50 rounded-md">
+          <p className="text-sm">Máximo de condições atingido (1 por temporada + 1 por etapa)</p>
         </div>
       )}
 
@@ -214,11 +243,23 @@ export const PaymentConditions = forwardRef<HTMLDivElement, PaymentConditionsPro
                 <select
                   id={`type-${index}`}
                   value={condition.type}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateCondition(index, 'type', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                    const newType = e.target.value as 'por_temporada' | 'por_etapa';
+                    // Verificar se já existe outra condição com este tipo
+                    const otherConditionWithSameType = conditions.find((c, i) => i !== index && c.type === newType);
+                    if (otherConditionWithSameType) {
+                      return; // Não permitir mudança se já existe outro com este tipo
+                    }
+                    updateCondition(index, 'type', newType);
+                  }}
                   className="w-full p-2 border border-input rounded-md bg-background"
                 >
-                  <option value="por_temporada">Por Temporada</option>
-                  <option value="por_etapa">Por Etapa</option>
+                  <option value="por_temporada" disabled={conditions.some((c, i) => i !== index && c.type === 'por_temporada')}>
+                    Por Temporada
+                  </option>
+                  <option value="por_etapa" disabled={conditions.some((c, i) => i !== index && c.type === 'por_etapa')}>
+                    Por Etapa
+                  </option>
                 </select>
               </div>
               <div>
