@@ -285,7 +285,8 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
         } else if (field.type === "file") {
           defaults[field.id] = "";
         } else if (field.type === "custom") {
-          defaults[field.id] = null;
+          // Inicializar com array vazio para campos de posições
+          defaults[field.id] = field.id === "positions" ? [] : null;
         } else {
           defaults[field.id] = "";
         }

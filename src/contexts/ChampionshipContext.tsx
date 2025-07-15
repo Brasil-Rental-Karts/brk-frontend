@@ -207,6 +207,11 @@ interface ChampionshipContextType {
   removeGridType: (gridTypeId: string) => void;
   updateAllGridTypes: (gridTypes: GridType[]) => void;
   
+  // Funções de atualização específicas para scoring systems
+  addScoringSystem: (scoringSystem: ScoringSystem) => void;
+  updateScoringSystem: (scoringSystemId: string, updatedScoringSystem: Partial<ScoringSystem>) => void;
+  removeScoringSystem: (scoringSystemId: string) => void;
+  
   // Funções de limpeza
   clearCache: () => void;
   setChampionshipId: (id: string | null) => void;
@@ -1263,6 +1268,42 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }));
   }, []);
 
+  // Funções de atualização específicas para scoring systems
+  const addScoringSystem = useCallback((scoringSystem: ScoringSystem) => {
+    setChampionshipData(prev => ({
+      ...prev,
+      scoringSystems: [...prev.scoringSystems, scoringSystem],
+      lastUpdated: {
+        ...prev.lastUpdated,
+        scoringSystems: new Date(),
+      },
+    }));
+  }, []);
+
+  const updateScoringSystem = useCallback((scoringSystemId: string, updatedScoringSystem: Partial<ScoringSystem>) => {
+    setChampionshipData(prev => ({
+      ...prev,
+      scoringSystems: prev.scoringSystems.map(system => 
+        system.id === scoringSystemId ? { ...system, ...updatedScoringSystem } : system
+      ),
+      lastUpdated: {
+        ...prev.lastUpdated,
+        scoringSystems: new Date(),
+      },
+    }));
+  }, []);
+
+  const removeScoringSystem = useCallback((scoringSystemId: string) => {
+    setChampionshipData(prev => ({
+      ...prev,
+      scoringSystems: prev.scoringSystems.filter(system => system.id !== scoringSystemId),
+      lastUpdated: {
+        ...prev.lastUpdated,
+        scoringSystems: new Date(),
+      },
+    }));
+  }, []);
+
   // Função para limpar cache
   const clearCache = useCallback(() => {
     console.log('🧹 ChampionshipContext: Limpando cache...');
@@ -1570,6 +1611,9 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     updateGridType,
     removeGridType,
     updateAllGridTypes,
+    addScoringSystem,
+    updateScoringSystem,
+    removeScoringSystem,
     clearCache,
     setChampionshipId: setChampionshipIdHandler,
   };
