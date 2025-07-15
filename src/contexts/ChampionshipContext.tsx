@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { Championship } from '@/lib/services/championship.service';
+import { Championship, Sponsor } from '@/lib/services/championship.service';
 import { Season } from '@/lib/services/season.service';
 import { Category } from '@/lib/services/category.service';
 import { Stage } from '@/lib/types/stage';
@@ -190,6 +190,12 @@ interface ChampionshipContextType {
   updateRegulation: (seasonId: string, regulationId: string, updatedRegulation: Partial<Regulation>) => void;
   removeRegulation: (seasonId: string, regulationId: string) => void;
   updateRegulationsOrder: (seasonId: string, regulations: Regulation[]) => void;
+  
+  // Funções de atualização específicas para patrocinadores
+  addSponsor: (sponsor: Sponsor) => void;
+  updateSponsor: (sponsorId: string, updatedSponsor: Partial<Sponsor>) => void;
+  removeSponsor: (sponsorId: string) => void;
+  updateSponsors: (sponsors: Sponsor[]) => void;
   
   // Funções de limpeza
   clearCache: () => void;
@@ -1141,6 +1147,65 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }));
   }, []);
 
+  // Funções de atualização específicas para patrocinadores
+  const addSponsor = useCallback((sponsor: Sponsor) => {
+    setChampionshipData(prev => ({
+      ...prev,
+      championshipInfo: prev.championshipInfo ? {
+        ...prev.championshipInfo,
+        sponsors: [...(prev.championshipInfo.sponsors || []), sponsor],
+      } : null,
+      lastUpdated: {
+        ...prev.lastUpdated,
+        championshipInfo: new Date(),
+      },
+    }));
+  }, []);
+
+  const updateSponsor = useCallback((sponsorId: string, updatedSponsor: Partial<Sponsor>) => {
+    setChampionshipData(prev => ({
+      ...prev,
+      championshipInfo: prev.championshipInfo ? {
+        ...prev.championshipInfo,
+        sponsors: prev.championshipInfo.sponsors?.map(sp =>
+          sp.id === sponsorId ? { ...sp, ...updatedSponsor } : sp
+        ) || [],
+      } : null,
+      lastUpdated: {
+        ...prev.lastUpdated,
+        championshipInfo: new Date(),
+      },
+    }));
+  }, []);
+
+  const removeSponsor = useCallback((sponsorId: string) => {
+    setChampionshipData(prev => ({
+      ...prev,
+      championshipInfo: prev.championshipInfo ? {
+        ...prev.championshipInfo,
+        sponsors: prev.championshipInfo.sponsors?.filter(sp => sp.id !== sponsorId) || [],
+      } : null,
+      lastUpdated: {
+        ...prev.lastUpdated,
+        championshipInfo: new Date(),
+      },
+    }));
+  }, []);
+
+  const updateSponsors = useCallback((sponsors: Sponsor[]) => {
+    setChampionshipData(prev => ({
+      ...prev,
+      championshipInfo: prev.championshipInfo ? {
+        ...prev.championshipInfo,
+        sponsors: sponsors,
+      } : null,
+      lastUpdated: {
+        ...prev.lastUpdated,
+        championshipInfo: new Date(),
+      },
+    }));
+  }, []);
+
   // Função para limpar cache
   const clearCache = useCallback(() => {
     console.log('🧹 ChampionshipContext: Limpando cache...');
@@ -1440,6 +1505,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     updateRegulation,
     removeRegulation,
     updateRegulationsOrder,
+    addSponsor,
+    updateSponsor,
+    removeSponsor,
+    updateSponsors,
     clearCache,
     setChampionshipId: setChampionshipIdHandler,
   };
