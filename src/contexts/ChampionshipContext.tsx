@@ -14,6 +14,9 @@ import { ChampionshipClassificationService } from '@/lib/services/championship-c
 import { RegulationService, Regulation } from '@/lib/services/regulation.service';
 import { ChampionshipService } from '@/lib/services/championship.service';
 import { StageParticipationService, StageParticipation } from '@/lib/services/stage-participation.service';
+import { GridTypeService } from '@/lib/services/grid-type.service';
+import { GridType } from '@/lib/types/grid-type';
+import { ScoringSystemService, ScoringSystem } from '@/lib/services/scoring-system.service';
 
 // Interface para dados de classificação do Redis
 interface ClassificationUser {
@@ -59,6 +62,8 @@ interface ChampionshipData {
   stageParticipations: Record<string, StageParticipation[]>;
   classifications: Record<string, RedisClassificationData>;
   regulations: Record<string, Regulation[]>;
+  gridTypes: GridType[];
+  scoringSystems: ScoringSystem[];
   lastUpdated: {
     championshipInfo: Date | null;
     seasons: Date | null;
@@ -71,6 +76,8 @@ interface ChampionshipData {
     stageParticipations: Date | null;
     classifications: Date | null;
     regulations: Date | null;
+    gridTypes: Date | null;
+    scoringSystems: Date | null;
   };
 }
 
@@ -115,6 +122,8 @@ interface ChampionshipContextType {
   fetchStageParticipations: (stageId: string) => Promise<void>;
   fetchClassification: (seasonId: string) => Promise<void>;
   fetchRegulations: (seasonId: string) => Promise<void>;
+  fetchGridTypes: () => Promise<void>;
+  fetchScoringSystems: () => Promise<void>;
   fetchChampionshipInfo: () => Promise<void>;
   
   // Funções de atualização
@@ -128,6 +137,8 @@ interface ChampionshipContextType {
   refreshStageParticipations: (stageId: string) => Promise<void>;
   refreshClassification: (seasonId: string) => Promise<void>;
   refreshRegulations: (seasonId: string) => Promise<void>;
+  refreshGridTypes: () => Promise<void>;
+  refreshScoringSystems: () => Promise<void>;
   
   // Funções de cache
   getSeasons: () => Season[];
@@ -140,6 +151,8 @@ interface ChampionshipContextType {
   getStageParticipations: (stageId: string) => StageParticipation[];
   getClassification: (seasonId: string) => RedisClassificationData | null;
   getRegulations: (seasonId: string) => Regulation[];
+  getGridTypes: () => GridType[];
+  getScoringSystems: () => ScoringSystem[];
   getChampionshipInfo: () => Championship | null;
   
   // Funções de atualização específicas para campeonato
@@ -203,6 +216,8 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     stageParticipations: {},
     classifications: {},
     regulations: {},
+    gridTypes: [],
+    scoringSystems: [],
     lastUpdated: {
       championshipInfo: null,
       seasons: null,
@@ -215,6 +230,8 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       stageParticipations: null,
       classifications: null,
       regulations: null,
+      gridTypes: null,
+      scoringSystems: null,
     },
   });
   
@@ -230,6 +247,8 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     stageParticipations: false,
     classifications: false,
     regulations: false,
+    gridTypes: false,
+    scoringSystems: false,
   });
   
   const [error, setError] = useState({
@@ -244,6 +263,8 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     stageParticipations: null,
     classifications: null,
     regulations: null,
+    gridTypes: null,
+    scoringSystems: null,
   });
 
   // Usar refs para controlar o estado de loading sem causar re-renders
@@ -594,6 +615,54 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }
   }, [championshipId]);
 
+  // Função para buscar tipos de grid
+  const fetchGridTypes = useCallback(async () => {
+    if (!championshipId) return;
+    
+    setLoading(prev => ({ ...prev, gridTypes: true }));
+    setError(prev => ({ ...prev, gridTypes: null }));
+    
+    try {
+      const gridTypesData = await GridTypeService.getByChampionship(championshipId);
+      setChampionshipData(prev => ({
+        ...prev,
+        gridTypes: gridTypesData,
+        lastUpdated: {
+          ...prev.lastUpdated,
+          gridTypes: new Date(),
+        },
+      }));
+    } catch (err: any) {
+      setError(prev => ({ ...prev, gridTypes: err.message || 'Erro ao carregar tipos de grid' }));
+    } finally {
+      setLoading(prev => ({ ...prev, gridTypes: false }));
+    }
+  }, [championshipId]);
+
+  // Função para buscar sistemas de pontuação
+  const fetchScoringSystems = useCallback(async () => {
+    if (!championshipId) return;
+    
+    setLoading(prev => ({ ...prev, scoringSystems: true }));
+    setError(prev => ({ ...prev, scoringSystems: null }));
+    
+    try {
+      const scoringSystemsData = await ScoringSystemService.getByChampionshipId(championshipId);
+      setChampionshipData(prev => ({
+        ...prev,
+        scoringSystems: scoringSystemsData,
+        lastUpdated: {
+          ...prev.lastUpdated,
+          scoringSystems: new Date(),
+        },
+      }));
+    } catch (err: any) {
+      setError(prev => ({ ...prev, scoringSystems: err.message || 'Erro ao carregar sistemas de pontuação' }));
+    } finally {
+      setLoading(prev => ({ ...prev, scoringSystems: false }));
+    }
+  }, [championshipId]);
+
   // Função para buscar dados do campeonato
   const fetchChampionshipInfo = useCallback(async () => {
     if (!championshipId) return;
@@ -675,6 +744,14 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     await fetchRegulations(seasonId);
   }, [fetchRegulations]);
 
+  const refreshGridTypes = useCallback(async () => {
+    await fetchGridTypes();
+  }, [fetchGridTypes]);
+
+  const refreshScoringSystems = useCallback(async () => {
+    await fetchScoringSystems();
+  }, [fetchScoringSystems]);
+
   // Funções de cache (retornam dados em cache)
   const getSeasons = useCallback(() => {
     return championshipData.seasons;
@@ -715,6 +792,14 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   const getRegulations = useCallback((seasonId: string) => {
     return championshipData.regulations[seasonId] || [];
   }, [championshipData.regulations]);
+
+  const getGridTypes = useCallback(() => {
+    return championshipData.gridTypes;
+  }, [championshipData.gridTypes]);
+
+  const getScoringSystems = useCallback(() => {
+    return championshipData.scoringSystems;
+  }, [championshipData.scoringSystems]);
 
   // Funções de atualização específicas para temporadas
   const addSeason = useCallback((season: Season) => {
@@ -1049,6 +1134,8 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       stageParticipations: {},
       classifications: {},
       regulations: {},
+      gridTypes: [],
+      scoringSystems: [],
       lastUpdated: {
         championshipInfo: null,
         seasons: null,
@@ -1061,6 +1148,8 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         stageParticipations: null,
         classifications: null,
         regulations: null,
+        gridTypes: null,
+        scoringSystems: null,
       },
     });
     setError({
@@ -1075,6 +1164,8 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       stageParticipations: null,
       classifications: null,
       regulations: null,
+      gridTypes: null,
+      scoringSystems: null,
     });
     
     // Resetar os refs de controle
@@ -1207,6 +1298,21 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }
   }, [championshipId, fetchChampionshipInfo]);
 
+  // Carregar grid types e scoring systems quando o championshipId mudar
+  useEffect(() => {
+    if (championshipId) {
+      const shouldFetchGridTypes = championshipData.gridTypes.length === 0;
+      const shouldFetchScoringSystems = championshipData.scoringSystems.length === 0;
+      
+      if (shouldFetchGridTypes) {
+        fetchGridTypes();
+      }
+      if (shouldFetchScoringSystems) {
+        fetchScoringSystems();
+      }
+    }
+  }, [championshipId, championshipData.gridTypes.length, championshipData.scoringSystems.length]);
+
   const value: ChampionshipContextType = {
     championshipId,
     championshipData,
@@ -1222,6 +1328,8 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     fetchStageParticipations,
     fetchClassification,
     fetchRegulations,
+    fetchGridTypes,
+    fetchScoringSystems,
     fetchChampionshipInfo,
     getChampionshipInfo,
     updateChampionship,
@@ -1235,6 +1343,8 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     refreshStageParticipations,
     refreshClassification,
     refreshRegulations,
+    refreshGridTypes,
+    refreshScoringSystems,
     getSeasons,
     getCategories,
     getStages,
@@ -1245,6 +1355,8 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     getStageParticipations,
     getClassification,
     getRegulations,
+    getGridTypes,
+    getScoringSystems,
     addSeason,
     updateSeason,
     removeSeason,
