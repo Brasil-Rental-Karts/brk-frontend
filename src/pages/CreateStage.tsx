@@ -106,7 +106,7 @@ export const CreateStage = () => {
   const location = useLocation();
 
   // Usar o contexto de dados do campeonato
-  const { getSeasons, getCategories, getRaceTracks, addStage, updateStage } = useChampionshipData();
+  const { getSeasons, getCategories, getStages, getRaceTracks, addStage, updateStage } = useChampionshipData();
 
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const [initialValues, setInitialValues] = useState<Record<string, any> | undefined>(undefined);
@@ -198,7 +198,14 @@ export const CreateStage = () => {
         const duplicatedData = location.state?.initialData;
 
         if (isEditMode) {
-          const stageData = await StageService.getById(stageId!);
+          // Usar dados do contexto em vez de buscar do backend
+          const allStages = getStages();
+          const stageData = allStages.find((stage: any) => stage.id === stageId);
+          
+          if (!stageData) {
+            throw new Error("Etapa não encontrada");
+          }
+          
           stageDataToSet = {
             ...STAGE_INITIAL_VALUES,
             ...stageData,
