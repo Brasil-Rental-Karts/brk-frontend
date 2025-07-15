@@ -146,8 +146,8 @@ const PenaltyCard = ({ penalty, onAction, getPenaltyIcon, getStatusIcon, context
       onClick: () => onAction("edit", penalty.id)
     });
 
-    // Aplicar apenas se estiver pendente ou cancelada
-    if (penalty.status === PenaltyStatus.PENDING || penalty.status === PenaltyStatus.CANCELLED) {
+    // Aplicar se estiver pendente, cancelada ou recorrida
+    if (penalty.status === PenaltyStatus.PENDING || penalty.status === PenaltyStatus.CANCELLED || penalty.status === PenaltyStatus.APPEALED) {
       actions.push({
         key: 'apply',
         label: 'Aplicar',
@@ -156,8 +156,8 @@ const PenaltyCard = ({ penalty, onAction, getPenaltyIcon, getStatusIcon, context
       });
     }
 
-    // Cancelar apenas se estiver aplicada
-    if (penalty.status === PenaltyStatus.APPLIED) {
+    // Cancelar se estiver aplicada ou recorrida
+    if (penalty.status === PenaltyStatus.APPLIED || penalty.status === PenaltyStatus.APPEALED) {
       actions.push({
         key: 'cancel',
         label: 'Cancelar',
@@ -346,9 +346,22 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
     getCategories, 
     getStages,
     getPenalties,
+    addPenalty,
+    updatePenalty,
+    removePenalty,
     loading: contextLoading, 
     error: contextError 
   } = useChampionshipData();
+
+  // Usar o hook de penalidades apenas para operações CRUD
+  const {
+    createPenalty,
+    applyPenalty,
+    cancelPenalty,
+    appealPenalty,
+    deletePenalty,
+    clearError
+  } = usePenalties(addPenalty, updatePenalty, removePenalty);
 
   // Obter dados do contexto
   const contextSeasons = getSeasons();
@@ -379,17 +392,6 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
   const [penaltyToCancel, setPenaltyToCancel] = useState<Penalty | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
-
-  // Usar o hook de penalidades apenas para operações CRUD
-  const {
-    createPenalty,
-    updatePenalty,
-    applyPenalty,
-    cancelPenalty,
-    appealPenalty,
-    deletePenalty,
-    clearError
-  } = usePenalties();
 
   // Preparar opções dos filtros baseado nos dados do contexto
   const seasonOptions = useMemo(() => 
@@ -574,8 +576,8 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
       onClick: () => handlePenaltyAction("edit", penalty.id)
     });
 
-    // Aplicar apenas se estiver pendente ou cancelada
-    if (penalty.status === PenaltyStatus.PENDING || penalty.status === PenaltyStatus.CANCELLED) {
+    // Aplicar se estiver pendente, cancelada ou recorrida
+    if (penalty.status === PenaltyStatus.PENDING || penalty.status === PenaltyStatus.CANCELLED || penalty.status === PenaltyStatus.APPEALED) {
       actions.push({
         key: 'apply',
         label: 'Aplicar',
@@ -584,8 +586,8 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
       });
     }
 
-    // Cancelar apenas se estiver aplicada
-    if (penalty.status === PenaltyStatus.APPLIED) {
+    // Cancelar se estiver aplicada ou recorrida
+    if (penalty.status === PenaltyStatus.APPLIED || penalty.status === PenaltyStatus.APPEALED) {
       actions.push({
         key: 'cancel',
         label: 'Cancelar',

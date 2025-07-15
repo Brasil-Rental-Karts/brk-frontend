@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { PenaltyService, PenaltyType } from '../lib/services/penalty.service';
-import { SeasonService, Season } from '../lib/services/season.service';
-import { CategoryService, Category } from '../lib/services/category.service';
-import { StageService, Stage } from '../lib/services/stage.service';
-import { SeasonRegistrationService } from '../lib/services/season-registration.service';
-import { StageParticipationService } from '../lib/services/stage-participation.service';
+import { Season } from '../lib/services/season.service';
+import { Category } from '../lib/services/category.service';
+import { Stage } from '../lib/services/stage.service';
 import { FormScreen } from '@/components/ui/FormScreen';
 import { FormSectionConfig } from '@/components/ui/dynamic-form';
 import { Loading } from '@/components/ui/loading';
@@ -14,6 +12,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatName } from '@/utils/name';
 import { useChampionshipData } from '@/contexts/ChampionshipContext';
+import { usePenalties } from '@/hooks/use-penalties';
 
 interface SeasonRegistration {
   id: string;
@@ -81,7 +80,14 @@ export const CreatePenalty = () => {
   const [categoryBatteries, setCategoryBatteries] = useState<{ value: number; description: string }[]>([]);
 
   // Usar o contexto de dados do campeonato
-  const { getSeasons, getStages, getRegistrations } = useChampionshipData();
+  const { getSeasons, getStages, getRegistrations, getCategories, getStageParticipations, addPenalty, updatePenalty } = useChampionshipData();
+
+  // Usar o hook de penalidades com as funções do contexto
+  const {
+    createPenalty: createPenaltyHook,
+    updatePenalty: updatePenaltyHook,
+    clearError
+  } = usePenalties(addPenalty, updatePenalty);
 
   // Carregar temporadas do campeonato
   useEffect(() => {
@@ -316,8 +322,24 @@ export const CreatePenalty = () => {
       return;
     }
     try {
-      const categoriesRes = await CategoryService.getByStageId(stageId);
-      setCategories(categoriesRes);
+      // Usar etapas do contexto para encontrar a etapa e suas categorias
+      const allStages = getStages();
+      const allCategories = getCategories();
+      
+      const selectedStage = allStages.find(stage => stage.id === stageId);
+      if (!selectedStage) {
+        setCategories([]);
+        return;
+      }
+      
+      // Filtrar categorias que estão na etapa baseado no categoryIds
+      const stageCategoryIds = selectedStage.categoryIds || [];
+      
+      const stageCategories = allCategories.filter(category => 
+        stageCategoryIds.includes(category.id)
+      );
+      
+      setCategories(stageCategories);
       
       // Atualizar opções de categoria no formulário
       setFormConfig(prevConfig => 
@@ -327,7 +349,7 @@ export const CreatePenalty = () => {
               ...section,
               fields: section.fields.map(field => {
                 if (field.id === 'categoryId') {
-                  return { ...field, options: categoriesRes.map(c => ({ value: c.id, description: c.name })) };
+                  return { ...field, options: stageCategories.map(c => ({ value: c.id, description: c.name })) };
                 }
                 return field;
               })
@@ -339,7 +361,7 @@ export const CreatePenalty = () => {
     } catch (err: any) {
       console.error('Erro ao carregar categorias:', err);
     }
-  }, []);
+  }, [getStages, getCategories]);
 
   // Carregar baterias quando categoria for selecionada
   const loadBatteriesForCategory = useCallback(async (categoryId: string) => {
@@ -348,8 +370,10 @@ export const CreatePenalty = () => {
       return;
     }
     try {
-      // Buscar a categoria diretamente da API para garantir que temos os dados mais recentes
-      const categoryRes = await CategoryService.getById(categoryId);
+      // Buscar a categoria do contexto em vez do backend
+      const allCategories = getCategories();
+      const categoryRes = allCategories.find(cat => cat.id === categoryId);
+      
       if (categoryRes && categoryRes.batteriesConfig) {
         const batteryOptions = categoryRes.batteriesConfig.map((battery, index) => ({
           value: index,
@@ -378,7 +402,7 @@ export const CreatePenalty = () => {
     } catch (err: any) {
       console.error('Erro ao carregar baterias:', err);
     }
-  }, []);
+  }, [getCategories]);
 
   // Carregar pilotos quando categoria for selecionada
   const loadPilotsForCategory = useCallback(async (categoryId: string, seasonId: string, stageId?: string) => {
@@ -391,21 +415,22 @@ export const CreatePenalty = () => {
       const allRegistrations = getRegistrations();
       const registrationsRes = allRegistrations.filter(reg => reg.seasonId === seasonId);
       
-      // Buscar participações da etapa selecionada
+      // Buscar participações da etapa selecionada do contexto
       let stageParticipations: any[] = [];
       try {
         let targetStageId = stageId || selectedStageId;
         
         // Se não temos stageId, buscar todas as etapas da temporada e usar a primeira como padrão
         if (!targetStageId) {
-          const stagesRes = await StageService.getBySeasonId(seasonId);
-          if (stagesRes.length > 0) {
-            targetStageId = stagesRes[0].id;
+          const allStages = getStages();
+          const seasonStages = allStages.filter(stage => stage.seasonId === seasonId);
+          if (seasonStages.length > 0) {
+            targetStageId = seasonStages[0].id;
           }
         }
         
         if (targetStageId) {
-          stageParticipations = await StageParticipationService.getStageParticipations(targetStageId);
+          stageParticipations = getStageParticipations(targetStageId);
         }
       } catch (error) {
         console.error('Erro ao carregar participações da etapa:', error);
@@ -447,7 +472,7 @@ export const CreatePenalty = () => {
     } catch (err: any) {
       console.error('Erro ao carregar pilotos:', err);
     }
-  }, [selectedStageId, loadStagesForSeason, loadCategoriesForStage, loadBatteriesForCategory]);
+  }, [selectedStageId, getRegistrations, getStages, getStageParticipations]);
 
   // Event handlers para mudanças de campo
   const onFieldChange = useCallback(async (fieldId: string, value: any, formData: any, formActions: { setValue: (name: string, value: any) => void }) => {
@@ -621,11 +646,11 @@ export const CreatePenalty = () => {
   // Função customizada para lidar com criação e edição
   const handleSubmit = useCallback(async (data: any) => {
     if (isEditMode && penaltyId) {
-      return await PenaltyService.updatePenalty(penaltyId, data);
+      return await updatePenaltyHook(penaltyId, data);
     } else {
-      return await PenaltyService.createPenalty(data);
+      return await createPenaltyHook(data);
     }
-  }, [isEditMode, penaltyId]);
+  }, [isEditMode, penaltyId, createPenaltyHook, updatePenaltyHook]);
 
   // Debug: log user info (apenas uma vez)
   useEffect(() => {
