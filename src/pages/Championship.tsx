@@ -26,8 +26,7 @@ import { Loading } from '@/components/ui/loading';
 import { RaceDayTab } from "@/components/championship/tabs/RaceDayTab";
 import { ClassificationTab } from "@/components/championship/tabs/ClassificationTab";
 import { PenaltiesTab } from "@/components/championship/tabs/PenaltiesTab";
-import { StaffMember } from "@/lib/services/championship-staff.service";
-import { UserPermissions } from "@/hooks/use-staff-permissions";
+import { useStaffPermissions, UserPermissions } from "@/hooks/use-staff-permissions";
 
 // Estende a interface base da temporada para incluir as categorias
 type Season = BaseSeason & { categories?: Category[]; stages?: Stage[] };
@@ -46,11 +45,13 @@ export const Championship = () => {
   // Usar o contexto de dados do campeonato
   const { 
     setChampionshipId, 
-    getStaff, 
     getChampionshipInfo,
     loading: contextLoading, 
     error: contextError 
   } = useChampionshipData();
+
+  // Usar o hook de permissões de staff que encontra o usuário atual corretamente
+  const { permissions, loading: permissionsLoading, error: permissionsError } = useStaffPermissions(id || '');
 
   // Mapeamento de tabs (aceita inglês e português)
   const tabMapping: { [key: string]: string } = {
@@ -84,36 +85,7 @@ export const Championship = () => {
 
   // Obter dados do campeonato do contexto
   const championship = getChampionshipInfo();
-  const staffMembers = getStaff();
   
-  // Determinar permissões baseado no staff
-  const permissions = useMemo((): UserPermissions | null => {
-    if (!staffMembers.length) return null;
-    
-    // Encontrar o membro atual (assumindo que o primeiro é o owner ou staff principal)
-    const currentMember = staffMembers[0];
-    const staffPermissions = currentMember.permissions;
-    
-    return {
-      seasons: staffPermissions?.seasons || true,
-      categories: staffPermissions?.categories || true,
-      stages: staffPermissions?.stages || true,
-      pilots: staffPermissions?.pilots || true,
-      classification: staffPermissions?.classification || true,
-      regulations: staffPermissions?.regulations || true,
-      penalties: staffPermissions?.penalties || true,
-      raceDay: staffPermissions?.raceDay || true,
-      editChampionship: staffPermissions?.editChampionship || true,
-      gridTypes: staffPermissions?.gridTypes || true,
-      scoringSystems: staffPermissions?.scoringSystems || true,
-      sponsors: staffPermissions?.sponsors || true,
-      staff: staffPermissions?.staff || true,
-      asaasAccount: staffPermissions?.asaasAccount || true,
-    };
-  }, [staffMembers]);
-
-  const permissionsLoading = contextLoading.staff;
-
   // Configurar o championshipId no contexto quando o ID mudar
   useEffect(() => {
     console.log('🔍 Championship.tsx: championshipId mudou para:', id);
@@ -205,13 +177,13 @@ export const Championship = () => {
   }
 
   // Error state
-  if (contextError.championshipInfo || contextError.staff || !championship || !id) {
+  if (contextError.championshipInfo || permissionsError || !championship || !id) {
     return (
       <div className="container mx-auto p-4">
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            {contextError.championshipInfo || contextError.staff || "Campeonato não encontrado"}
+            {contextError.championshipInfo || permissionsError || "Campeonato não encontrado"}
           </AlertDescription>
         </Alert>
         <div className="mt-4">

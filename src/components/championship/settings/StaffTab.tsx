@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Loading } from '@/components/ui/loading';
 import { formatName } from '@/utils/name';
+import { useChampionshipData } from '@/contexts/ChampionshipContext';
 
 interface StaffTabProps {
   championshipId: string;
@@ -26,6 +27,10 @@ interface StaffTabProps {
 
 export const StaffTab = ({ championshipId }: StaffTabProps) => {
   const isMobile = useIsMobile();
+  
+  // Usar o contexto de dados do campeonato
+  const { getStaff, addStaff, updateStaff, removeStaff, loading: contextLoading, error: contextError } = useChampionshipData();
+  
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,13 +44,11 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
   const [isUpdatingPermissions, setIsUpdatingPermissions] = useState(false);
   const [permissions, setPermissions] = useState<StaffPermissions>({});
 
-  // Carregar membros do staff
-  const loadStaffMembers = async () => {
+  // Carregar membros do staff do contexto
+  const loadStaffMembers = useCallback(() => {
     try {
-      setLoading(true);
       setError(null);
-      
-      const members = await ChampionshipStaffService.getStaffMembers(championshipId);
+      const members = getStaff();
       setStaffMembers(members);
     } catch (err) {
       console.error('Erro ao carregar staff:', err);
@@ -53,11 +56,18 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getStaff]);
 
   useEffect(() => {
     loadStaffMembers();
-  }, [championshipId]);
+  }, [loadStaffMembers]);
+
+  // Atualizar staff members quando o contexto mudar
+  useEffect(() => {
+    const members = getStaff();
+    setStaffMembers(members);
+    setLoading(false);
+  }, [getStaff]);
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,16 +81,16 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
       setIsAddingMember(true);
       setError(null);
 
-      await ChampionshipStaffService.addStaffMember(championshipId, { 
+      const newMember = await ChampionshipStaffService.addStaffMember(championshipId, { 
         email: newMemberEmail.trim(),
         permissions: {}
       });
       
+      // Atualizar o contexto com o novo membro
+      addStaff(newMember);
+      
       toast.success('Membro adicionado à equipe com sucesso!');
       setNewMemberEmail('');
-      
-      // Recarregar lista
-      await loadStaffMembers();
     } catch (err) {
       console.error('Erro ao adicionar membro:', err);
       const errorMessage = err instanceof Error ? err.message : 'Erro ao adicionar membro à equipe';
@@ -105,10 +115,10 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
 
       await ChampionshipStaffService.removeStaffMember(championshipId, memberToDelete.id);
       
-      toast.success('Membro removido da equipe com sucesso!');
+      // Atualizar o contexto removendo o membro
+      removeStaff(memberToDelete.id);
       
-      // Recarregar lista
-      await loadStaffMembers();
+      toast.success('Membro removido da equipe com sucesso!');
     } catch (err) {
       console.error('Erro ao remover membro:', err);
       const errorMessage = err instanceof Error ? err.message : 'Erro ao remover membro da equipe';
@@ -139,16 +149,16 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
       setIsUpdatingPermissions(true);
       setError(null);
 
-      await ChampionshipStaffService.updateStaffMemberPermissions(
+      const updatedMember = await ChampionshipStaffService.updateStaffMemberPermissions(
         championshipId,
         memberToEdit.id,
         { permissions }
       );
       
-      toast.success('Permissões atualizadas com sucesso!');
+      // Atualizar o contexto com as novas permissões
+      updateStaff(memberToEdit.id, { permissions: updatedMember.permissions });
       
-      // Recarregar lista
-      await loadStaffMembers();
+      toast.success('Permissões atualizadas com sucesso!');
       setShowPermissionsDialog(false);
       setMemberToEdit(null);
     } catch (err) {
@@ -188,7 +198,10 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
   const teamMembers = staffMembers.filter(member => !member.isOwner);
   const hasTeamMembers = teamMembers.length > 0;
 
-  if (loading) {
+  // Usar loading do contexto se disponível
+  const isLoading = contextLoading.staff || loading;
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loading type="spinner" size="sm" message="Carregando equipe..." />

@@ -20,6 +20,7 @@ import { GridType, GridTypeEnum } from "@/lib/types/grid-type";
 import { GridTypeService } from "@/lib/services/grid-type.service";
 import { GridTypeIcon } from "@/lib/icons/grid-type-icons";
 import { Loading } from '@/components/ui/loading';
+import { useChampionshipData } from '@/contexts/ChampionshipContext';
 
 interface GridTypesTabProps {
   championshipId: string;
@@ -30,6 +31,10 @@ interface GridTypesTabProps {
  */
 export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
   const navigate = useNavigate();
+  
+  // Usar o contexto de dados do campeonato
+  const { getGridTypes, updateGridType, updateAllGridTypes, removeGridType, loading: contextLoading, error: contextError } = useChampionshipData();
+  
   const [gridTypes, setGridTypes] = useState<GridType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,19 +44,25 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
   const [deletingGridType, setDeletingGridType] = useState<GridType | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Buscar tipos de grid
-  const fetchGridTypes = useCallback(async () => {
+  // Carregar tipos de grid do contexto
+  const loadGridTypes = useCallback(() => {
     try {
-      setLoading(true);
       setError(null);
-      const data = await GridTypeService.getByChampionship(championshipId);
+      const data = getGridTypes();
       setGridTypes(data);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [championshipId]);
+  }, [getGridTypes]);
+
+  // Atualizar grid types quando o contexto mudar
+  useEffect(() => {
+    const data = getGridTypes();
+    setGridTypes(data);
+    setLoading(false);
+  }, [getGridTypes]);
 
   // Alternar status ativo
   const toggleActive = async (gridType: GridType) => {
@@ -64,8 +75,19 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
 
     try {
       setError(null); // Limpar erro anterior
-      await GridTypeService.toggleActive(championshipId, gridType.id);
-      await fetchGridTypes();
+      const updatedGridType = await GridTypeService.toggleActive(championshipId, gridType.id);
+      
+      // Se o grid type que foi alterado era padrão e agora não é mais,
+      // ou se outro grid type se tornou padrão, recarregar todos os grid types
+      // para garantir que o contexto esteja sincronizado
+      if (gridType.isDefault !== updatedGridType.isDefault) {
+        // Buscar todos os grid types atualizados do backend para garantir sincronização
+        const allUpdatedGridTypes = await GridTypeService.getByChampionship(championshipId);
+        updateAllGridTypes(allUpdatedGridTypes);
+      } else {
+        // Se apenas o status ativo mudou, atualizar apenas o grid type específico
+        updateGridType(gridType.id, updatedGridType);
+      }
     } catch (err: any) {
       setError(err.message);
     }
@@ -75,8 +97,12 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
   const setAsDefault = async (gridType: GridType) => {
     try {
       setError(null); // Limpar erro anterior
-      await GridTypeService.setAsDefault(championshipId, gridType.id);
-      await fetchGridTypes();
+      const updatedGridType = await GridTypeService.setAsDefault(championshipId, gridType.id);
+      
+      // Quando um grid type é definido como padrão, outros podem ter sido afetados
+      // Buscar todos os grid types atualizados do backend para garantir sincronização
+      const allUpdatedGridTypes = await GridTypeService.getByChampionship(championshipId);
+      updateAllGridTypes(allUpdatedGridTypes);
     } catch (err: any) {
       setError(err.message);
     }
@@ -102,7 +128,8 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
       setIsDeleting(true);
       setError(null); // Limpar erro anterior
       await GridTypeService.delete(championshipId, deletingGridType.id);
-      await fetchGridTypes();
+      // Remover o grid type do contexto
+      removeGridType(deletingGridType.id);
       setShowDeleteDialog(false);
       setDeletingGridType(null);
     } catch (err: any) {
@@ -133,8 +160,8 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
 
   // Buscar dados ao montar
   useEffect(() => {
-    fetchGridTypes();
-  }, [fetchGridTypes]);
+    loadGridTypes();
+  }, [loadGridTypes]);
 
   // Função para obter o ícone do tipo de grid
   const getGridTypeIcon = (type: GridTypeEnum) => {
@@ -162,7 +189,10 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
     return true;
   };
 
-  if (loading) {
+  // Usar loading do contexto se disponível
+  const isLoading = contextLoading.gridTypes || loading;
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loading type="spinner" size="sm" message="Carregando tipos de grid..." />

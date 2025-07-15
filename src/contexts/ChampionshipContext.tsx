@@ -96,6 +96,8 @@ interface ChampionshipContextType {
     stageParticipations: boolean;
     classifications: boolean;
     regulations: boolean;
+    gridTypes: boolean;
+    scoringSystems: boolean;
   };
   error: {
     championshipInfo: string | null;
@@ -109,6 +111,8 @@ interface ChampionshipContextType {
     stageParticipations: string | null;
     classifications: string | null;
     regulations: string | null;
+    gridTypes: string | null;
+    scoringSystems: string | null;
   };
   
   // Funções de busca
@@ -196,6 +200,12 @@ interface ChampionshipContextType {
   updateSponsor: (sponsorId: string, updatedSponsor: Partial<Sponsor>) => void;
   removeSponsor: (sponsorId: string) => void;
   updateSponsors: (sponsors: Sponsor[]) => void;
+  
+  // Funções de atualização específicas para grid types
+  addGridType: (gridType: GridType) => void;
+  updateGridType: (gridTypeId: string, updatedGridType: Partial<GridType>) => void;
+  removeGridType: (gridTypeId: string) => void;
+  updateAllGridTypes: (gridTypes: GridType[]) => void;
   
   // Funções de limpeza
   clearCache: () => void;
@@ -1206,6 +1216,53 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }));
   }, []);
 
+  // Funções de atualização específicas para grid types
+  const addGridType = useCallback((gridType: GridType) => {
+    setChampionshipData(prev => ({
+      ...prev,
+      gridTypes: [...prev.gridTypes, gridType],
+      lastUpdated: {
+        ...prev.lastUpdated,
+        gridTypes: new Date(),
+      },
+    }));
+  }, []);
+
+  const updateGridType = useCallback((gridTypeId: string, updatedGridType: Partial<GridType>) => {
+    setChampionshipData(prev => ({
+      ...prev,
+      gridTypes: prev.gridTypes.map(gridType => 
+        gridType.id === gridTypeId ? { ...gridType, ...updatedGridType } : gridType
+      ),
+      lastUpdated: {
+        ...prev.lastUpdated,
+        gridTypes: new Date(),
+      },
+    }));
+  }, []);
+
+  const removeGridType = useCallback((gridTypeId: string) => {
+    setChampionshipData(prev => ({
+      ...prev,
+      gridTypes: prev.gridTypes.filter(gridType => gridType.id !== gridTypeId),
+      lastUpdated: {
+        ...prev.lastUpdated,
+        gridTypes: new Date(),
+      },
+    }));
+  }, []);
+
+  const updateAllGridTypes = useCallback((gridTypes: GridType[]) => {
+    setChampionshipData(prev => ({
+      ...prev,
+      gridTypes: gridTypes,
+      lastUpdated: {
+        ...prev.lastUpdated,
+        gridTypes: new Date(),
+      },
+    }));
+  }, []);
+
   // Função para limpar cache
   const clearCache = useCallback(() => {
     console.log('🧹 ChampionshipContext: Limpando cache...');
@@ -1509,6 +1566,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     updateSponsor,
     removeSponsor,
     updateSponsors,
+    addGridType,
+    updateGridType,
+    removeGridType,
+    updateAllGridTypes,
     clearCache,
     setChampionshipId: setChampionshipIdHandler,
   };
