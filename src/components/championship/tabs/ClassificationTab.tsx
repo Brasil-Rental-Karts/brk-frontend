@@ -286,8 +286,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
   useEffect(() => {
     if (selectedSeasonId) {
       loadClassification(selectedSeasonId);
-      // Sincronizar o filtro com a temporada selecionada
-      setFilters(prev => ({ ...prev, seasonId: selectedSeasonId }));
+      // Removido: setFilters(prev => ({ ...prev, seasonId: selectedSeasonId }));
     }
   }, [selectedSeasonId, loadClassification]);
 

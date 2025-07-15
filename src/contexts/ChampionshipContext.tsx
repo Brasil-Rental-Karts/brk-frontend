@@ -290,6 +290,9 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   const hasFetchedRegistrations = useRef(false);
   const hasFetchedPenalties = useRef(false);
 
+  // Ref para guardar temporadas já buscadas para classificação
+  const fetchedClassificationSeasons = useRef(new Set<string>());
+
   // Função para buscar temporadas
   const fetchSeasons = useCallback(async () => {
     if (!championshipId || loadingRef.current.seasons || hasFetchedSeasons.current) return;
@@ -571,7 +574,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         ...prev,
         classifications: {
           ...prev.classifications,
-          [seasonId]: classificationData,
+          [seasonId]: classificationData || { _empty: true },
         },
         lastUpdated: {
           ...prev.lastUpdated,
@@ -1176,6 +1179,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     hasFetchedStaff.current = false;
     hasFetchedRegistrations.current = false;
     hasFetchedPenalties.current = false;
+    fetchedClassificationSeasons.current.clear(); // Limpar temporadas já buscadas
   }, []);
 
   // Carregar dados quando o championshipId mudar
@@ -1253,18 +1257,17 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }
   }, [championshipId, fetchPenalties]);
 
-  // Carregar classificações quando o championshipId mudar
+  // Carregar classificações quando o championshipId mudar ou seasons mudar
   useEffect(() => {
     if (championshipId && championshipData.seasons.length > 0) {
       championshipData.seasons.forEach(season => {
-        // Só buscar classificação se a temporada ainda existe e não tem dados carregados
-        const shouldFetchClassification = !championshipData.classifications[season.id];
-        if (shouldFetchClassification) {
+        if (!championshipData.classifications[season.id] && !fetchedClassificationSeasons.current.has(season.id)) {
+          fetchedClassificationSeasons.current.add(season.id);
           fetchClassification(season.id);
         }
       });
     }
-  }, [championshipId, championshipData.seasons.length]);
+  }, [championshipId, championshipData.seasons, fetchClassification]);
 
   // Carregar regulamentos quando o championshipId mudar
   useEffect(() => {
