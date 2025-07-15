@@ -196,10 +196,16 @@ export class PDFGenerator {
       // Aplicar estilo baseado no tipo
       if (part.type === 'bold') {
         pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(51, 51, 51);
       } else if (part.type === 'italic') {
         pdf.setFont('helvetica', 'italic');
+        pdf.setTextColor(51, 51, 51);
+      } else if (part.type === 'link') {
+        pdf.setFont('helvetica', 'bold'); // Títulos sempre em negrito
+        pdf.setTextColor(0, 0, 255); // Cor azul para links
       } else {
         pdf.setFont('helvetica', 'bold'); // Títulos sempre em negrito
+        pdf.setTextColor(51, 51, 51);
       }
 
       // Quebrar linha se necessário
@@ -212,6 +218,11 @@ export class PDFGenerator {
         pdf.text(line, x, currentY);
         currentY += 8; // Espaçamento menor para títulos
       });
+      
+      // Resetar cor para normal após processar o link
+      if (part.type === 'link') {
+        pdf.setTextColor(51, 51, 51);
+      }
     });
 
     return currentY + 4; // Espaçamento extra após título (mais compacto)
@@ -268,6 +279,9 @@ export class PDFGenerator {
             currentY = this.renderTable(pdf, block.table, x, currentY, maxWidth, pageHeight);
           }
           break;
+        case 'blockquote':
+          currentY = this.renderBlockquote(pdf, block.content, x, currentY, maxWidth, pageHeight);
+          break;
       }
 
       currentY += 8; // Espaçamento entre blocos
@@ -293,7 +307,8 @@ export class PDFGenerator {
     let maxLineHeight = 6;
     let lineWidth = 0;
 
-    parts.forEach(part => {
+    // Processar todas as partes em sequência, mantendo a continuidade da linha
+    parts.forEach((part, partIndex) => {
       // Aplicar estilo
       if (part.type === 'bold') {
         pdf.setFont('helvetica', 'bold');
@@ -304,6 +319,9 @@ export class PDFGenerator {
       } else if (part.type === 'code') {
         pdf.setFont('helvetica', 'normal');
         pdf.setTextColor(100, 100, 100);
+      } else if (part.type === 'link') {
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(0, 0, 255); // Cor azul para links
       } else {
         pdf.setFont('helvetica', 'normal');
         pdf.setTextColor(68, 68, 68);
@@ -311,19 +329,38 @@ export class PDFGenerator {
 
       // Quebra em palavras para respeitar largura máxima
       const words = part.text.split(' ');
-      words.forEach((word, i) => {
-        const wordWithSpace = (i < words.length - 1) ? word + ' ' : word;
+      words.forEach((word, wordIndex) => {
+        const isLastWord = wordIndex === words.length - 1;
+        const isLastPart = partIndex === parts.length - 1;
+        const wordWithSpace = (!isLastWord || !isLastPart) ? word + ' ' : word;
         const wordWidth = pdf.getTextWidth(wordWithSpace);
+        
+        // Verificar se a palavra cabe na linha atual
         if (currentX + lineWidth + wordWidth > x + maxWidth) {
           // Nova linha
           currentY += maxLineHeight;
           lineWidth = 0;
           currentX = x;
         }
+        
+        // Verificar se precisa de nova página
+        if (currentY > pageHeight - 40) {
+          pdf.addPage();
+          currentY = 20;
+          currentX = x;
+          lineWidth = 0;
+        }
+        
         pdf.text(wordWithSpace, currentX + lineWidth, currentY);
         lineWidth += wordWidth;
       });
+      
+      // Resetar cor para normal após processar o link
+      if (part.type === 'link') {
+        pdf.setTextColor(68, 68, 68);
+      }
     });
+    
     return currentY + maxLineHeight;
   }
 
@@ -360,7 +397,8 @@ export class PDFGenerator {
       let currentLineY = currentY;
       let lineWidth = 0;
 
-      parts.forEach(part => {
+      // Processar todas as partes em sequência, mantendo a continuidade da linha
+      parts.forEach((part, partIndex) => {
         // Aplicar estilo
         if (part.type === 'bold') {
           pdf.setFont('helvetica', 'bold');
@@ -371,6 +409,9 @@ export class PDFGenerator {
         } else if (part.type === 'code') {
           pdf.setFont('helvetica', 'normal');
           pdf.setTextColor(100, 100, 100);
+        } else if (part.type === 'link') {
+          pdf.setFont('helvetica', 'normal');
+          pdf.setTextColor(0, 0, 255); // Cor azul para links
         } else {
           pdf.setFont('helvetica', 'normal');
           pdf.setTextColor(68, 68, 68);
@@ -378,19 +419,38 @@ export class PDFGenerator {
 
         // Quebra em palavras para respeitar largura máxima
         const words = part.text.split(' ');
-        words.forEach((word, i) => {
-          const wordWithSpace = (i < words.length - 1) ? word + ' ' : word;
+        words.forEach((word, wordIndex) => {
+          const isLastWord = wordIndex === words.length - 1;
+          const isLastPart = partIndex === parts.length - 1;
+          const wordWithSpace = (!isLastWord || !isLastPart) ? word + ' ' : word;
           const wordWidth = pdf.getTextWidth(wordWithSpace);
+          
+          // Verificar se a palavra cabe na linha atual
           if (itemX + lineWidth + wordWidth > x + maxWidth) {
             // Nova linha
             currentLineY += maxLineHeight;
             lineWidth = 0;
             itemX = x + 8;
           }
+          
+          // Verificar se precisa de nova página
+          if (currentLineY > pageHeight - 40) {
+            pdf.addPage();
+            currentLineY = 20;
+            itemX = x + 8;
+            lineWidth = 0;
+          }
+          
           pdf.text(wordWithSpace, itemX + lineWidth, currentLineY);
           lineWidth += wordWidth;
         });
+        
+        // Resetar cor para normal após processar o link
+        if (part.type === 'link') {
+          pdf.setTextColor(68, 68, 68);
+        }
       });
+      
       currentY = currentLineY + maxLineHeight + 2; // Espaçamento entre itens
     });
 
@@ -496,7 +556,12 @@ export class PDFGenerator {
     const colWidth = maxWidth / colCount;
     const rowHeight = 10;
     const cellPadding = 2;
-
+    const tableHeight = table.filter(row => !row.every(cell => /^:?-{3,}:?$/.test(cell))).length * rowHeight + 4;
+    // Se não couber, pula para nova página
+    if (currentY + tableHeight > pageHeight - 40) {
+      pdf.addPage();
+      currentY = 20;
+    }
     // Cores
     const headerBg = [245, 130, 32]; // laranja
     const headerText = [255, 255, 255];
@@ -525,23 +590,170 @@ export class PDFGenerator {
         pdf.setDrawColor(borderColor[0], borderColor[1], borderColor[2]);
         pdf.setLineWidth(0.3);
         pdf.rect(cellX, currentY, colWidth, rowHeight, 'S');
-        // Texto
-        if (rowIndex === 0) {
-          pdf.setFont('helvetica', 'bold');
-          pdf.setTextColor(headerText[0], headerText[1], headerText[2]);
-        } else {
-          pdf.setFont('helvetica', 'normal');
-          pdf.setTextColor(cellText[0], cellText[1], cellText[2]);
-        }
-        // Alinhamento centralizado
-        const textWidth = pdf.getTextWidth(cell);
-        const textX = cellX + (colWidth - textWidth) / 2;
+        // Texto com markdown
+        const parts = this.parseMarkdownText(cell);
+        // Calcular largura total (incluindo espaços)
+        let totalWidth = 0;
+        parts.forEach((part, idx) => {
+          totalWidth += pdf.getTextWidth(part.text);
+          if (idx < parts.length - 1) totalWidth += pdf.getTextWidth(' ');
+        });
         const textY = currentY + rowHeight / 2 + 2.5;
-        pdf.text(cell, textX, textY, { baseline: 'middle' });
+        let currentX = cellX + (colWidth - totalWidth) / 2;
+        parts.forEach((part, idx) => {
+          // Aplica o estilo igual ao parágrafo:
+          if (rowIndex === 0) {
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(headerText[0], headerText[1], headerText[2]);
+          } else if (part.type === 'bold') {
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(cellText[0], cellText[1], cellText[2]);
+          } else if (part.type === 'italic') {
+            pdf.setFont('helvetica', 'italic');
+            pdf.setTextColor(cellText[0], cellText[1], cellText[2]);
+          } else if (part.type === 'code') {
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(100, 100, 100);
+          } else if (part.type === 'link') {
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(0, 0, 255);
+          } else {
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(cellText[0], cellText[1], cellText[2]);
+          }
+          pdf.text(part.text, currentX, textY, { baseline: 'middle' });
+          currentX += pdf.getTextWidth(part.text);
+          if (idx < parts.length - 1) currentX += pdf.getTextWidth(' ');
+        });
       });
       currentY += rowHeight;
     });
     return currentY + 4;
+  }
+
+  /**
+   * Renderiza um bloco de citação
+   */
+  private static renderBlockquote(
+    pdf: jsPDF,
+    content: string,
+    x: number,
+    y: number,
+    maxWidth: number,
+    pageHeight: number
+  ): number {
+    // Dividir o conteúdo em linhas para processar quebras de linha
+    const lines = content.split('\n');
+    let currentY = y + 10; // Espaçamento do topo
+    let currentX = x + 15; // Indentação para o conteúdo
+    let maxLineHeight = 6;
+    const contentWidth = maxWidth - 15; // Largura disponível para o conteúdo
+    // Calcular altura total primeiro
+    let totalHeight = 0;
+    lines.forEach(line => {
+      const parts = this.parseMarkdownText(line);
+      let lineWidth = 0;
+      let tempX = currentX;
+      
+      parts.forEach((part, partIndex) => {
+        const words = part.text.split(' ');
+        words.forEach((word, wordIndex) => {
+          const isLastWord = wordIndex === words.length - 1;
+          const isLastPart = partIndex === parts.length - 1;
+          const wordWithSpace = (!isLastWord || !isLastPart) ? word + ' ' : word;
+          const wordWidth = pdf.getTextWidth(wordWithSpace);
+          
+          if (tempX + lineWidth + wordWidth > x + contentWidth) {
+            totalHeight += maxLineHeight;
+            lineWidth = 0;
+            tempX = x + 15;
+          }
+          lineWidth += wordWidth;
+        });
+      });
+      totalHeight += maxLineHeight;
+    });
+    totalHeight += 20; // Espaçamento extra
+    // Se não couber, pula para nova página
+    if (y + totalHeight > pageHeight - 40) {
+      pdf.addPage();
+      y = 20;
+      currentY = y + 10;
+    }
+    // Desenhar linha vertical à esquerda com altura calculada
+    pdf.setDrawColor(200, 200, 200);
+    pdf.setLineWidth(3);
+    pdf.line(x, y, x, y + totalHeight);
+    // Resetar variáveis para renderização
+    currentY = y + 10;
+    currentX = x + 15;
+    // Processar cada linha do blockquote
+    lines.forEach(line => {
+      if (line.trim() === '') {
+        currentY += maxLineHeight; // Espaçamento extra para linhas vazias
+        return;
+      }
+      const parts = this.parseMarkdownText(line);
+      let lineWidth = 0;
+      // Processar todas as partes em sequência para renderização
+      parts.forEach((part, partIndex) => {
+        // Aplicar estilo
+        if (part.type === 'bold') {
+          pdf.setFont('helvetica', 'bold');
+          pdf.setTextColor(68, 68, 68);
+        } else if (part.type === 'italic') {
+          pdf.setFont('helvetica', 'italic');
+          pdf.setTextColor(68, 68, 68);
+        } else if (part.type === 'code') {
+          pdf.setFont('helvetica', 'normal');
+          pdf.setTextColor(100, 100, 100);
+        } else if (part.type === 'link') {
+          pdf.setFont('helvetica', 'normal');
+          pdf.setTextColor(0, 0, 255);
+        } else {
+          pdf.setFont('helvetica', 'italic'); // Citações em itálico por padrão
+          pdf.setTextColor(102, 102, 102);
+        }
+
+        // Quebra em palavras para respeitar largura máxima
+        const words = part.text.split(' ');
+        words.forEach((word, wordIndex) => {
+          const isLastWord = wordIndex === words.length - 1;
+          const isLastPart = partIndex === parts.length - 1;
+          const wordWithSpace = (!isLastWord || !isLastPart) ? word + ' ' : word;
+          const wordWidth = pdf.getTextWidth(wordWithSpace);
+          
+          // Verificar se a palavra cabe na linha atual
+          if (currentX + lineWidth + wordWidth > x + contentWidth) {
+            // Nova linha
+            currentY += maxLineHeight;
+            lineWidth = 0;
+            currentX = x + 15; // Manter indentação
+          }
+          
+          // Verificar se precisa de nova página
+          if (currentY > pageHeight - 40) {
+            pdf.addPage();
+            currentY = 20;
+            currentX = x + 15;
+            lineWidth = 0;
+          }
+          
+          pdf.text(wordWithSpace, currentX + lineWidth, currentY);
+          lineWidth += wordWidth;
+        });
+        
+        // Resetar cor para normal após processar o link
+        if (part.type === 'link') {
+          pdf.setTextColor(102, 102, 102);
+        }
+      });
+      
+      // Nova linha após processar toda a linha do blockquote
+      currentY += maxLineHeight;
+    });
+    
+    return currentY + 15; // Espaçamento extra após a citação
   }
 
   /**
@@ -550,8 +762,8 @@ export class PDFGenerator {
   private static parseMarkdownText(text: string): Array<{type: string, text: string}> {
     const parts: Array<{type: string, text: string}> = [];
     let remaining = text;
-    // Regex não guloso, aceita qualquer caractere entre os delimitadores
-    const pattern = /(`.+?`)|(\*\*.+?\*\*)|(__.+?__)|(\*.+?\*)|(_.+?_)/g;
+    // Regex atualizado para incluir links markdown
+    const pattern = /(`.+?`)|(\*\*.+?\*\*)|(__.+?__)|(\*.+?\*)|(_.+?_)|(\[.+?\]\(.+?\))/g;
     let match: RegExpExecArray | null;
     let lastIndex = 0;
 
@@ -571,6 +783,15 @@ export class PDFGenerator {
         parts.push({ type: 'italic', text: matched.slice(1, -1) });
       } else if (matched.startsWith('_') && matched.endsWith('_')) {
         parts.push({ type: 'italic', text: matched.slice(1, -1) });
+      } else if (matched.startsWith('[') && matched.includes('](') && matched.endsWith(')')) {
+        // Processar link markdown [texto](url)
+        const linkMatch = matched.match(/\[(.+?)\]\((.+?)\)/);
+        if (linkMatch) {
+          // Para PDF, mostrar apenas o texto do link, não a URL
+          parts.push({ type: 'link', text: linkMatch[1] });
+        } else {
+          parts.push({ type: 'normal', text: matched });
+        }
       } else {
         parts.push({ type: 'normal', text: matched });
       }
@@ -647,6 +868,39 @@ export class PDFGenerator {
         return;
       }
 
+      // Blockquotes (citações)
+      const blockquoteMatch = trimmedLine.match(/^>\s*(.*)$/);
+      if (blockquoteMatch) {
+        // Se for só '>', '> ', '> >', etc, adiciona quebra de linha
+        if (blockquoteMatch[1].trim() === '') {
+          if (currentBlock && currentBlock.type === 'blockquote') {
+            currentBlock.content += '\n';
+          } else {
+            // Inicia um novo bloco de citação vazio
+            currentBlock = { type: 'blockquote', content: '' };
+          }
+          return;
+        }
+        if (!currentBlock || currentBlock.type !== 'blockquote') {
+          if (currentBlock) blocks.push(currentBlock);
+          currentBlock = { type: 'blockquote', content: '' };
+        }
+        // Adicionar quebra de linha se já há conteúdo
+        if (currentBlock.content && currentBlock.content.trim()) {
+          currentBlock.content += '\n' + blockquoteMatch[1];
+        } else {
+          currentBlock.content = blockquoteMatch[1];
+        }
+        return;
+      }
+
+      // Se estamos em um blockquote e a linha está vazia (sem '>'), finalizar o blockquote
+      if (currentBlock && currentBlock.type === 'blockquote' && trimmedLine === '') {
+        blocks.push(currentBlock);
+        currentBlock = null;
+        return;
+      }
+
       // Listas
       const listMatch = trimmedLine.match(/^[-*+]\s+(.+)$/);
       if (listMatch) {
@@ -682,10 +936,26 @@ export class PDFGenerator {
           if (currentBlock) blocks.push(currentBlock);
           currentBlock = { type: 'paragraph', content: '' };
         }
-        currentBlock.content += (currentBlock.content ? '\n' : '') + trimmedLine;
+        // Adicionar espaço se já há conteúdo e a linha não está vazia
+        if (currentBlock.content && currentBlock.content.trim()) {
+          // Se a linha anterior termina com pontuação ou é uma palavra completa, adicionar espaço
+          const lastChar = currentBlock.content.trim().slice(-1);
+          const needsSpace = !/[.!?]/.test(lastChar) && !/\s$/.test(currentBlock.content);
+          currentBlock.content += (needsSpace ? ' ' : '') + trimmedLine;
+        } else {
+          currentBlock.content = trimmedLine;
+        }
       } else {
-        // Linha vazia - finalizar bloco atual
-        if (currentBlock) {
+        // Linha vazia - finalizar bloco atual apenas se não estivermos no meio de uma frase
+        if (currentBlock && currentBlock.type === 'paragraph') {
+          const lastChar = currentBlock.content.trim().slice(-1);
+          // Se termina com pontuação, finalizar o parágrafo
+          if (/[.!?]/.test(lastChar)) {
+            blocks.push(currentBlock);
+            currentBlock = null;
+          }
+          // Se não termina com pontuação, continuar o parágrafo (pode ser uma quebra de linha no meio)
+        } else if (currentBlock) {
           blocks.push(currentBlock);
           currentBlock = null;
         }
@@ -795,4 +1065,4 @@ export class PDFGenerator {
     y = this.renderMarkdownContent(pdfClone, content, x, y, maxWidth, pageHeight, 1);
     return y;
   }
-} 
+}
