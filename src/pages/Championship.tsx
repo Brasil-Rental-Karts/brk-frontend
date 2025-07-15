@@ -116,9 +116,13 @@ export const Championship = () => {
 
   // Configurar o championshipId no contexto quando o ID mudar
   useEffect(() => {
+    console.log('🔍 Championship.tsx: championshipId mudou para:', id);
+    
     if (id) {
+      console.log('🔍 Championship.tsx: Definindo championshipId no contexto:', id);
       setChampionshipId(id);
     } else {
+      console.log('🔍 Championship.tsx: Limpando championshipId no contexto');
       setChampionshipId(null);
     }
   }, [id, setChampionshipId]);
