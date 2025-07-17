@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { Championship, Sponsor } from '@/lib/services/championship.service';
+import { Championship, Sponsor, AsaasStatus } from '@/lib/services/championship.service';
 import { Season } from '@/lib/services/season.service';
 import { Category } from '@/lib/services/category.service';
 import { Stage } from '@/lib/types/stage';
@@ -64,6 +64,7 @@ interface ChampionshipData {
   regulations: Record<string, Regulation[]>;
   gridTypes: GridType[];
   scoringSystems: ScoringSystem[];
+  asaasStatus: AsaasStatus | null;
   lastUpdated: {
     championshipInfo: Date | null;
     seasons: Date | null;
@@ -78,6 +79,7 @@ interface ChampionshipData {
     regulations: Date | null;
     gridTypes: Date | null;
     scoringSystems: Date | null;
+    asaasStatus: Date | null;
   };
 }
 
@@ -98,6 +100,7 @@ interface ChampionshipContextType {
     regulations: boolean;
     gridTypes: boolean;
     scoringSystems: boolean;
+    asaasStatus: boolean;
   };
   error: {
     championshipInfo: string | null;
@@ -113,6 +116,7 @@ interface ChampionshipContextType {
     regulations: string | null;
     gridTypes: string | null;
     scoringSystems: string | null;
+    asaasStatus: string | null;
   };
   
   // Funções de busca
@@ -129,6 +133,7 @@ interface ChampionshipContextType {
   fetchGridTypes: () => Promise<void>;
   fetchScoringSystems: () => Promise<void>;
   fetchChampionshipInfo: () => Promise<void>;
+  fetchAsaasStatus: () => Promise<void>;
   
   // Funções de atualização
   refreshSeasons: () => Promise<void>;
@@ -143,6 +148,7 @@ interface ChampionshipContextType {
   refreshRegulations: (seasonId: string) => Promise<void>;
   refreshGridTypes: () => Promise<void>;
   refreshScoringSystems: () => Promise<void>;
+  refreshAsaasStatus: () => Promise<void>;
   
   // Funções de cache
   getSeasons: () => Season[];
@@ -158,9 +164,11 @@ interface ChampionshipContextType {
   getGridTypes: () => GridType[];
   getScoringSystems: () => ScoringSystem[];
   getChampionshipInfo: () => Championship | null;
+  getAsaasStatus: () => AsaasStatus | null;
   
   // Funções de atualização específicas para campeonato
   updateChampionship: (championshipId: string, updatedChampionship: Championship) => void;
+  updateAsaasStatus: (asaasStatus: AsaasStatus) => void;
   
   // Funções de atualização específicas
   addSeason: (season: Season) => void;
@@ -239,6 +247,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     regulations: {},
     gridTypes: [],
     scoringSystems: [],
+    asaasStatus: null,
     lastUpdated: {
       championshipInfo: null,
       seasons: null,
@@ -253,6 +262,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       regulations: null,
       gridTypes: null,
       scoringSystems: null,
+      asaasStatus: null,
     },
   });
   
@@ -270,6 +280,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     regulations: false,
     gridTypes: false,
     scoringSystems: false,
+    asaasStatus: false,
   });
   
   const [error, setError] = useState({
@@ -286,6 +297,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     regulations: null,
     gridTypes: null,
     scoringSystems: null,
+    asaasStatus: null,
   });
 
   // Usar refs para controlar o estado de loading sem causar re-renders
@@ -729,9 +741,35 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }
   }, [championshipId, championshipData.championshipInfo]);
 
+  // Função para buscar status do Asaas
+  const fetchAsaasStatus = useCallback(async () => {
+    if (!championshipId) return;
+    setLoading(prev => ({ ...prev, asaasStatus: true }));
+    setError(prev => ({ ...prev, asaasStatus: null }));
+    try {
+      const status = await ChampionshipService.getAsaasStatus(championshipId);
+      setChampionshipData(prev => ({
+        ...prev,
+        asaasStatus: status,
+        lastUpdated: {
+          ...prev.lastUpdated,
+          asaasStatus: new Date(),
+        },
+      }));
+    } catch (err: any) {
+      setError(prev => ({ ...prev, asaasStatus: err.message || 'Erro ao carregar status do Asaas' }));
+    } finally {
+      setLoading(prev => ({ ...prev, asaasStatus: false }));
+    }
+  }, [championshipId]);
+
   const getChampionshipInfo = useCallback(() => {
     return championshipData.championshipInfo;
   }, [championshipData.championshipInfo]);
+
+  const getAsaasStatus = useCallback(() => {
+    return championshipData.asaasStatus;
+  }, [championshipData.asaasStatus]);
 
   // Função para atualizar dados do campeonato
   const updateChampionship = useCallback((championshipId: string, updatedChampionship: Championship) => {
@@ -741,6 +779,18 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       lastUpdated: {
         ...prev.lastUpdated,
         championshipInfo: new Date(),
+      },
+    }));
+  }, []);
+
+  // Função para atualizar status do Asaas
+  const updateAsaasStatus = useCallback((asaasStatus: AsaasStatus) => {
+    setChampionshipData(prev => ({
+      ...prev,
+      asaasStatus: asaasStatus,
+      lastUpdated: {
+        ...prev.lastUpdated,
+        asaasStatus: new Date(),
       },
     }));
   }, []);
@@ -793,6 +843,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   const refreshScoringSystems = useCallback(async () => {
     await fetchScoringSystems();
   }, [fetchScoringSystems]);
+
+  const refreshAsaasStatus = useCallback(async () => {
+    await fetchAsaasStatus();
+  }, [fetchAsaasStatus]);
 
   // Funções de cache (retornam dados em cache)
   const getSeasons = useCallback(() => {
@@ -1322,6 +1376,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       regulations: {},
       gridTypes: [],
       scoringSystems: [],
+      asaasStatus: null,
       lastUpdated: {
         championshipInfo: null,
         seasons: null,
@@ -1336,6 +1391,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         regulations: null,
         gridTypes: null,
         scoringSystems: null,
+        asaasStatus: null,
       },
     });
     
@@ -1353,6 +1409,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       regulations: null,
       gridTypes: null,
       scoringSystems: null,
+      asaasStatus: null,
     });
     
     // Resetar loading states
@@ -1370,6 +1427,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       regulations: false,
       gridTypes: false,
       scoringSystems: false,
+      asaasStatus: false,
     });
     
     // Resetar os refs de controle
@@ -1535,6 +1593,16 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }
   }, [championshipId, championshipData.gridTypes.length, championshipData.scoringSystems.length]);
 
+  // Carregar status do Asaas quando o championshipId mudar
+  useEffect(() => {
+    if (championshipId) {
+      const shouldFetchAsaasStatus = championshipData.asaasStatus === null;
+      if (shouldFetchAsaasStatus) {
+        fetchAsaasStatus();
+      }
+    }
+  }, [championshipId, championshipData.asaasStatus, fetchAsaasStatus]);
+
   const value: ChampionshipContextType = {
     championshipId,
     championshipData,
@@ -1553,8 +1621,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     fetchGridTypes,
     fetchScoringSystems,
     fetchChampionshipInfo,
+    fetchAsaasStatus,
     getChampionshipInfo,
     updateChampionship,
+    updateAsaasStatus,
     refreshSeasons,
     refreshCategories,
     refreshStages,
@@ -1567,6 +1637,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     refreshRegulations,
     refreshGridTypes,
     refreshScoringSystems,
+    refreshAsaasStatus,
     getSeasons,
     getCategories,
     getStages,
@@ -1579,6 +1650,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     getRegulations,
     getGridTypes,
     getScoringSystems,
+    getAsaasStatus,
     addSeason,
     updateSeason,
     removeSeason,
