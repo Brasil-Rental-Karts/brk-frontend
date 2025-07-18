@@ -145,31 +145,36 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
         <div className="space-y-3">
           <h4 className="text-sm font-medium">Patrocinadores e Apoiadores ({value.length})</h4>
           {value.map((sponsor, index) => (
-            <Card key={sponsor.id || `temp-${index}`} className="p-4">
-              <div className={`${isMobile ? 'space-y-3' : 'flex items-center justify-between'}`}>
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center overflow-hidden">
-                    {sponsor.logoImage ? (
-                      <img 
-                        src={sponsor.logoImage} 
-                        alt={sponsor.name}
-                        className="w-full h-full object-contain"
-                        onError={(e) => {
-                          const target = e.currentTarget;
-                          const fallback = target.nextElementSibling as HTMLElement;
-                          target.style.display = 'none';
-                          if (fallback) {
-                            fallback.style.display = 'flex';
-                          }
-                        }}
-                      />
-                    ) : null}
-                    <Building2 className="w-6 h-6 text-muted-foreground" style={{ display: sponsor.logoImage ? 'none' : 'flex' }} />
+            <Card key={sponsor.id || `temp-${index}`} className={`${isMobile ? 'p-6' : 'p-4'}`}>
+              {isMobile ? (
+                // Layout Mobile: Logo em cima, informações embaixo
+                <div className="space-y-4">
+                  {/* Logo em cima */}
+                  <div className="flex justify-center">
+                    <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                      {sponsor.logoImage ? (
+                        <img 
+                          src={sponsor.logoImage} 
+                          alt={sponsor.name}
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            const fallback = target.nextElementSibling as HTMLElement;
+                            target.style.display = 'none';
+                            if (fallback) {
+                              fallback.style.display = 'flex';
+                            }
+                          }}
+                        />
+                      ) : null}
+                      <Building2 className="w-10 h-10 text-muted-foreground" style={{ display: sponsor.logoImage ? 'none' : 'flex' }} />
+                    </div>
                   </div>
                   
-                  <div className="flex-1">
-                    <h5 className="font-medium">{sponsor.name}</h5>
-                    <div className="flex items-center space-x-2 mt-1">
+                  {/* Informações do patrocinador */}
+                  <div className="text-center space-y-3">
+                    <h5 className="font-semibold text-lg">{sponsor.name}</h5>
+                    <div className="flex items-center justify-center space-x-2">
                       {getTypeBadge(sponsor.type)}
                       {sponsor.website && (
                         <Badge variant="outline" className="text-xs">
@@ -179,28 +184,86 @@ export const SponsorListField: React.FC<SponsorListFieldProps> = ({
                       )}
                     </div>
                   </div>
+                  
+                  {/* Botões de ação */}
+                  <div className="flex items-center justify-center space-x-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(index)}
+                      disabled={disabled}
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      Editar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRemove(index)}
+                      disabled={disabled}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Remover
+                    </Button>
+                  </div>
                 </div>
-                
-                <div className={`flex items-center ${isMobile ? 'justify-end' : 'space-x-2'}`}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEdit(index)}
-                    disabled={disabled}
-                    className={isMobile ? 'mr-2' : ''}
-                  >
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleRemove(index)}
-                    disabled={disabled}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+              ) : (
+                // Layout Desktop: Mantém o layout original
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center overflow-hidden">
+                      {sponsor.logoImage ? (
+                        <img 
+                          src={sponsor.logoImage} 
+                          alt={sponsor.name}
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            const fallback = target.nextElementSibling as HTMLElement;
+                            target.style.display = 'none';
+                            if (fallback) {
+                              fallback.style.display = 'flex';
+                            }
+                          }}
+                        />
+                      ) : null}
+                      <Building2 className="w-6 h-6 text-muted-foreground" style={{ display: sponsor.logoImage ? 'none' : 'flex' }} />
+                    </div>
+                    
+                    <div className="flex-1">
+                      <h5 className="font-medium">{sponsor.name}</h5>
+                      <div className="flex items-center space-x-2 mt-1">
+                        {getTypeBadge(sponsor.type)}
+                        {sponsor.website && (
+                          <Badge variant="outline" className="text-xs">
+                            <Globe className="w-3 h-3 mr-1" />
+                            Website
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(index)}
+                      disabled={disabled}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRemove(index)}
+                      disabled={disabled}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </Card>
           ))}
         </div>
