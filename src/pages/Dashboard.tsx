@@ -28,20 +28,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useNavigation } from "@/router";
-import { useDashboardChampionships } from "@/hooks/use-dashboard-championships";
-import { useChampionshipData } from "@/contexts/ChampionshipContext";
 import { formatDateToBrazilian } from "@/utils/date";
 import { useAuth } from "@/contexts/AuthContext";
-import { useUserRegistrations } from "@/hooks/use-user-registrations";
-import { useUserUpcomingRaces } from "@/hooks/use-user-upcoming-races";
-import { useUserStats } from "@/hooks/use-user-stats";
 import { useProfileCompletion } from "@/hooks/use-profile-completion";
 import { StageParticipationService } from "@/lib/services/stage-participation.service";
 import { CompleteProfileModal } from "@/components/profile/CompleteProfileModal";
 import { toast } from "sonner";
-import { differenceInHours, parseISO } from "date-fns";
 import { Loading } from '@/components/ui/loading';
-import { RaceTrackService } from '@/lib/services/race-track.service';
+import { useDashboard } from '@/contexts/DashboardContext';
 
 export const Dashboard = () => {
   const nav = useNavigation();
@@ -54,39 +48,24 @@ export const Dashboard = () => {
   const [showConfirmConfirmation, setShowConfirmConfirmation] = useState<{stageId: string, categoryId: string, categoryName: string} | null>(null);
   const [isCheckingRedirect, setIsCheckingRedirect] = useState(true);
   const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
-  const [raceTracks, setRaceTracks] = useState<Record<string, any>>({});
   
   // Check if user is manager or administrator
   const isManager = user?.role === 'Manager' || user?.role === 'Administrator';
   
-  // Use context for championships data and hook for loading/error states
-  const { 
-    loadingChampionships, 
-    championshipsError, 
+  // Use Dashboard context
+  const {
+    championshipsOrganized,
+    championshipsParticipating,
+    upcomingRaces,
+    userStats,
+    raceTracks,
+    loading,
+    errors,
     refreshChampionships,
-    championshipsOrganized
-  } = useDashboardChampionships();
-  
-  // Hooks para dados do usuário
-  const { 
-    championshipsParticipating, 
-    loading: loadingRegistrations, 
-    error: registrationsError 
-  } = useUserRegistrations();
-  
-  const {
-    upcomingRaces, 
-    loading: loadingRaces, 
-    error: racesError,
-    refresh: refreshUpcomingRaces
-  } = useUserUpcomingRaces();
-  
-  const {
-    stats: userStats,
-    loading: loadingStats,
-    error: statsError,
-    refresh: refreshUserStats
-  } = useUserStats();
+    refreshRaces,
+    refreshAll,
+    updateRaceParticipation
+  } = useDashboard();
 
   const { isProfileCompleted, loading: loadingProfile, shouldShowModal, markAsSkipped } = useProfileCompletion();
 
@@ -113,11 +92,8 @@ export const Dashboard = () => {
       setConfirmingParticipation(stageId);
       await StageParticipationService.confirmParticipation({ stageId, categoryId });
       toast.success('Participação confirmada com sucesso!');
-      // Refresh data to update the UI
-      await Promise.all([
-        refreshUpcomingRaces(),
-        refreshUserStats()
-      ]);
+      // Atualizar apenas a corrida específica
+      await updateRaceParticipation(stageId);
       setShowConfirmConfirmation(null);
     } catch (error: any) {
       toast.error(error.message || 'Erro ao confirmar participação');
@@ -132,11 +108,8 @@ export const Dashboard = () => {
       setCancellingParticipation(stageId);
       await StageParticipationService.cancelParticipation({ stageId, categoryId });
       toast.success('Participação cancelada com sucesso!');
-      // Refresh data to update the UI
-      await Promise.all([
-        refreshUpcomingRaces(),
-        refreshUserStats()
-      ]);
+      // Atualizar apenas a corrida específica
+      await updateRaceParticipation(stageId);
       setShowCancelConfirmation(null);
     } catch (error: any) {
       toast.error(error.message || 'Erro ao cancelar participação');
@@ -170,38 +143,6 @@ export const Dashboard = () => {
       return false;
     }
   };
-
-  // Buscar dados dos kartódromos
-  useEffect(() => {
-    const fetchRaceTracks = async () => {
-      try {
-        const allStages = upcomingRaces.map(race => race.stage);
-        const uniqueRaceTrackIds = [...new Set(allStages.map(stage => stage.raceTrackId).filter(Boolean))];
-        
-        // Se não há raceTrackIds, não fazer nada
-        if (uniqueRaceTrackIds.length === 0) {
-          return;
-        }
-        
-        const raceTracksData: Record<string, any> = {};
-        for (const raceTrackId of uniqueRaceTrackIds) {
-          try {
-            const raceTrack = await RaceTrackService.getById(raceTrackId);
-            raceTracksData[raceTrackId] = raceTrack;
-          } catch (err) {
-            console.error(`Erro ao buscar kartódromo ${raceTrackId}:`, err);
-          }
-        }
-        setRaceTracks(raceTracksData);
-      } catch (err) {
-        console.error('Erro ao buscar kartódromos:', err);
-      }
-    };
-
-    if (upcomingRaces.length > 0 && !loadingRaces) {
-      fetchRaceTracks();
-    }
-  }, [upcomingRaces, loadingRaces]);
 
   // Show loading while checking for redirect
   if (isCheckingRedirect) {
@@ -259,15 +200,15 @@ export const Dashboard = () => {
             Editar Perfil
           </Button>
         </div>
-        {loadingStats ? (
+        {loading.championships ? (
           <div className="flex items-center justify-center py-8">
             <Loading type="spinner" size="sm" message="Carregando estatísticas..." />
           </div>
-        ) : statsError ? (
+        ) : errors.championships ? (
           <div className="py-4">
             <Alert variant="destructive">
               <AlertTitle>Erro ao carregar estatísticas</AlertTitle>
-              <AlertDescription>{statsError}</AlertDescription>
+              <AlertDescription>{errors.championships}</AlertDescription>
             </Alert>
           </div>
         ) : (
@@ -310,15 +251,15 @@ export const Dashboard = () => {
               </p>
             </div>
             
-            {loadingChampionships ? (
+            {loading.championships ? (
               <div className="flex items-center justify-center py-8">
                 <Loading type="spinner" size="sm" message="Carregando campeonatos..." />
               </div>
-            ) : championshipsError ? (
+            ) : errors.championships ? (
               <div className="py-4">
                 <Alert variant="destructive">
                   <AlertTitle>Erro ao carregar campeonatos</AlertTitle>
-                  <AlertDescription>{championshipsError}</AlertDescription>
+                  <AlertDescription>{errors.championships}</AlertDescription>
                 </Alert>
                 <div className="mt-4 text-center">
                   <Button 
@@ -390,15 +331,15 @@ export const Dashboard = () => {
             </p>
           </div>
           
-          {loadingRegistrations ? (
+          {loading.championships ? (
             <div className="flex items-center justify-center py-8">
               <Loading type="spinner" size="sm" message="Carregando inscrições..." />
             </div>
-          ) : registrationsError ? (
+          ) : errors.championships ? (
             <div className="py-4">
               <Alert variant="destructive">
                 <AlertTitle>Erro ao carregar inscrições</AlertTitle>
-                <AlertDescription>{registrationsError}</AlertDescription>
+                <AlertDescription>{errors.championships}</AlertDescription>
               </Alert>
             </div>
           ) : championshipsParticipating.length === 0 ? (
@@ -486,15 +427,15 @@ export const Dashboard = () => {
             </p>
           </div>
           
-          {loadingRaces ? (
+          {loading.races ? (
             <div className="flex items-center justify-center py-8">
               <Loading type="spinner" size="sm" message="Carregando corridas..." />
             </div>
-          ) : racesError ? (
+          ) : errors.races ? (
             <div className="py-4">
               <Alert variant="destructive">
                 <AlertTitle>Erro ao carregar corridas</AlertTitle>
-                <AlertDescription>{racesError}</AlertDescription>
+                <AlertDescription>{errors.races}</AlertDescription>
               </Alert>
             </div>
           ) : upcomingRaces.length === 0 ? (
