@@ -47,6 +47,7 @@ import { RaceTrackService } from '@/lib/services/race-track.service';
 import { LapTimesService, LapTimes as LapTimesType } from '@/lib/services/lap-times.service';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BulkConfirmPilotsModal } from '@/components/championship/modals/BulkConfirmPilotsModal';
 
 
 
@@ -286,6 +287,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
   // Estados para penalidades
   // Penalties agora vêm do contexto
   const [penaltiesLoading, setPenaltiesLoading] = useState(false);
+  
+  // Estado para modal de confirmação em massa
+  const [showBulkConfirmModal, setShowBulkConfirmModal] = useState(false);
 
   // Cores fixas para cada piloto baseado no userId
   const getPilotColor = (userId: string): string => {
@@ -315,6 +319,25 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     if (showAddItemForm) {
       setNewItemLabel('');
       setNewItemTime('');
+    }
+  };
+
+  // Função para abrir modal de confirmação em massa
+  const handleOpenBulkConfirmModal = () => {
+    setShowBulkConfirmModal(true);
+  };
+
+  // Função para fechar modal de confirmação em massa
+  const handleCloseBulkConfirmModal = () => {
+    setShowBulkConfirmModal(false);
+  };
+
+  // Função para quando a confirmação em massa for bem-sucedida
+  const handleBulkConfirmSuccess = () => {
+    // Recarregar participações da etapa
+    if (selectedStageId) {
+      // O contexto será atualizado automaticamente pelo modal
+      toast.success('Pilotos confirmados com sucesso!');
     }
   };
 
@@ -2080,7 +2103,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                   const timePattern = /^(\d{1,2}:)?\d{1,2}:\d{2}[.,]\d{1,3}$/;
                   if (timePattern.test(totalTimeValue)) {
                     // Normalizar formato (trocar vírgula por ponto se necessário)
-                    const normalizedTime = totalTimeValue.replace(',', '.');
+                    let normalizedTime = totalTimeValue.replace(',', '.');
+                    
+                    // Remover "00:" do início se presente
+                    if (normalizedTime.startsWith('00:')) {
+                      normalizedTime = normalizedTime.substring(3);
+                    }
+                    
                     updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'totalTime', normalizedTime);
                     totalTimeCountLocal++;
                   } else {
@@ -2356,6 +2385,22 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
             <h3 className="text-lg font-semibold text-gray-900">
               Pilotos Confirmados na Etapa
             </h3>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleOpenBulkConfirmModal}>
+                  Gerenciar Participações em Massa
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           
           {loading ? (
@@ -4301,6 +4346,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
       </div>,
       document.body
     )}
+    
+    {/* Modal de confirmação em massa de pilotos */}
+    <BulkConfirmPilotsModal
+      stageId={selectedStageId}
+      isOpen={showBulkConfirmModal}
+      onClose={handleCloseBulkConfirmModal}
+      onSuccess={handleBulkConfirmSuccess}
+    />
     </div>
   );
 }; 

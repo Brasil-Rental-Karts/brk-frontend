@@ -127,7 +127,7 @@ interface ChampionshipContextType {
   fetchStaff: () => Promise<void>;
   fetchRegistrations: () => Promise<void>;
   fetchPenalties: () => Promise<void>;
-  fetchStageParticipations: (stageId: string) => Promise<void>;
+  fetchStageParticipations: (stageId?: string) => Promise<void>;
   fetchClassification: (seasonId: string) => Promise<void>;
   fetchRegulations: (seasonId: string) => Promise<void>;
   fetchGridTypes: () => Promise<void>;
@@ -143,7 +143,7 @@ interface ChampionshipContextType {
   refreshStaff: () => Promise<void>;
   refreshRegistrations: () => Promise<void>;
   refreshPenalties: () => Promise<void>;
-  refreshStageParticipations: (stageId: string) => Promise<void>;
+  refreshStageParticipations: (stageId?: string) => Promise<void>;
   refreshClassification: (seasonId: string) => Promise<void>;
   refreshRegulations: (seasonId: string) => Promise<void>;
   refreshGridTypes: () => Promise<void>;
@@ -583,7 +583,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   }, [championshipId]);
 
   // Função para buscar participações de etapas
-  const fetchStageParticipations = useCallback(async (stageId: string) => {
+  const fetchStageParticipations = useCallback(async (stageId?: string) => {
     if (!championshipId || loadingRef.current.stageParticipations) return;
     
     loadingRef.current.stageParticipations = true;
@@ -591,12 +591,29 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     setError(prev => ({ ...prev, stageParticipations: null }));
     
     try {
-      const participationsData = await StageParticipationService.getStageParticipations(stageId);
+      let allParticipations: Record<string, StageParticipation[]> = {};
+      
+      if (stageId) {
+        // Buscar participações de uma etapa específica
+        const participationsData = await StageParticipationService.getStageParticipations(stageId);
+        allParticipations[stageId] = participationsData;
+      } else {
+        // Buscar participações de todas as etapas
+        for (const stage of championshipData.stages) {
+          try {
+            const participationsData = await StageParticipationService.getStageParticipations(stage.id);
+            allParticipations[stage.id] = participationsData;
+          } catch (err) {
+            console.error(`Erro ao buscar participações da etapa ${stage.id}:`, err);
+          }
+        }
+      }
+      
       setChampionshipData(prev => ({
         ...prev,
         stageParticipations: {
           ...prev.stageParticipations,
-          [stageId]: participationsData,
+          ...allParticipations,
         },
         lastUpdated: {
           ...prev.lastUpdated,
@@ -604,12 +621,12 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         },
       }));
     } catch (err: any) {
-      setError(prev => ({ ...prev, stageParticipations: err.message || 'Erro ao carregar participações da etapa' }));
+      setError(prev => ({ ...prev, stageParticipations: err.message || 'Erro ao carregar participações das etapas' }));
     } finally {
       loadingRef.current.stageParticipations = false;
       setLoading(prev => ({ ...prev, stageParticipations: false }));
     }
-  }, [championshipId]);
+  }, [championshipId, championshipData.stages]);
 
   // Função para buscar classificações
   const fetchClassification = useCallback(async (seasonId: string) => {
@@ -824,7 +841,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     await fetchPenalties();
   }, [fetchPenalties]);
 
-  const refreshStageParticipations = useCallback(async (stageId: string) => {
+  const refreshStageParticipations = useCallback(async (stageId?: string) => {
     await fetchStageParticipations(stageId);
   }, [fetchStageParticipations]);
 
@@ -1562,14 +1579,17 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   // Carregar participações de etapas quando as etapas mudarem
   useEffect(() => {
     if (championshipId && championshipData.stages.length > 0) {
-      championshipData.stages.forEach(stage => {
-        const shouldFetchStageParticipations = !championshipData.stageParticipations[stage.id] || championshipData.stageParticipations[stage.id].length === 0;
-        if (shouldFetchStageParticipations) {
-          fetchStageParticipations(stage.id);
-        }
-      });
+      // Verificar se já temos participações carregadas para todas as etapas
+      const hasAllParticipations = championshipData.stages.every(stage => 
+        championshipData.stageParticipations[stage.id] && championshipData.stageParticipations[stage.id].length >= 0
+      );
+      
+      if (!hasAllParticipations) {
+        // Carregar todas as participações de uma vez
+        fetchStageParticipations();
+      }
     }
-  }, [championshipId, championshipData.stages.length]);
+  }, [championshipId, championshipData.stages.length, fetchStageParticipations]);
 
   // Carregar dados do campeonato quando o championshipId mudar
   useEffect(() => {
