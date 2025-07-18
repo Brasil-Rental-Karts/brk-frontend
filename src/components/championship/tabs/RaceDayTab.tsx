@@ -3260,8 +3260,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                 
                 return (
                   <div className="mt-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <div className="mb-4">
+                      <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-2">
                         <AlertTriangle className="w-5 h-5 text-orange-500" />
                         Penalidades da Bateria {selectedBatteryIndex + 1}
                       </h4>
@@ -3274,53 +3274,52 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                       <div className="space-y-3">
                         {categoryPenalties.map((penalty) => (
                           <div key={penalty.id} className="bg-white rounded-lg border border-red-200 p-4">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <div className="flex items-center gap-1">
+                            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-wrap items-center gap-2 mb-2">
+                                  <div className="flex items-center gap-1 flex-shrink-0">
                                     {getPenaltyTypeIcon(penalty.type)}
-                                    <span className="text-sm font-medium text-gray-600">
+                                    <span className="text-sm font-medium text-gray-600 break-words">
                                       {getPenaltyTypeDescription(penalty.type)}
                                     </span>
                                   </div>
-                                  <span className="font-semibold text-gray-900">
+                                  <span className="font-semibold text-gray-900 break-words">
                                     {formatName(penalty.user?.name || penalty.userId)}
                                   </span>
-                                  <Badge className={getPenaltyStatusColor(penalty.status)}>
+                                  <Badge className={`${getPenaltyStatusColor(penalty.status)} flex-shrink-0`}>
                                     {PenaltyService.getPenaltyStatusLabel(penalty.status)}
                                   </Badge>
                                 </div>
                                 
-                                <div className="text-sm text-gray-700 mb-2">
+                                <div className="text-sm text-gray-700 mb-2 break-words">
                                   <strong>Motivo:</strong> {penalty.reason}
                                 </div>
                                 
                                 {penalty.description && (
-                                  <div className="text-sm text-gray-600 mb-2">
+                                  <div className="text-sm text-gray-600 mb-2 break-words">
                                     <strong>Descrição:</strong> {penalty.description}
                                   </div>
                                 )}
                                 
                                 <div className="flex flex-wrap gap-4 text-xs text-gray-500">
                                   {penalty.timePenaltySeconds && (
-                                    <span className="flex items-center gap-1">
+                                    <span className="flex items-center gap-1 flex-shrink-0">
                                       <Clock className="w-3 h-3" />
                                       {penalty.timePenaltySeconds}s de penalidade
                                     </span>
                                   )}
                                   {penalty.positionPenalty && (
-                                    <span className="flex items-center gap-1">
+                                    <span className="flex items-center gap-1 flex-shrink-0">
                                       <MapPin className="w-3 h-3" />
                                       {penalty.positionPenalty} posição{penalty.positionPenalty !== 1 ? 's' : ''} de penalidade
                                     </span>
                                   )}
-
                                 </div>
                               </div>
                               
-                              <div className="text-xs text-gray-400 text-right ml-4">
+                              <div className="text-xs text-gray-400 lg:text-right lg:ml-4 flex-shrink-0">
                                 <div>Aplicada por</div>
-                                <div className="font-medium">{formatName(penalty.appliedByUser?.name || 'N/A')}</div>
+                                <div className="font-medium break-words">{formatName(penalty.appliedByUser?.name || 'N/A')}</div>
                                 <div className="mt-1">
                                   {new Date(penalty.createdAt).toLocaleDateString('pt-BR')}
                                 </div>
@@ -3517,7 +3516,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                 </h3>
                               <p className="text-sm text-gray-600 mb-4">
                 Selecione um kart da frota para a bateria {selectedPilotForKartChange.batteryIndex + 1}. 
-                Karts em vermelho estão sendo usados por outros pilotos e serão transferidos automaticamente.
+                Karts em preto estão sendo usados por outros pilotos e serão transferidos automaticamente.
               </p>
                 
                 <div className="grid grid-cols-6 gap-2">
@@ -3533,7 +3532,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                             onClick={() => changePilotKart(kartInfo.kart)}
                             className={`w-12 h-12 rounded-full font-bold text-sm border-2 transition-colors flex items-center justify-center ${
                               kartInfo.isUsed 
-                                ? 'bg-red-500 text-white border-red-600 hover:bg-red-600' 
+                                ? 'bg-black text-orange-500 border-gray-700 hover:bg-gray-800' 
                                 : 'bg-orange-500 text-black border-orange-600 hover:bg-orange-600'
                             }`}
                             disabled={kartLoading}
