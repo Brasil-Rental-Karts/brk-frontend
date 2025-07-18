@@ -14,6 +14,7 @@ import { formatCurrency } from "@/utils/currency";
 import { X, User, Trophy, Calendar, CreditCard, Tag, MapPin, FileText } from "lucide-react";
 import { ChampionshipService } from "@/lib/services/championship.service";
 import { useChampionshipData } from "@/contexts/ChampionshipContext";
+import { useDashboard } from '@/contexts/DashboardContext';
 
 // Função para formatar valor monetário no input
 const formatCurrencyInput = (value: string | number): string => {
@@ -82,6 +83,7 @@ interface StageData {
 export const AdminPilotRegistration = () => {
   // Usar o contexto de dados do campeonato
   const { getSeasons, getCategories, getStages } = useChampionshipData();
+  const { refreshFinancial } = useDashboard();
 
   const [users, setUsers] = useState<UserData[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
@@ -453,6 +455,9 @@ export const AdminPilotRegistration = () => {
       const result = await SeasonRegistrationService.createAdminRegistration(registrationData);
       
       toast.success(result.isUpdate ? "Inscrição administrativa atualizada com sucesso!" : "Inscrição administrativa criada com sucesso!");
+      
+      // Atualizar dados financeiros do dashboard
+      refreshFinancial();
       
       // Reset form
       setSelectedUserId("");

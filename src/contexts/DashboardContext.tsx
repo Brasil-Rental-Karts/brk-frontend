@@ -56,6 +56,26 @@ export interface DashboardRaceTrack {
   address?: string;
 }
 
+// Interfaces para dados financeiros
+export interface DashboardFinancialRegistration extends SeasonRegistration {
+  paymentDetails?: {
+    totalInstallments: number;
+    paidInstallments: number;
+    paidAmount: number;
+    pendingAmount: number;
+    overdueAmount: number;
+    payments: any[];
+  };
+}
+
+export interface DashboardFinancialData {
+  registrations: DashboardFinancialRegistration[];
+  totalPaid: number;
+  totalPending: number;
+  totalOverdue: number;
+  syncing: boolean;
+}
+
 export interface DashboardData {
   // Campeonatos organizados (onde é owner ou staff)
   championshipsOrganized: DashboardChampionship[];
@@ -72,11 +92,15 @@ export interface DashboardData {
   // Kartódromos das corridas
   raceTracks: Record<string, DashboardRaceTrack>;
   
+  // Dados financeiros
+  financialData: DashboardFinancialData;
+  
   // Estados de loading
   loading: {
     championships: boolean;
     races: boolean;
     raceTracks: boolean;
+    financial: boolean;
   };
   
   // Estados de erro
@@ -84,12 +108,14 @@ export interface DashboardData {
     championships: string | null;
     races: string | null;
     raceTracks: string | null;
+    financial: string | null;
   };
 }
 
 interface DashboardContextType extends DashboardData {
   refreshChampionships: () => Promise<void>;
   refreshRaces: () => Promise<void>;
+  refreshFinancial: () => Promise<void>;
   refreshAll: () => Promise<void>;
   updateRaceParticipation: (stageId: string) => Promise<void>;
 }
@@ -121,12 +147,20 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
   const [upcomingRaces, setUpcomingRaces] = useState<DashboardUpcomingRace[]>([]);
   const [userStats, setUserStats] = useState<UserBasicStats | null>(null);
   const [raceTracks, setRaceTracks] = useState<Record<string, DashboardRaceTrack>>({});
+  const [financialData, setFinancialData] = useState<DashboardFinancialData>({
+    registrations: [],
+    totalPaid: 0,
+    totalPending: 0,
+    totalOverdue: 0,
+    syncing: false
+  });
   
   // Estados de loading
   const [loading, setLoading] = useState({
     championships: false,
     races: false,
     raceTracks: false,
+    financial: false,
   });
   
   // Estados de erro
@@ -134,6 +168,7 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
     championships: null,
     races: null,
     raceTracks: null,
+    financial: null,
   });
 
   // CHAMADA 1: Buscar dados dos campeonatos (incluindo inscrições e estatísticas)
@@ -334,6 +369,154 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
     }
   }, [user]);
 
+  // CHAMADA 3: Buscar dados financeiros
+  const fetchFinancialData = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(prev => ({ ...prev, financial: true }));
+      setErrors(prev => ({ ...prev, financial: null }));
+      setFinancialData(prev => ({ ...prev, syncing: false }));
+
+      // Buscar todas as inscrições do usuário
+      const registrations = await SeasonRegistrationService.getMyRegistrations();
+      
+      // Verificar se há inscrições com pagamentos pendentes
+      const registrationsWithPendingPayments = [];
+      for (const reg of registrations) {
+        try {
+          const payments = await SeasonRegistrationService.getPaymentData(reg.id);
+          if (payments && payments.some(p => ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(p.status))) {
+            registrationsWithPendingPayments.push(reg.id);
+          }
+        } catch (error) {
+          console.warn(`Erro ao verificar pagamentos pendentes da inscrição ${reg.id}:`, error);
+        }
+      }
+      
+      // Se há pagamentos pendentes, mostrar indicador de sincronização
+      if (registrationsWithPendingPayments.length > 0) {
+        setFinancialData(prev => ({ ...prev, syncing: true }));
+      }
+      
+      // Buscar detalhes de pagamento para cada inscrição
+      const registrationsWithPayments: DashboardFinancialRegistration[] = await Promise.all(
+        registrations.map(async (reg) => {
+          try {
+            const payments = await SeasonRegistrationService.getPaymentData(reg.id);
+            
+            if (payments && payments.length > 0) {
+              // Verificar se há pagamentos pendentes que precisam ser sincronizados
+              const pendingPaymentsToSync = payments.filter(p => 
+                ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(p.status)
+              );
+              
+              // Sincronizar pagamentos pendentes com o Asaas
+              if (pendingPaymentsToSync.length > 0) {
+                try {
+                  await SeasonRegistrationService.syncPaymentStatus(reg.id);
+                  
+                  // Buscar dados atualizados após a sincronização
+                  const updatedPayments = await SeasonRegistrationService.getPaymentData(reg.id);
+                  if (updatedPayments) {
+                    // Usar os dados atualizados
+                    payments.splice(0, payments.length, ...updatedPayments);
+                  }
+                } catch (syncError) {
+                  console.warn(`⚠️ Erro ao sincronizar pagamentos da inscrição ${reg.id}:`, syncError);
+                  // Continuar com os dados originais em caso de erro
+                }
+              }
+              
+              // Status que indicam pagamento completo
+              const paidStatusList = ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'];
+              
+              // Status que indicam pagamento pendente
+              const pendingStatusList = ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'];
+              
+              // Status que indicam pagamento vencido
+              const overdueStatusList = ['OVERDUE'];
+              
+              const paidPayments = payments.filter(p => paidStatusList.includes(p.status));
+              const pendingPayments = payments.filter(p => pendingStatusList.includes(p.status));
+              const overduePayments = payments.filter(p => overdueStatusList.includes(p.status));
+              
+              const paidAmount = paidPayments.reduce((sum, p) => sum + Number(p.value), 0);
+              const pendingAmount = pendingPayments.reduce((sum, p) => sum + Number(p.value), 0);
+              const overdueAmount = overduePayments.reduce((sum, p) => sum + Number(p.value), 0);
+              
+              return {
+                ...reg,
+                paymentDetails: {
+                  totalInstallments: payments.length,
+                  paidInstallments: paidPayments.length,
+                  paidAmount,
+                  pendingAmount,
+                  overdueAmount,
+                  payments
+                }
+              };
+            }
+            
+            // Fallback em caso de erro
+            return {
+              ...reg,
+              paymentDetails: {
+                totalInstallments: 1,
+                paidInstallments: ['paid', 'exempt', 'direct_payment'].includes(reg.paymentStatus) ? 1 : 0,
+                paidAmount: ['paid', 'exempt', 'direct_payment'].includes(reg.paymentStatus) ? Number(reg.amount) : 0,
+                pendingAmount: reg.paymentStatus === 'pending' || reg.paymentStatus === 'processing' ? Number(reg.amount) : 0,
+                overdueAmount: reg.paymentStatus === 'failed' || reg.paymentStatus === 'overdue' ? Number(reg.amount) : 0,
+                payments: []
+              }
+            };
+          } catch (error) {
+            console.warn(`Erro ao buscar pagamentos da inscrição ${reg.id}:`, error);
+            // Fallback em caso de erro
+            return {
+              ...reg,
+              paymentDetails: {
+                totalInstallments: 1,
+                paidInstallments: ['paid', 'exempt', 'direct_payment'].includes(reg.paymentStatus) ? 1 : 0,
+                paidAmount: ['paid', 'exempt', 'direct_payment'].includes(reg.paymentStatus) ? reg.amount : 0,
+                pendingAmount: reg.paymentStatus === 'pending' ? reg.amount : 0,
+                overdueAmount: reg.paymentStatus === 'overdue' ? reg.amount : 0,
+                payments: []
+              }
+            };
+          }
+        })
+      );
+      
+      // Calcular totais baseado nos detalhes de pagamento
+      let totalPaid = 0;
+      let totalPending = 0;
+      let totalOverdue = 0;
+
+      registrationsWithPayments.forEach((reg) => {
+        if (reg.paymentDetails) {
+          totalPaid += reg.paymentDetails.paidAmount;
+          totalPending += reg.paymentDetails.pendingAmount;
+          totalOverdue += reg.paymentDetails.overdueAmount;
+        }
+      });
+
+      setFinancialData({
+        registrations: registrationsWithPayments,
+        totalPaid,
+        totalPending,
+        totalOverdue,
+        syncing: false
+      });
+      
+    } catch (error: any) {
+      console.error('Erro ao carregar dados financeiros:', error);
+      setErrors(prev => ({ ...prev, financial: error.message || 'Erro ao carregar dados financeiros' }));
+    } finally {
+      setLoading(prev => ({ ...prev, financial: false }));
+    }
+  }, [user]);
+
   // Função para buscar kartódromos (chamada separada apenas quando necessário)
   const fetchRaceTracks = useCallback(async () => {
     if (upcomingRaces.length === 0) return;
@@ -395,12 +578,17 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
     await fetchRacesData();
   }, [fetchRacesData]);
 
+  const refreshFinancial = useCallback(async () => {
+    await fetchFinancialData();
+  }, [fetchFinancialData]);
+
   const refreshAll = useCallback(async () => {
     await Promise.all([
       fetchChampionshipsData(),
-      fetchRacesData()
+      fetchRacesData(),
+      fetchFinancialData()
     ]);
-  }, [fetchChampionshipsData, fetchRacesData]);
+  }, [fetchChampionshipsData, fetchRacesData, fetchFinancialData]);
 
   // Função para atualizar apenas a participação de uma corrida específica
   const updateRaceParticipation = useCallback(async (stageId: string) => {
@@ -456,10 +644,12 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
     upcomingRaces,
     userStats,
     raceTracks,
+    financialData,
     loading,
     errors,
     refreshChampionships,
     refreshRaces,
+    refreshFinancial,
     refreshAll,
     updateRaceParticipation,
   };
