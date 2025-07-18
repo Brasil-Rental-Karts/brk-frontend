@@ -314,6 +314,7 @@ export const Financial: React.FC = () => {
   const getPaymentMethodIcon = (method: string) => {
     switch (method) {
       case 'credit_card':
+      case 'cartao_credito':
         return <CreditCard className="w-4 h-4" />;
       case 'pix':
         return <Smartphone className="w-4 h-4" />;
@@ -334,6 +335,7 @@ export const Financial: React.FC = () => {
 
     switch (method) {
       case 'credit_card':
+      case 'cartao_credito':
         return 'Cartão de Crédito';
       case 'pix':
         return 'PIX';

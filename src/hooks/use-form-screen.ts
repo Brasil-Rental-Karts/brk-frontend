@@ -212,9 +212,9 @@ export const useFormScreen = <TData, TSubmit>({
         result = await createData(processedData);
       }
 
-      toast.success(
-        successMessage || "Dados salvos com sucesso!"
-      );
+      if (successMessage) {
+        toast.success(successMessage);
+      }
       onSuccess(result);
     } catch (err: any) {
       const message =

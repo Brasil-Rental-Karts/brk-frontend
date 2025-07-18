@@ -474,7 +474,8 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     onCancel: () => {
       if(onCancel) onCancel();
     },
-    errorMessage: 'Erro ao realizar inscrição'
+    errorMessage: 'Erro ao realizar inscrição',
+    successMessage: '' // Desabilitar o toast padrão do useFormScreen
   });
 
   // Hook para navegação externa com verificação de alterações não salvas
