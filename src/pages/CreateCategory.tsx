@@ -3,11 +3,11 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { FormScreen } from "@/components/ui/FormScreen";
 import { FormSectionConfig } from "@/components/ui/dynamic-form";
 import { CategoryData, CategoryService } from "@/lib/services/category.service";
-import { SeasonService, Season } from "@/lib/services/season.service";
-import { GridTypeService } from "@/lib/services/grid-type.service";
-import { ScoringSystemService, ScoringSystem } from "@/lib/services/scoring-system.service";
-import { BatteriesConfigForm } from "@/components/category/BatteriesConfigForm";
+import { Season } from "@/lib/services/season.service";
 import { GridType } from "@/lib/types/grid-type";
+import { ScoringSystem } from "@/lib/services/scoring-system.service";
+import { BatteriesConfigForm } from "@/components/category/BatteriesConfigForm";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 export const CreateCategory = () => {
   const navigate = useNavigate();
@@ -16,6 +16,16 @@ export const CreateCategory = () => {
     championshipId: string;
     categoryId?: string;
   }>();
+
+  // Usar o contexto de dados do campeonato
+  const { 
+    getSeasons, 
+    getCategories,
+    getGridTypes, 
+    getScoringSystems, 
+    addCategory, 
+    updateCategory 
+  } = useChampionshipData();
 
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -31,13 +41,13 @@ export const CreateCategory = () => {
     const loadDependencies = async () => {
       if (!championshipId) return;
       try {
-        const [seasonsData, gridTypesData, scoringSystemsData] = await Promise.all([
-          SeasonService.getByChampionshipId(championshipId, 1, 1000),
-          GridTypeService.getByChampionship(championshipId),
-          ScoringSystemService.getByChampionshipId(championshipId),
-        ]);
+        // Usar dados do contexto em vez de buscar do backend
+        const seasonsData = getSeasons();
+        const filteredSeasons = seasonsData.filter(season => season.championshipId === championshipId);
+        const gridTypesData = getGridTypes();
+        const scoringSystemsData = getScoringSystems();
         
-        setAllSeasons(seasonsData.data);
+        setAllSeasons(filteredSeasons);
         setGridTypes(gridTypesData);
         setScoringSystems(scoringSystemsData);
       } catch (error) {
@@ -45,15 +55,18 @@ export const CreateCategory = () => {
       }
     };
     loadDependencies();
-  }, [championshipId]);
+  }, [championshipId, getSeasons, getGridTypes, getScoringSystems]);
 
   useEffect(() => {
-    const prepareSeasonsForDropdown = async () => {
+    const prepareSeasonsForDropdown = () => {
         let availableSeasons = allSeasons.filter(s => s.status !== 'cancelado');
         
         if (isEditMode && categoryId) {
-            try {
-                const categoryData = await CategoryService.getById(categoryId);
+            // Buscar categoria do contexto
+            const categoriesFromContext = getCategories();
+            const categoryData = categoriesFromContext.find((cat: any) => cat.id === categoryId);
+            
+            if (categoryData) {
                 const categorySeason = allSeasons.find(s => s.id === categoryData.seasonId);
 
                 if (categorySeason && categorySeason.status === 'cancelado') {
@@ -61,8 +74,6 @@ export const CreateCategory = () => {
                         availableSeasons.push(categorySeason);
                     }
                 }
-            } catch (error) {
-                console.error("Failed to fetch category for season check", error);
             }
         }
         setSeasons(availableSeasons);
@@ -71,7 +82,7 @@ export const CreateCategory = () => {
     if (allSeasons.length > 0) {
       prepareSeasonsForDropdown();
     }
-  }, [allSeasons, isEditMode, categoryId]);
+  }, [allSeasons, isEditMode, categoryId, getCategories]);
 
   const getSeasonStatusLabel = (status: string) => {
     switch (status) {
@@ -182,8 +193,8 @@ export const CreateCategory = () => {
             name: "Quantidade a descartar",
             type: "inputMask",
             mask: "number",
-            min_value: 1,
-            max_value: 999,
+            min_value: 0,
+            max_value: 10,
             placeholder: "Ex: 1",
             conditionalField: {
               dependsOn: 'allowDiscarding',
@@ -203,7 +214,7 @@ export const CreateCategory = () => {
     minimumAge: data.minimumAge.toString(),
     allowDiscarding: Boolean(data.allowDiscarding),
     discardingType: data.discardingType || "",
-    discardingQuantity: data.discardingQuantity ? data.discardingQuantity.toString() : "",
+    discardingQuantity: data.discardingQuantity ? data.discardingQuantity.toString() : "0",
   }), []);
   
   const transformSubmitData = useCallback((data: any): CategoryData => {
@@ -217,9 +228,9 @@ export const CreateCategory = () => {
       ballast: parseInt(data.ballast, 10),
       maxPilots: parseInt(data.maxPilots, 10),
       minimumAge: parseInt(data.minimumAge, 10),
-      allowDiscarding: Boolean(data.allowDiscarding),
-      discardingType: data.allowDiscarding ? data.discardingType : undefined,
-      discardingQuantity: data.allowDiscarding && data.discardingQuantity ? parseInt(data.discardingQuantity, 10) : undefined,
+              allowDiscarding: Boolean(data.allowDiscarding),
+        discardingType: data.allowDiscarding ? data.discardingType : undefined,
+        discardingQuantity: data.allowDiscarding && data.discardingQuantity ? parseInt(data.discardingQuantity, 10) : 0,
       championshipId: championshipId!,
     }
   }, [championshipId, allSeasons]);
@@ -232,9 +243,49 @@ export const CreateCategory = () => {
     navigate(`/championship/${championshipId}?tab=categories`);
   }, [navigate, championshipId]);
 
-  const fetchData = useCallback(() => CategoryService.getById(currentCategoryId!), [currentCategoryId]);
-  const createData = useCallback((data: CategoryData) => CategoryService.create(data), []);
-  const updateData = useCallback((id: string, data: CategoryData) => CategoryService.update(id, data), []);
+  const fetchData = useCallback(async () => {
+    if (!currentCategoryId) {
+      throw new Error('ID da categoria não fornecido');
+    }
+    
+    // Sempre buscar do contexto, nunca do backend
+    const categoriesFromContext = getCategories();
+    const categoryFromContext = categoriesFromContext.find((cat: any) => cat.id === currentCategoryId);
+    
+    if (categoryFromContext) {
+      return categoryFromContext;
+    } else {
+      throw new Error('Categoria não encontrada no contexto. Recarregue a página.');
+    }
+  }, [currentCategoryId, getCategories]);
+
+  // Preparar dados iniciais do contexto quando disponíveis
+  const getInitialDataFromContext = useCallback(() => {
+    if (!currentCategoryId) return null;
+    
+    const categoriesFromContext = getCategories();
+    const categoryFromContext = categoriesFromContext.find((cat: any) => cat.id === currentCategoryId);
+    
+    if (categoryFromContext) {
+      return transformInitialData(categoryFromContext);
+    }
+    
+    return null;
+  }, [currentCategoryId, getCategories, transformInitialData]);
+  
+  const createData = useCallback(async (data: CategoryData) => {
+    const createdCategory = await CategoryService.create(data);
+    // Atualizar o contexto com a nova categoria
+    addCategory(createdCategory);
+    return createdCategory;
+  }, [addCategory]);
+  
+  const updateData = useCallback(async (id: string, data: CategoryData) => {
+    const updatedCategory = await CategoryService.update(id, data);
+    // Atualizar o contexto com a categoria atualizada
+    updateCategory(id, updatedCategory);
+    return updatedCategory;
+  }, [updateCategory]);
 
   return (
     <FormScreen
@@ -249,7 +300,7 @@ export const CreateCategory = () => {
       transformSubmitData={transformSubmitData}
       onSuccess={onSuccess}
       onCancel={onCancel}
-      initialValues={duplicatedData ? transformInitialData(duplicatedData) : {
+      initialValues={duplicatedData ? transformInitialData(duplicatedData) : getInitialDataFromContext() || {
         name: "",
         ballast: "",
         maxPilots: "",
@@ -258,7 +309,7 @@ export const CreateCategory = () => {
         batteriesConfig: [],
         allowDiscarding: false,
         discardingType: "",
-        discardingQuantity: "",
+        discardingQuantity: "0",
       }}
       successMessage={isEditMode ? "Categoria atualizada com sucesso!" : "Categoria criada com sucesso!"}
       errorMessage={isEditMode ? "Erro ao atualizar categoria." : "Erro ao criar categoria."}

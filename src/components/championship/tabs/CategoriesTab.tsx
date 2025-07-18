@@ -32,7 +32,7 @@ import { Pagination } from "brk-design-system";
 import { usePagination } from "@/hooks/usePagination";
 import { CategoryService, Category } from "@/lib/services/category.service";
 import { Season as BaseSeason } from "@/lib/services/season.service";
-import { SeasonRegistrationService } from "@/lib/services/season-registration.service";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import {
@@ -143,7 +143,6 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortBy, setSortBy] = useState<keyof Category>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [registrationCounts, setRegistrationCounts] = useState<Record<string, number>>({});
 
   // Estados para o modal de exclusão
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -151,53 +150,42 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Usar o contexto de dados do campeonato
+  const { 
+    getSeasons, 
+    getCategories, 
+    loading: contextLoading, 
+    error: contextError,
+    refreshCategories,
+    removeCategory: removeCategoryFromContext
+  } = useChampionshipData();
+
+  // Obter dados do contexto
+  const contextSeasons = getSeasons();
+  const contextCategories = getCategories();
+
+  // Usar dados do contexto se disponíveis, senão usar props
+  const effectiveSeasons = contextSeasons.length > 0 ? contextSeasons : seasons;
+  const effectiveCategories = contextCategories;
+
   const seasonOptions = useMemo(() => [
     { value: 'all', label: 'Todas as temporadas' },
-    ...seasons.map((season) => ({ value: season.id, label: season.name }))
-  ], [seasons]);
+    ...effectiveSeasons.map((season) => ({ value: season.id, label: season.name }))
+  ], [effectiveSeasons]);
 
   const filterFields = useMemo(() => createFilterFields(seasonOptions), [seasonOptions]);
   
-  const canCreateCategory = useMemo(() => seasons.some((s) => s.status !== 'cancelado'), [seasons]);
-
-  // Buscar contagens de inscrições por categoria
-  useEffect(() => {
-    const fetchRegistrationCounts = async () => {
-      const allCategories = seasons.flatMap(season => season.categories || []);
-      const counts: Record<string, number> = {};
-      
-      try {
-        await Promise.all(
-          allCategories.map(async (category) => {
-            try {
-              const count = await SeasonRegistrationService.getCategoryRegistrationCount(category.id);
-              counts[category.id] = count;
-            } catch (error) {
-              console.error(`Erro ao buscar contagem para categoria ${category.id}:`, error);
-              counts[category.id] = 0;
-            }
-          })
-        );
-        
-        setRegistrationCounts(counts);
-      } catch (error) {
-        console.error('Erro ao buscar contagens de inscrições:', error);
-      }
-    };
-
-    if (seasons.length > 0) {
-      fetchRegistrationCounts();
-    }
-  }, [seasons]);
+  const canCreateCategory = useMemo(() => effectiveSeasons.some((s) => s.status !== 'cancelado'), [effectiveSeasons]);
 
   // Aplicar filtros e ordenação aos dados
   const filteredCategories = useMemo(() => {
-    const allCategories: CategoryWithSeasonName[] = seasons.flatMap(season => 
-      (season.categories || []).map((category: Category) => ({
+    const allCategories: CategoryWithSeasonName[] = effectiveCategories.map((category: Category) => {
+      const season = effectiveSeasons.find(s => s.id === category.seasonId);
+      return {
         ...category,
-        seasonName: season.name
-      }))
-    );
+        seasonName: season?.name || 'Temporada não encontrada'
+      };
+    });
     
     let result = [...allCategories];
 
@@ -222,7 +210,7 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
     });
 
     return result;
-  }, [seasons, filters, sortBy, sortOrder]);
+  }, [effectiveCategories, effectiveSeasons, filters, sortBy, sortOrder]);
 
   // --- Lógica para Desktop (Paginação) ---
   const pagination = usePagination(filteredCategories.length, 5, 1);
@@ -320,7 +308,13 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
 
     try {
       await CategoryService.delete(categoryToDelete.id);
-      onRefresh(); // Notificar componente pai para re-buscar os dados
+      
+      // Remover do contexto
+      removeCategoryFromContext(categoryToDelete.id);
+      
+      // Atualizar dados do contexto
+      await refreshCategories();
+      
       setShowDeleteDialog(false);
       setCategoryToDelete(null);
     } catch (err: any) {
@@ -367,7 +361,11 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
   const handlePageChange = (page: number) => pagination.actions.setCurrentPage(page);
   const handleItemsPerPageChange = (items: number) => pagination.actions.setItemsPerPage(items);
 
-  if (isLoading) {
+  // Determinar loading e error
+  const isDataLoading = contextLoading.seasons || contextLoading.categories;
+  const dataError = contextError.seasons || contextError.categories;
+
+  if (isDataLoading) {
     return (
       <Card className="w-full">
         <div className="p-6">
@@ -377,13 +375,13 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
     );
   }
 
-  if (initialError) {
+  if (dataError) {
     return (
       <Card className="w-full">
         <div className="p-6">
           <Alert variant="destructive">
             <AlertTitle>Erro ao carregar categorias</AlertTitle>
-            <AlertDescription>{initialError}</AlertDescription>
+            <AlertDescription>{dataError}</AlertDescription>
           </Alert>
           <div className="mt-4">
             <Button onClick={onRefresh} variant="outline">
@@ -460,7 +458,7 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
           <div className="space-y-4">
             {processedCategories.map((category, index) => (
               <div key={category.id} ref={processedCategories.length === index + 1 ? lastCategoryElementRef : null}>
-                 <CategoryCard category={category as CategoryWithSeasonName} onAction={handleCategoryAction} registrationCount={registrationCounts[category.id] || 0} />
+                 <CategoryCard category={category as CategoryWithSeasonName} onAction={handleCategoryAction} registrationCount={category.registrationCount || 0} />
               </div>
             ))}
           </div>
@@ -558,7 +556,7 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
                       </TableCell>
                       <TableCell className="text-center py-4">
                         <div className="text-sm font-medium">
-                          {registrationCounts[category.id] || 0} / {category.maxPilots}
+                          {category.registrationCount || 0} / {category.maxPilots}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           pilotos

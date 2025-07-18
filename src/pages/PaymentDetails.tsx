@@ -194,8 +194,10 @@ export const PaymentDetails: React.FC = () => {
   const getPaymentMethodIcon = (billingType: string) => {
     switch (billingType) {
       case 'PIX':
+      case 'pix':
         return <Smartphone className="w-4 h-4" />;
       case 'CREDIT_CARD':
+      case 'cartao_credito':
         return <CreditCard className="w-4 h-4" />;
       case 'ADMIN_EXEMPT':
       case 'ADMIN_DIRECT':
@@ -217,8 +219,10 @@ export const PaymentDetails: React.FC = () => {
 
     switch (billingType) {
       case 'PIX':
+      case 'pix':
         return 'PIX';
       case 'CREDIT_CARD':
+      case 'cartao_credito':
         return 'Cartão de Crédito';
       case 'BOLETO':
         return 'Boleto';

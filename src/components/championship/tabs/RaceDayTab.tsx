@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "brk-design-system";
 import { Button, Badge } from "brk-design-system";
 import { ChevronDown, MoreVertical, CheckCircle, XCircle, Loader2, ChevronRight, Plus, Minus, GripVertical, Edit, Copy, Trash2, Circle, X, Share2, Search, Upload, BarChart3, AlertTriangle, Clock, MapPin, Ban } from "lucide-react";
@@ -12,6 +12,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { StageService } from '@/lib/services/stage.service';
 import { PenaltyService, Penalty, PenaltyType, PenaltyStatus } from '@/lib/services/penalty.service';
 import { useNavigate } from 'react-router-dom';
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
+import { Stage as StageType } from "@/lib/types/stage";
 import {
   DndContext,
   closestCenter,
@@ -45,28 +47,19 @@ import { RaceTrackService } from '@/lib/services/race-track.service';
 import { LapTimesService, LapTimes as LapTimesType } from '@/lib/services/lap-times.service';
 import * as XLSX from 'xlsx';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BulkConfirmPilotsModal } from '@/components/championship/modals/BulkConfirmPilotsModal';
 
-interface Stage {
-  id: string;
-  name: string;
-  date: string;
-  time: string; // HH:MM format
-  raceTrackId?: string;
-  streamLink?: string;
-  briefing?: string;
-}
+
 
 interface SeasonWithStages {
   id: string;
   name: string;
   status?: string;
-  stages?: Stage[];
+  stages?: StageType[];
   inscriptionType?: 'por_temporada' | 'por_etapa';
 }
 
 interface RaceDayTabProps {
-  seasons: SeasonWithStages[];
-  championshipName?: string;
   championshipId?: string;
 }
 
@@ -80,7 +73,7 @@ const RaceDayHeader: React.FC<{
   seasons: SeasonWithStages[];
   selectedSeasonId: string;
   onSelectSeason: (seasonId: string) => void;
-  stages: Stage[];
+  stages: StageType[];
   selectedStageId: string;
   onSelectStage: (stageId: string) => void;
 }> = ({ seasons, selectedSeasonId, onSelectSeason, stages, selectedStageId, onSelectStage }) => (
@@ -99,8 +92,9 @@ const RaceDayHeader: React.FC<{
               onSelectSeason(seasonId);
               // Resetar para a primeira etapa da nova temporada
               const newSeason = seasons.find(s => s.id === seasonId);
-              if (newSeason?.stages?.length) {
-                onSelectStage(newSeason.stages[0].id);
+              const newSeasonStages = stages.filter(stage => stage.seasonId === seasonId);
+              if (newSeasonStages.length > 0) {
+                onSelectStage(newSeasonStages[0].id);
               }
             }}
           >
@@ -136,9 +130,28 @@ const RaceDayHeader: React.FC<{
   </div>
 );
 
-export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipName, championshipId }) => {
+export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  
+  // Usar o contexto de dados do campeonato
+  const { 
+    getCategories, 
+    getRegistrations, 
+    getPenalties, 
+    getRaceTracks,
+    getStages,
+    getStageParticipations,
+    getSeasons,
+    getChampionshipInfo,
+    updateStage,
+    loading: contextLoading, 
+    error: contextError
+  } = useChampionshipData();
+  
+  // Obter temporadas e dados do campeonato do contexto
+  const seasons = getSeasons();
+  const championship = getChampionshipInfo();
   
   // Ler parâmetros da URL para restaurar estado
   const urlParams = new URLSearchParams(window.location.search);
@@ -148,7 +161,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   const urlBattery = urlParams.get('battery');
   
   // Filtrar temporadas válidas
-  const validSeasons = seasons.filter(s => s.status === 'agendado' || s.status === 'em_andamento');
+  const validSeasons = seasons.filter((s: any) => s.status === 'agendado' || s.status === 'em_andamento');
   // Função para pegar etapa mais próxima
   function getClosestStage(stages: any[]) {
     if (!stages || stages.length === 0) return undefined;
@@ -183,7 +196,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     return seasons[0]?.id || "";
   });
   const selectedSeason = seasons.find((s: SeasonWithStages) => s.id === selectedSeasonId) || seasons[0];
-  const stages = selectedSeason?.stages || [];
+  
+  // Usar etapas do contexto filtradas por temporada (memoizado para evitar recálculos)
+  const allContextStages = useMemo(() => getStages(), [getStages]);
+  const stages = useMemo(() => 
+    allContextStages.filter((stage: StageType) => stage.seasonId === selectedSeasonId),
+    [allContextStages, selectedSeasonId]
+  );
+  
   const [selectedStageId, setSelectedStageId] = useState(() => {
     // Se há parâmetro de etapa na URL, usar ele
     if (urlStage !== null) {
@@ -193,9 +213,18 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   });
   const selectedStage = stages.find(s => s.id === selectedStageId) || stages[0];
   
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [registrations, setRegistrations] = useState<SeasonRegistration[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Obter dados do contexto
+  const contextCategories = getCategories();
+  const contextRegistrations = getRegistrations();
+  const contextPenalties = getPenalties();
+  const contextRaceTracks = getRaceTracks();
+  
+  // Filtrar dados por temporada selecionada
+  const categories = contextCategories.filter(cat => cat.seasonId === selectedSeasonId);
+  const registrations = contextRegistrations.filter(reg => reg.season.id === selectedSeasonId);
+  const filteredPenalties = contextPenalties.filter(penalty => penalty.stageId === selectedStageId);
+  
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stageParticipations, setStageParticipations] = useState<StageParticipation[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -204,7 +233,6 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   const [newItemTime, setNewItemTime] = useState('');
   const [pilotLoading, setPilotLoading] = useState<{ [key: string]: boolean }>({});
   const [editingItem, setEditingItem] = useState<string | null>(null);
-  const [showPilotConfirmationModal, setShowPilotConfirmationModal] = useState(false);
   const [showAddItemForm, setShowAddItemForm] = useState(false);
   const [showFleetDrawModal, setShowFleetDrawModal] = useState(false);
   const [fleetDrawResults, setFleetDrawResults] = useState<{[categoryId: string]: {[pilotId: string]: { [batteryIndex: number]: { kart: number } } } }>({});
@@ -221,8 +249,12 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   // Novo estado para bateria selecionada
   const [selectedBatteryIndex, setSelectedBatteryIndex] = useState<number>(() => {
     // Se há parâmetro de bateria na URL, usar ele
-    if (urlBattery !== null) {
-      return Number(urlBattery);
+    if (urlBattery !== null && urlBattery !== '') {
+      const batteryIndex = Number(urlBattery);
+      // Validar se é um número válido e não negativo
+      if (!isNaN(batteryIndex) && batteryIndex >= 0) {
+        return batteryIndex;
+      }
     }
     return 0;
   });
@@ -257,8 +289,22 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   const [lapTimesLoading, setLapTimesLoading] = useState(false);
   
   // Estados para penalidades
-  const [penalties, setPenalties] = useState<Penalty[]>([]);
+  // Penalties agora vêm do contexto
   const [penaltiesLoading, setPenaltiesLoading] = useState(false);
+  
+  // Estado para modal de confirmação em massa
+  const [showBulkConfirmModal, setShowBulkConfirmModal] = useState(false);
+
+  // Atualizar selectedBatteryIndex quando a URL mudar
+  useEffect(() => {
+    if (urlBattery !== null && urlBattery !== '') {
+      const batteryIndex = Number(urlBattery);
+      // Validar se é um número válido e não negativo
+      if (!isNaN(batteryIndex) && batteryIndex >= 0) {
+        setSelectedBatteryIndex(batteryIndex);
+      }
+    }
+  }, [urlBattery]);
 
   // Cores fixas para cada piloto baseado no userId
   const getPilotColor = (userId: string): string => {
@@ -291,17 +337,26 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     }
   };
 
-  // Função para fechar o modal de confirmação de pilotos
-  const handleClosePilotConfirmationModal = () => {
-    setShowPilotConfirmationModal(false);
-    // Limpar estado de loading imediatamente
-    setPilotLoading({});
+  // Função para abrir modal de confirmação em massa
+  const handleOpenBulkConfirmModal = () => {
+    setShowBulkConfirmModal(true);
   };
 
-  // Função para abrir o modal de confirmação de pilotos
-  const handleOpenPilotConfirmationModal = () => {
-    setShowPilotConfirmationModal(true);
+  // Função para fechar modal de confirmação em massa
+  const handleCloseBulkConfirmModal = () => {
+    setShowBulkConfirmModal(false);
   };
+
+  // Função para quando a confirmação em massa for bem-sucedida
+  const handleBulkConfirmSuccess = () => {
+    // Recarregar participações da etapa
+    if (selectedStageId) {
+      // O contexto será atualizado automaticamente pelo modal
+      toast.success('Pilotos confirmados com sucesso!');
+    }
+  };
+
+
 
   // Função para abrir o modal de sorteio de frota
   const handleOpenFleetDrawModal = () => {
@@ -429,17 +484,12 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   // Limpar estado quando o componente for desmontado
   useEffect(() => {
     return () => {
-      setShowPilotConfirmationModal(false);
-      setPilotLoading({});
+      // Cleanup code here if needed
     };
   }, []);
 
   // Limpar estado quando a etapa mudar
   useEffect(() => {
-    if (showPilotConfirmationModal) {
-      setShowPilotConfirmationModal(false);
-      setPilotLoading({});
-    }
     // Ocultar formulário de adicionar item quando mudar de etapa
     setShowAddItemForm(false);
     setNewItemLabel('');
@@ -459,7 +509,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   ]);
 
   // Calcular o número máximo de pilotos confirmados entre todas as categorias
-  const getMaxConfirmedPilots = () => {
+  const getMaxPilots = () => {
     let maxPilots = 0;
     categories.forEach(category => {
       const categoryPilots = registrations.filter(reg =>
@@ -474,7 +524,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   };
 
   // Função para obter o mínimo de karts ativos necessário
-  const getMinKartsRequired = () => getMaxConfirmedPilots();
+  const getMinKartsRequired = () => getMaxPilots();
 
   // Função para calcular karts ativos de uma frota
   const getActiveKartsCount = (fleetId: string) => {
@@ -495,16 +545,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
    */
   const loadFleets = async () => {
     if (!selectedStage?.id) return;
-    
     try {
-      const stage = await StageService.getById(selectedStage.id);
-      
-      if (stage.fleets && Array.isArray(stage.fleets) && stage.fleets.length > 0) {
-        setFleets(stage.fleets);
-        
+      // Usar selectedStage do contexto diretamente
+      if (selectedStage.fleets && Array.isArray(selectedStage.fleets) && selectedStage.fleets.length > 0) {
+        setFleets(selectedStage.fleets);
         // Carregar estado dos karts inativos
         const newInactiveKarts: { [fleetId: string]: number[] } = {};
-        stage.fleets.forEach((fleet: any) => {
+        selectedStage.fleets.forEach((fleet: any) => {
           if (fleet.inactiveKarts && Array.isArray(fleet.inactiveKarts)) {
             newInactiveKarts[fleet.id] = fleet.inactiveKarts;
           }
@@ -514,11 +561,11 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
         // Se não há frotas salvas, buscar frotas padrão do kartódromo
         if (selectedStage.raceTrackId) {
           try {
-            const raceTrack = await RaceTrackService.getById(selectedStage.raceTrackId);
-            
-            if (raceTrack.defaultFleets && Array.isArray(raceTrack.defaultFleets) && raceTrack.defaultFleets.length > 0) {
+            // Usar dados do contexto em vez de buscar do backend
+            const raceTrack = contextRaceTracks[selectedStage.raceTrackId];
+            if (raceTrack?.defaultFleets && Array.isArray(raceTrack.defaultFleets) && raceTrack.defaultFleets.length > 0) {
               // Converter frotas padrão do kartódromo para o formato esperado
-              const defaultFleets = raceTrack.defaultFleets.map((fleet, index) => ({
+              const defaultFleets = raceTrack.defaultFleets.map((fleet: any, index: number) => ({
                 id: `default-${index + 1}`,
                 name: fleet.name,
                 totalKarts: fleet.kartQuantity
@@ -562,6 +609,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       const updateData = { fleets: newFleets };
       
       await StageService.update(selectedStage.id, updateData);
+      
+      // Atualizar o contexto com as novas frotas
+      updateStage(selectedStage.id, { fleets: newFleets });
     } catch (error) {
       toast.error('Erro ao salvar frotas');
     }
@@ -657,14 +707,19 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     if (selectedStage && categories.length > 0) {
       loadSchedule();
     }
-  }, [selectedStage, categories.length]);
+  }, [selectedStage, categories.length, allContextStages]);
 
   const loadSchedule = async () => {
     if (!selectedStage) return;
     
     try {
-      const stageData = await StageService.getStageById(selectedStage.id);
-      const currentSchedule = stageData.schedule || [];
+      // Sempre usar dados do contexto
+      const contextStage = allContextStages.find(s => s.id === selectedStage.id);
+      let currentSchedule: any[] = [];
+      
+      if (contextStage?.schedule && Array.isArray(contextStage.schedule)) {
+        currentSchedule = contextStage.schedule;
+      }
       
       // Se não há cronograma cadastrado e há categorias disponíveis, gerar cronograma padrão automaticamente
       if (currentSchedule.length === 0 && categories.length > 0 && canEditSchedule) {
@@ -718,6 +773,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     
     try {
       await StageService.updateSchedule(selectedStage.id, schedule);
+      
+      // Atualizar o contexto com o novo schedule
+      updateStage(selectedStage.id, { schedule });
     } catch (error) {
       // Opcional: mostrar notificação de erro para o usuário
     }
@@ -728,6 +786,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     
     try {
       await StageService.updateSchedule(selectedStage.id, scheduleItems);
+      
+      // Atualizar o contexto com o novo schedule
+      updateStage(selectedStage.id, { schedule: scheduleItems });
     } catch (error) {
       // Opcional: mostrar notificação de erro para o usuário
     }
@@ -821,74 +882,29 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     saveScheduleToDatabase(updatedSchedule);
   };
 
-  // Busca dados ao trocar temporada
+  // Busca dados ao trocar temporada - agora usando contexto
   useEffect(() => {
     if (!selectedSeasonId) {
       setError('Nenhuma temporada selecionada.');
       setLoading(false);
       return;
     }
-    setLoading(true);
+    // Dados já vêm do contexto, não precisamos buscar novamente
+    setLoading(false);
     setError(null);
-    Promise.all([
-      CategoryService.getBySeasonId(selectedSeasonId),
-      SeasonRegistrationService.getBySeasonId(selectedSeasonId)
-    ])
-      .then(([cats, regs]) => {
-        setCategories(cats);
-        setRegistrations(regs);
-      })
-      .catch((err) => {
-        setError(err.message || JSON.stringify(err));
-      })
-      .finally(() => setLoading(false));
   }, [selectedSeasonId]);
 
-  // Buscar participações da etapa selecionada
+  // Buscar participações da etapa selecionada do contexto
   useEffect(() => {
     if (!selectedStageId) {
       setStageParticipations([]);
       return;
     }
-    StageParticipationService.getStageParticipations(selectedStageId)
-      .then(setStageParticipations)
-      .catch(() => setStageParticipations([]));
-  }, [selectedStageId]);
+    const participations = getStageParticipations(selectedStageId);
+    setStageParticipations(participations);
+  }, [selectedStageId, getStageParticipations]);
 
-  // Função para alternar status de confirmação do piloto
-  const handleToggleConfirm = async (reg: any, catId: string, isConfirmed: boolean) => {
-    const key = reg.userId + '-' + catId;
-    setPilotLoading((prev: { [key: string]: boolean }) => ({ ...prev, [key]: true }));
-    try {
-      if (isConfirmed) {
-        // Cancelar participação (envia userId se backend aceitar)
-        const data: any = {
-          stageId: selectedStageId,
-          categoryId: catId
-        };
-        if (reg.userId) data.userId = reg.userId;
-        await StageParticipationService.cancelParticipation(data);
-      } else {
-        // Confirmar participação (envia userId se backend aceitar)
-        const data: any = {
-          stageId: selectedStageId,
-          categoryId: catId
-        };
-        if (reg.userId) data.userId = reg.userId;
-        await StageParticipationService.confirmParticipation(data);
-      }
-      // Atualizar participações
-      const updated = await StageParticipationService.getStageParticipations(selectedStageId);
-      setStageParticipations(updated);
-    } catch (err) {
-      let msg = 'Erro ao atualizar participação';
-      if (err instanceof Error) msg = err.message;
-      else if (typeof err === 'string') msg = err;
-      toast.error(msg);
-    } finally {
-      setPilotLoading((prev: { [key: string]: boolean }) => ({ ...prev, [key]: false }));
-    }
-  };
+
 
   // Verificar se o usuário pode editar o cronograma
   const canEditSchedule = user?.role === 'Administrator' || user?.role === 'Manager';
@@ -1100,258 +1116,43 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     }));
   };
 
-  // Componente Modal simplificado para evitar problemas de foco
-  const PilotConfirmationModal = () => {
-    const [searchQuery, setSearchQuery] = React.useState('');
 
-    if (!showPilotConfirmationModal) return null;
-    if (typeof window === 'undefined') return null;
 
-    // Função simples de filtro
-    const filterPilots = (pilots: any[]) => {
-      if (!searchQuery.trim()) return pilots;
-      return pilots.filter(pilot => {
-        const name = formatName(pilot.user?.name || pilot.userId);
-        return name.toLowerCase().includes(searchQuery.toLowerCase());
-      });
-    };
-
-    return createPortal(
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
-          onClick={handleClosePilotConfirmationModal}
-        />
-        <div className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] mx-4 overflow-hidden flex flex-col z-50">
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                Gerenciar Confirmações de Pilotos
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Confirme ou cancele a participação dos pilotos na etapa selecionada.
-              </p>
-            </div>
-            <button
-              onClick={handleClosePilotConfirmationModal}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto p-6">
-            {loading ? (
-              <Loading type="spinner" size="md" message="Carregando dados..." />
-            ) : error ? (
-              <div className="text-red-600">{error}</div>
-            ) : (
-              <div className="space-y-6">
-                {/* Campo de pesquisa simplificado */}
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                    <Search className="w-4 h-4" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Pesquisar piloto por nome..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-                    autoComplete="off"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-
-                {categories.map((category) => {
-                  const categoryPilots = registrations.filter(reg =>
-                    reg.categories.some((rc: any) => rc.category.id === category.id)
-                  );
-                  const filteredPilots = filterPilots(categoryPilots);
-                  const confirmedPilots = filteredPilots.filter(reg =>
-                    stageParticipations.some(
-                      (part) => part.userId === reg.userId && part.categoryId === category.id && part.status === 'confirmed'
-                    )
-                  );
-                  
-                  // Ocultar categoria se não há pilotos filtrados
-                  if (searchQuery && filteredPilots.length === 0) {
-                    return null;
-                  }
-                  
-                  return (
-                    <div key={category.id} className="border border-gray-200 rounded-lg">
-                      <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-base font-semibold text-gray-900">
-                            {category.name}
-                          </h4>
-                          <div className="flex items-center gap-2">
-                            {confirmedPilots.length >= category.maxPilots && (
-                              <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
-                                Lotada
-                              </Badge>
-                            )}
-                            <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                              confirmedPilots.length >= category.maxPilots 
-                                ? 'bg-red-100 text-red-800' 
-                                : confirmedPilots.length >= category.maxPilots * 0.8 
-                                  ? 'bg-yellow-100 text-yellow-800' 
-                                  : 'bg-green-100 text-green-800'
-                            }`}>
-                              {confirmedPilots.length}/{category.maxPilots}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="p-4">
-                        <div className="space-y-3">
-                          {filteredPilots.length > 0 ? (
-                            filteredPilots
-                              .sort((a, b) => {
-                                return (
-                                  (a.user?.name || a.userId).localeCompare(b.user?.name || b.userId)
-                                );
-                              })
-                              .map((pilot) => {
-                                const isConfirmed = confirmedPilots.some(p => p.userId === pilot.userId);
-                                const isLoading = !!pilotLoading[pilot.userId + '-' + category.id];
-                                const canConfirmResult = canPilotBeConfirmed(pilot, category);
-                                
-                                return (
-                                  <div key={pilot.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
-                                    <div className="flex items-center space-x-3">
-                                      <span className="text-sm font-medium text-gray-900">
-                                        {formatName(pilot.user?.name || pilot.userId)}
-                                      </span>
-                                      {isConfirmed && (
-                                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                                          Confirmado
-                                        </Badge>
-                                      )}
-                                      {pilot.paymentStatus === 'pending' && (
-                                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 text-xs">
-                                          Aguardando pagamento
-                                        </Badge>
-                                      )}
-                                      {pilot.paymentStatus === 'overdue' && (
-                                        <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs">
-                                          Pagamento em atraso
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <button
-                                            onClick={() => {
-                                              handleToggleConfirm(pilot, category.id, isConfirmed);
-                                            }}
-                                            className="flex items-center space-x-1"
-                                            disabled={isLoading}
-                                          >
-                                            {getPilotStatusIcon(canConfirmResult, isLoading, isConfirmed)}
-                                          </button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          {isLoading ? 'Processando...' :
-                                           isConfirmed ? 'Cancelar participação' :
-                                           'Confirmar participação'}
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  </div>
-                                );
-                              })
-                          ) : (
-                            <div className="text-sm text-gray-500 text-center py-2">
-                              {searchQuery ? 
-                                'Nenhum piloto encontrado para a pesquisa' : 
-                                'Nenhum piloto nesta categoria'
-                              }
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          
-          <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
-            <Button 
-              variant="outline" 
-              onClick={handleClosePilotConfirmationModal}
-            >
-              Fechar
-            </Button>
-          </div>
-        </div>
-      </div>,
-      document.body
-    );
-  };
-
-  // Carregar sorteio salvo quando a etapa muda (para mostrar ícones na lista de pilotos e no modal)
+  // Carregar dados do contexto quando a etapa muda
   useEffect(() => {
     if (selectedStageId) {
-      StageService.getKartDrawAssignments(selectedStageId)
-        .then((res) => {
-          if (res) {
-            if (res.results) {
-              setFleetDrawResults(res.results);
-            } else {
-              setFleetDrawResults(res);
-            }
-            if (res.categoryFleetAssignments) {
-              setCategoryFleetAssignments(res.categoryFleetAssignments);
-            }
+      const selectedStage = allContextStages.find(stage => stage.id === selectedStageId);
+      
+      if (selectedStage) {
+        // Usar dados do contexto se disponíveis
+        if (selectedStage.kart_draw_assignments) {
+          if (selectedStage.kart_draw_assignments.results) {
+            setFleetDrawResults(selectedStage.kart_draw_assignments.results);
           }
-        })
-        .catch((error) => {
-          console.error('Erro ao carregar dados do sorteio (etapa):', error);
+          if (selectedStage.kart_draw_assignments.categoryFleetAssignments) {
+            setCategoryFleetAssignments(selectedStage.kart_draw_assignments.categoryFleetAssignments);
+          }
+        } else {
           setFleetDrawResults({});
           setCategoryFleetAssignments({});
-        });
-    }
-  }, [selectedStageId]);
+        }
 
-  // Carregar dados iniciais quando o componente montar
-  useEffect(() => {
-    if (selectedStageId) {
-      // Carregar dados do sorteio
-      StageService.getKartDrawAssignments(selectedStageId)
-        .then((res) => {
-          if (res) {
-            if (res.results) {
-              setFleetDrawResults(res.results);
-            } else {
-              setFleetDrawResults(res);
-            }
-            if (res.categoryFleetAssignments) {
-              setCategoryFleetAssignments(res.categoryFleetAssignments);
-            }
-          }
-        })
-        .catch((error) => {
-          console.error('Erro ao carregar dados iniciais do sorteio:', error);
-        });
-
-      // Carregar resultados da etapa
-      loadStageResults();
+        // Usar resultados da etapa do contexto se disponíveis
+        if (selectedStage.stage_results) {
+          setStageResults(selectedStage.stage_results);
+        } else {
+          setStageResults({});
+        }
+        // Resetar flag de modificação quando dados vêm do contexto
+        setStageResultsModified(false);
+      } else {
+        // Se não encontrado no contexto, limpar estados locais
+        setFleetDrawResults({});
+        setCategoryFleetAssignments({});
+        setStageResults({});
+      }
     }
-  }, [selectedStageId]);
+  }, [selectedStageId, allContextStages]);
 
   // Salvar sorteio no backend ao clicar em 'Realizar Sorteio'
   const handleSaveFleetDraw = async (results?: any) => {
@@ -1362,6 +1163,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       categoryFleetAssignments: categoryFleetAssignments
     };
     await StageService.saveKartDrawAssignments(selectedStageId, dataWithFleetAssignments);
+    
+    // Atualizar o contexto com os novos kart draw assignments
+    updateStage(selectedStageId, { kart_draw_assignments: dataWithFleetAssignments });
+    
     setFleetDrawResults(dataWithFleetAssignments.results);
     setCategoryFleetAssignments(dataWithFleetAssignments.categoryFleetAssignments);
     setDrawVersion(v => v + 1); // força re-render
@@ -1370,23 +1175,15 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
 
   // Atualizar selectedBatteryIndex ao trocar de categoria
   useEffect(() => {
-    setSelectedBatteryIndex(0);
+    // Só resetar para 0 se não houver parâmetro de bateria na URL
+    if (!urlBattery || urlBattery === '') {
+      setSelectedBatteryIndex(0);
+    }
     // Fechar modal de importação quando mudar de categoria
     setShowImportModal(false);
-  }, [selectedOverviewCategory]);
+  }, [selectedOverviewCategory, urlBattery]);
 
 
-
-  // Carregar resultados da etapa
-  const loadStageResults = async () => {
-    if (!selectedStageId) return;
-    try {
-      const results = await StageService.getStageResults(selectedStageId);
-      setStageResults(results || {});
-    } catch (error) {
-      console.error('Erro ao carregar resultados da etapa:', error);
-    }
-  };
 
   // Salvar resultados da etapa
   const saveStageResults = async (results?: any) => {
@@ -1394,6 +1191,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     try {
       const dataToSave = results || stageResults;
       await StageService.saveStageResults(selectedStageId, dataToSave);
+      
+      // Atualizar o contexto com os novos resultados
+      updateStage(selectedStageId, { stage_results: dataToSave });
     } catch (error) {
       console.error('Erro ao salvar resultados da etapa:', error);
     }
@@ -1415,11 +1215,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       newResults[categoryId][pilotId][batteryIndex][field] = value;
       return newResults;
     });
+    // Marcar que os dados foram modificados pelo usuário
+    setStageResultsModified(true);
   };
 
-  // Carregar resultados quando a etapa muda
+  // Carregar resultados quando a etapa muda - agora usando contexto
   useEffect(() => {
-    loadStageResults();
+    // Os resultados já são carregados no useEffect principal que usa o contexto
   }, [selectedStageId]);
 
   // Carregar lap times quando categoria é selecionada
@@ -1429,35 +1231,29 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     }
   }, [selectedOverviewCategory, selectedStageId]);
 
-  // Carregar penalidades da etapa
+  // Carregar penalidades da etapa - agora usando contexto
   const loadPenalties = async () => {
-    if (!selectedStageId) return;
-    setPenaltiesLoading(true);
-    try {
-      const penaltiesData = await PenaltyService.getPenaltiesByStageId(selectedStageId);
-      setPenalties(penaltiesData);
-    } catch (error) {
-      console.error('Erro ao carregar penalidades da etapa:', error);
-      toast.error('Erro ao carregar penalidades');
-    } finally {
-      setPenaltiesLoading(false);
-    }
+    // Punições já vêm do contexto, não precisamos buscar novamente
+    // Apenas atualizar se necessário
   };
 
   // Carregar penalidades quando a etapa muda
   useEffect(() => {
-    loadPenalties();
+    // Punições já vêm do contexto filtradas por selectedStageId
   }, [selectedStageId]);
 
-  // Salvar resultados automaticamente quando mudam
+  // Estado para controlar se os dados foram modificados pelo usuário
+  const [stageResultsModified, setStageResultsModified] = useState(false);
+
+  // Salvar resultados automaticamente quando mudam (apenas se foram modificados pelo usuário)
   useEffect(() => {
-    if (Object.keys(stageResults).length > 0) {
+    if (Object.keys(stageResults).length > 0 && stageResultsModified) {
       const timeoutId = setTimeout(() => {
         saveStageResults();
       }, 1000); // Debounce de 1 segundo
       return () => clearTimeout(timeoutId);
     }
-  }, [stageResults]);
+  }, [stageResults, stageResultsModified]);
 
   // Função para abrir modal de seleção de kart
   const openKartSelectionModal = (categoryId: string, pilotId: string, batteryIndex: number) => {
@@ -1518,6 +1314,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       };
       await StageService.saveKartDrawAssignments(selectedStageId, dataWithFleetAssignments);
       
+      // Atualizar o contexto com os novos kart draw assignments
+      updateStage(selectedStageId, { kart_draw_assignments: dataWithFleetAssignments });
+      
       closeKartSelectionModal();
       
       if (pilotUsingKart) {
@@ -1563,6 +1362,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
         categoryFleetAssignments: categoryFleetAssignments
       };
       await StageService.saveKartDrawAssignments(selectedStageId, dataWithFleetAssignments);
+      
+      // Atualizar o contexto com os novos kart draw assignments
+      updateStage(selectedStageId, { kart_draw_assignments: dataWithFleetAssignments });
       
       closeKartSelectionModal();
       toast.success('Kart removido com sucesso!');
@@ -1635,8 +1437,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     if (!updatedResults[categoryId][pilotId][batteryIndex]) updatedResults[categoryId][pilotId][batteryIndex] = {};
     updatedResults[categoryId][pilotId][batteryIndex][type] = position;
     setStageResults(updatedResults);
+    setStageResultsModified(true);
     try {
       await StageService.saveStageResults(selectedStageId, updatedResults);
+      
+      // Atualizar o contexto com os novos resultados
+      updateStage(selectedStageId, { stage_results: updatedResults });
+      
       closePositionSelectionModal();
       toast.success('Posição salva!');
     } catch (error) {
@@ -1659,9 +1466,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
 
     delete updatedResults[categoryId][pilotId][batteryIndex][type];
     setStageResults(updatedResults);
+    setStageResultsModified(true);
     
     try {
       await StageService.saveStageResults(selectedStageId, updatedResults);
+      
+      // Atualizar o contexto com os novos resultados
+      updateStage(selectedStageId, { stage_results: updatedResults });
+      
       closePositionSelectionModal();
       toast.success(`${type === 'startPosition' ? 'Posição de classificação' : 'Posição de corrida'} removida!`);
     } catch (error) {
@@ -1746,9 +1558,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     updatedResults[categoryId][pilotId][batteryIndex].bestLap = normalizedTime || null;
     
     setStageResults(updatedResults);
+    setStageResultsModified(true);
     
     try {
       await StageService.saveStageResults(selectedStageId, updatedResults);
+      
+      // Atualizar o contexto com os novos resultados
+      updateStage(selectedStageId, { stage_results: updatedResults });
+      
       closeBestLapModal();
       toast.success('Melhor volta salva!');
     } catch (error) {
@@ -1772,9 +1589,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
 
     delete updatedResults[categoryId][pilotId][batteryIndex].bestLap;
     setStageResults(updatedResults);
+    setStageResultsModified(true);
     
     try {
       await StageService.saveStageResults(selectedStageId, updatedResults);
+      
+      // Atualizar o contexto com os novos resultados
+      updateStage(selectedStageId, { stage_results: updatedResults });
+      
       closeBestLapModal();
       toast.success('Melhor volta removida!');
     } catch (error) {
@@ -1829,9 +1651,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     updatedResults[categoryId][pilotId][batteryIndex].qualifyingBestLap = normalizedTime || null;
     
     setStageResults(updatedResults);
+    setStageResultsModified(true);
     
     try {
       await StageService.saveStageResults(selectedStageId, updatedResults);
+      
+      // Atualizar o contexto com os novos resultados
+      updateStage(selectedStageId, { stage_results: updatedResults });
+      
       closeQualifyingBestLapModal();
       toast.success('Melhor volta de classificação salva!');
     } catch (error) {
@@ -1855,9 +1682,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
 
     delete updatedResults[categoryId][pilotId][batteryIndex].qualifyingBestLap;
     setStageResults(updatedResults);
+    setStageResultsModified(true);
     
     try {
       await StageService.saveStageResults(selectedStageId, updatedResults);
+      
+      // Atualizar o contexto com os novos resultados
+      updateStage(selectedStageId, { stage_results: updatedResults });
+      
       closeQualifyingBestLapModal();
       toast.success('Melhor volta de classificação removida!');
     } catch (error) {
@@ -1912,9 +1744,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     updatedResults[categoryId][pilotId][batteryIndex].totalTime = normalizedTime || null;
     
     setStageResults(updatedResults);
+    setStageResultsModified(true);
     
     try {
       await StageService.saveStageResults(selectedStageId, updatedResults);
+      
+      // Atualizar o contexto com os novos resultados
+      updateStage(selectedStageId, { stage_results: updatedResults });
+      
       closeTotalTimeModal();
       toast.success('Tempo total salvo!');
     } catch (error) {
@@ -1938,9 +1775,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
 
     delete updatedResults[categoryId][pilotId][batteryIndex].totalTime;
     setStageResults(updatedResults);
+    setStageResultsModified(true);
     
     try {
       await StageService.saveStageResults(selectedStageId, updatedResults);
+      
+      // Atualizar o contexto com os novos resultados
+      updateStage(selectedStageId, { stage_results: updatedResults });
+      
       closeTotalTimeModal();
       toast.success('Tempo total removido!');
     } catch (error) {
@@ -1952,7 +1794,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
 
   // Função para filtrar penalidades por categoria e bateria
   const getFilteredPenalties = (categoryId: string, batteryIndex: number) => {
-    return penalties.filter(penalty => 
+    return filteredPenalties.filter(penalty => 
       penalty.categoryId === categoryId && 
       penalty.batteryIndex === batteryIndex
     );
@@ -2279,7 +2121,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                   const timePattern = /^(\d{1,2}:)?\d{1,2}:\d{2}[.,]\d{1,3}$/;
                   if (timePattern.test(totalTimeValue)) {
                     // Normalizar formato (trocar vírgula por ponto se necessário)
-                    const normalizedTime = totalTimeValue.replace(',', '.');
+                    let normalizedTime = totalTimeValue.replace(',', '.');
+                    
+                    // Remover "00:" do início se presente
+                    if (normalizedTime.startsWith('00:')) {
+                      normalizedTime = normalizedTime.substring(3);
+                    }
+                    
                     updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'totalTime', normalizedTime);
                     totalTimeCountLocal++;
                   } else {
@@ -2358,7 +2206,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
   // Função para copiar mensagem com emojis
   const copyMessageWithEmojis = async () => {
     try {
-      const stageData = stages.find((s: Stage) => s.id === selectedStageId);
+      const stageData = stages.find((s: StageType) => s.id === selectedStageId);
       if (!stageData) {
         toast.error('Etapa não encontrada');
         return;
@@ -2370,9 +2218,12 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       
       if (stageData.raceTrackId) {
         try {
-          const raceTrack = await RaceTrackService.getById(stageData.raceTrackId);
-          raceTrackName = raceTrack.name;
-          raceTrackAddress = raceTrack.address;
+          // Usar dados do contexto em vez de buscar do backend
+          const raceTrack = contextRaceTracks[stageData.raceTrackId];
+          if (raceTrack) {
+            raceTrackName = raceTrack.name;
+            raceTrackAddress = raceTrack.address;
+          }
         } catch (err) {
           console.error('Erro ao buscar dados do kartódromo:', err);
         }
@@ -2414,7 +2265,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       
       message += `🏆 ${seasonName}\n`;
       message += `\n`;
-      message += `#BRK #Kart #Corrida #${championshipName?.replace(/\s+/g, '') || 'Championship'}`;
+              message += `#BRK #Kart #Corrida #${championship?.name?.replace(/\s+/g, '') || 'Championship'}`;
       
       // Copiar para clipboard
       await navigator.clipboard.writeText(message);
@@ -2426,65 +2277,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
     }
   };
 
-  // Função para verificar se um piloto pode ser confirmado
-  const canPilotBeConfirmed = (pilot: any, category: any) => {
-    // 1. Verificar se já está confirmado
-    const isConfirmed = stageParticipations.some(
-      (part) => part.userId === pilot.userId && part.categoryId === category.id && part.status === 'confirmed'
-    );
-    
-    if (isConfirmed) {
-      return { canConfirm: false, reason: 'already_confirmed', message: 'Já confirmado' };
-    }
 
-    // 2. Verificar limite máximo de pilotos na categoria
-    const confirmedPilotsInCategory = stageParticipations.filter(
-      (part) => part.categoryId === category.id && part.status === 'confirmed'
-    ).length;
-    
-    if (confirmedPilotsInCategory >= category.maxPilots) {
-      return { canConfirm: false, reason: 'category_full', message: 'Categoria lotada' };
-    }
-
-    // 3. Verificar se é temporada por etapa e se o piloto está inscrito na etapa específica
-    if (selectedSeason?.inscriptionType === 'por_etapa' && selectedStageId) {
-      // Verificar se o piloto tem inscrição na etapa específica
-      const isRegisteredInStage = pilot.stages?.some((regStage: any) => 
-        regStage.stageId === selectedStageId || regStage.stage?.id === selectedStageId
-      );
-      
-      if (!isRegisteredInStage) {
-        return { canConfirm: false, reason: 'not_registered_stage', message: 'Não inscrito nesta etapa' };
-      }
-    }
-
-    // 4. Verificar problemas de pagamento (baseado no status de registro)
-    // Se o piloto tem status de pagamento problemático
-    if (pilot.paymentStatus === 'overdue') {
-      return { canConfirm: false, reason: 'payment_overdue', message: 'Pagamento em atraso' };
-    }
-    
-    if (pilot.paymentStatus === 'pending' && pilot.status !== 'confirmed') {
-      return { canConfirm: false, reason: 'payment_pending', message: 'Pagamento pendente' };
-    }
-
-    // 5. Se chegou até aqui, pode ser confirmado
-    return { canConfirm: true, reason: null, message: null };
-  };
-
-  // Função para obter o ícone do status do piloto
-  const getPilotStatusIcon = (canConfirmResult: any, isLoading: boolean, isConfirmed: boolean) => {
-    if (isLoading) {
-      return <Loader2 className="w-4 h-4 animate-spin text-gray-400" />;
-    }
-
-    if (isConfirmed) {
-      return <CheckCircle className="w-4 h-4 text-green-600" />;
-    }
-
-    // Sempre mostrar círculo neutro para pilotos não confirmados
-    return <Circle className="w-4 h-4 text-gray-400" />;
-  };
 
   return (
     <div className="space-y-6">
@@ -2541,9 +2334,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                   const seasonId = e.target.value;
                   setSelectedSeasonId(seasonId);
                   const newSeason = seasons.find(s => s.id === seasonId);
-                  if (newSeason?.stages?.length) {
-                    setSelectedStageId(getClosestStage(newSeason.stages) || newSeason.stages[0].id);
-                  } else {
+                          const newSeasonStages = stages.filter(stage => stage.seasonId === seasonId);
+        if (newSeasonStages.length > 0) {
+          setSelectedStageId(getClosestStage(newSeasonStages) || newSeasonStages[0].id);
+        } else {
                     setSelectedStageId("");
                   }
                 }}
@@ -2565,7 +2359,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                 value={selectedStageId}
                 onChange={e => setSelectedStageId(e.target.value)}
               >
-                {stages.map((stage: Stage) => (
+                {stages.map((stage: StageType) => (
                   <option key={stage.id} value={stage.id}>{stage.name}</option>
                 ))}
               </select>
@@ -2605,13 +2399,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Coluna 1: Pilotos Confirmados na Etapa */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">
               Pilotos Confirmados na Etapa
             </h3>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
+                <Button 
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 p-0"
@@ -2620,8 +2414,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleOpenPilotConfirmationModal}>
-                  Gerenciar Confirmações
+                <DropdownMenuItem onClick={handleOpenBulkConfirmModal}>
+                  Gerenciar Participações em Massa
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -2654,18 +2448,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                           {category.name}
                         </span>
                             <div className="flex items-center space-x-2">
-                        {confirmedPilots.length >= category.maxPilots && (
-                          <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
-                            Lotada
-                          </Badge>
-                        )}
-                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                          confirmedPilots.length >= category.maxPilots 
-                            ? 'bg-red-100 text-red-800' 
-                            : confirmedPilots.length >= category.maxPilots * 0.8 
-                              ? 'bg-yellow-100 text-yellow-800' 
-                              : 'bg-green-100 text-green-800'
-                        }`}>
+                        <span className={`text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-800`}>
                           {confirmedPilots.length}/{category.maxPilots}
                         </span>
                       {expandedCategories.has(category.id) ? (
@@ -3558,7 +3341,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       )}
 
       {/* Modal de Confirmação de Pilotos */}
-      <PilotConfirmationModal />
+      {/* Removed PilotConfirmationModal */}
 
       {/* Modal de Sorteio de Frota */}
       {showFleetDrawModal && createPortal(
@@ -3595,7 +3378,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                   <h3 className="text-lg font-semibold text-gray-900">Configuração de Frotas</h3>
                 {categories.map((category) => {
                   const categoryPilots = registrations.filter(reg =>
-                      reg.categories.some((rc: any) => rc.category.id === category.id) &&
+                      reg.categories.some((rc: any) => rc.category.id === category.id)
+                  );
+                  const confirmedPilots = categoryPilots.filter(reg =>
                     stageParticipations.some(
                       (part) => part.userId === reg.userId && part.categoryId === category.id && part.status === 'confirmed'
                     )
@@ -3608,7 +3393,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
                             {category.name}
                           </h4>
                           <p className="text-sm text-gray-600 mb-3">
-                            {categoryPilots.length} pilotos confirmados • {category.batteriesConfig?.length || 0} baterias
+                            {confirmedPilots.length} pilotos confirmados • {category.batteriesConfig?.length || 0} baterias
                           </p>
                           <select
                             value={categoryFleetAssignments[category.id] || ''}
@@ -4579,6 +4364,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ seasons, championshipNam
       </div>,
       document.body
     )}
+    
+    {/* Modal de confirmação em massa de pilotos */}
+    <BulkConfirmPilotsModal
+      stageId={selectedStageId}
+      isOpen={showBulkConfirmModal}
+      onClose={handleCloseBulkConfirmModal}
+      onSuccess={handleBulkConfirmSuccess}
+    />
     </div>
   );
 }; 

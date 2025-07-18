@@ -28,20 +28,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useNavigation } from "@/router";
-import { useDashboardChampionships } from "@/hooks/use-dashboard-championships";
-import { useChampionshipContext } from "@/contexts/ChampionshipContext";
 import { formatDateToBrazilian } from "@/utils/date";
 import { useAuth } from "@/contexts/AuthContext";
-import { useUserRegistrations } from "@/hooks/use-user-registrations";
-import { useUserUpcomingRaces } from "@/hooks/use-user-upcoming-races";
-import { useUserStats } from "@/hooks/use-user-stats";
 import { useProfileCompletion } from "@/hooks/use-profile-completion";
 import { StageParticipationService } from "@/lib/services/stage-participation.service";
 import { CompleteProfileModal } from "@/components/profile/CompleteProfileModal";
 import { toast } from "sonner";
-import { differenceInHours, parseISO } from "date-fns";
 import { Loading } from '@/components/ui/loading';
-import { RaceTrackService } from '@/lib/services/race-track.service';
+import { useUser } from '@/contexts/UserContext';
 
 export const Dashboard = () => {
   const nav = useNavigation();
@@ -54,39 +48,24 @@ export const Dashboard = () => {
   const [showConfirmConfirmation, setShowConfirmConfirmation] = useState<{stageId: string, categoryId: string, categoryName: string} | null>(null);
   const [isCheckingRedirect, setIsCheckingRedirect] = useState(true);
   const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
-  const [raceTracks, setRaceTracks] = useState<Record<string, any>>({});
   
   // Check if user is manager or administrator
   const isManager = user?.role === 'Manager' || user?.role === 'Administrator';
   
-  // Use context for championships data and hook for loading/error states
-  const { championshipsOrganized } = useChampionshipContext();
-  const { 
-    loadingChampionships, 
-    championshipsError, 
-    refreshChampionships 
-  } = useDashboardChampionships();
-  
-  // Hooks para dados do usuário
-  const { 
-    championshipsParticipating, 
-    loading: loadingRegistrations, 
-    error: registrationsError 
-  } = useUserRegistrations();
-  
+  // Use Dashboard context
   const {
-    upcomingRaces, 
-    loading: loadingRaces, 
-    error: racesError,
-    refresh: refreshUpcomingRaces
-  } = useUserUpcomingRaces();
-  
-  const {
-    stats: userStats,
-    loading: loadingStats,
-    error: statsError,
-    refresh: refreshUserStats
-  } = useUserStats();
+    championshipsOrganized,
+    championshipsParticipating,
+    upcomingRaces,
+    userStats,
+    raceTracks,
+    loading,
+    errors,
+    refreshChampionships,
+    refreshUserStats,
+    refreshAll,
+    updateRaceParticipation
+  } = useUser();
 
   const { isProfileCompleted, loading: loadingProfile, shouldShowModal, markAsSkipped } = useProfileCompletion();
 
@@ -113,11 +92,8 @@ export const Dashboard = () => {
       setConfirmingParticipation(stageId);
       await StageParticipationService.confirmParticipation({ stageId, categoryId });
       toast.success('Participação confirmada com sucesso!');
-      // Refresh data to update the UI
-      await Promise.all([
-        refreshUpcomingRaces(),
-        refreshUserStats()
-      ]);
+      // Atualizar apenas a corrida específica
+      await updateRaceParticipation(stageId);
       setShowConfirmConfirmation(null);
     } catch (error: any) {
       toast.error(error.message || 'Erro ao confirmar participação');
@@ -132,11 +108,8 @@ export const Dashboard = () => {
       setCancellingParticipation(stageId);
       await StageParticipationService.cancelParticipation({ stageId, categoryId });
       toast.success('Participação cancelada com sucesso!');
-      // Refresh data to update the UI
-      await Promise.all([
-        refreshUpcomingRaces(),
-        refreshUserStats()
-      ]);
+      // Atualizar apenas a corrida específica
+      await updateRaceParticipation(stageId);
       setShowCancelConfirmation(null);
     } catch (error: any) {
       toast.error(error.message || 'Erro ao cancelar participação');
@@ -170,38 +143,6 @@ export const Dashboard = () => {
       return false;
     }
   };
-
-  // Buscar dados dos kartódromos
-  useEffect(() => {
-    const fetchRaceTracks = async () => {
-      try {
-        const allStages = upcomingRaces.map(race => race.stage);
-        const uniqueRaceTrackIds = [...new Set(allStages.map(stage => stage.raceTrackId).filter(Boolean))];
-        
-        // Se não há raceTrackIds, não fazer nada
-        if (uniqueRaceTrackIds.length === 0) {
-          return;
-        }
-        
-        const raceTracksData: Record<string, any> = {};
-        for (const raceTrackId of uniqueRaceTrackIds) {
-          try {
-            const raceTrack = await RaceTrackService.getById(raceTrackId);
-            raceTracksData[raceTrackId] = raceTrack;
-          } catch (err) {
-            console.error(`Erro ao buscar kartódromo ${raceTrackId}:`, err);
-          }
-        }
-        setRaceTracks(raceTracksData);
-      } catch (err) {
-        console.error('Erro ao buscar kartódromos:', err);
-      }
-    };
-
-    if (upcomingRaces.length > 0 && !loadingRaces) {
-      fetchRaceTracks();
-    }
-  }, [upcomingRaces, loadingRaces]);
 
   // Show loading while checking for redirect
   if (isCheckingRedirect) {
@@ -259,15 +200,15 @@ export const Dashboard = () => {
             Editar Perfil
           </Button>
         </div>
-        {loadingStats ? (
+        {loading.championships ? (
           <div className="flex items-center justify-center py-8">
             <Loading type="spinner" size="sm" message="Carregando estatísticas..." />
           </div>
-        ) : statsError ? (
+        ) : errors.championships ? (
           <div className="py-4">
             <Alert variant="destructive">
               <AlertTitle>Erro ao carregar estatísticas</AlertTitle>
-              <AlertDescription>{statsError}</AlertDescription>
+              <AlertDescription>{errors.championships}</AlertDescription>
             </Alert>
           </div>
         ) : (
@@ -301,7 +242,7 @@ export const Dashboard = () => {
       {/* Grid principal */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Campeonatos Organizados - Mostra para managers ou para quem tem campeonatos como staff */}
-        {(isManager || championshipsOrganized.length > 0) && (
+        {isManager && (
           <Card className="p-6">
             <div className="mb-4">
               <h2 className="text-xl font-semibold">Organizando</h2>
@@ -310,15 +251,15 @@ export const Dashboard = () => {
               </p>
             </div>
             
-            {loadingChampionships ? (
+            {loading.championships ? (
               <div className="flex items-center justify-center py-8">
                 <Loading type="spinner" size="sm" message="Carregando campeonatos..." />
               </div>
-            ) : championshipsError ? (
+            ) : errors.championships ? (
               <div className="py-4">
                 <Alert variant="destructive">
                   <AlertTitle>Erro ao carregar campeonatos</AlertTitle>
-                  <AlertDescription>{championshipsError}</AlertDescription>
+                  <AlertDescription>{errors.championships}</AlertDescription>
                 </Alert>
                 <div className="mt-4 text-center">
                   <Button 
@@ -340,43 +281,22 @@ export const Dashboard = () => {
                 }}
               />
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {championshipsOrganized.map((championship) => (
                   <div
                     key={championship.id}
                     className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => nav.goToChampionship(championship.id)}
+                    onClick={() => {
+                      nav.goToChampionship(championship.id);
+                    }}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-medium text-sm truncate flex-1 mr-2" title={championship.name}>
                         {championship.name}
                       </h3>
-                      <div className="flex gap-1 flex-shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          title="Ver campeonato"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            nav.goToChampionship(championship.id);
-                          }}
-                        >
-                          <Eye className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          title="Gerenciar campeonato"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            nav.goToChampionship(championship.id);
-                          }}
-                        >
-                          <Settings className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {championship.isOwner ? 'Proprietário' : 'Staff'}
+                      </Badge>
                     </div>
                     
                     {championship.shortDescription && (
@@ -389,14 +309,11 @@ export const Dashboard = () => {
                       </p>
                     )}
                     
-                    <div className="flex justify-between items-center text-xs text-muted-foreground">
-                      <span>Criado em {formatDateToBrazilian(championship.createdAt)}</span>
-                      <Badge 
-                        variant={championship.isOwner !== false ? "default" : "secondary"} 
-                        className="text-xs"
-                      >
-                        {championship.isOwner !== false ? "Organizador" : "Equipe"}
-                      </Badge>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      <span>
+                        {championship.createdAt ? formatDateToBrazilian(championship.createdAt) : 'Data não disponível'}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -406,7 +323,7 @@ export const Dashboard = () => {
         )}
 
         {/* Campeonatos Participando - Ocupa mais espaço quando não há seção "Organizando" */}
-        <Card className={`p-6 ${!(isManager || championshipsOrganized.length > 0) ? 'lg:col-span-2' : ''}`}>
+        <Card className={`p-6 ${!isManager ? 'lg:col-span-2' : ''}`}>
           <div className="mb-4">
             <h2 className="text-xl font-semibold">Participando</h2>
             <p className="text-sm text-muted-foreground">
@@ -414,15 +331,15 @@ export const Dashboard = () => {
             </p>
           </div>
           
-          {loadingRegistrations ? (
+          {loading.championships ? (
             <div className="flex items-center justify-center py-8">
               <Loading type="spinner" size="sm" message="Carregando inscrições..." />
             </div>
-          ) : registrationsError ? (
+          ) : errors.championships ? (
             <div className="py-4">
               <Alert variant="destructive">
                 <AlertTitle>Erro ao carregar inscrições</AlertTitle>
-                <AlertDescription>{registrationsError}</AlertDescription>
+                <AlertDescription>{errors.championships}</AlertDescription>
               </Alert>
             </div>
           ) : championshipsParticipating.length === 0 ? (
@@ -444,8 +361,14 @@ export const Dashboard = () => {
                   key={participation.championship.id}
                   className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
                   onClick={() => {
-                    const siteUrl = import.meta.env.VITE_SITE_URL;
-                    window.location.href = `${siteUrl}/campeonato/${participation.championship.slug}`;
+                    // Se for staff ou owner, usar navigate interno
+                    if (participation.championship.isOwner || participation.championship.isStaff) {
+                      nav.goToChampionship(participation.championship.id);
+                    } else {
+                      // Se for apenas piloto, ir para a página pública
+                      const siteUrl = import.meta.env.VITE_SITE_URL;
+                      window.location.href = `${siteUrl}/campeonato/${participation.championship.slug}`;
+                    }
                   }}
                 >
                   <div className="flex justify-between items-start mb-2">
@@ -504,15 +427,15 @@ export const Dashboard = () => {
             </p>
           </div>
           
-          {loadingRaces ? (
+          {loading.races ? (
             <div className="flex items-center justify-center py-8">
               <Loading type="spinner" size="sm" message="Carregando corridas..." />
             </div>
-          ) : racesError ? (
+          ) : errors.races ? (
             <div className="py-4">
               <Alert variant="destructive">
                 <AlertTitle>Erro ao carregar corridas</AlertTitle>
-                <AlertDescription>{racesError}</AlertDescription>
+                <AlertDescription>{errors.races}</AlertDescription>
               </Alert>
             </div>
           ) : upcomingRaces.length === 0 ? (

@@ -23,6 +23,7 @@ import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynami
 import { Pagination } from "brk-design-system";
 import { usePagination } from "@/hooks/usePagination";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 import { SeasonService, Season } from "@/lib/services/season.service";
 import { ChampionshipClassificationService } from "@/lib/services/championship-classification.service";
@@ -212,109 +213,86 @@ const ClassificationCard = ({ entry, position, onAction }: {
  */
 export const ClassificationTab = ({ championshipId }: ClassificationTabProps) => {
   const isMobile = useIsMobile();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterValues>({});
   const [updatingCache, setUpdatingCache] = useState(false);
   
+  // Usar o contexto de dados do campeonato
+  const { 
+    getSeasons, 
+    getCategories, 
+    getClassification,
+    fetchClassification,
+    refreshClassification,
+    loading: contextLoading, 
+    error: contextError
+  } = useChampionshipData();
+
+  // Obter dados do contexto
+  const contextSeasons = getSeasons();
+  const contextCategories = getCategories();
+  
   // Dados básicos
-  const [seasons, setSeasons] = useState<Season[]>([]);
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>("");
   
   // Dados de classificação do Redis
   const [seasonClassification, setSeasonClassification] = useState<RedisClassificationData | null>(null);
-  
-  // Dados das categorias para mapear IDs para nomes
-  const [categories, setCategories] = useState<{[key: string]: {id: string, name: string}}>({});
 
   // Carregar dados iniciais
   const fetchSeasons = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-
-      // Buscar temporadas
-      const seasonsData = await SeasonService.getByChampionshipId(championshipId, 1, 100);
-      setSeasons(seasonsData.data);
-      
-      // Selecionar temporada ativa por padrão
-      const activeSeason = seasonsData.data.find((s: Season) => s.status === 'em_andamento') || seasonsData.data[0];
-      if (activeSeason) {
-        setSelectedSeasonId(activeSeason.id);
+      // Usar temporadas do contexto
+      if (contextSeasons.length > 0) {
+        // Selecionar temporada ativa por padrão
+        const activeSeason = contextSeasons.find((s: Season) => s.status === 'em_andamento') || contextSeasons[0];
+        if (activeSeason) {
+          setSelectedSeasonId(activeSeason.id);
+        }
       }
 
     } catch (err: any) {
-      setError(err.message || 'Erro ao carregar temporadas');
-    } finally {
-      setLoading(false);
+      console.error('Erro ao carregar temporadas:', err);
     }
-  }, [championshipId]);
-
-  // Carregar categorias da temporada selecionada
-  const fetchCategories = useCallback(async (seasonId: string) => {
-    try {
-      const categoriesData = await CategoryService.getBySeasonId(seasonId);
-      
-      // Criar mapa de categorias por ID
-      const categoriesMap: {[key: string]: {id: string, name: string}} = {};
-      categoriesData.forEach((category: any) => {
-        categoriesMap[category.id] = {
-          id: category.id,
-          name: category.name
-        };
-      });
-      
-      setCategories(categoriesMap);
-    } catch (err: any) {
-      console.error('Erro ao carregar categorias:', err);
-      setCategories({});
-    }
-  }, []);
+  }, [contextSeasons]);
 
   // Carregar classificação da temporada
-  const fetchClassification = useCallback(async (seasonId: string) => {
+  const loadClassification = useCallback(async (seasonId: string) => {
     if (!seasonId) return;
     
     try {
-      setLoading(true);
-      setError(null);
+      // Buscar classificação do contexto
+      let classification = getClassification(seasonId);
       
-      // Usar o método que consome diretamente do Redis
-      const classification = await ChampionshipClassificationService.getSeasonClassificationFromRedis(seasonId);
+      // Se não existe no contexto, buscar do backend
+      if (!classification) {
+        await fetchClassification(seasonId);
+        classification = getClassification(seasonId);
+      }
       
-      // A estrutura vem diretamente do Redis, sem processamento adicional
       setSeasonClassification(classification);
 
     } catch (err: any) {
       console.error('❌ [FRONTEND] Erro ao carregar classificação:', err);
-      setError(err.message || 'Erro ao carregar classificação');
       setSeasonClassification(null);
-    } finally {
-      setLoading(false);
     }
-  }, []);
-
-
+  }, [getClassification, fetchClassification]);
 
   // Efeitos
   useEffect(() => {
-    fetchSeasons();
-  }, [fetchSeasons]);
+    if (contextSeasons.length > 0) {
+      fetchSeasons();
+    }
+  }, [contextSeasons, fetchSeasons]);
 
   useEffect(() => {
     if (selectedSeasonId) {
-      // Carregar categorias primeiro, depois classificação
-      fetchCategories(selectedSeasonId).then(() => {
-        fetchClassification(selectedSeasonId);
-      });
-      // Sincronizar o filtro com a temporada selecionada
-      setFilters(prev => ({ ...prev, seasonId: selectedSeasonId }));
+      loadClassification(selectedSeasonId);
+      // Removido: setFilters(prev => ({ ...prev, seasonId: selectedSeasonId }));
     }
-  }, [selectedSeasonId, fetchClassification, fetchCategories]);
+  }, [selectedSeasonId, loadClassification]);
 
   // Opções dos filtros
   const { seasonOptions, categoryOptions } = useMemo(() => {
-    const seasonOpts = seasons.map(season => ({
+    const seasonOpts = contextSeasons.map(season => ({
       value: season.id,
       label: season.status === 'em_andamento' ? `${season.name} (Ativa)` : season.name
     }));
@@ -323,9 +301,9 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
       { value: 'all', label: 'Todas as categorias' }
     ];
 
-    // Usar categorias da temporada selecionada em vez dos dados do Redis
-    if (selectedSeasonId && Object.keys(categories).length > 0) {
-      categoryOpts.push(...Object.values(categories).map(category => ({
+    // Usar categorias do contexto
+    if (contextCategories.length > 0) {
+      categoryOpts.push(...contextCategories.map(category => ({
         value: category.id,
         label: category.name
       })));
@@ -335,10 +313,22 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
       seasonOptions: seasonOpts,
       categoryOptions: categoryOpts
     };
-  }, [seasons, selectedSeasonId, categories]);
+  }, [contextSeasons, contextCategories]);
 
   // Configuração dos filtros
   const filterFields = useMemo(() => createFilterFields(seasonOptions, categoryOptions), [seasonOptions, categoryOptions]);
+
+  // Criar mapa de categorias por ID para uso na renderização
+  const categoriesMap = useMemo(() => {
+    const map: {[key: string]: {id: string, name: string}} = {};
+    contextCategories.forEach(category => {
+      map[category.id] = {
+        id: category.id,
+        name: category.name
+      };
+    });
+    return map;
+  }, [contextCategories]);
 
   // Dados processados
   const { allPilots, filteredPilots } = useMemo(() => {
@@ -514,52 +504,27 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
     
     try {
       setUpdatingCache(true);
-      setError(null);
       
       // Atualizar cache da classificação
       await ChampionshipClassificationService.updateSeasonClassificationCache(selectedSeasonId);
       
       // Recarregar dados após atualização do cache
-      await fetchClassification(selectedSeasonId);
+      await refreshClassification(selectedSeasonId);
+      await loadClassification(selectedSeasonId);
       
       // Mostrar toast de sucesso
       toast.success('Classificação atualizada com sucesso!');
       
     } catch (err: any) {
-      setError(err.message || 'Erro ao atualizar cache da classificação');
       toast.error('Erro ao atualizar classificação');
     } finally {
       setUpdatingCache(false);
     }
-  }, [selectedSeasonId, fetchClassification]);
+  }, [selectedSeasonId, refreshClassification, loadClassification]);
 
-  if (loading) {
-    return (
-      <Card className="w-full">
-        <div className="p-6">
-          <Loading type="spinner" size="lg" />
-        </div>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card className="w-full">
-        <div className="p-6">
-          <Alert variant="destructive">
-            <AlertTitle>Erro ao carregar classificação</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-          <div className="mt-4">
-            <Button onClick={() => fetchSeasons()} variant="outline">
-              Tentar novamente
-            </Button>
-          </div>
-        </div>
-      </Card>
-    );
-  }
+  // Determinar loading e error
+  const isDataLoading = contextLoading.seasons || contextLoading.categories || contextLoading.classifications;
+  const dataError = contextError.seasons || contextError.categories || contextError.classifications;
 
   if (!selectedSeasonId) {
     return (
@@ -572,7 +537,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
   }
 
   // Se não há dados de classificação e não está carregando
-  if (!loading && seasonClassification && Object.keys(seasonClassification.classificationsByCategory || {}).length === 0) {
+  if (!isDataLoading && seasonClassification && Object.keys(seasonClassification.classificationsByCategory || {}).length === 0) {
     return (
       <div className="space-y-6">
         {/* Título da aba */}
@@ -626,10 +591,10 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
       </div>
 
       {/* Mensagens de feedback */}
-      {error && (
+      {dataError && (
         <Alert variant="destructive">
           <AlertTitle>Erro</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{dataError}</AlertDescription>
         </Alert>
       )}
 
@@ -646,7 +611,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
           <div className="border-b border-gray-200 pb-4">
             <h3 className="text-lg font-semibold text-gray-900">
               {filters.categoryId && filters.categoryId !== 'all' 
-                ? categories[filters.categoryId]?.name || `Categoria ${filters.categoryId.slice(0, 8)}...`
+                ? categoriesMap[filters.categoryId]?.name || `Categoria ${filters.categoryId.slice(0, 8)}...`
                 : 'Classificação Geral'
               }
             </h3>
@@ -722,8 +687,8 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <span className="font-medium">
-                              {entry.categoryId && categories[entry.categoryId]?.name 
-                                ? categories[entry.categoryId].name 
+                              {entry.categoryId && categoriesMap[entry.categoryId]?.name 
+                                ? categoriesMap[entry.categoryId].name 
                                 : entry.categoryId 
                                   ? `Categoria ${entry.categoryId.slice(0, 8)}...` 
                                   : 'N/A'

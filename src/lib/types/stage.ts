@@ -16,6 +16,34 @@ export interface Stage {
   briefingTime?: string; // HH:MM format
   schedule?: any; // JSONB field for schedule items
   fleets?: any[]; // JSONB field for fleets configuration
+  kart_draw_assignments?: {
+    results: {
+      [categoryId: string]: {
+        [pilotId: string]: {
+          [batteryIndex: number]: {
+            kart: number;
+          };
+        };
+      };
+    };
+    categoryFleetAssignments: {
+      [categoryId: string]: string;
+    };
+  };
+  stage_results?: {
+    [categoryId: string]: {
+      [pilotId: string]: {
+        [batteryIndex: number]: {
+          bestLap?: string;
+          totalTime?: string;
+          startPosition?: number;
+          finishPosition?: number;
+          qualifyingBestLap?: string;
+          weight?: boolean;
+        };
+      };
+    };
+  };
   createdAt: string;
   updatedAt: string;
 }

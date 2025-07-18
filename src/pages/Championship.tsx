@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Button } from "brk-design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
@@ -11,11 +11,10 @@ import { RegulationTab } from "@/components/championship/tabs/RegulationTab";
 import { GridTypesTab } from "@/components/championship/settings/GridTypesTab";
 import { ScoringSystemTab } from "@/components/championship/settings/ScoringSystemTab";
 import { AsaasAccountTab } from "@/components/championship/settings/AsaasAccountTab";
-import { EditChampionshipTab } from "@/components/championship/settings/EditChampionshipTab";
+import CreateChampionship from "@/pages/CreateChampionship";
 import { SponsorsTab } from "@/components/championship/settings/SponsorsTab";
 import { StaffTab } from "@/components/championship/settings/StaffTab";
-import { useChampionship } from "@/hooks/use-championship";
-import { useStaffPermissions } from "@/hooks/use-staff-permissions";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 import { Alert, AlertDescription } from "brk-design-system";
 import { AlertTriangle } from "lucide-react";
@@ -27,6 +26,7 @@ import { Loading } from '@/components/ui/loading';
 import { RaceDayTab } from "@/components/championship/tabs/RaceDayTab";
 import { ClassificationTab } from "@/components/championship/tabs/ClassificationTab";
 import { PenaltiesTab } from "@/components/championship/tabs/PenaltiesTab";
+import { useStaffPermissions, UserPermissions } from "@/hooks/use-staff-permissions";
 
 // Estende a interface base da temporada para incluir as categorias
 type Season = BaseSeason & { categories?: Category[]; stages?: Stage[] };
@@ -41,6 +41,17 @@ export const Championship = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("temporadas");
   const isMobile = useIsMobile();
+
+  // Usar o contexto de dados do campeonato
+  const { 
+    setChampionshipId, 
+    getChampionshipInfo,
+    loading: contextLoading, 
+    error: contextError 
+  } = useChampionshipData();
+
+  // Usar o hook de permissões de staff que encontra o usuário atual corretamente
+  const { permissions, loading: permissionsLoading, error: permissionsError } = useStaffPermissions(id || '');
 
   // Mapeamento de tabs (aceita inglês e português)
   const tabMapping: { [key: string]: string } = {
@@ -72,14 +83,21 @@ export const Championship = () => {
     'config-asaas': 'config-asaas',
   };
 
-  const {
-    championship,
-    loading,
-    error,
-    refresh
-  } = useChampionship(id);
+  // Obter dados do campeonato do contexto
+  const championship = getChampionshipInfo();
+  
+  // Configurar o championshipId no contexto quando o ID mudar
+  useEffect(() => {
 
-  const { permissions, loading: permissionsLoading } = useStaffPermissions(id || '');
+    
+    if (id) {
+      
+      setChampionshipId(id);
+    } else {
+      
+      setChampionshipId(null);
+    }
+  }, [id, setChampionshipId]);
 
   // Ler o parâmetro tab da URL ao montar o componente
   useEffect(() => {
@@ -150,7 +168,7 @@ export const Championship = () => {
   }, [searchParams, championship, activeTab, setSearchParams, permissions]);
   
   // Loading state
-  if (loading || permissionsLoading) {
+  if (contextLoading.championshipInfo || permissionsLoading) {
     return (
       <div className="container mx-auto p-4 space-y-6">
         <Loading type="spinner" size="lg" />
@@ -159,17 +177,17 @@ export const Championship = () => {
   }
 
   // Error state
-  if (error || !championship || !id) {
+  if (contextError.championshipInfo || permissionsError || !championship || !id) {
     return (
       <div className="container mx-auto p-4">
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            {error || "Campeonato não encontrado"}
+            {contextError.championshipInfo || permissionsError || "Campeonato não encontrado"}
           </AlertDescription>
         </Alert>
         <div className="mt-4">
-          <Button onClick={refresh} variant="outline">
+          <Button onClick={() => window.location.reload()} variant="outline">
             Tentar novamente
           </Button>
         </div>
@@ -280,10 +298,6 @@ export const Championship = () => {
             <TabsContent value="temporadas" className="mt-0 ring-0 focus-visible:outline-none">
               <SeasonsTab 
                 championshipId={id} 
-                seasons={championship.seasons || []}
-                isLoading={loading}
-                error={error}
-                onRefresh={refresh}
               />
             </TabsContent>
           )}
@@ -293,9 +307,9 @@ export const Championship = () => {
               <CategoriesTab 
                 championshipId={id}
                 seasons={championship.seasons || []}
-                isLoading={loading}
-                error={error}
-                onRefresh={refresh}
+                isLoading={contextLoading.categories}
+                error={contextError.categories}
+                onRefresh={() => window.location.reload()}
               />
             </TabsContent>
           )}
@@ -305,9 +319,9 @@ export const Championship = () => {
               <StagesTab 
                 championshipId={id}
                 seasons={championship.seasons || []}
-                isLoading={loading}
-                error={error}
-                onRefresh={refresh}
+                isLoading={contextLoading.stages}
+                error={contextError.stages}
+                onRefresh={() => window.location.reload()}
               />
             </TabsContent>
           )}
@@ -326,13 +340,7 @@ export const Championship = () => {
 
           {permissions?.regulations && hasSeasons && (
             <TabsContent value="regulamento" className="mt-0 ring-0 focus-visible:outline-none">
-              <RegulationTab 
-                championshipId={id}
-                seasons={championship.seasons || []}
-                isLoading={loading}
-                error={error}
-                onRefresh={refresh}
-              />
+              <RegulationTab championshipId={id} />
             </TabsContent>
           )}
 
@@ -344,13 +352,15 @@ export const Championship = () => {
 
           {permissions?.raceDay && hasSeasons && (
             <TabsContent value="race-day" className="mt-0 ring-0 focus-visible:outline-none">
-              <RaceDayTab seasons={championship.seasons || []} championshipName={championship.name} championshipId={id} />
+              <RaceDayTab 
+                championshipId={id}
+              />
             </TabsContent>
           )}
 
           {permissions?.editChampionship && (
             <TabsContent value="config-edit" className="mt-0 ring-0 focus-visible:outline-none">
-              <EditChampionshipTab championshipId={id} />
+              <CreateChampionship />
             </TabsContent>
           )}
 

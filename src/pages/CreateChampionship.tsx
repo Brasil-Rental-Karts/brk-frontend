@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { FormScreen } from "@/components/ui/FormScreen";
 import { FormSectionConfig } from "@/components/ui/dynamic-form";
 import { validateDocument } from "@/utils/validation";
@@ -18,9 +18,10 @@ import {
   formatFullAddress 
 } from "@/utils/cnpj";
 import { masks } from "@/utils/masks";
-import { ChampionshipData, ChampionshipService } from "@/lib/services/championship.service";
-import { useChampionshipContext } from "@/contexts/ChampionshipContext";
+import { ChampionshipData, ChampionshipService, Championship } from "@/lib/services/championship.service";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
+// Função auxiliar para converter data DD/MM/AAAA para formato ISO
 const convertDateToISO = (dateString: string): string | undefined => {
   if (!dateString || dateString.length < 10) return undefined;
   
@@ -35,78 +36,124 @@ const convertDateToISO = (dateString: string): string | undefined => {
   return isoDate;
 };
 
+// Função auxiliar para converter data ISO para DD/MM/AAAA
+const convertISOToDate = (isoString: string): string => {
+  if (!isoString) return '';
+  
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return '';
+  
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear().toString();
+  
+  return `${day}/${month}/${year}`;
+};
+
 export const CreateChampionship = () => {
   const navigate = useNavigate();
+  const { championshipId } = useParams<{ championshipId?: string }>();
+  const { updateChampionship, getChampionshipInfo } = useChampionshipData();
+  const isEditMode = championshipId !== 'new' && championshipId !== undefined;
+  
   const [cities, setCities] = useState<City[]>([]);
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
-  const { addChampionship } = useChampionshipContext();
+
+  // Obter dados do campeonato do contexto
+  const championship = getChampionshipInfo();
 
   const loadCities = useCallback(async (uf: string) => {
     const citiesData = await fetchCitiesByState(uf);
     setCities(citiesData);
   }, []);
 
-  const handleFieldChange = useCallback(async (fieldId: string, value: any, formData: any, formRef: any) => {
+  const transformInitialData = useCallback((data: Championship) => ({
+    name: data.name || "",
+    championshipImage: data.championshipImage || "",
+    shortDescription: data.shortDescription || "",
+    fullDescription: data.fullDescription || "",
+    personType: data.personType?.toString() || "0",
+    document: data.document || "",
+    socialReason: data.socialReason || "",
+    cep: data.cep || "",
+    state: data.state || "",
+    city: data.city || "",
+    fullAddress: data.fullAddress || "",
+    number: data.number || "",
+    complement: data.complement || "",
+    province: data.province || "",
+    isResponsible: data.isResponsible !== false,
+    responsibleName: data.responsibleName || "",
+    responsiblePhone: data.responsiblePhone || "",
+    responsibleEmail: data.responsibleEmail || "",
+    responsibleBirthDate: data.responsibleBirthDate
+      ? convertISOToDate(data.responsibleBirthDate)
+      : "",
+    companyType: data.companyType || "",
+    commissionAbsorbedByChampionship: data.commissionAbsorbedByChampionship?.toString() || "true"
+  }), []);
+
+  const handleFieldChange = useCallback(async (fieldId: string, value: any, formData: any, formActions: { setValue: (name: string, value: any) => void }) => {
     if (fieldId === "cep" && value && isValidCEPFormat(value)) {
       const addressData = await fetchAddressByCEP(value);
-      if (addressData && formRef) {
-        formRef.setValue("state", addressData.uf);
-        formRef.setValue("fullAddress", addressData.logradouro);
-        formRef.setValue("province", addressData.bairro);
+      if (addressData && formActions.setValue) {
+        formActions.setValue("state", addressData.uf);
+        formActions.setValue("fullAddress", addressData.logradouro);
+        formActions.setValue("province", addressData.bairro);
         await loadCities(addressData.uf);
         setTimeout(() => {
-          formRef.setValue("city", addressData.localidade);
+          formActions.setValue("city", addressData.localidade);
         }, 100);
       }
     }
 
     if (fieldId === "state" && value) {
       await loadCities(value);
-      if (formRef) {
-        formRef.setValue("city", "");
+      if (formActions.setValue) {
+        formActions.setValue("city", "");
       }
     }
     
-    if (fieldId === "document" && value && formRef) {
+    if (fieldId === "document" && value && formActions.setValue) {
       const personType = formData.personType;
       if (personType === "1" && isValidCNPJFormat(value)) {
         const companyData = await fetchCompanyByCNPJ(value);
-        if (companyData && formRef) {
-          formRef.setValue("socialReason", companyData.company.name);
-          formRef.setValue("cep", masks.cep(companyData.address.zip));
-          formRef.setValue("state", companyData.address.state);
+        if (companyData && formActions.setValue) {
+          formActions.setValue("socialReason", companyData.company.name);
+          formActions.setValue("cep", masks.cep(companyData.address.zip));
+          formActions.setValue("state", companyData.address.state);
           
-          formRef.setValue("fullAddress", formatFullAddress(companyData.address));
-          formRef.setValue("number", companyData.address.number);
-          formRef.setValue("province", companyData.address.district);
+          formActions.setValue("fullAddress", formatFullAddress(companyData.address));
+          formActions.setValue("number", companyData.address.number);
+          formActions.setValue("province", companyData.address.district);
           
-          formRef.setValue("companyType", "");
+          formActions.setValue("companyType", "");
           if (companyData.company.simei?.optant) {
-            formRef.setValue("companyType", "MEI");
+            formActions.setValue("companyType", "MEI");
           } else {
             const natureText = companyData.company.nature?.text;
             if (natureText === "Empresário (Individual)") {
-              formRef.setValue("companyType", "INDIVIDUAL");
+              formActions.setValue("companyType", "INDIVIDUAL");
             } else if (natureText === "Sociedade Limitada") {
-              formRef.setValue("companyType", "LIMITED");
+              formActions.setValue("companyType", "LIMITED");
             } else if (natureText === "Associação Privada") {
-              formRef.setValue("companyType", "ASSOCIATION");
+              formActions.setValue("companyType", "ASSOCIATION");
             }
           }
           
           const mainPhone = extractMainPhone(companyData.phones);
           if (mainPhone && !formData.isResponsible) {
-            formRef.setValue("responsiblePhone", mainPhone);
+            formActions.setValue("responsiblePhone", mainPhone);
           }
           
           const mainEmail = extractMainEmail(companyData.emails);
           if (mainEmail && !formData.isResponsible) {
-            formRef.setValue("responsibleEmail", mainEmail);
+            formActions.setValue("responsibleEmail", mainEmail);
           }
 
           await loadCities(companyData.address.state);
           setTimeout(() => {
-            formRef.setValue("city", companyData.address.city);
+            formActions.setValue("city", companyData.address.city);
           }, 100);
         }
       }
@@ -114,7 +161,45 @@ export const CreateChampionship = () => {
   }, [loadCities]);
 
   const transformSubmitData = useCallback((data: any): ChampionshipData => {
-    return {
+
+    
+    // Validar campos obrigatórios
+    const requiredFields = ['name', 'document', 'cep', 'state', 'city', 'fullAddress', 'number'];
+    const missingFields = requiredFields.filter(field => !data[field]);
+    
+    if (missingFields.length > 0) {
+      console.error('❌ CreateChampionship: Campos obrigatórios faltando:', missingFields);
+
+      // Não vamos lançar erro por enquanto, apenas logar
+      // throw new Error(`Campos obrigatórios faltando: ${missingFields.join(', ')}`);
+    }
+    
+    // Validar campos condicionais
+    if (data.personType === '1' && !data.socialReason) {
+      console.warn('⚠️ CreateChampionship: Razão social é obrigatória para pessoa jurídica');
+      // throw new Error('Razão social é obrigatória para pessoa jurídica');
+    }
+    
+    if (!data.isResponsible) {
+      if (!data.responsibleName) {
+        console.warn('⚠️ CreateChampionship: Nome do responsável é obrigatório quando você não é o responsável');
+        // throw new Error('Nome do responsável é obrigatório quando você não é o responsável');
+      }
+      if (!data.responsiblePhone) {
+        console.warn('⚠️ CreateChampionship: Telefone do responsável é obrigatório quando você não é o responsável');
+        // throw new Error('Telefone do responsável é obrigatório quando você não é o responsável');
+      }
+      if (!data.responsibleEmail) {
+        console.warn('⚠️ CreateChampionship: E-mail do responsável é obrigatório quando você não é o responsável');
+        // throw new Error('E-mail do responsável é obrigatório quando você não é o responsável');
+      }
+      if (!data.responsibleBirthDate) {
+        console.warn('⚠️ CreateChampionship: Data de nascimento do responsável é obrigatória quando você não é o responsável');
+        // throw new Error('Data de nascimento do responsável é obrigatória quando você não é o responsável');
+      }
+    }
+    
+    const transformedData = {
       name: data.name,
       championshipImage: data.championshipImage || '',
       shortDescription: data.shortDescription || '',
@@ -135,20 +220,69 @@ export const CreateChampionship = () => {
       responsibleEmail: data.responsibleEmail || '',
       responsibleBirthDate: data.responsibleBirthDate ? convertDateToISO(data.responsibleBirthDate) : undefined,
       companyType: data.companyType || undefined,
-      commissionAbsorbedByChampionship: data.commissionAbsorbedByChampionship !== false
+      commissionAbsorbedByChampionship: data.commissionAbsorbedByChampionship === 'true' || data.commissionAbsorbedByChampionship === true
     };
+    
+    // Remover campos undefined para evitar problemas com o backend
+    Object.keys(transformedData).forEach(key => {
+      if (transformedData[key as keyof typeof transformedData] === undefined) {
+        delete transformedData[key as keyof typeof transformedData];
+      }
+    });
+    
+
+    
+    return transformedData;
   }, []);
 
   const onSuccess = useCallback((championship: any) => {
-    addChampionship(championship);
-    navigate(`/championship/${championship.id}`, { replace: true });
-  }, [addChampionship, navigate]);
+    if (isEditMode) {
+      navigate(`/championship/${championshipId}`);
+    } else {
+      navigate(`/championship/${championship.id}`, { replace: true });
+    }
+  }, [navigate, championshipId, isEditMode]);
 
   const onCancel = useCallback(() => {
-    navigate('/dashboard');
-  }, [navigate]);
+    if (isEditMode) {
+      navigate(`/championship/${championshipId}`);
+    } else {
+      navigate('/dashboard');
+    }
+  }, [navigate, championshipId, isEditMode]);
 
+  const fetchData = useCallback(async (id: string) => {
+    if (!isEditMode || !championshipId) {
+      throw new Error('ID do campeonato não fornecido');
+    }
+    
+    try {
+      // Buscar campeonato do contexto primeiro
+      const championshipFromContext = championship;
+      
+      if (championshipFromContext) {
+        return championshipFromContext;
+      } else {
+        // Fallback para backend se não encontrar no contexto
+        const championshipData = await ChampionshipService.getById(championshipId);
+        return championshipData;
+      }
+    } catch (err: any) {
+      console.error('❌ CreateChampionship: Erro ao carregar campeonato:', err);
+      throw new Error('Erro ao carregar campeonato: ' + err.message);
+    }
+  }, [isEditMode, championshipId, championship]);
+  
   const createData = useCallback((data: ChampionshipData) => ChampionshipService.create(data), []);
+  
+  const updateData = useCallback(async (id: string, data: ChampionshipData) => {
+    const updatedChampionship = await ChampionshipService.update(id, data);
+    
+    // Atualizar o contexto com o campeonato atualizado
+    updateChampionship(id, updatedChampionship);
+    
+    return updatedChampionship;
+  }, [updateChampionship]);
 
   useEffect(() => {
     const config: FormSectionConfig[] = [
@@ -168,7 +302,7 @@ export const CreateChampionship = () => {
             id: "championshipImage",
             name: "Imagem do campeonato",
             type: "file",
-            mandatory: true,
+            mandatory: false,
             placeholder: "Faça upload da imagem ou insira uma URL",
             accept: "image/*",
             maxSize: 5,
@@ -379,21 +513,26 @@ export const CreateChampionship = () => {
 
   return (
     <FormScreen
-      title="Criar Campeonato"
+      title={isEditMode ? "Editar Campeonato" : "Criar Campeonato"}
+      description={isEditMode ? "Atualize as informações do seu campeonato" : "Configure as informações do seu campeonato"}
       formId="championship-form"
       formConfig={formConfig}
+      id={isEditMode ? championshipId : undefined}
+      fetchData={isEditMode ? fetchData : undefined}
       createData={createData}
+      updateData={updateData}
+      transformInitialData={transformInitialData}
       transformSubmitData={transformSubmitData}
       onSuccess={onSuccess}
       onCancel={onCancel}
       onFieldChange={handleFieldChange}
-      initialValues={{
+      initialValues={!isEditMode ? {
         personType: "0",
         isResponsible: true,
         commissionAbsorbedByChampionship: "true",
-      }}
-      successMessage="Campeonato criado com sucesso!"
-      errorMessage="Erro ao criar campeonato."
+      } : undefined}
+      successMessage={isEditMode ? "Campeonato atualizado com sucesso!" : "Campeonato criado com sucesso!"}
+      errorMessage={isEditMode ? "Erro ao atualizar campeonato." : "Erro ao criar campeonato."}
     />
   );
 };

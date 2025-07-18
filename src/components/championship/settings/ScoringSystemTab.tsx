@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
 import { Loading } from '@/components/ui/loading';
+import { useChampionshipData } from '@/contexts/ChampionshipContext';
 
 interface ScoringSystemTabProps {
   championshipId: string;
@@ -62,6 +63,9 @@ const SCORING_TEMPLATES = [
  * Aba de gerenciamento de sistemas de pontuação do campeonato
  */
 export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
+  // Usar o contexto de dados do campeonato
+  const { getScoringSystems, updateScoringSystem, removeScoringSystem, refreshScoringSystems, loading: contextLoading, error: contextError } = useChampionshipData();
+  
   const [scoringSystems, setScoringSystems] = useState<ScoringSystem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,19 +81,25 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
   const positionsContainerRef = useRef<HTMLDivElement>(null);
   const [previousPositionsCount, setPreviousPositionsCount] = useState(0);
 
-  // Buscar sistemas de pontuação
-  const fetchScoringSystems = useCallback(async () => {
+  // Carregar sistemas de pontuação do contexto
+  const loadScoringSystems = useCallback(() => {
     try {
-      setLoading(true);
       setError(null);
-      const data = await ScoringSystemService.getByChampionshipId(championshipId);
+      const data = getScoringSystems();
       setScoringSystems(data);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [championshipId]);
+  }, [getScoringSystems]);
+
+  // Atualizar scoring systems quando o contexto mudar
+  useEffect(() => {
+    const data = getScoringSystems();
+    setScoringSystems(data);
+    setLoading(false);
+  }, [getScoringSystems]);
 
   // Alternar status ativo
   const toggleActive = async (system: ScoringSystem) => {
@@ -102,8 +112,10 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
 
     try {
       setError(null);
-      await ScoringSystemService.toggleActive(system.id, championshipId);
-      await fetchScoringSystems();
+      const updatedSystem = await ScoringSystemService.toggleActive(system.id, championshipId);
+      // Atualizar o contexto com o sistema atualizado
+      updateScoringSystem(system.id, updatedSystem);
+      refreshScoringSystems(); // Refresh the list to reflect the change
     } catch (err: any) {
       setError(err.message);
     }
@@ -113,8 +125,10 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
   const setDefault = async (system: ScoringSystem) => {
     try {
       setError(null);
-      await ScoringSystemService.setDefault(system.id, championshipId);
-      await fetchScoringSystems();
+      const updatedSystem = await ScoringSystemService.setDefault(system.id, championshipId);
+      // Atualizar o contexto com o sistema atualizado
+      updateScoringSystem(system.id, updatedSystem);
+      refreshScoringSystems(); // Refresh the list to reflect the change
       toast.success("Sistema de pontuação definido como padrão.", {
         description: "O sistema de pontuação foi definido como padrão com sucesso.",
       });
@@ -134,10 +148,12 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
       setIsDeleting(true);
       setError(null);
       await ScoringSystemService.delete(deletingSystem.id, championshipId);
-      await fetchScoringSystems();
+      // Remover o sistema do contexto
+      removeScoringSystem(deletingSystem.id);
       setShowDeleteDialog(false);
       setDeletingSystem(null);
       toast.success("Sistema de pontuação excluído com sucesso!");
+      refreshScoringSystems(); // Refresh the list to reflect the change
     } catch (err: any) {
       setError(err.message);
       toast.error("Erro ao excluir sistema de pontuação.", {
@@ -169,8 +185,8 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
 
   // Buscar dados ao montar
   useEffect(() => {
-    fetchScoringSystems();
-  }, [fetchScoringSystems]);
+    loadScoringSystems();
+  }, [loadScoringSystems]);
 
   // Renderizar o resumo de pontos
   const renderPointsSummary = (system: ScoringSystem) => {
@@ -178,7 +194,10 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
     return positions.map(pos => `${pos.position}º: ${pos.points}pts`).join(', ');
   };
 
-  if (loading) {
+  // Usar loading do contexto se disponível
+  const isLoading = contextLoading.scoringSystems || loading;
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loading type="spinner" size="sm" message="Carregando sistemas de pontuação..." />
@@ -186,16 +205,21 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
     );
   }
 
-  if (error) {
+  if (error || contextError.scoringSystems) {
     return (
-      <div className="space-y-4">
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-        <Button onClick={fetchScoringSystems} variant="outline">
-          Tentar novamente
-        </Button>
-      </div>
+      <Alert variant="destructive">
+        <AlertDescription className="flex items-center justify-between">
+          <span>{error || contextError.scoringSystems}</span>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setError(null)}
+            className="h-auto p-1 ml-2"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
 

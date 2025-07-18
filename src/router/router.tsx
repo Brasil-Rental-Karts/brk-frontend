@@ -453,6 +453,18 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "championship/:championshipId/edit",
+        element: (
+          <ProtectedRoute requiredRoles={['Manager', 'Administrator']}>
+            <MainLayout>
+              <LazyWrapper>
+                <CreateChampionship />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "admin",
         element: (
           <ProtectedRoute requiredRoles={['Administrator']}>

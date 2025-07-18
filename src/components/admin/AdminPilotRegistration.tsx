@@ -13,6 +13,7 @@ import { StageService } from "@/lib/services/stage.service";
 import { formatCurrency } from "@/utils/currency";
 import { X, User, Trophy, Calendar, CreditCard, Tag, MapPin, FileText } from "lucide-react";
 import { ChampionshipService } from "@/lib/services/championship.service";
+import { useUser } from '@/contexts/UserContext';
 
 // Função para formatar valor monetário no input
 const formatCurrencyInput = (value: string | number): string => {
@@ -79,6 +80,9 @@ interface StageData {
 }
 
 export const AdminPilotRegistration = () => {
+  // Remover dependência do contexto - buscar dados diretamente do backend
+  const { refreshFinancial } = useUser();
+
   const [users, setUsers] = useState<UserData[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
   const [userSearchTerm, setUserSearchTerm] = useState('');
@@ -256,6 +260,7 @@ export const AdminPilotRegistration = () => {
 
   const loadSeasons = async (championshipId: string) => {
     try {
+      // Buscar temporadas diretamente do backend
       const seasonsData = await SeasonService.getAll(1, 100);
       const filteredSeasons = (seasonsData.data || []).filter(season => 
         season.championshipId === championshipId
@@ -281,6 +286,7 @@ export const AdminPilotRegistration = () => {
 
   const loadCategories = async (seasonId: string) => {
     try {
+      // Buscar categorias diretamente do backend
       const categoriesData = await CategoryService.getBySeasonId(seasonId);
       setCategories(categoriesData || []);
     } catch (error) {
@@ -292,6 +298,7 @@ export const AdminPilotRegistration = () => {
 
   const loadStages = async (seasonId: string) => {
     try {
+      // Buscar etapas diretamente do backend
       const stagesData = await StageService.getBySeasonId(seasonId);
       setStages(stagesData || []);
     } catch (error) {
@@ -444,6 +451,9 @@ export const AdminPilotRegistration = () => {
       const result = await SeasonRegistrationService.createAdminRegistration(registrationData);
       
       toast.success(result.isUpdate ? "Inscrição administrativa atualizada com sucesso!" : "Inscrição administrativa criada com sucesso!");
+      
+      // Atualizar dados financeiros do dashboard
+      refreshFinancial();
       
       // Reset form
       setSelectedUserId("");

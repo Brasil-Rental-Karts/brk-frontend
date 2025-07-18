@@ -36,9 +36,10 @@ export const useUserRegistrations = () => {
       // Buscar todos os campeonatos do usuário (incluindo onde é apenas piloto)
       const allUserChampionships = await ChampionshipService.getMy();
       
-      // Filtrar apenas campeonatos onde o usuário é piloto (não owner nem staff)
+      // Filtrar campeonatos onde o usuário é piloto
+      // Incluir tanto campeonatos onde é apenas piloto quanto onde é staff/owner mas também piloto
       const pilotChampionships = allUserChampionships.filter(championship => 
-        championship.isPilot && !championship.isOwner && !championship.isStaff
+        championship.isPilot
       );
 
       // Agrupar por campeonato

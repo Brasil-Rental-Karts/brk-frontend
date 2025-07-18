@@ -15,6 +15,7 @@ import { formatCurrency } from '@/utils/currency';
 import { Loading } from '@/components/ui/loading';
 import { PageLoader } from '@/components/ui/loading';
 import { formatName } from '@/utils/name';
+import { useUser } from '@/contexts/UserContext';
 
 const InstallmentList: React.FC<{ payments: RegistrationPaymentData[] }> = ({ payments }) => {
   const getStatusBadge = (status: string) => {
@@ -103,6 +104,7 @@ export const RegistrationPayment: React.FC = () => {
   const { registrationId } = useParams<{ registrationId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { refreshFinancial } = useUser();
 
   const [registration, setRegistration] = useState<SeasonRegistration | null>(null);
   const [payments, setPayments] = useState<RegistrationPaymentData[]>([]);
@@ -137,6 +139,11 @@ export const RegistrationPayment: React.FC = () => {
         } else {
           throw paymentError;
         }
+      }
+
+      // Se o pagamento foi confirmado, atualizar dados financeiros
+      if (registrationData && (registrationData.paymentStatus === 'paid' || registrationData.paymentStatus === 'exempt' || registrationData.paymentStatus === 'direct_payment')) {
+        refreshFinancial();
       }
 
     } catch (err: any) {

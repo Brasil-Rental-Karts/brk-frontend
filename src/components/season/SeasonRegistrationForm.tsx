@@ -24,6 +24,8 @@ import { useFormScreen } from '@/hooks/use-form-screen';
 import { useExternalNavigation } from '@/hooks/use-external-navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRegistrations } from '@/hooks/use-user-registrations';
+import { useUser } from '@/contexts/UserContext';
+
 import {
   Tooltip,
   TooltipContent,
@@ -224,6 +226,10 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { refreshFinancial } = useUser();
+  
+  // Remover dependência do contexto - buscar dados diretamente do backend
+
   const [season, setSeason] = useState<Season | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
@@ -305,13 +311,15 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     setIsLoading(true);
     setError(null);
     try {
-      // Primeiro, carregar a temporada para obter o ID real
+      // Buscar todos os dados diretamente do backend
       const seasonData = await SeasonService.getById(seasonId);
       
-      // Carregar dados em paralelo
+      // Usar o ID real da temporada para buscar etapas e categorias
+      const realSeasonId = seasonData.id;
+      
       const [categoriesData, stagesData, userRegistrationsData, championshipData] = await Promise.all([
-        CategoryService.getBySeasonId(seasonData.id),
-        StageService.getBySeasonId(seasonData.id),
+        CategoryService.getBySeasonId(realSeasonId),
+        StageService.getBySeasonId(realSeasonId),
         SeasonRegistrationService.getMyRegistrations(),
         ChampionshipService.getPublicById(seasonData.championshipId)
       ]);
@@ -325,7 +333,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       // Buscar contagens de pilotos por categoria
       const counts: Record<string, number> = {};
       await Promise.all(
-        categoriesData.map(async (category) => {
+        categoriesData.map(async (category: Category) => {
           try {
             const count = await SeasonRegistrationService.getCategoryRegistrationCount(category.id);
             counts[category.id] = count;
@@ -464,11 +472,14 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       } else {
         navigate(`/registration/${result.registration.id}/payment`);
       }
+      // Recarregar dados financeiros do dashboard
+      refreshFinancial();
     },
     onCancel: () => {
       if(onCancel) onCancel();
     },
-    errorMessage: 'Erro ao realizar inscrição'
+    errorMessage: 'Erro ao realizar inscrição',
+    successMessage: '' // Desabilitar o toast padrão do useFormScreen
   });
 
   // Hook para navegação externa com verificação de alterações não salvas
@@ -640,7 +651,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
         ]
       }
     ];
-
+    
     // Adicionar seção de etapas se for inscrição por etapa
     if (inscriptionType === 'por_etapa' && filteredStages.length > 0) {
       config.push({
@@ -1095,21 +1106,29 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
           </CardContent>
         </Card>
 
-        <DynamicForm
-          config={formConfig}
-          onSubmit={handleFormSubmit}
-          onChange={handleFormChange}
-          onCancel={processing ? undefined : onCancel}
-          submitLabel={processing ? "Finalizando..." : "Finalizar Inscrição"}
-          cancelLabel="Cancelar"
-          showButtons={!processing}
-          initialValues={{
-            categorias: [],
-            pagamento: '',
-            cpf: '',
-            installments: '1',
-          }}
-        />
+        {formConfig.length > 0 ? (
+          <DynamicForm
+            config={formConfig}
+            onSubmit={handleFormSubmit}
+            onChange={handleFormChange}
+            onCancel={processing ? undefined : onCancel}
+            submitLabel={processing ? "Finalizando..." : "Finalizar Inscrição"}
+            cancelLabel="Cancelar"
+            showButtons={!processing}
+            initialValues={{
+              categorias: [],
+              pagamento: '',
+              cpf: '',
+              installments: '1',
+            }}
+          />
+        ) : (
+          <div className="text-center p-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+            <p className="text-gray-600">Carregando formulário...</p>
+            <p className="text-sm text-gray-500 mt-2">formConfig.length: {formConfig.length}</p>
+          </div>
+        )}
 
         {/* Dialog de confirmação de alterações não salvas */}
         <Dialog

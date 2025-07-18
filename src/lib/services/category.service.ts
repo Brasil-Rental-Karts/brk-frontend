@@ -15,6 +15,7 @@ export interface Category {
   seasonId: string;
   createdAt: string;
   updatedAt: string;
+  registrationCount?: number;
 }
 
 export interface CategoryData {

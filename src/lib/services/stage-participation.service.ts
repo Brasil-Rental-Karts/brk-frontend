@@ -26,6 +26,48 @@ export interface StageParticipation {
 export interface ConfirmParticipationData {
   stageId: string;
   categoryId: string;
+  userId?: string;
+}
+
+export interface BulkConfirmParticipationData {
+  stageId: string;
+  confirmations: Array<{
+    userId: string;
+    categoryId: string;
+  }>;
+}
+
+export interface BulkCancelParticipationData {
+  stageId: string;
+  cancellations: Array<{
+    userId: string;
+    categoryId: string;
+    reason: string;
+  }>;
+}
+
+export interface BulkConfirmParticipationResponse {
+  message: string;
+  data: StageParticipation[];
+  errors: Array<{
+    userId: string;
+    categoryId: string;
+    error: string;
+  }>;
+}
+
+export interface BulkCancelParticipationResponse {
+  message: string;
+  data: Array<{
+    userId: string;
+    categoryId: string;
+    status: string;
+  }>;
+  errors: Array<{
+    userId: string;
+    categoryId: string;
+    error: string;
+  }>;
 }
 
 export interface CancelParticipationData {
@@ -64,6 +106,25 @@ export class StageParticipationService {
   }
 
   /**
+   * Confirmar participação em massa de pilotos em uma etapa
+   */
+  static async bulkConfirmParticipation(data: BulkConfirmParticipationData): Promise<BulkConfirmParticipationResponse> {
+    try {
+      const response = await api.post<BulkConfirmParticipationResponse>(
+        `${StageParticipationService.BASE_URL}/bulk-confirm`, 
+        data
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error bulk confirming participation:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao confirmar participações. Tente novamente.'
+      );
+    }
+  }
+
+  /**
    * Cancelar participação do usuário em uma etapa
    */
   static async cancelParticipation(data: CancelParticipationData): Promise<void> {
@@ -74,6 +135,25 @@ export class StageParticipationService {
       throw new Error(
         error.response?.data?.message || 
         'Erro ao cancelar participação. Tente novamente.'
+      );
+    }
+  }
+
+  /**
+   * Cancelar participação em massa de pilotos em uma etapa
+   */
+  static async bulkCancelParticipation(data: BulkCancelParticipationData): Promise<BulkCancelParticipationResponse> {
+    try {
+      const response = await api.post<BulkCancelParticipationResponse>(
+        `${StageParticipationService.BASE_URL}/bulk-cancel`, 
+        data
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error bulk cancelling participation:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao cancelar participações. Tente novamente.'
       );
     }
   }

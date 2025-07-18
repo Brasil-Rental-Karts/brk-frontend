@@ -2,11 +2,13 @@ import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { AlertTriangle } from "lucide-react";
 import { DynamicForm, FormSectionConfig } from "@/components/ui/dynamic-form";
 import { useFormScreen } from '@/hooks/use-form-screen';
-import { ChampionshipService, Championship } from "@/lib/services/championship.service";
+import { Championship } from "@/lib/services/championship.service";
 import { Button } from "brk-design-system";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { Loading } from '@/components/ui/loading';
+import { useChampionshipData } from '@/contexts/ChampionshipContext';
+import { ChampionshipService } from '@/lib/services/championship.service';
 
 interface SponsorsTabProps {
   championshipId: string;
@@ -15,6 +17,9 @@ interface SponsorsTabProps {
 export const SponsorsTab = ({ championshipId }: SponsorsTabProps) => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Usar o contexto de dados do campeonato
+  const { getChampionshipInfo, updateSponsors } = useChampionshipData();
 
   const formConfig: FormSectionConfig[] = [
     {
@@ -33,15 +38,25 @@ export const SponsorsTab = ({ championshipId }: SponsorsTabProps) => {
   ];
 
   const fetchData = useCallback(() => {
-    return ChampionshipService.getById(championshipId);
-  }, [championshipId]);
+    // Usar dados do contexto em vez de buscar do backend
+    const championshipInfo = getChampionshipInfo();
+    if (!championshipInfo) {
+      throw new Error('Dados do campeonato não encontrados');
+    }
+    return Promise.resolve(championshipInfo);
+  }, [getChampionshipInfo]);
 
   const saveSponsors = useCallback(async (sponsors: any[]) => {
     setIsSaving(true);
     setError(null);
     
     try {
-      await ChampionshipService.update(championshipId, { sponsors });
+      // Buscar dados atualizados do backend
+      const updatedChampionship = await ChampionshipService.update(championshipId, { sponsors });
+      
+      // Atualizar o contexto com os novos dados
+      updateSponsors(sponsors);
+      
       toast.success("Patrocinadores e apoiadores salvos com sucesso!");
     } catch (err: any) {
       const message = err.message || "Erro ao salvar patrocinadores e apoiadores";
@@ -50,7 +65,7 @@ export const SponsorsTab = ({ championshipId }: SponsorsTabProps) => {
     } finally {
       setIsSaving(false);
     }
-  }, [championshipId]);
+  }, [championshipId, updateSponsors]);
 
   const transformInitialData = useCallback((data: Championship) => ({
     sponsors: data.sponsors || []
