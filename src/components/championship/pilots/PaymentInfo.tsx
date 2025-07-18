@@ -144,7 +144,7 @@ const PaymentInfo = ({ registration }: PaymentInfoProps) => {
         : payment.billingType
     })`,
     [AsaasPaymentStatus.OVERDUE]: 'Vencido',
-    [AsaasPaymentStatus.REFUNDED]: 'Devolvido',
+            [AsaasPaymentStatus.REFUNDED]: 'Estornado',
     [AsaasPaymentStatus.RECEIVED_IN_CASH]: 'Pago (Dinheiro)',
     [AsaasPaymentStatus.REFUND_REQUESTED]: 'Reembolso Solicitado',
     [AsaasPaymentStatus.REFUND_IN_PROGRESS]: 'Reembolso em Progresso',

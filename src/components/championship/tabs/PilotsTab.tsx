@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Button } from "brk-design-system";
 import { Card, CardHeader, CardContent } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { Users, Mail, Phone, Calendar, MoreVertical, Eye, Loader2, Download } from "lucide-react";
+import { Users, Mail, Phone, Calendar, MoreVertical, Eye, Loader2, Download, Filter, Search } from "lucide-react";
 import { EmptyState } from "brk-design-system";
 import {
   DropdownMenu,
@@ -77,19 +77,35 @@ const createFilterFields = (seasonOptions: { value: string; label: string }[] = 
       { value: 'cancelled', label: 'Cancelado' },
       { value: 'expired', label: 'Expirado' }
     ]
+  },
+  {
+    key: 'paymentStatus',
+    label: 'Status do Pagamento',
+    type: 'combobox',
+    placeholder: 'Todos os pagamentos',
+    options: [
+      { value: 'all', label: 'Todos os pagamentos' },
+      { value: 'paid', label: 'Pago' },
+      { value: 'pending', label: 'Pendente' },
+      { value: 'overdue', label: 'Vencido' },
+      { value: 'exempt', label: 'Isento' },
+      { value: 'direct_payment', label: 'Pagamento Direto' },
+      { value: 'refunded', label: 'Estornado' }
+    ]
   }
 ];
 
+// Componente para o card do piloto (mobile)
 const PilotCard = ({ registration, onAction, getStatusBadge }: { 
   registration: SeasonRegistration, 
   onAction: (action: string, registrationId: string) => void,
   getStatusBadge: (registration: SeasonRegistration) => JSX.Element 
 }) => {
   return (
-    <Card className="w-full">
+    <Card className="w-full hover:shadow-md transition-shadow">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="flex-1 pr-2">
-                          <h3 className="text-lg font-semibold tracking-tight">{formatName(registration.user.name)}</h3>
+          <h3 className="text-lg font-semibold tracking-tight">{formatName(registration.user.name)}</h3>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
           {getStatusBadge(registration)}
@@ -103,11 +119,13 @@ const PilotCard = ({ registration, onAction, getStatusBadge }: {
               <DropdownMenuItem 
                 onClick={() => onAction("viewDetails", registration.id)}
               >
+                <Eye className="h-4 w-4 mr-2" />
                 Ver detalhes
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={() => onAction("changeCategories", registration.id)}
               >
+                <Users className="h-4 w-4 mr-2" />
                 Trocar categorias
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -190,15 +208,200 @@ const PilotCard = ({ registration, onAction, getStatusBadge }: {
   );
 };
 
+// Componente para a linha da tabela (desktop)
+const PilotTableRow = ({ 
+  registration, 
+  onAction, 
+  getStatusBadge 
+}: { 
+  registration: SeasonRegistration, 
+  onAction: (action: string, registrationId: string) => void,
+  getStatusBadge: (registration: SeasonRegistration) => JSX.Element 
+}) => {
+  return (
+    <TableRow key={registration.id} className="hover:bg-muted/50">
+      <TableCell className="py-4">
+        <div className="space-y-2">
+          <div className="font-medium">{formatName(registration.user.name)}</div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Mail className="h-3 w-3" />
+            {registration.user.email}
+          </div>
+          {registration.user.phone && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Phone className="h-3 w-3" />
+              {registration.user.phone}
+            </div>
+          )}
+          <div className="text-xs text-muted-foreground">
+            <span className="font-medium">Valor:</span> R$ {Number(registration.amount).toFixed(2).replace('.', ',')}
+          </div>
+          {registration.paymentMethod && (
+            <div className="text-xs text-muted-foreground">
+              <span className="font-medium">Método:</span> {
+                registration.paymentStatus === 'exempt' ? 'Isento' :
+                registration.paymentStatus === 'direct_payment' ? 'Pagamento Direto' :
+                registration.paymentMethod === 'pix' ? 'PIX' : 
+                registration.paymentMethod === 'cartao_credito' ? 'Cartão de Crédito' : 
+                registration.paymentMethod
+              }
+            </div>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="text-center py-4">
+        <div className="text-sm font-medium">
+          {registration.season.name}
+        </div>
+      </TableCell>
+      <TableCell className="text-center py-4">
+        <div className="space-y-2">
+          <div className="text-xs text-muted-foreground">
+            {registration.categories?.length || 0} categoria{(registration.categories?.length || 0) !== 1 ? 's' : ''}
+          </div>
+          <div className="flex flex-wrap gap-1 justify-center">
+            {registration.categories && registration.categories.length > 0 ? (
+              registration.categories.map((regCategory) => (
+                <Badge key={regCategory.id} variant="outline" className="text-xs">
+                  <div className="flex flex-col items-center">
+                    <span>{regCategory.category.name}</span>
+                    <span className="text-xs opacity-75">
+                      Lastro: {regCategory.category.ballast}kg
+                    </span>
+                  </div>
+                </Badge>
+              ))
+            ) : (
+              <span className="text-xs text-muted-foreground">Sem categorias</span>
+            )}
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className="text-center py-4">
+        {getStatusBadge(registration)}
+      </TableCell>
+      <TableCell className="text-center py-4">
+        <PaymentInfo registration={registration} />
+      </TableCell>
+      <TableCell className="text-center py-4">
+        <div className="text-sm font-medium">
+          {formatDateToBrazilian(registration.createdAt)}
+        </div>
+      </TableCell>
+      <TableCell className="text-center py-4">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem 
+              onClick={() => onAction("viewDetails", registration.id)}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              Ver detalhes
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => onAction("changeCategories", registration.id)}
+            >
+              <Users className="h-4 w-4 mr-2" />
+              Trocar categorias
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
+  );
+};
+
+// Hook personalizado para gerenciar filtros e ordenação
+const usePilotsFilters = () => {
+  const [filters, setFilters] = useState<FilterValues>({});
+  const [sortBy, setSortBy] = useState<keyof SeasonRegistration>("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const handleSort = useCallback((column: keyof SeasonRegistration) => {
+    setSortBy(prevSortBy => {
+      if (prevSortBy === column) {
+        setSortOrder(prevOrder => (prevOrder === 'asc' ? 'desc' : 'asc'));
+      } else {
+        setSortOrder('asc');
+      }
+      return column;
+    });
+  }, []);
+
+  const handleFiltersChange = useCallback((newFilters: FilterValues) => {
+    setFilters(newFilters);
+  }, []);
+
+  return {
+    filters,
+    sortBy,
+    sortOrder,
+    handleSort,
+    handleFiltersChange
+  };
+};
+
+// Hook personalizado para gerenciar paginação
+const usePagination = (totalItems: number, isMobile: boolean) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [mobilePage, setMobilePage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const mobileItemsPerPage = 5;
+
+  const paginationInfo = useMemo(() => {
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+    const hasNextPage = currentPage < totalPages;
+    const hasPreviousPage = currentPage > 1;
+
+    return {
+      totalPages,
+      startIndex,
+      endIndex,
+      hasNextPage,
+      hasPreviousPage
+    };
+  }, [totalItems, currentPage, itemsPerPage]);
+
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
+
+  const handleItemsPerPageChange = useCallback((items: number) => {
+    setItemsPerPage(items);
+    setCurrentPage(1);
+  }, []);
+
+  return {
+    currentPage,
+    itemsPerPage,
+    mobilePage,
+    hasMore,
+    loadingMore,
+    setLoadingMore,
+    setHasMore,
+    setMobilePage,
+    setCurrentPage,
+    paginationInfo,
+    handlePageChange,
+    handleItemsPerPageChange,
+    mobileItemsPerPage
+  };
+};
+
 /**
  * Tab de pilotos inscritos no campeonato
  * Exibe lista de todos os pilotos inscritos nas temporadas do campeonato
  */
 export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
   const isMobile = useIsMobile();
-  const [filters, setFilters] = useState<FilterValues>({});
-  const [sortBy, setSortBy] = useState<keyof SeasonRegistration>("createdAt");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Usar o contexto de dados do campeonato
   const { 
@@ -228,11 +431,25 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
 
   // --- Lógica para Mobile (Scroll Infinito) ---
   const [visibleMobileRegistrations, setVisibleMobileRegistrations] = useState<SeasonRegistration[]>([]);
-  const [mobilePage, setMobilePage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const observer = useRef<IntersectionObserver>();
-  const mobileItemsPerPage = 5;
+
+  // Usar hooks personalizados
+  const { filters, sortBy, sortOrder, handleSort, handleFiltersChange } = usePilotsFilters();
+  const { 
+    currentPage, 
+    itemsPerPage, 
+    mobilePage, 
+    hasMore, 
+    loadingMore, 
+    setLoadingMore, 
+    setHasMore, 
+    setMobilePage, 
+    setCurrentPage,
+    paginationInfo, 
+    handlePageChange, 
+    handleItemsPerPageChange, 
+    mobileItemsPerPage 
+  } = usePagination(contextRegistrations.length, isMobile);
 
   // Memoizar a configuração dos filtros para evitar re-renders
   const seasonOptions = useMemo(() => [
@@ -274,6 +491,11 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         return false;
       }
 
+      // Filtro por status do pagamento
+      if (filters.paymentStatus && filters.paymentStatus !== 'all' && registration.paymentStatus !== filters.paymentStatus) {
+        return false;
+      }
+
       return true;
     });
 
@@ -298,31 +520,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     return result;
   }, [contextRegistrations, filters, sortBy, sortOrder]);
 
-
-
-
-
   // --- Lógica para Desktop (Paginação) ---
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-
-  const paginationInfo = useMemo(() => {
-    const totalItems = processedRegistrations.length;
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-    const hasNextPage = currentPage < totalPages;
-    const hasPreviousPage = currentPage > 1;
-
-    return {
-      totalPages,
-      startIndex,
-      endIndex,
-      hasNextPage,
-      hasPreviousPage
-    };
-  }, [processedRegistrations.length, currentPage, itemsPerPage]);
-
   const paginatedDesktopRegistrations = useMemo(() => {
     if (isMobile) return [];
     return processedRegistrations.slice(paginationInfo.startIndex, paginationInfo.endIndex);
@@ -335,7 +533,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
       setMobilePage(2);
       setHasMore(processedRegistrations.length > mobileItemsPerPage);
     }
-  }, [isMobile, processedRegistrations]);
+  }, [isMobile, processedRegistrations, mobileItemsPerPage]);
 
   const lastRegistrationElementRef = useCallback((node: HTMLElement | null) => {
     if (loadingMore) return;
@@ -355,33 +553,16 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     });
 
     if (node) observer.current.observe(node);
-  }, [loadingMore, hasMore, mobilePage, processedRegistrations]);
+  }, [loadingMore, hasMore, mobilePage, processedRegistrations, mobileItemsPerPage]);
 
   const processedRegistrationsForDisplay = isMobile ? visibleMobileRegistrations : paginatedDesktopRegistrations;
 
-  const handleSort = (column: keyof SeasonRegistration) => {
-    setSortBy(prevSortBy => {
-      if (prevSortBy === column) {
-        setSortOrder(prevOrder => (prevOrder === 'asc' ? 'desc' : 'asc'));
-      } else {
-        setSortOrder('asc');
-      }
-      return column;
-    });
+  // Resetar página quando filtros mudarem
+  useEffect(() => {
     if (!isMobile) {
       setCurrentPage(1);
     }
-  };
-
-  const handleFiltersChange = useCallback((newFilters: FilterValues) => {
-    setFilters(newFilters);
-    if (!isMobile) {
-      setCurrentPage(1);
-    }
-  }, [isMobile]);
-
-  const handlePageChange = (page: number) => setCurrentPage(page);
-  const handleItemsPerPageChange = (items: number) => setItemsPerPage(items);
+  }, [filters, sortBy, sortOrder, isMobile]);
 
   const handleRegistrationAction = async (action: string, registrationId: string) => {
     const registration = contextRegistrations.find((r: SeasonRegistration) => r.id === registrationId);
@@ -508,7 +689,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         const categoryBallasts = registration.categories?.map(rc => `${rc.category.name} (${rc.category.ballast}kg)`).join(', ') || 'Sem categorias';
         
         return {
-                          'Nome do Piloto': formatName(registration.user.name),
+          'Nome do Piloto': formatName(registration.user.name),
           'Email': registration.user.email,
           'Telefone': registration.user.phone || 'Não informado',
           'Temporada': registration.season.name,
@@ -526,7 +707,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                                 registration.paymentStatus === 'processing' ? 'Processando' :
                                 registration.paymentStatus === 'failed' ? 'Falhou' :
                                 registration.paymentStatus === 'cancelled' ? 'Cancelado' :
-                                registration.paymentStatus === 'refunded' ? 'Reembolsado' : registration.paymentStatus,
+                                registration.paymentStatus === 'refunded' ? 'Estornado' : registration.paymentStatus,
           'Valor': `R$ ${Number(registration.amount).toFixed(2).replace('.', ',')}`,
           'Método de Pagamento': registration.paymentMethod ? 
                                 (registration.paymentMethod === 'pix' ? 'PIX' : 
@@ -737,97 +918,12 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                   </TableRow>
                 ) : (
                   processedRegistrationsForDisplay.map((registration) => (
-                    <TableRow key={registration.id} className="hover:bg-muted/50">
-                      <TableCell className="py-4">
-                        <div className="space-y-2">
-                          <div className="font-medium">{formatName(registration.user.name)}</div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Mail className="h-3 w-3" />
-                            {registration.user.email}
-                          </div>
-                          {registration.user.phone && (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <Phone className="h-3 w-3" />
-                              {registration.user.phone}
-                            </div>
-                          )}
-                          <div className="text-xs text-muted-foreground">
-                            <span className="font-medium">Valor:</span> R$ {Number(registration.amount).toFixed(2).replace('.', ',')}
-                          </div>
-                          {registration.paymentMethod && (
-                            <div className="text-xs text-muted-foreground">
-                              <span className="font-medium">Método:</span> {
-                                registration.paymentStatus === 'exempt' ? 'Isento' :
-                                registration.paymentStatus === 'direct_payment' ? 'Pagamento Direto' :
-                                registration.paymentMethod === 'pix' ? 'PIX' : 
-                                registration.paymentMethod === 'cartao_credito' ? 'Cartão de Crédito' : 
-                                registration.paymentMethod
-                              }
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <div className="text-sm font-medium">
-                          {registration.season.name}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <div className="space-y-2">
-                          <div className="text-xs text-muted-foreground">
-                            {registration.categories?.length || 0} categoria{(registration.categories?.length || 0) !== 1 ? 's' : ''}
-                          </div>
-                          <div className="flex flex-wrap gap-1 justify-center">
-                            {registration.categories && registration.categories.length > 0 ? (
-                              registration.categories.map((regCategory) => (
-                                <Badge key={regCategory.id} variant="outline" className="text-xs">
-                                  <div className="flex flex-col items-center">
-                                    <span>{regCategory.category.name}</span>
-                                    <span className="text-xs opacity-75">
-                                      Lastro: {regCategory.category.ballast}kg
-                                    </span>
-                                  </div>
-                                </Badge>
-                              ))
-                            ) : (
-                              <span className="text-xs text-muted-foreground">Sem categorias</span>
-                            )}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        {getStatusBadge(registration)}
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <PaymentInfo registration={registration} />
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <div className="text-sm font-medium">
-                          {formatDateToBrazilian(registration.createdAt)}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem 
-                              onClick={() => handleRegistrationAction("viewDetails", registration.id)}
-                            >
-                              Ver detalhes
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleRegistrationAction("changeCategories", registration.id)}
-                            >
-                              Trocar categorias
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
+                    <PilotTableRow
+                      key={registration.id}
+                      registration={registration}
+                      onAction={handleRegistrationAction}
+                      getStatusBadge={getStatusBadge}
+                    />
                   ))
                 )}
               </TableBody>
@@ -860,7 +956,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
           <DialogHeader>
             <DialogTitle>Trocar Categorias</DialogTitle>
             <DialogDescription>
-                              Selecione as novas categorias para {formatName(selectedRegistration?.user.name)}. 
+              Selecione as novas categorias para {formatName(selectedRegistration?.user.name)}. 
               A quantidade deve ser a mesma da inscrição original ({selectedRegistration?.categories?.length || 0} categoria{selectedRegistration?.categories?.length !== 1 ? 's' : ''}).
             </DialogDescription>
           </DialogHeader>
