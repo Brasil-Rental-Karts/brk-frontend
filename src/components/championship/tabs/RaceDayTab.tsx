@@ -2415,7 +2415,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleOpenBulkConfirmModal}>
-                  Gerenciar Participações em Massa
+                  Gerenciar Participações na Etapa
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
