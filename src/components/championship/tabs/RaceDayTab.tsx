@@ -249,8 +249,12 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
   // Novo estado para bateria selecionada
   const [selectedBatteryIndex, setSelectedBatteryIndex] = useState<number>(() => {
     // Se há parâmetro de bateria na URL, usar ele
-    if (urlBattery !== null) {
-      return Number(urlBattery);
+    if (urlBattery !== null && urlBattery !== '') {
+      const batteryIndex = Number(urlBattery);
+      // Validar se é um número válido e não negativo
+      if (!isNaN(batteryIndex) && batteryIndex >= 0) {
+        return batteryIndex;
+      }
     }
     return 0;
   });
@@ -290,6 +294,17 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
   
   // Estado para modal de confirmação em massa
   const [showBulkConfirmModal, setShowBulkConfirmModal] = useState(false);
+
+  // Atualizar selectedBatteryIndex quando a URL mudar
+  useEffect(() => {
+    if (urlBattery !== null && urlBattery !== '') {
+      const batteryIndex = Number(urlBattery);
+      // Validar se é um número válido e não negativo
+      if (!isNaN(batteryIndex) && batteryIndex >= 0) {
+        setSelectedBatteryIndex(batteryIndex);
+      }
+    }
+  }, [urlBattery]);
 
   // Cores fixas para cada piloto baseado no userId
   const getPilotColor = (userId: string): string => {
@@ -1160,10 +1175,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
 
   // Atualizar selectedBatteryIndex ao trocar de categoria
   useEffect(() => {
-    setSelectedBatteryIndex(0);
+    // Só resetar para 0 se não houver parâmetro de bateria na URL
+    if (!urlBattery || urlBattery === '') {
+      setSelectedBatteryIndex(0);
+    }
     // Fechar modal de importação quando mudar de categoria
     setShowImportModal(false);
-  }, [selectedOverviewCategory]);
+  }, [selectedOverviewCategory, urlBattery]);
 
 
 

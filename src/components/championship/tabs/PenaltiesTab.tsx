@@ -872,16 +872,16 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
       ) : (
         <Card className="w-full flex flex-col">
           <div className="flex-1 overflow-auto">
-            <Table>
+            <Table className="w-full">
               <TableHeader>
                 <TableRow>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 min-w-[200px]"
+                    className="cursor-pointer hover:bg-muted/50 w-[120px]"
                     onClick={() => handleSort("type")}
                   >
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4" />
-                      Tipo de Punição
+                      Tipo
                       {sortBy === "type" && (
                         <span className="text-xs">
                           {sortOrder === "asc" ? "↑" : "↓"}
@@ -890,7 +890,7 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
+                    className="cursor-pointer hover:bg-muted/50 w-[180px]"
                     onClick={() => handleSort("reason")}
                   >
                     <div className="flex items-center gap-2">
@@ -903,34 +903,16 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
                       )}
                     </div>
                   </TableHead>
-                  <TableHead className="text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      Temporada
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <UserX className="h-4 w-4" />
-                      Categoria
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      Etapa
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-center">
+                  <TableHead className="text-center w-[90px]">
                     <div className="flex items-center justify-center gap-2">
                       <UserX className="h-4 w-4" />
                       Piloto
                     </div>
                   </TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-center">Bateria</TableHead>
+                  <TableHead className="text-center w-[80px]">Status</TableHead>
+                  <TableHead className="text-center w-[70px]">Bateria</TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 text-center"
+                    className="cursor-pointer hover:bg-muted/50 text-center w-[100px]"
                     onClick={() => handleSort("createdAt")}
                   >
                     <div className="flex items-center justify-center gap-2">
@@ -943,25 +925,24 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
                       )}
                     </div>
                   </TableHead>
-                  <TableHead className="text-center">Recurso</TableHead>
-                  <TableHead className="text-center">Ações</TableHead>
+                  <TableHead className="text-center w-[60px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {processedPenalties.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Nenhuma punição encontrada com os filtros aplicados
                     </TableCell>
                   </TableRow>
                 ) : (
                   processedPenalties.map((penalty) => (
                     <TableRow key={penalty.id} className="hover:bg-muted/50">
-                      <TableCell className="py-4">
+                      <TableCell className="py-4 w-[120px]">
                         <div className="flex items-center gap-2">
                           {getPenaltyIcon(penalty.type)}
                           <div>
-                            <div className="font-medium">
+                            <div className="font-medium text-xs">
                               {PenaltyService.getPenaltyTypeLabel(penalty.type)}
                             </div>
                             {penalty.timePenaltySeconds && (
@@ -971,80 +952,62 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
                             )}
                             {penalty.positionPenalty && (
                               <div className="text-xs text-muted-foreground">
-                                {penalty.positionPenalty} posições
+                                {penalty.positionPenalty} pos
                               </div>
                             )}
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="py-4">
-                        <div className="max-w-xs truncate" title={penalty.reason}>
-                          {penalty.reason}
+                      <TableCell className="py-4 w-[180px]">
+                        <div className="space-y-1">
+                          <div className="max-w-[180px] truncate" title={penalty.reason}>
+                            {penalty.reason}
+                          </div>
+                          {/* Informações de contexto em tooltip */}
+                          <div className="text-xs text-muted-foreground">
+                            {penalty.seasonId && (
+                              <span title={contextSeasons.find(s => s.id === penalty.seasonId)?.name || 'N/A'}>
+                                {contextSeasons.find(s => s.id === penalty.seasonId)?.name || 'N/A'}
+                              </span>
+                            )}
+                            {penalty.categoryId && (
+                              <span title={contextCategories.find(c => c.id === penalty.categoryId)?.name || 'N/A'}>
+                                • {contextCategories.find(c => c.id === penalty.categoryId)?.name || 'N/A'}
+                              </span>
+                            )}
+                            {penalty.stageId && (
+                              <span title={contextStages.find(s => s.id === penalty.stageId)?.name || 'N/A'}>
+                                • {contextStages.find(s => s.id === penalty.stageId)?.name || 'N/A'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-center py-4">
-                        <div className="text-sm">
-                          {penalty.seasonId 
-                            ? contextSeasons.find(s => s.id === penalty.seasonId)?.name || 'N/A'
-                            : '-'
-                          }
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <div className="text-sm">
-                          {penalty.categoryId 
-                            ? contextCategories.find(c => c.id === penalty.categoryId)?.name || 'N/A'
-                            : '-'
-                          }
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <div className="text-sm">
-                          {penalty.stageId 
-                            ? contextStages.find(s => s.id === penalty.stageId)?.name || 'N/A'
-                            : '-'
-                          }
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <div className="font-medium">
+                      <TableCell className="text-center py-4 w-[90px]">
+                        <div className="font-medium truncate text-sm" title={formatName(penalty.user?.name || 'N/A')}>
                           {formatName(penalty.user?.name || 'N/A')}
                         </div>
                       </TableCell>
-                      <TableCell className="text-center py-4">
+                      <TableCell className="text-center py-4 w-[80px]">
                         <Badge className={PenaltyService.getPenaltyStatusColor(penalty.status)}>
                           {getStatusIcon(penalty.status)}
-                          <span className="ml-1">{PenaltyService.getPenaltyStatusLabel(penalty.status)}</span>
+                          <span className="ml-1 text-xs">{PenaltyService.getPenaltyStatusLabel(penalty.status)}</span>
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-center py-4">
-                        <div className="text-sm">
+                      <TableCell className="text-center py-4 w-[70px]">
+                        <div className="text-xs">
                           {penalty.batteryIndex !== undefined && penalty.batteryIndex !== null 
-                            ? `Bateria ${penalty.batteryIndex + 1}` 
+                            ? `B${penalty.batteryIndex + 1}` 
                             : '-'
                           }
                         </div>
                       </TableCell>
-                      <TableCell className="text-center py-4">
-                        <div className="text-sm">
+                      <TableCell className="text-center py-4 w-[100px]">
+                        <div className="text-xs">
                           {formatDate(penalty.createdAt)}
                         </div>
                       </TableCell>
-                      <TableCell className="text-center py-4">
-                        {penalty.appealReason ? (
-                          <div className="text-xs space-y-1">
-                            <div className="font-medium text-blue-600">
-                              Recorrido por {formatName(penalty.appealedByUser?.name || 'N/A')}
-                            </div>
-                            <div className="max-w-xs truncate" title={penalty.appealReason}>
-                              {penalty.appealReason}
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center py-4">
+                      <TableCell className="text-center py-4 w-[60px]">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8">

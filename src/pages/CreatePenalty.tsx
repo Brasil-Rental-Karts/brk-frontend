@@ -77,7 +77,7 @@ export const CreatePenalty = () => {
   const [stages, setStages] = useState<Stage[]>([]);
   const [pilots, setPilots] = useState<SeasonRegistration[]>([]);
   const [selectedStageId, setSelectedStageId] = useState<string>('');
-  const [categoryBatteries, setCategoryBatteries] = useState<{ value: number; description: string }[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
 
   // Usar o contexto de dados do campeonato
   const { getSeasons, getStages, getRegistrations, getCategories, getStageParticipations, addPenalty, updatePenalty } = useChampionshipData();
@@ -216,12 +216,12 @@ export const CreatePenalty = () => {
             stageId: penaltyData.stageId || '',
             categoryId: penaltyData.categoryId || '',
             userId: penaltyData.userId || '',
-            batteryIndex: penaltyData.batteryIndex !== undefined ? Number(penaltyData.batteryIndex) : '',
             type: penaltyData.type || PenaltyType.TIME_PENALTY,
             reason: penaltyData.reason || '',
             description: penaltyData.description || '',
             timePenaltySeconds: penaltyData.timePenaltySeconds ? String(penaltyData.timePenaltySeconds) : '',
             positionPenalty: penaltyData.positionPenalty ? String(penaltyData.positionPenalty) : '',
+            batteryIndex: penaltyData.batteryIndex !== undefined ? String(penaltyData.batteryIndex) : '',
 
           });
           
@@ -234,8 +234,6 @@ export const CreatePenalty = () => {
           }
           if (penaltyData.categoryId && penaltyData.seasonId) {
             await loadPilotsForCategory(penaltyData.categoryId, penaltyData.seasonId, penaltyData.stageId);
-            // Carregar baterias se há categoria selecionada
-            await loadBatteriesForCategory(penaltyData.categoryId);
           }
         } else {
           // Verificar se há parâmetros da URL para pré-preenchimento
@@ -248,6 +246,7 @@ export const CreatePenalty = () => {
             stageId: urlStageId || '',
             categoryId: urlCategoryId || '',
             userId: urlUserId || '',
+            batteryIndex: urlBatteryIndex || '',
           });
           
           // Se há parâmetros da URL, carregar dados dependentes
@@ -260,11 +259,6 @@ export const CreatePenalty = () => {
             }
             if (urlCategoryId && urlSeasonId) {
               await loadPilotsForCategory(urlCategoryId, urlSeasonId, urlStageId || undefined);
-              // Carregar baterias se há categoria selecionada
-              await loadBatteriesForCategory(urlCategoryId);
-              
-              // Aguardar um pouco para garantir que as baterias foram carregadas
-              await new Promise(resolve => setTimeout(resolve, 100));
             }
           }
         }
@@ -278,7 +272,7 @@ export const CreatePenalty = () => {
     };
     
     fetchSeasons();
-  }, [championshipId, isEditMode, penaltyData, urlSeasonId, urlStageId, urlCategoryId, urlUserId, urlBatteryIndex, getSeasons]);
+  }, [championshipId, isEditMode, penaltyData, urlSeasonId, urlStageId, urlCategoryId, urlUserId, urlBatteryIndex, returnBattery, getSeasons]);
 
   // Carregar etapas quando temporada for selecionada
   const loadStagesForSeason = useCallback(async (seasonId: string) => {
@@ -319,6 +313,7 @@ export const CreatePenalty = () => {
   const loadCategoriesForStage = useCallback(async (stageId: string) => {
     if (!stageId) {
       setCategories([]);
+      setSelectedCategory(null);
       return;
     }
     try {
@@ -329,6 +324,7 @@ export const CreatePenalty = () => {
       const selectedStage = allStages.find(stage => stage.id === stageId);
       if (!selectedStage) {
         setCategories([]);
+        setSelectedCategory(null);
         return;
       }
       
@@ -363,54 +359,21 @@ export const CreatePenalty = () => {
     }
   }, [getStages, getCategories]);
 
-  // Carregar baterias quando categoria for selecionada
-  const loadBatteriesForCategory = useCallback(async (categoryId: string) => {
-    if (!categoryId) {
-      setCategoryBatteries([]);
-      return;
-    }
-    try {
-      // Buscar a categoria do contexto em vez do backend
-      const allCategories = getCategories();
-      const categoryRes = allCategories.find(cat => cat.id === categoryId);
-      
-      if (categoryRes && categoryRes.batteriesConfig) {
-        const batteryOptions = categoryRes.batteriesConfig.map((battery, index) => ({
-          value: index,
-          description: battery.name
-        }));
-        setCategoryBatteries(batteryOptions);
-        
-        // Atualizar opções de bateria no formulário
-        setFormConfig(prevConfig => 
-          prevConfig.map(section => {
-            if (section.section === "Contexto da Punição") {
-              return {
-                ...section,
-                fields: section.fields.map(field => {
-                  if (field.id === 'batteryIndex') {
-                    return { ...field, options: batteryOptions };
-                  }
-                  return field;
-                })
-              };
-            }
-            return section;
-          })
-        );
-      }
-    } catch (err: any) {
-      console.error('Erro ao carregar baterias:', err);
-    }
-  }, [getCategories]);
+
 
   // Carregar pilotos quando categoria for selecionada
   const loadPilotsForCategory = useCallback(async (categoryId: string, seasonId: string, stageId?: string) => {
     if (!categoryId || !seasonId) {
       setPilots([]);
+      setSelectedCategory(null);
       return;
     }
     try {
+      // Buscar a categoria selecionada para obter as baterias
+      const allCategories = getCategories();
+      const selectedCategoryData = allCategories.find(cat => cat.id === categoryId);
+      setSelectedCategory(selectedCategoryData || null);
+      
       // Usar inscrições do contexto em vez de buscar do backend
       const allRegistrations = getRegistrations();
       const registrationsRes = allRegistrations.filter(reg => reg.seasonId === seasonId);
@@ -472,7 +435,7 @@ export const CreatePenalty = () => {
     } catch (err: any) {
       console.error('Erro ao carregar pilotos:', err);
     }
-  }, [selectedStageId, getRegistrations, getStages, getStageParticipations]);
+  }, [selectedStageId, getRegistrations, getStages, getStageParticipations, getCategories]);
 
   // Event handlers para mudanças de campo
   const onFieldChange = useCallback(async (fieldId: string, value: any, formData: any, formActions: { setValue: (name: string, value: any) => void }) => {
@@ -482,18 +445,22 @@ export const CreatePenalty = () => {
         formActions.setValue('stageId', '');
         formActions.setValue('categoryId', '');
         formActions.setValue('userId', '');
+        formActions.setValue('batteryIndex', '');
       }
       setSelectedStageId('');
+      setSelectedCategory(null);
       await loadStagesForSeason(value);
     }
     
     if (fieldId === 'stageId') {
-      // Resetar categoria e piloto
+      // Resetar categoria, piloto e bateria
       if (formActions.setValue) {
         formActions.setValue('categoryId', '');
         formActions.setValue('userId', '');
+        formActions.setValue('batteryIndex', '');
       }
       setSelectedStageId(value);
+      setSelectedCategory(null);
       await loadCategoriesForStage(value);
       
       // Se já há uma categoria selecionada, recarregar os pilotos para a nova etapa
@@ -509,51 +476,10 @@ export const CreatePenalty = () => {
         formActions.setValue('batteryIndex', '');
       }
       await loadPilotsForCategory(value, formData.seasonId, formData.stageId);
-      await loadBatteriesForCategory(value);
     }
-  }, [loadStagesForSeason, loadCategoriesForStage, loadPilotsForCategory, loadBatteriesForCategory]);
+  }, [loadStagesForSeason, loadCategoriesForStage, loadPilotsForCategory]);
 
-  // Efeito para definir o valor da bateria quando as opções são carregadas
-  useEffect(() => {
-    if (categoryBatteries.length > 0) {
-      // Determinar o valor da bateria baseado no modo (edição ou URL params)
-      const batteryValue = isEditMode && penaltyData?.batteryIndex !== undefined 
-        ? Number(penaltyData.batteryIndex) 
-        : urlBatteryIndex !== null 
-          ? Number(urlBatteryIndex) 
-          : null;
-      
-      if (batteryValue !== null) {
-        // Atualizar os valores iniciais para incluir a bateria
-        setInitialValues(prev => ({
-          ...prev,
-          batteryIndex: batteryValue
-        }));
-        
-        // Também atualizar o formConfig para garantir que as opções estão disponíveis
-        setFormConfig(prevConfig => 
-          prevConfig.map(section => {
-            if (section.section === "Contexto da Punição") {
-              return {
-                ...section,
-                fields: section.fields.map(field => {
-                  if (field.id === 'batteryIndex') {
-                    return { 
-                      ...field, 
-                      options: categoryBatteries,
-                      defaultValue: batteryValue
-                    };
-                  }
-                  return field;
-                })
-              };
-            }
-            return section;
-          })
-        );
-      }
-    }
-  }, [categoryBatteries, urlBatteryIndex, isEditMode, penaltyData]);
+
 
   // Transformar dados para envio
   const transformSubmitData = useCallback((data: any) => {
@@ -570,9 +496,7 @@ export const CreatePenalty = () => {
     if (!data.userId) {
       throw new Error('Selecione o piloto.');
     }
-    if (data.batteryIndex === undefined || data.batteryIndex === null || data.batteryIndex === '') {
-      throw new Error('Selecione a bateria.');
-    }
+
     if (!data.type) {
       throw new Error('Selecione o tipo de punição.');
     }
@@ -605,13 +529,15 @@ export const CreatePenalty = () => {
       delete cleanData.positionPenalty;
     }
     
-
-    
-    if (cleanData.batteryIndex !== undefined && cleanData.batteryIndex !== null && cleanData.batteryIndex !== '') {
+    if (cleanData.batteryIndex) {
       cleanData.batteryIndex = Number(cleanData.batteryIndex);
     } else {
       delete cleanData.batteryIndex;
     }
+
+
+    
+
     
 
     if (!cleanData.description) delete cleanData.description;
@@ -627,14 +553,18 @@ export const CreatePenalty = () => {
 
 
     return cleanData;
-  }, []);
+  }, [championshipId]);
 
   const onSuccess = useCallback(() => {
     let returnUrl = `/championship/${championshipId}?tab=${returnTab}`;
     
     // Se há parâmetros de retorno específicos, incluí-los na URL
-    if (returnSeason && returnStage && returnCategory && returnBattery) {
-      returnUrl += `&season=${returnSeason}&stage=${returnStage}&category=${returnCategory}&battery=${returnBattery}`;
+    if (returnSeason && returnStage && returnCategory) {
+      returnUrl += `&season=${returnSeason}&stage=${returnStage}&category=${returnCategory}`;
+      // Adicionar parâmetro de bateria se disponível
+      if (returnBattery) {
+        returnUrl += `&battery=${returnBattery}`;
+      }
     }
     
     navigate(returnUrl);
@@ -644,8 +574,12 @@ export const CreatePenalty = () => {
     let returnUrl = `/championship/${championshipId}?tab=${returnTab}`;
     
     // Se há parâmetros de retorno específicos, incluí-los na URL
-    if (returnSeason && returnStage && returnCategory && returnBattery) {
-      returnUrl += `&season=${returnSeason}&stage=${returnStage}&category=${returnCategory}&battery=${returnBattery}`;
+    if (returnSeason && returnStage && returnCategory) {
+      returnUrl += `&season=${returnSeason}&stage=${returnStage}&category=${returnCategory}`;
+      // Adicionar parâmetro de bateria se disponível
+      if (returnBattery) {
+        returnUrl += `&battery=${returnBattery}`;
+      }
     }
     
     navigate(returnUrl);
@@ -660,7 +594,50 @@ export const CreatePenalty = () => {
     }
   }, [isEditMode, penaltyId, createPenaltyHook, updatePenaltyHook]);
 
-
+  // Atualizar opções de bateria quando categoria for selecionada
+  useEffect(() => {
+    if (selectedCategory && selectedCategory.batteriesConfig) {
+      const batteryOptions = selectedCategory.batteriesConfig.map((battery, index) => ({
+        value: String(index),
+        description: battery.name
+      }));
+      
+      setFormConfig(prevConfig => 
+        prevConfig.map(section => {
+          if (section.section === "Contexto da Punição") {
+            return {
+              ...section,
+              fields: section.fields.map(field => {
+                if (field.id === 'batteryIndex') {
+                  return { ...field, options: batteryOptions };
+                }
+                return field;
+              })
+            };
+          }
+          return section;
+        })
+      );
+    } else {
+      // Limpar opções de bateria quando não há categoria selecionada
+      setFormConfig(prevConfig => 
+        prevConfig.map(section => {
+          if (section.section === "Contexto da Punição") {
+            return {
+              ...section,
+              fields: section.fields.map(field => {
+                if (field.id === 'batteryIndex') {
+                  return { ...field, options: [] };
+                }
+                return field;
+              })
+            };
+          }
+          return section;
+        })
+      );
+    }
+  }, [selectedCategory]);
 
   // Verificar se o usuário está autenticado
   if (!isAuthenticated) {
