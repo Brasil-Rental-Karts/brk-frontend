@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Button } from "brk-design-system";
 import { Card, CardHeader, CardContent } from "brk-design-system";
 import { Badge } from "brk-design-system";
@@ -43,6 +43,7 @@ import { PilotDetailsModal } from "../pilots/PilotDetailsModal";
 import { InlineLoader } from '@/components/ui/loading';
 import { Loading } from '@/components/ui/loading';
 import { formatName } from '@/utils/name';
+import { usePagination } from '@/hooks/usePagination';
 
 interface PilotsTabProps {
   championshipId: string;
@@ -318,10 +319,10 @@ const PilotTableRow = ({
 // Hook personalizado para gerenciar filtros e ordenação
 const usePilotsFilters = () => {
   const [filters, setFilters] = useState<FilterValues>({});
-  const [sortBy, setSortBy] = useState<keyof SeasonRegistration>("createdAt");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [sortBy, setSortBy] = useState<string>("user.name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
-  const handleSort = useCallback((column: keyof SeasonRegistration) => {
+  const handleSort = useCallback((column: string) => {
     setSortBy(prevSortBy => {
       if (prevSortBy === column) {
         setSortOrder(prevOrder => (prevOrder === 'asc' ? 'desc' : 'asc'));
@@ -342,57 +343,6 @@ const usePilotsFilters = () => {
     sortOrder,
     handleSort,
     handleFiltersChange
-  };
-};
-
-// Hook personalizado para gerenciar paginação
-const usePagination = (totalItems: number, isMobile: boolean) => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [mobilePage, setMobilePage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const mobileItemsPerPage = 5;
-
-  const paginationInfo = useMemo(() => {
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-    const hasNextPage = currentPage < totalPages;
-    const hasPreviousPage = currentPage > 1;
-
-    return {
-      totalPages,
-      startIndex,
-      endIndex,
-      hasNextPage,
-      hasPreviousPage
-    };
-  }, [totalItems, currentPage, itemsPerPage]);
-
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-  }, []);
-
-  const handleItemsPerPageChange = useCallback((items: number) => {
-    setItemsPerPage(items);
-    setCurrentPage(1);
-  }, []);
-
-  return {
-    currentPage,
-    itemsPerPage,
-    mobilePage,
-    hasMore,
-    loadingMore,
-    setLoadingMore,
-    setHasMore,
-    setMobilePage,
-    setCurrentPage,
-    paginationInfo,
-    handlePageChange,
-    handleItemsPerPageChange,
-    mobileItemsPerPage
   };
 };
 
@@ -435,41 +385,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
 
   // Usar hooks personalizados
   const { filters, sortBy, sortOrder, handleSort, handleFiltersChange } = usePilotsFilters();
-  const { 
-    currentPage, 
-    itemsPerPage, 
-    mobilePage, 
-    hasMore, 
-    loadingMore, 
-    setLoadingMore, 
-    setHasMore, 
-    setMobilePage, 
-    setCurrentPage,
-    paginationInfo, 
-    handlePageChange, 
-    handleItemsPerPageChange, 
-    mobileItemsPerPage 
-  } = usePagination(contextRegistrations.length, isMobile);
-
-  // Memoizar a configuração dos filtros para evitar re-renders
-  const seasonOptions = useMemo(() => [
-    { value: 'all', label: 'Todas as temporadas' },
-    ...contextSeasons.map((season: any) => ({
-      value: season.id,
-      label: season.name
-    }))
-  ], [contextSeasons]);
-
-  const categoryOptions = useMemo(() => [
-    { value: 'all', label: 'Todas as categorias' },
-    ...contextCategories.map((category: any) => ({
-      value: category.id,
-      label: category.name
-    }))
-  ], [contextCategories]);
-
-  const filterFields = useMemo(() => createFilterFields(seasonOptions, categoryOptions), [seasonOptions, categoryOptions]);
-
+  
   // Usar inscrições do contexto e aplicar filtros
   const processedRegistrations = useMemo(() => {
     let result = [...contextRegistrations];
@@ -492,8 +408,36 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
       }
 
       // Filtro por status do pagamento
-      if (filters.paymentStatus && filters.paymentStatus !== 'all' && registration.paymentStatus !== filters.paymentStatus) {
-        return false;
+      if (filters.paymentStatus && filters.paymentStatus !== 'all') {
+        // Verificação especial para filtro "overdue" - incluir pilotos com parcelas vencidas
+        if (filters.paymentStatus === 'overdue') {
+          // Verificar se o status do pagamento é 'overdue' OU se há parcelas vencidas
+          const hasOverdueStatus = registration.paymentStatus === 'overdue';
+          const hasOverduePayments = registration.payments?.some(payment => payment.status === 'OVERDUE');
+          
+          if (!hasOverdueStatus && !hasOverduePayments) {
+            return false;
+          }
+        } 
+        // Verificação especial para filtro "pending" - incluir pilotos com parcelas pendentes (sem parcelas vencidas)
+        else if (filters.paymentStatus === 'pending') {
+          // Verificar se o status do pagamento é 'pending' OU se há parcelas pendentes (sem vencidas)
+          const hasPendingStatus = registration.paymentStatus === 'pending';
+          const hasPendingPayments = registration.payments?.some(payment => 
+            ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(payment.status)
+          );
+          const hasOverduePayments = registration.payments?.some(payment => payment.status === 'OVERDUE');
+          
+          // Só incluir se tem status pending OU tem parcelas pendentes E não tem parcelas vencidas
+          if (!hasPendingStatus && (!hasPendingPayments || hasOverduePayments)) {
+            return false;
+          }
+        } else {
+          // Para outros filtros, usar a lógica original
+          if (registration.paymentStatus !== filters.paymentStatus) {
+            return false;
+          }
+        }
       }
 
       return true;
@@ -501,13 +445,27 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
 
     // Aplicar ordenação
     result.sort((a, b) => {
-      let aValue: any = a[sortBy];
-      let bValue: any = b[sortBy];
+      let aValue: any;
+      let bValue: any;
 
-      if (sortBy === 'createdAt') {
-        aValue = new Date(aValue);
-        bValue = new Date(bValue);
-      } else if (typeof aValue === 'string') {
+      // Obter valores baseado no campo de ordenação
+      if (sortBy === 'user.name') {
+        aValue = a.user?.name || '';
+        bValue = b.user?.name || '';
+      } else if (sortBy === 'createdAt') {
+        aValue = new Date(a.createdAt);
+        bValue = new Date(b.createdAt);
+      } else if (sortBy === 'paymentStatus') {
+        aValue = a.paymentStatus || '';
+        bValue = b.paymentStatus || '';
+      } else {
+        // Fallback para outros campos
+        aValue = (a as any)[sortBy] || '';
+        bValue = (b as any)[sortBy] || '';
+      }
+
+      // Converter para string e normalizar para comparação
+      if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
@@ -520,11 +478,39 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     return result;
   }, [contextRegistrations, filters, sortBy, sortOrder]);
 
+  // Hook de paginação usando os dados filtrados
+  const pagination = usePagination(processedRegistrations.length, 10, 1);
+  
+  // Estados para mobile (scroll infinito)
+  const [mobilePage, setMobilePage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const mobileItemsPerPage = 5;
+
+  // Memoizar a configuração dos filtros para evitar re-renders
+  const seasonOptions = useMemo(() => [
+    { value: 'all', label: 'Todas as temporadas' },
+    ...contextSeasons.map((season: any) => ({
+      value: season.id,
+      label: season.name
+    }))
+  ], [contextSeasons]);
+
+  const categoryOptions = useMemo(() => [
+    { value: 'all', label: 'Todas as categorias' },
+    ...contextCategories.map((category: any) => ({
+      value: category.id,
+      label: category.name
+    }))
+  ], [contextCategories]);
+
+  const filterFields = useMemo(() => createFilterFields(seasonOptions, categoryOptions), [seasonOptions, categoryOptions]);
+
   // --- Lógica para Desktop (Paginação) ---
   const paginatedDesktopRegistrations = useMemo(() => {
     if (isMobile) return [];
-    return processedRegistrations.slice(paginationInfo.startIndex, paginationInfo.endIndex);
-  }, [isMobile, processedRegistrations, paginationInfo.startIndex, paginationInfo.endIndex]);
+    return processedRegistrations.slice(pagination.info.startIndex, pagination.info.endIndex);
+  }, [isMobile, processedRegistrations, pagination.info.startIndex, pagination.info.endIndex]);
 
   // --- Lógica para Mobile (Scroll Infinito) ---
   useEffect(() => {
@@ -560,9 +546,16 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
   // Resetar página quando filtros mudarem
   useEffect(() => {
     if (!isMobile) {
-      setCurrentPage(1);
+      pagination.actions.goToFirstPage();
     }
   }, [filters, sortBy, sortOrder, isMobile]);
+
+  // Scroll ao topo quando a página mudar
+  useEffect(() => {
+    if (!isMobile) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [pagination.state.currentPage, isMobile]);
 
   const handleRegistrationAction = async (action: string, registrationId: string) => {
     const registration = contextRegistrations.find((r: SeasonRegistration) => r.id === registrationId);
@@ -718,11 +711,11 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         };
       });
 
-      // Ordenar por categoria
+      // Ordenar por nome do piloto (alfabeticamente)
       exportData.sort((a, b) => {
-        const categoryA = a['Categorias'] || '';
-        const categoryB = b['Categorias'] || '';
-        return categoryA.localeCompare(categoryB, 'pt-BR');
+        const nameA = a['Nome do Piloto'] || '';
+        const nameB = b['Nome do Piloto'] || '';
+        return nameA.localeCompare(nameB, 'pt-BR');
       });
 
       // Criar workbook e worksheet
@@ -870,10 +863,18 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="min-w-[200px]">
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 min-w-[200px]"
+                    onClick={() => handleSort("user.name")}
+                  >
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4" />
                       Piloto
+                      {sortBy === "user.name" && (
+                        <span className="text-xs">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
                     </div>
                   </TableHead>
                   <TableHead className="text-center">Temporada</TableHead>
@@ -934,16 +935,16 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
           {processedRegistrations.length > 0 && (
             <div className="flex-shrink-0">
               <Pagination
-                currentPage={currentPage}
-                totalPages={paginationInfo.totalPages}
-                itemsPerPage={itemsPerPage}
+                currentPage={pagination.state.currentPage}
+                totalPages={pagination.info.totalPages}
+                itemsPerPage={pagination.state.itemsPerPage}
                 totalItems={processedRegistrations.length}
-                startIndex={paginationInfo.startIndex}
-                endIndex={paginationInfo.endIndex}
-                hasNextPage={paginationInfo.hasNextPage}
-                hasPreviousPage={paginationInfo.hasPreviousPage}
-                onPageChange={handlePageChange}
-                onItemsPerPageChange={handleItemsPerPageChange}
+                startIndex={pagination.info.startIndex}
+                endIndex={pagination.info.endIndex}
+                hasNextPage={pagination.info.hasNextPage}
+                hasPreviousPage={pagination.info.hasPreviousPage}
+                onPageChange={pagination.actions.setCurrentPage}
+                onItemsPerPageChange={pagination.actions.setItemsPerPage}
               />
             </div>
           )}

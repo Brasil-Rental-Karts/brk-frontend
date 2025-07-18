@@ -99,6 +99,26 @@ const PaymentInfo = ({ registration }: PaymentInfoProps) => {
         ].includes(p.status as AsaasPaymentStatus),
     ).length;
     const totalInstallments = registration.payments.length;
+    
+    // Verificar se há parcelas vencidas
+    const overduePayments = registration.payments.filter(
+      (p: RegistrationPaymentData) => p.status === AsaasPaymentStatus.OVERDUE
+    );
+
+    // Se há parcelas vencidas, mostrar status "Vencido"
+    if (overduePayments.length > 0) {
+      return (
+        <div className="flex flex-col items-start gap-1">
+          <Badge variant="destructive" className="flex items-center gap-1">
+            {getPaymentMethodIcon(registration.paymentMethod)}
+            Vencido ({overduePayments.length} parcela{overduePayments.length > 1 ? 's' : ''})
+          </Badge>
+          <Badge variant="outline" className="text-xs">
+            {totalPaid}/{totalInstallments} pagas
+          </Badge>
+        </div>
+      );
+    }
 
     if (totalPaid === totalInstallments) {
       return (

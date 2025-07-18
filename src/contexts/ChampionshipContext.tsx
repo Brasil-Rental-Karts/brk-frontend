@@ -1505,42 +1505,42 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   // Carregar kartódromos quando o championshipId mudar
   useEffect(() => {
     if (championshipId) {
-      const shouldFetchRaceTracks = Object.keys(championshipData.raceTracks).length === 0;
+      const shouldFetchRaceTracks = Object.keys(championshipData.raceTracks).length === 0 && !hasFetchedRaceTracks.current;
       if (shouldFetchRaceTracks) {
         fetchRaceTracks();
       }
     }
-  }, [championshipId, championshipData.raceTracks]);
+  }, [championshipId, Object.keys(championshipData.raceTracks).length]);
 
   // Carregar staff quando o championshipId mudar
   useEffect(() => {
     if (championshipId) {
-      const shouldFetchStaff = championshipData.staff.length === 0;
+      const shouldFetchStaff = championshipData.staff.length === 0 && !hasFetchedStaff.current;
       if (shouldFetchStaff) {
         fetchStaff();
       }
     }
-  }, [championshipId, championshipData.staff]);
+  }, [championshipId, championshipData.staff.length]);
 
   // Carregar inscrições quando o championshipId mudar
   useEffect(() => {
     if (championshipId) {
-      const shouldFetchRegistrations = championshipData.registrations.length === 0;
+      const shouldFetchRegistrations = championshipData.registrations.length === 0 && !hasFetchedRegistrations.current;
       if (shouldFetchRegistrations) {
         fetchRegistrations();
       }
     }
-  }, [championshipId, fetchRegistrations]);
+  }, [championshipId, championshipData.registrations.length]);
 
   // Carregar penalidades quando o championshipId mudar
   useEffect(() => {
     if (championshipId) {
-      const shouldFetchPenalties = championshipData.penalties.length === 0;
+      const shouldFetchPenalties = championshipData.penalties.length === 0 && !hasFetchedPenalties.current;
       if (shouldFetchPenalties) {
         fetchPenalties();
       }
     }
-  }, [championshipId, fetchPenalties]);
+  }, [championshipId, championshipData.penalties.length]);
 
   // Carregar classificações quando o championshipId mudar ou seasons mudar
   useEffect(() => {
@@ -1552,7 +1552,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         }
       });
     }
-  }, [championshipId, championshipData.seasons, fetchClassification]);
+  }, [championshipId, championshipData.seasons]);
 
   // Carregar regulamentos quando o championshipId mudar
   useEffect(() => {
@@ -1580,14 +1580,14 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         fetchStageParticipations();
       }
     }
-  }, [championshipId, championshipData.stages.length, fetchStageParticipations]);
+  }, [championshipId, championshipData.stages.length]);
 
   // Carregar dados do campeonato quando o championshipId mudar
   useEffect(() => {
     if (championshipId) {
       fetchChampionshipInfo();
     }
-  }, [championshipId, fetchChampionshipInfo]);
+  }, [championshipId]);
 
   // Carregar grid types e scoring systems quando o championshipId mudar
   useEffect(() => {
@@ -1612,7 +1612,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         fetchAsaasStatus();
       }
     }
-  }, [championshipId, championshipData.asaasStatus, fetchAsaasStatus]);
+  }, [championshipId, championshipData.asaasStatus]);
 
   const value: ChampionshipContextType = {
     championshipId,
