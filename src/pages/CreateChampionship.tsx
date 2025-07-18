@@ -161,7 +161,7 @@ export const CreateChampionship = () => {
   }, [loadCities]);
 
   const transformSubmitData = useCallback((data: any): ChampionshipData => {
-    console.log('🔍 CreateChampionship: transformSubmitData - dados recebidos:', data);
+
     
     // Validar campos obrigatórios
     const requiredFields = ['name', 'document', 'cep', 'state', 'city', 'fullAddress', 'number'];
@@ -169,7 +169,7 @@ export const CreateChampionship = () => {
     
     if (missingFields.length > 0) {
       console.error('❌ CreateChampionship: Campos obrigatórios faltando:', missingFields);
-      console.log('🔍 CreateChampionship: Dados recebidos:', data);
+
       // Não vamos lançar erro por enquanto, apenas logar
       // throw new Error(`Campos obrigatórios faltando: ${missingFields.join(', ')}`);
     }

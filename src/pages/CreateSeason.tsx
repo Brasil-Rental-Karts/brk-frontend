@@ -131,8 +131,7 @@ export const CreateSeason = () => {
   }, []);
 
   const transformInitialData = useCallback((data: any) => {
-    console.log('🔍 CreateSeason: transformInitialData - data.startDate:', data.startDate, typeof data.startDate);
-    console.log('🔍 CreateSeason: transformInitialData - data.endDate:', data.endDate, typeof data.endDate);
+
     
     // Verificar se as datas são válidas antes de formatar
     const formatDateSafely = (dateValue: any): string => {
@@ -218,13 +217,13 @@ export const CreateSeason = () => {
       const seasonFromContext = seasons.find(s => s.id === seasonId);
       
       if (seasonFromContext) {
-        console.log('✅ CreateSeason: Temporada encontrada no contexto:', seasonFromContext.name);
+
         return seasonFromContext;
       } else {
-        console.log('⚠️ CreateSeason: Temporada não encontrada no contexto, buscando no backend...');
+        
         // Fallback para backend se não encontrar no contexto
         const season = await SeasonService.getById(seasonId);
-        console.log('✅ CreateSeason: Temporada carregada do backend:', season.name);
+        
         return season;
       }
     } catch (err: any) {
@@ -234,25 +233,25 @@ export const CreateSeason = () => {
   }, [isEditMode, seasonId, getSeasons]);
   
   const createData = useCallback(async (data: SeasonData) => {
-    console.log('🔍 CreateSeason: Criando nova temporada...');
+    
     const createdSeason = await SeasonService.create(data);
-    console.log('✅ CreateSeason: Temporada criada com sucesso:', createdSeason.name);
+    
     
     // Atualizar o contexto com a nova temporada
     addSeason(createdSeason);
-    console.log('✅ CreateSeason: Contexto atualizado com nova temporada');
+    
     
     return createdSeason;
   }, [addSeason]);
   
   const updateData = useCallback(async (id: string, data: SeasonData) => {
-    console.log('🔍 CreateSeason: Atualizando temporada existente...');
+    
     const updatedSeason = await SeasonService.update(id, data);
-    console.log('✅ CreateSeason: Temporada atualizada com sucesso:', updatedSeason.name);
+    
     
     // Atualizar o contexto com a temporada atualizada
     updateSeason(id, updatedSeason);
-    console.log('✅ CreateSeason: Contexto atualizado com temporada modificada');
+    
     
     return updatedSeason;
   }, [updateSeason]);

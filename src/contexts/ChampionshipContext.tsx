@@ -330,7 +330,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   const fetchSeasons = useCallback(async () => {
     if (!championshipId || loadingRef.current.seasons) return;
     
-    console.log('🔍 ChampionshipContext: Iniciando busca de temporadas para championshipId:', championshipId);
+
     loadingRef.current.seasons = true;
     setLoading(prev => ({ ...prev, seasons: true }));
     setError(prev => ({ ...prev, seasons: null }));
@@ -347,7 +347,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         },
       }));
       hasFetchedSeasons.current = true;
-      console.log('✅ ChampionshipContext: Temporadas carregadas com sucesso:', seasonsData.data.length, 'temporadas');
+
     } catch (err: any) {
       console.error('❌ ChampionshipContext: Erro ao carregar temporadas:', err);
       setError(prev => ({ ...prev, seasons: err.message || 'Erro ao carregar temporadas' }));
@@ -361,7 +361,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   const fetchCategories = useCallback(async () => {
     if (!championshipId || loadingRef.current.categories) return;
     
-    console.log('🔍 ChampionshipContext: Iniciando busca de categorias para championshipId:', championshipId);
+
     loadingRef.current.categories = true;
     setLoading(prev => ({ ...prev, categories: true }));
     setError(prev => ({ ...prev, categories: null }));
@@ -393,7 +393,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         },
       }));
       hasFetchedCategories.current = true;
-      console.log('✅ ChampionshipContext: Categorias carregadas com sucesso:', uniqueCategories.length, 'categorias');
+
     } catch (err: any) {
       console.error('❌ ChampionshipContext: Erro ao carregar categorias:', err);
       setError(prev => ({ ...prev, categories: err.message || 'Erro ao carregar categorias' }));
@@ -406,14 +406,11 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   // Função para buscar etapas
   const fetchStages = useCallback(async () => {
     if (!championshipId || loadingRef.current.stages) {
-      console.log('🔍 ChampionshipContext: fetchStages ignorado', {
-        championshipId,
-        loadingStages: loadingRef.current.stages
-      });
+      
       return;
     }
     
-    console.log('🔍 ChampionshipContext: Iniciando busca de etapas para championshipId:', championshipId);
+
     loadingRef.current.stages = true;
     setLoading(prev => ({ ...prev, stages: true }));
     setError(prev => ({ ...prev, stages: null }));
@@ -424,16 +421,16 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       // Buscar etapas de todas as temporadas
       for (const season of championshipData.seasons) {
         try {
-          console.log(`🔍 ChampionshipContext: Buscando etapas da temporada ${season.id}...`);
+  
           const stages = await StageService.getBySeasonId(season.id);
           allStages.push(...stages);
-          console.log(`✅ ChampionshipContext: ${stages.length} etapas encontradas para temporada ${season.id}`);
+          
         } catch (err) {
           console.error(`Erro ao buscar etapas da temporada ${season.id}:`, err);
         }
       }
       
-      console.log(`✅ ChampionshipContext: Total de ${allStages.length} etapas carregadas`);
+
       
       setChampionshipData(prev => ({
         ...prev,
@@ -457,7 +454,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   const fetchRaceTracks = useCallback(async () => {
     if (!championshipId || loadingRef.current.raceTracks) return;
     
-    console.log('🔍 ChampionshipContext: Iniciando busca de kartódromos para championshipId:', championshipId);
+
     loadingRef.current.raceTracks = true;
     setLoading(prev => ({ ...prev, raceTracks: true }));
     setError(prev => ({ ...prev, raceTracks: null }));
@@ -481,7 +478,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         },
       }));
       hasFetchedRaceTracks.current = true;
-      console.log('✅ ChampionshipContext: Kartódromos carregados com sucesso:', Object.keys(raceTracksData).length, 'kartódromos');
+
     } catch (err: any) {
       console.error('❌ ChampionshipContext: Erro ao carregar kartódromos:', err);
       setError(prev => ({ ...prev, raceTracks: err.message || 'Erro ao carregar kartódromos' }));
@@ -495,7 +492,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   const fetchStaff = useCallback(async () => {
     if (!championshipId || loadingRef.current.staff) return;
     
-    console.log('🔍 ChampionshipContext: Iniciando busca de staff para championshipId:', championshipId);
+
     loadingRef.current.staff = true;
     setLoading(prev => ({ ...prev, staff: true }));
     setError(prev => ({ ...prev, staff: null }));
@@ -511,7 +508,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         },
       }));
       hasFetchedStaff.current = true;
-      console.log('✅ ChampionshipContext: Staff carregado com sucesso:', staffData.length, 'membros');
+
     } catch (err: any) {
       console.error('❌ ChampionshipContext: Erro ao carregar staff:', err);
       setError(prev => ({ ...prev, staff: err.message || 'Erro ao carregar staff' }));
@@ -525,7 +522,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   const fetchRegistrations = useCallback(async () => {
     if (!championshipId || loadingRef.current.registrations) return;
     
-    console.log('🔍 ChampionshipContext: Iniciando busca de inscrições para championshipId:', championshipId);
+
     loadingRef.current.registrations = true;
     setLoading(prev => ({ ...prev, registrations: true }));
     setError(prev => ({ ...prev, registrations: null }));
@@ -542,7 +539,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         },
       }));
       hasFetchedRegistrations.current = true;
-      console.log('✅ ChampionshipContext: Inscrições carregadas com sucesso:', registrationsData.length, 'inscrições');
+
     } catch (err: any) {
       console.error('❌ ChampionshipContext: Erro ao carregar inscrições:', err);
       setError(prev => ({ ...prev, registrations: err.message || 'Erro ao carregar inscrições' }));
@@ -556,7 +553,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   const fetchPenalties = useCallback(async () => {
     if (!championshipId || loadingRef.current.penalties) return;
     
-    console.log('🔍 ChampionshipContext: Iniciando busca de penalidades para championshipId:', championshipId);
+
     loadingRef.current.penalties = true;
     setLoading(prev => ({ ...prev, penalties: true }));
     setError(prev => ({ ...prev, penalties: null }));
@@ -572,7 +569,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         },
       }));
       hasFetchedPenalties.current = true;
-      console.log('✅ ChampionshipContext: Penalidades carregadas com sucesso:', penaltiesData.length, 'penalidades');
+
     } catch (err: any) {
       console.error('❌ ChampionshipContext: Erro ao carregar penalidades:', err);
       setError(prev => ({ ...prev, penalties: err.message || 'Erro ao carregar penalidades' }));
@@ -916,7 +913,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
 
   // Funções de atualização específicas para temporadas
   const addSeason = useCallback((season: Season) => {
-    console.log('🔍 ChampionshipContext: addSeason chamada com:', season);
+
     setChampionshipData(prev => {
       const newData = {
         ...prev,
@@ -926,13 +923,13 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
           seasons: new Date(),
         },
       };
-      console.log('✅ ChampionshipContext: Temporada adicionada ao contexto:', newData.seasons.length, 'temporadas');
+      
       return newData;
     });
   }, []);
 
   const updateSeason = useCallback((seasonId: string, updatedSeason: Partial<Season>) => {
-    console.log('🔍 ChampionshipContext: updateSeason chamada com:', { seasonId, updatedSeason });
+
     setChampionshipData(prev => {
       const newData = {
         ...prev,
@@ -944,7 +941,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
           seasons: new Date(),
         },
       };
-      console.log('✅ ChampionshipContext: Temporada atualizada no contexto:', newData.seasons.length, 'temporadas');
+      
       return newData;
     });
   }, []);
@@ -1377,7 +1374,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
 
   // Função para limpar cache
   const clearCache = useCallback(() => {
-    console.log('🧹 ChampionshipContext: Limpando cache...');
+
     
     setChampionshipData({
       championshipInfo: null,
@@ -1457,23 +1454,23 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     hasFetchedPenalties.current = false;
     fetchedClassificationSeasons.current.clear(); // Limpar temporadas já buscadas
     
-    console.log('✅ ChampionshipContext: Cache limpo com sucesso');
+    
   }, []);
 
   // Função para definir o championshipId
   const setChampionshipIdHandler = useCallback((id: string | null) => {
-    console.log('🔍 ChampionshipContext: setChampionshipId chamado com:', id);
+
     if (id !== championshipId) {
-      console.log('🔍 ChampionshipContext: championshipId mudando de', championshipId, 'para', id);
+      
       setChampionshipId(id);
     } else {
-      console.log('🔍 ChampionshipContext: championshipId não mudou, mantendo:', id);
+      
     }
   }, [championshipId]);
 
   // Carregar dados quando o championshipId mudar
   useEffect(() => {
-    console.log('🔍 ChampionshipContext: championshipId mudou para:', championshipId);
+
     
     if (championshipId) {
       // Limpar cache antes de buscar novos dados
@@ -1492,20 +1489,14 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       const shouldFetchCategories = championshipData.categories.length === 0;
       const shouldFetchStages = championshipData.stages.length === 0;
 
-      console.log('🔍 ChampionshipContext: Verificando busca de dados...', {
-        seasonsCount: championshipData.seasons.length,
-        categoriesCount: championshipData.categories.length,
-        stagesCount: championshipData.stages.length,
-        shouldFetchCategories,
-        shouldFetchStages
-      });
+
 
       if (shouldFetchCategories) {
-        console.log('🔍 ChampionshipContext: Buscando categorias...');
+
         fetchCategories();
       }
       if (shouldFetchStages) {
-        console.log('🔍 ChampionshipContext: Buscando etapas...');
+
         fetchStages();
       }
     }

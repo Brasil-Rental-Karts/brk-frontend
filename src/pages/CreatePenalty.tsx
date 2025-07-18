@@ -131,16 +131,16 @@ export const CreatePenalty = () => {
                 conditionalField: { dependsOn: 'stageId', showWhen: (value: string) => !!value }
               },
               { 
-                id: "userId", 
-                name: "Piloto", 
+                id: "batteryIndex", 
+                name: "Bateria", 
                 type: "select", 
                 mandatory: true, 
                 options: [],
                 conditionalField: { dependsOn: 'categoryId', showWhen: (value: string) => !!value }
               },
               { 
-                id: "batteryIndex", 
-                name: "Bateria", 
+                id: "userId", 
+                name: "Piloto", 
                 type: "select", 
                 mandatory: true, 
                 options: [],
@@ -216,6 +216,7 @@ export const CreatePenalty = () => {
             stageId: penaltyData.stageId || '',
             categoryId: penaltyData.categoryId || '',
             userId: penaltyData.userId || '',
+            batteryIndex: penaltyData.batteryIndex !== undefined ? Number(penaltyData.batteryIndex) : '',
             type: penaltyData.type || PenaltyType.TIME_PENALTY,
             reason: penaltyData.reason || '',
             description: penaltyData.description || '',
@@ -233,6 +234,8 @@ export const CreatePenalty = () => {
           }
           if (penaltyData.categoryId && penaltyData.seasonId) {
             await loadPilotsForCategory(penaltyData.categoryId, penaltyData.seasonId, penaltyData.stageId);
+            // Carregar baterias se há categoria selecionada
+            await loadBatteriesForCategory(penaltyData.categoryId);
           }
         } else {
           // Verificar se há parâmetros da URL para pré-preenchimento
@@ -266,10 +269,7 @@ export const CreatePenalty = () => {
           }
         }
         
-        // Debug: log penalty data if in edit mode
-        if (isEditMode && penaltyData) {
-          console.log('Penalty data:', penaltyData);
-        }
+
       } catch (err: any) {
         console.error('Erro ao carregar temporadas:', err);
       } finally {
@@ -515,36 +515,45 @@ export const CreatePenalty = () => {
 
   // Efeito para definir o valor da bateria quando as opções são carregadas
   useEffect(() => {
-    if (categoryBatteries.length > 0 && urlBatteryIndex !== null) {
-      // Atualizar os valores iniciais para incluir a bateria
-      setInitialValues(prev => ({
-        ...prev,
-        batteryIndex: Number(urlBatteryIndex)
-      }));
+    if (categoryBatteries.length > 0) {
+      // Determinar o valor da bateria baseado no modo (edição ou URL params)
+      const batteryValue = isEditMode && penaltyData?.batteryIndex !== undefined 
+        ? Number(penaltyData.batteryIndex) 
+        : urlBatteryIndex !== null 
+          ? Number(urlBatteryIndex) 
+          : null;
       
-      // Também atualizar o formConfig para garantir que as opções estão disponíveis
-      setFormConfig(prevConfig => 
-        prevConfig.map(section => {
-          if (section.section === "Contexto da Punição") {
-            return {
-              ...section,
-              fields: section.fields.map(field => {
-                if (field.id === 'batteryIndex') {
-                  return { 
-                    ...field, 
-                    options: categoryBatteries,
-                    defaultValue: Number(urlBatteryIndex)
-                  };
-                }
-                return field;
-              })
-            };
-          }
-          return section;
-        })
-      );
+      if (batteryValue !== null) {
+        // Atualizar os valores iniciais para incluir a bateria
+        setInitialValues(prev => ({
+          ...prev,
+          batteryIndex: batteryValue
+        }));
+        
+        // Também atualizar o formConfig para garantir que as opções estão disponíveis
+        setFormConfig(prevConfig => 
+          prevConfig.map(section => {
+            if (section.section === "Contexto da Punição") {
+              return {
+                ...section,
+                fields: section.fields.map(field => {
+                  if (field.id === 'batteryIndex') {
+                    return { 
+                      ...field, 
+                      options: categoryBatteries,
+                      defaultValue: batteryValue
+                    };
+                  }
+                  return field;
+                })
+              };
+            }
+            return section;
+          })
+        );
+      }
     }
-  }, [categoryBatteries, urlBatteryIndex]);
+  }, [categoryBatteries, urlBatteryIndex, isEditMode, penaltyData]);
 
   // Transformar dados para envio
   const transformSubmitData = useCallback((data: any) => {
@@ -615,8 +624,7 @@ export const CreatePenalty = () => {
       cleanData.type = PenaltyType.TIME_PENALTY;
     }
 
-    // Debug: log the data being sent
-    console.log('Data being sent to backend:', cleanData);
+
 
     return cleanData;
   }, []);
@@ -652,17 +660,7 @@ export const CreatePenalty = () => {
     }
   }, [isEditMode, penaltyId, createPenaltyHook, updatePenaltyHook]);
 
-  // Debug: log user info (apenas uma vez)
-  useEffect(() => {
-    console.log('=== CREATE PENALTY DEBUG ===');
-    console.log('User info:', user);
-    console.log('Is authenticated:', isAuthenticated);
-    console.log('User role:', user?.role);
-    console.log('Championship ID:', championshipId);
-    console.log('Is edit mode:', isEditMode);
-    console.log('URL params:', { urlSeasonId, urlStageId, urlCategoryId, urlUserId, urlBatteryIndex });
-    console.log('===========================');
-  }, [user, isAuthenticated, championshipId, isEditMode, urlSeasonId, urlStageId, urlCategoryId, urlUserId, urlBatteryIndex]);
+
 
   // Verificar se o usuário está autenticado
   if (!isAuthenticated) {
