@@ -2811,7 +2811,32 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                     <div className="block lg:hidden">
                       {getSortedPilots(categoryPilots, category).map((pilot) => (
                         <div key={pilot.id} className="bg-white rounded-lg shadow p-4 mb-4">
-                          <div className="font-bold text-lg mb-4">{formatName(pilot.user?.name || pilot.userId)}</div>
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="font-bold text-lg">{formatName(pilot.user?.name || pilot.userId)}</div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem 
+                                  onClick={() => {
+                                    if (championshipId) {
+                                      navigate(`/championship/${championshipId}/penalties/new?seasonId=${selectedSeasonId}&stageId=${selectedStageId}&categoryId=${category.id}&userId=${pilot.userId}&batteryIndex=${selectedBatteryIndex}&returnTab=race-day&returnSeason=${selectedSeasonId}&returnStage=${selectedStageId}&returnCategory=${category.id}&returnBattery=${selectedBatteryIndex}`);
+                                    }
+                                  }}
+                                >
+                                  <AlertTriangle className="w-4 h-4 mr-2" />
+                                  Aplicar Punição
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                           
                           {/* Primeira linha: Kart e Peso */}
                           <div className="grid grid-cols-2 gap-3 mb-3">
@@ -2881,9 +2906,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                           <div className="grid grid-cols-1 gap-3 mt-3">
                             <div className="flex flex-col">
                               <span className="text-xs text-gray-500 mb-1">Melhor Volta</span>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  className="flex-1 py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 hover:bg-gray-200 transition-colors min-h-[49px] flex items-center justify-center"
+                                                              <button
+                                  className="w-full py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 hover:bg-gray-200 transition-colors min-h-[49px] flex items-center justify-center"
                                   onClick={() => openBestLapModal(category.id, pilot.userId, selectedBatteryIndex)}
                                 >
                                   {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.bestLap ? (
@@ -2923,32 +2947,6 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                                     <span className="text-gray-400">-</span>
                                   )}
                                 </button>
-                                
-                                {/* Menu de contexto para mobile */}
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-8 w-8 p-0"
-                                    >
-                                      <MoreVertical className="w-3 h-3" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem 
-                                      onClick={() => {
-                                        if (championshipId) {
-                                          navigate(`/championship/${championshipId}/penalties/new?seasonId=${selectedSeasonId}&stageId=${selectedStageId}&categoryId=${category.id}&userId=${pilot.userId}&batteryIndex=${selectedBatteryIndex}&returnTab=race-day&returnSeason=${selectedSeasonId}&returnStage=${selectedStageId}&returnCategory=${category.id}&returnBattery=${selectedBatteryIndex}`);
-                                        }
-                                      }}
-                                    >
-                                      <AlertTriangle className="w-4 h-4 mr-2" />
-                                      Aplicar Punição
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
                             </div>
                             <div className="flex flex-col">
                               <span className="text-xs text-gray-500 mb-1">Melhor Volta Classificação</span>
