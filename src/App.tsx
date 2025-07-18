@@ -3,7 +3,7 @@ import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ChampionshipProvider } from '@/contexts/ChampionshipContext';
-import { DashboardProvider } from '@/contexts/DashboardContext';
+import { UserProvider } from '@/contexts/UserContext';
 import { router } from '@/router/router';
 
 function App() {
@@ -11,7 +11,7 @@ function App() {
     <ThemeProvider defaultTheme="light" storageKey="brk-ui-theme">
       <AuthProvider>
         <ChampionshipProvider>
-          <DashboardProvider>
+          <UserProvider>
             <RouterProvider router={router} />
             <Toaster 
               position="top-right"
@@ -20,7 +20,7 @@ function App() {
               expand={false}
               duration={5000}
             />
-          </DashboardProvider>
+          </UserProvider>
         </ChampionshipProvider>
       </AuthProvider>
     </ThemeProvider>

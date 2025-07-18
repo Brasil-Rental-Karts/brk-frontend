@@ -8,7 +8,7 @@ import { SeasonRegistration, RegistrationPaymentData } from '@/lib/services/seas
 import { formatCurrency } from '@/utils/currency';
 import { QRCodeSVG as QRCode } from 'qrcode.react';
 import { SeasonRegistrationService } from '@/lib/services/season-registration.service';
-import { useDashboard } from '@/contexts/DashboardContext';
+import { useUser } from '@/contexts/UserContext';
 
 interface PixPaymentProps {
   paymentData: RegistrationPaymentData;
@@ -26,7 +26,7 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState<string | null>(null);
-  const { refreshFinancial } = useDashboard();
+  const { refreshFinancial } = useUser();
 
   const handleCopy = async (text: string, type: string) => {
     try {

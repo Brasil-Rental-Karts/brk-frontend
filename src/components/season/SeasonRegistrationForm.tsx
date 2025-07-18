@@ -24,7 +24,7 @@ import { useFormScreen } from '@/hooks/use-form-screen';
 import { useExternalNavigation } from '@/hooks/use-external-navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRegistrations } from '@/hooks/use-user-registrations';
-import { useDashboard } from '@/contexts/DashboardContext';
+import { useUser } from '@/contexts/UserContext';
 
 import {
   Tooltip,
@@ -226,7 +226,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { refreshFinancial } = useDashboard();
+  const { refreshFinancial } = useUser();
   
   // Remover dependência do contexto - buscar dados diretamente do backend
 

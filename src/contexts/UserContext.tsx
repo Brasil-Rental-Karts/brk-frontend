@@ -112,21 +112,22 @@ export interface DashboardData {
   };
 }
 
-interface DashboardContextType extends DashboardData {
-  refreshChampionships: () => Promise<void>;
-  refreshRaces: () => Promise<void>;
-  refreshFinancial: () => Promise<void>;
+interface UserContextType extends DashboardData {
   refreshAll: () => Promise<void>;
+  refreshChampionships: () => Promise<void>;
+  refreshUserStats: () => Promise<void>;
+  refreshRaceTracks: () => Promise<void>;
+  refreshFinancial: () => Promise<void>;
   updateRaceParticipation: (stageId: string) => Promise<void>;
 }
 
-const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
+const UserContext = createContext<UserContextType | undefined>(undefined);
 
-interface DashboardProviderProps {
+interface UserProviderProps {
   children: React.ReactNode;
 }
 
-export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }) => {
+export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const { user } = useAuth();
   
   // Função utilitária para criar data a partir de date e time
@@ -638,7 +639,7 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
     }
   }, [upcomingRaces, fetchRaceTracks, raceTracks]);
 
-  const contextValue: DashboardContextType = {
+  const contextValue: UserContextType = {
     championshipsOrganized,
     championshipsParticipating,
     upcomingRaces,
@@ -647,24 +648,25 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
     financialData,
     loading,
     errors,
-    refreshChampionships,
-    refreshRaces,
-    refreshFinancial,
     refreshAll,
+    refreshChampionships,
+    refreshUserStats: refreshRaces, // Using refreshRaces as it includes user stats
+    refreshRaceTracks: fetchRaceTracks,
+    refreshFinancial,
     updateRaceParticipation,
   };
 
   return (
-    <DashboardContext.Provider value={contextValue}>
+    <UserContext.Provider value={contextValue}>
       {children}
-    </DashboardContext.Provider>
+    </UserContext.Provider>
   );
 };
 
-export const useDashboard = () => {
-  const context = useContext(DashboardContext);
-  if (context === undefined) {
-    throw new Error('useDashboard must be used within a DashboardProvider');
+export const useUser = () => {
+  const context = useContext(UserContext);
+  if (!context) {
+    throw new Error('useUser must be used within a UserProvider');
   }
   return context;
 }; 

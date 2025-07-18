@@ -35,7 +35,7 @@ import { StageParticipationService } from "@/lib/services/stage-participation.se
 import { CompleteProfileModal } from "@/components/profile/CompleteProfileModal";
 import { toast } from "sonner";
 import { Loading } from '@/components/ui/loading';
-import { useDashboard } from '@/contexts/DashboardContext';
+import { useUser } from '@/contexts/UserContext';
 
 export const Dashboard = () => {
   const nav = useNavigation();
@@ -62,10 +62,10 @@ export const Dashboard = () => {
     loading,
     errors,
     refreshChampionships,
-    refreshRaces,
+    refreshUserStats,
     refreshAll,
     updateRaceParticipation
-  } = useDashboard();
+  } = useUser();
 
   const { isProfileCompleted, loading: loadingProfile, shouldShowModal, markAsSkipped } = useProfileCompletion();
 

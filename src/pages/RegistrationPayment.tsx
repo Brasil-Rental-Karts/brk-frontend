@@ -15,7 +15,7 @@ import { formatCurrency } from '@/utils/currency';
 import { Loading } from '@/components/ui/loading';
 import { PageLoader } from '@/components/ui/loading';
 import { formatName } from '@/utils/name';
-import { useDashboard } from '@/contexts/DashboardContext';
+import { useUser } from '@/contexts/UserContext';
 
 const InstallmentList: React.FC<{ payments: RegistrationPaymentData[] }> = ({ payments }) => {
   const getStatusBadge = (status: string) => {
@@ -104,7 +104,7 @@ export const RegistrationPayment: React.FC = () => {
   const { registrationId } = useParams<{ registrationId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { refreshFinancial } = useDashboard();
+  const { refreshFinancial } = useUser();
 
   const [registration, setRegistration] = useState<SeasonRegistration | null>(null);
   const [payments, setPayments] = useState<RegistrationPaymentData[]>([]);

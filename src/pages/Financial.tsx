@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useDashboard } from '@/contexts/DashboardContext';
+import { useUser } from '@/contexts/UserContext';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
 import { Badge } from 'brk-design-system';
@@ -34,7 +34,7 @@ import { useNavigate } from 'react-router-dom';
 
 export const Financial: React.FC = () => {
   const { user } = useAuth();
-  const { financialData, loading, errors } = useDashboard();
+  const { financialData, loading, errors } = useUser();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 

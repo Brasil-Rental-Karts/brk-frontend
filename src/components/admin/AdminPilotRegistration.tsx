@@ -13,8 +13,7 @@ import { StageService } from "@/lib/services/stage.service";
 import { formatCurrency } from "@/utils/currency";
 import { X, User, Trophy, Calendar, CreditCard, Tag, MapPin, FileText } from "lucide-react";
 import { ChampionshipService } from "@/lib/services/championship.service";
-import { useChampionshipData } from "@/contexts/ChampionshipContext";
-import { useDashboard } from '@/contexts/DashboardContext';
+import { useUser } from '@/contexts/UserContext';
 
 // Função para formatar valor monetário no input
 const formatCurrencyInput = (value: string | number): string => {
@@ -81,9 +80,8 @@ interface StageData {
 }
 
 export const AdminPilotRegistration = () => {
-  // Usar o contexto de dados do campeonato
-  const { getSeasons, getCategories, getStages } = useChampionshipData();
-  const { refreshFinancial } = useDashboard();
+  // Remover dependência do contexto - buscar dados diretamente do backend
+  const { refreshFinancial } = useUser();
 
   const [users, setUsers] = useState<UserData[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<UserData[]>([]);
@@ -262,9 +260,9 @@ export const AdminPilotRegistration = () => {
 
   const loadSeasons = async (championshipId: string) => {
     try {
-      // Usar temporadas do contexto em vez de buscar do backend
-      const allSeasons = getSeasons();
-      const filteredSeasons = allSeasons.filter(season => 
+      // Buscar temporadas diretamente do backend
+      const seasonsData = await SeasonService.getAll(1, 100);
+      const filteredSeasons = (seasonsData.data || []).filter(season => 
         season.championshipId === championshipId
       ).map(season => {
         let inscriptionValue = season.inscriptionValue;
@@ -288,10 +286,9 @@ export const AdminPilotRegistration = () => {
 
   const loadCategories = async (seasonId: string) => {
     try {
-      // Usar categorias do contexto em vez de buscar do backend
-      const allCategories = getCategories();
-      const seasonCategories = allCategories.filter(cat => cat.seasonId === seasonId);
-      setCategories(seasonCategories || []);
+      // Buscar categorias diretamente do backend
+      const categoriesData = await CategoryService.getBySeasonId(seasonId);
+      setCategories(categoriesData || []);
     } catch (error) {
       console.error("Erro ao carregar categorias:", error);
       toast.error("Erro ao carregar categorias");
@@ -301,10 +298,9 @@ export const AdminPilotRegistration = () => {
 
   const loadStages = async (seasonId: string) => {
     try {
-      // Usar etapas do contexto em vez de buscar do backend
-      const allStages = getStages();
-      const seasonStages = allStages.filter(stage => stage.seasonId === seasonId);
-      setStages(seasonStages || []);
+      // Buscar etapas diretamente do backend
+      const stagesData = await StageService.getBySeasonId(seasonId);
+      setStages(stagesData || []);
     } catch (error) {
       console.error("Erro ao carregar etapas:", error);
       toast.error("Erro ao carregar etapas");
