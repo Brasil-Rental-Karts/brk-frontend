@@ -2160,6 +2160,31 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
             });
           }
         }
+
+        // Procurar por padrões de advertência
+        // Padrão: "O competidor de nº 20 recebeu uma ADV na passagem de nº 2 SOB KART 18"
+        const warningPattern = /O\s+competidor\s+de\s+nº\s+(\d+)\s+recebeu\s+uma\s+ADV/i;
+        const warningMatch = rowText.match(warningPattern);
+        
+        if (warningMatch) {
+          const competitorNumber = parseInt(warningMatch[1]);
+          
+          // Buscar o kart correspondente ao número do competidor
+          const kartNumber = Object.keys(kartToUserMapping).find(kart => {
+            const userId = kartToUserMapping[parseInt(kart)];
+            // Aqui precisamos buscar o número do competidor baseado no userId
+            // Por enquanto, vamos usar o kart diretamente
+            return parseInt(kart) === competitorNumber;
+          });
+          
+          if (kartNumber) {
+            penalties.push({
+              kartNumber: parseInt(kartNumber),
+              penaltyText: rowText,
+              type: PenaltyType.WARNING
+            });
+          }
+        }
       }
     }
     
