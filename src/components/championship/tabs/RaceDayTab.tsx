@@ -52,6 +52,7 @@ import { createPortal } from "react-dom";
 import { RaceTrackService } from '@/lib/services/race-track.service';
 import { LapTimesService, LapTimes as LapTimesType } from '@/lib/services/lap-times.service';
 import * as XLSX from 'xlsx';
+import { formatTimeWithPenalty, convertTimeToMs, convertMsToTime } from '@/utils/time';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { BulkConfirmPilotsModal } from '@/components/championship/modals/BulkConfirmPilotsModal';
 
@@ -2236,6 +2237,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
         let totalNcCount = 0;
         let totalBestLapCount = 0;
         let totalTimeCount = 0;
+        let totalLapsCount = 0;
         const allNotFoundKarts: number[] = [];
         
         // Criar mapeamento de kart para usuário
@@ -2258,6 +2260,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
           let kartColumn = -1;
           let bestLapColumn = -1;
           let totalTimeColumn = -1;
+          let totalLapsColumn = -1;
           
           for (let i = 0; i < data.length; i++) {
             const row = data[i] as any[];
@@ -2278,6 +2281,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
               if (cell === 'tt' || cell === 'tempo total' || cell === 'total') {
                 totalTimeColumn = j;
               }
+              // Procurar pela coluna TV (Total de Voltas)
+              if (cell === 'tv' || cell === 'total voltas' || cell === 'voltas' || cell === 'total de voltas') {
+                totalLapsColumn = j;
+              }
             }
             if (headerRow >= 0 && positionColumn >= 0 && kartColumn >= 0) {
               break;
@@ -2293,6 +2300,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
           let ncCount = 0;
           let bestLapCount = 0;
           let totalTimeCountLocal = 0;
+          let totalLapsCountLocal = 0;
           const notFoundKarts: number[] = [];
           
           for (let i = headerRow + 1; i < data.length; i++) {
@@ -2303,6 +2311,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
             const kartNumber = Number(row[kartColumn]);
             const bestLapValue = bestLapColumn >= 0 ? String(row[bestLapColumn] || '').trim() : '';
             const totalTimeValue = totalTimeColumn >= 0 ? String(row[totalTimeColumn] || '').trim() : '';
+            const totalLapsValue = totalLapsColumn >= 0 ? String(row[totalLapsColumn] || '').trim() : '';
 
             // Validar se o kart é um número válido
             if (isNaN(kartNumber)) continue;
@@ -2369,6 +2378,18 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                   }
                 }
                 
+                // Processar total de voltas se disponível (apenas para corrida)
+                if (importType === 'race' && totalLapsColumn >= 0 && totalLapsValue && totalLapsValue !== 'NC' && positionValue !== 'NC' && positionValue !== 'DQ') {
+                  // Validar se é um número válido
+                  const totalLaps = Number(totalLapsValue);
+                  if (!isNaN(totalLaps) && totalLaps >= 0) {
+                    updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'totalLaps', totalLaps);
+                    totalLapsCountLocal++;
+                  } else {
+                    // Valor inválido ignorado
+                  }
+                }
+                
                 pilotFound = true;
                 break;
               }
@@ -2385,6 +2406,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
               const penalties = processPenaltiesFromExcel(data, kartToUserMapping);
               let penaltiesCreated = 0;
               let penaltiesSkipped = 0;
+              let penaltyTimeApplied = 0;
               
               // Obter penalidades existentes para esta etapa e categoria
               const existingPenalties = contextPenalties.filter(penalty => 
@@ -2392,6 +2414,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                 penalty.categoryId === selectedOverviewCategory &&
                 penalty.batteryIndex === selectedBatteryIndex
               );
+              
+              // Mapear punições por piloto para calcular tempo total de punição
+              const penaltyTimeByPilot: { [userId: string]: number } = {};
               
               for (const penalty of penalties) {
                 const userId = kartToUserMapping[penalty.kartNumber];
@@ -2420,12 +2445,37 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                       seasonId: selectedSeasonId,
                       stageId: selectedStageId,
                       categoryId: selectedOverviewCategory,
-                      status: PenaltyStatus.APPLIED // Aplicar automaticamente
+                      status: PenaltyStatus.APPLIED, // Aplicar automaticamente
+                      isImported: true // Marcar como importada
                     });
                     penaltiesCreated++;
+                    
+                    // Acumular tempo de punição para este piloto
+                    if (penalty.timePenaltySeconds && penalty.timePenaltySeconds > 0) {
+                      penaltyTimeByPilot[userId] = (penaltyTimeByPilot[userId] || 0) + penalty.timePenaltySeconds;
+                      penaltyTimeApplied++;
+                    }
                   } catch (error) {
                     console.error(`Erro ao criar penalidade para kart ${penalty.kartNumber}:`, error);
                   }
+                }
+              }
+              
+              // Aplicar tempo de punição aos resultados dos pilotos
+              for (const [userId, totalPenaltySeconds] of Object.entries(penaltyTimeByPilot)) {
+                const currentResults = stageResults[selectedOverviewCategory]?.[userId]?.[selectedBatteryIndex];
+                if (currentResults && currentResults.totalTime) {
+                  // Calcular tempo real (subtraindo punições do tempo salvo)
+                  const savedTimeMs = convertTimeToMs(currentResults.totalTime);
+                  const penaltyTimeMs = totalPenaltySeconds * 1000;
+                  const realTimeMs = savedTimeMs - penaltyTimeMs;
+                  
+                  // Atualizar o tempo total com o tempo real (sem punições)
+                  const realTime = convertMsToTime(realTimeMs);
+                  updatePilotResult(selectedOverviewCategory, userId, selectedBatteryIndex, 'totalTime', realTime);
+                  
+                  // Salvar o tempo de punição
+                  updatePilotResult(selectedOverviewCategory, userId, selectedBatteryIndex, 'penaltyTime', totalPenaltySeconds.toString());
                 }
               }
               
@@ -2437,6 +2487,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                 if (penaltiesSkipped > 0) {
                   if (message) message += ' • ';
                   message += `${penaltiesSkipped} penalidades duplicadas descartadas`;
+                }
+                if (penaltyTimeApplied > 0) {
+                  if (message) message += ' • ';
+                  message += `${penaltyTimeApplied} tempos de punição aplicados`;
                 }
                 toast.success(message);
                 // Recarregar penalidades do contexto para atualizar a interface
@@ -2452,13 +2506,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
           totalNcCount += ncCount;
           totalBestLapCount += bestLapCount;
           totalTimeCount += totalTimeCountLocal;
+          totalLapsCount += totalLapsCountLocal;
           allNotFoundKarts.push(...notFoundKarts);
           
 
         }
         
         // Feedback detalhado final
-        if (totalProcessedCount > 0 || totalNcCount > 0 || totalBestLapCount > 0 || totalTimeCount > 0) {
+        if (totalProcessedCount > 0 || totalNcCount > 0 || totalBestLapCount > 0 || totalTimeCount > 0 || totalLapsCount > 0) {
           let message = '';
           if (totalProcessedCount > 0) {
             message += `${totalProcessedCount} ${importType === 'race' ? 'posições de corrida' : 'posições de classificação'} importadas`;
@@ -2475,6 +2530,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
             if (message) message += ' • ';
             message += `${totalTimeCount} tempos totais importados`;
           }
+          if (totalLapsCount > 0) {
+            if (message) message += ' • ';
+            message += `${totalLapsCount} totais de voltas importados`;
+          }
           if (workbook.SheetNames.length > 1) {
             message += ` (processadas ${workbook.SheetNames.length} sheets)`;
           }
@@ -2486,7 +2545,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
           toast.warning(`Karts não encontrados no sorteio: ${uniqueNotFoundKarts.join(', ')}`);
         }
         
-        if (totalProcessedCount === 0 && totalNcCount === 0 && totalBestLapCount === 0 && totalTimeCount === 0) {
+        if (totalProcessedCount === 0 && totalNcCount === 0 && totalBestLapCount === 0 && totalTimeCount === 0 && totalLapsCount === 0) {
           toast.error('Nenhum resultado foi importado. Verifique se o arquivo está no formato correto.');
         }
       }
@@ -3275,22 +3334,55 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                             </div>
                           </div>
                           
-                          {/* Quarta linha: Tempo Total */}
-                          <div className="grid grid-cols-1 gap-3 mt-3">
+                          {/* Quarta linha: Tempo Total e Total de Voltas */}
+                          <div className="grid grid-cols-2 gap-3 mt-3">
                             <div className="flex flex-col">
                               <span className="text-xs text-gray-500 mb-1">Tempo Total</span>
                               <button
                                 className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 hover:bg-gray-200 transition-colors min-h-[49px] flex items-center justify-center"
                                 onClick={() => openTotalTimeModal(category.id, pilot.userId, selectedBatteryIndex)}
                               >
-                                {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalTime ? (
+                                {(() => {
+                                  const totalTime = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalTime;
+                                  const penaltyTime = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.penaltyTime;
+                                  
+                                  if (!totalTime) {
+                                    return <span className="text-gray-400">-</span>;
+                                  }
+                                  
+                                  const penaltySeconds = penaltyTime ? parseInt(penaltyTime) : undefined;
+                                  
+                                  // Verificar se há punições importadas para este piloto nesta bateria
+                                  const pilotPenalties = contextPenalties.filter(penalty => 
+                                    penalty.userId === pilot.userId && 
+                                    penalty.stageId === selectedStageId && 
+                                    penalty.categoryId === category.id &&
+                                    penalty.batteryIndex === selectedBatteryIndex &&
+                                    penalty.isImported
+                                  );
+                                  const hasImportedPenalties = pilotPenalties.length > 0;
+                                  
+                                  const formattedTime = formatTimeWithPenalty(totalTime, penaltySeconds, false, hasImportedPenalties);
+                                  
+                                  return (
+                                    <span className="font-medium">
+                                      {formattedTime}
+                                    </span>
+                                  );
+                                })()}
+                              </button>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs text-gray-500 mb-1">Total de Voltas</span>
+                              <div className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 min-h-[49px] flex items-center justify-center">
+                                {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalLaps ? (
                                   <span className="font-medium">
-                                    {stageResults[category.id][pilot.userId][selectedBatteryIndex].totalTime}
+                                    {stageResults[category.id][pilot.userId][selectedBatteryIndex].totalLaps}
                                   </span>
                                 ) : (
                                   <span className="text-gray-400">-</span>
                                 )}
-                              </button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -3323,6 +3415,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                         </th>
                         <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('totalTime')}>
                           Tempo Total {sortColumn === 'totalTime' && (sortDirection === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('totalLaps')}>
+                          Total de Voltas {sortColumn === 'totalLaps' && (sortDirection === 'asc' ? '↑' : '↓')}
                         </th>
                         <th className="px-2 py-1 text-right">
                           Ações
@@ -3468,18 +3563,52 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                             className="px-2 py-1 cursor-pointer hover:bg-gray-50 rounded transition-colors text-center"
                             onClick={() => openTotalTimeModal(category.id, pilot.userId, selectedBatteryIndex)}
                           >
-                            {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalTime ? (
-                              <div className="flex items-center justify-center gap-1">
-                                <span className="font-medium">
-                                  {stageResults[category.id][pilot.userId][selectedBatteryIndex].totalTime}
-                                </span>
-                                <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              </div>
+                            {(() => {
+                              const totalTime = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalTime;
+                              const penaltyTime = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.penaltyTime;
+                              
+                              if (!totalTime) {
+                                return (
+                                  <div className="flex items-center justify-center gap-1">
+                                    <span className="text-gray-400">-</span>
+                                    <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                  </div>
+                                );
+                              }
+                              
+                              const penaltySeconds = penaltyTime ? parseInt(penaltyTime) : undefined;
+                              
+                              // Verificar se há punições importadas para este piloto nesta bateria
+                              const pilotPenalties = contextPenalties.filter(penalty => 
+                                penalty.userId === pilot.userId && 
+                                penalty.stageId === selectedStageId && 
+                                penalty.categoryId === category.id &&
+                                penalty.batteryIndex === selectedBatteryIndex &&
+                                penalty.isImported
+                              );
+                              const hasImportedPenalties = pilotPenalties.length > 0;
+                              
+                              const formattedTime = formatTimeWithPenalty(totalTime, penaltySeconds, false, hasImportedPenalties);
+                              
+                              return (
+                                <div className="flex items-center justify-center gap-1">
+                                  <span className="font-medium">
+                                    {formattedTime}
+                                  </span>
+                                  <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                              );
+                            })()}
+                          </td>
+                          
+                          {/* Total de Voltas */}
+                          <td className="px-2 py-1 text-center">
+                            {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalLaps ? (
+                              <span className="font-medium">
+                                {stageResults[category.id][pilot.userId][selectedBatteryIndex].totalLaps}
+                              </span>
                             ) : (
-                              <div className="flex items-center justify-center gap-1">
-                                <span className="text-gray-400">-</span>
-                                <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              </div>
+                              <span className="text-gray-400">-</span>
                             )}
                           </td>
                           

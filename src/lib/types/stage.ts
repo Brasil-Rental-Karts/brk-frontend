@@ -36,6 +36,8 @@ export interface Stage {
         [batteryIndex: number]: {
           bestLap?: string;
           totalTime?: string;
+          penaltyTime?: string; // Tempo de punição em segundos
+          totalLaps?: number; // Total de voltas (TV)
           startPosition?: number;
           finishPosition?: number;
           qualifyingBestLap?: string;

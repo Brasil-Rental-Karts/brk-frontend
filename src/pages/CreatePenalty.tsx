@@ -80,7 +80,7 @@ export const CreatePenalty = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
 
   // Usar o contexto de dados do campeonato
-  const { getSeasons, getStages, getRegistrations, getCategories, getStageParticipations, addPenalty, updatePenalty } = useChampionshipData();
+  const { getSeasons, getStages, getRegistrations, getCategories, getStageParticipations, addPenalty, updatePenalty, updateStage } = useChampionshipData();
 
   // Usar o hook de penalidades com as funções do contexto
   const {
@@ -587,12 +587,45 @@ export const CreatePenalty = () => {
 
   // Função customizada para lidar com criação e edição
   const handleSubmit = useCallback(async (data: any) => {
+    let result;
     if (isEditMode && penaltyId) {
-      return await updatePenaltyHook(penaltyId, data);
+      result = await updatePenaltyHook(penaltyId, data);
     } else {
-      return await createPenaltyHook(data);
+      result = await createPenaltyHook(data);
     }
-  }, [isEditMode, penaltyId, createPenaltyHook, updatePenaltyHook]);
+
+    // Se for penalidade de tempo, atualizar penaltyTime no resultado da bateria
+    if (data.type === PenaltyType.TIME_PENALTY && data.seasonId && data.stageId && data.categoryId && data.userId && data.batteryIndex !== undefined && data.timePenaltySeconds) {
+      try {
+        // Buscar etapas do contexto
+        const allStages = getStages();
+        const stage = allStages.find(s => s.id === data.stageId);
+        if (stage && stage.stage_results) {
+          const results = { ...stage.stage_results };
+          const catResults = results[data.categoryId] || {};
+          const pilotResults = catResults[data.userId] || {};
+          const batteryResults = pilotResults[data.batteryIndex] || {};
+
+          // Somar o tempo da punição ao penaltyTime existente
+          const prevPenalty = batteryResults.penaltyTime ? parseInt(batteryResults.penaltyTime) : 0;
+          const newPenalty = prevPenalty + Number(data.timePenaltySeconds);
+
+          // Atualizar resultado
+          const updatedBatteryResults = { ...batteryResults, penaltyTime: newPenalty.toString() };
+          const updatedPilotResults = { ...pilotResults, [data.batteryIndex]: updatedBatteryResults };
+          const updatedCatResults = { ...catResults, [data.userId]: updatedPilotResults };
+          const updatedResults = { ...results, [data.categoryId]: updatedCatResults };
+
+          // Atualizar etapa no contexto
+          await updateStage(data.stageId, { stage_results: updatedResults });
+        }
+      } catch (err) {
+        console.error('Erro ao atualizar penaltyTime no resultado:', err);
+      }
+    }
+
+    return result;
+  }, [isEditMode, penaltyId, createPenaltyHook, updatePenaltyHook, getStages, updateStage]);
 
   // Atualizar opções de bateria quando categoria for selecionada
   useEffect(() => {

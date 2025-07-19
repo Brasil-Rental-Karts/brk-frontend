@@ -26,6 +26,7 @@ export interface CreatePenaltyData {
   stageId?: string;
   categoryId?: string;
   status?: PenaltyStatus;
+  isImported?: boolean;
 }
 
 export interface UpdatePenaltyData {
@@ -58,6 +59,7 @@ export interface Penalty {
   appliedByUserId: string;
   appealReason?: string;
   appealedByUserId?: string;
+  isImported: boolean;
   createdAt: string;
   updatedAt: string;
   user?: {
