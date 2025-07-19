@@ -151,6 +151,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     getSeasons,
     getChampionshipInfo,
     updateStage,
+    refreshPenalties,
     loading: contextLoading, 
     error: contextError
   } = useChampionshipData();
@@ -1829,10 +1830,11 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
           // Manter apenas os karts sorteados, limpar todo o resto
           const kartAssignment = updatedResults[selectedOverviewCategory][pilot.userId][selectedBatteryIndex].kart;
           
-          // Resetar para apenas o kart sorteado e peso OK
+          // Resetar para apenas o kart sorteado e peso OK, removendo todos os resultados da corrida
           updatedResults[selectedOverviewCategory][pilot.userId][selectedBatteryIndex] = {
             kart: kartAssignment,
             weight: true // Resetar peso para OK
+            // Removendo: startPosition, finishPosition, bestLap, totalTime, qualifyingBestLap
           };
         }
       });
@@ -1856,12 +1858,33 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
         console.error('Erro ao deletar lap times:', error);
         // Continuar mesmo se falhar ao deletar lap times
       }
-      
-      // Atualizar o contexto com os novos resultados
-      await updateStage(selectedStageId, { stage_results: updatedResults });
+
+      // Deletar penalidades da bateria selecionada
+      try {
+        // Buscar penalidades da bateria selecionada
+        const penalties = getPenalties().filter(penalty => 
+          penalty.stageId === selectedStageId &&
+          penalty.categoryId === selectedOverviewCategory &&
+          penalty.batteryIndex === selectedBatteryIndex
+        );
+
+        // Deletar cada penalidade no backend
+        for (const penalty of penalties) {
+          await PenaltyService.deletePenalty(penalty.id);
+        }
+
+        // Recarregar penalidades do contexto para atualizar a interface
+        await refreshPenalties();
+      } catch (error) {
+        console.error('Erro ao deletar penalidades:', error);
+        // Continuar mesmo se falhar ao deletar penalidades
+      }
       
       // Atualizar estado local
       setStageResults(updatedResults);
+      
+      // Salvar no backend imediatamente
+      await saveStageResults(updatedResults);
       
       // Marcar que os dados foram modificados para trigger do save automático
       setStageResultsModified(true);
@@ -1990,6 +2013,123 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     }
   };
 
+  // Função para processar penalidades do arquivo Excel
+  const processPenaltiesFromExcel = (data: any[], kartToUserMapping: { [kartNumber: number]: string }) => {
+    const penalties: Array<{
+      kartNumber: number;
+      penaltyText: string;
+      timePenaltySeconds?: number;
+      type: PenaltyType;
+    }> = [];
+    
+    let foundPenaltiesSection = false;
+    let foundObservationsSection = false;
+    
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i] as any[];
+      if (!row || row.length === 0) continue;
+      
+      const firstCell = String(row[0] || '').trim().toUpperCase();
+      
+      // Procurar pela seção de penalidades
+      if (firstCell.includes('PENALIZAÇÕES') || firstCell.includes('PENALIZACOES')) {
+        foundPenaltiesSection = true;
+        continue;
+      }
+      
+      // Parar quando encontrar "Observações da prova"
+      if (firstCell.includes('OBSERVAÇÕES DA PROVA') || firstCell.includes('OBSERVACOES DA PROVA')) {
+        foundObservationsSection = true;
+        break;
+      }
+      
+      // Se estamos na seção de penalidades, processar as linhas
+      if (foundPenaltiesSection && !foundObservationsSection) {
+        const rowText = row.map((cell: any) => String(cell || '')).join(' ').trim();
+        
+        // Procurar por padrões de penalidade
+        // Padrão: "KART 25 PENALIZADO EM 10 SEC SOB KART 18"
+        const penaltyPattern = /KART\s+(\d+)\s+PENALIZADO\s+EM\s+(\d+)\s+SEC/i;
+        const match = rowText.match(penaltyPattern);
+        
+        if (match) {
+          const kartNumber = parseInt(match[1]);
+          const timePenaltySeconds = parseInt(match[2]);
+          
+          penalties.push({
+            kartNumber,
+            penaltyText: rowText,
+            timePenaltySeconds,
+            type: PenaltyType.TIME_PENALTY
+          });
+        }
+        
+        // Outros padrões podem ser adicionados aqui
+        // Por exemplo: "KART 25 DESQUALIFICADO"
+        const disqualificationPattern = /KART\s+(\d+)\s+DESQUALIFICADO/i;
+        const dqMatch = rowText.match(disqualificationPattern);
+        
+        if (dqMatch) {
+          const kartNumber = parseInt(dqMatch[1]);
+          
+          penalties.push({
+            kartNumber,
+            penaltyText: rowText,
+            type: PenaltyType.DISQUALIFICATION
+          });
+        }
+      }
+    }
+    
+    // Processar observações da prova para bandeiras pretas
+    let foundObservationsSectionForFlags = false;
+    
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i] as any[];
+      if (!row || row.length === 0) continue;
+      
+      const firstCell = String(row[0] || '').trim().toUpperCase();
+      
+      // Procurar pela seção de observações
+      if (firstCell.includes('OBSERVAÇÕES DA PROVA') || firstCell.includes('OBSERVACOES DA PROVA')) {
+        foundObservationsSectionForFlags = true;
+        continue;
+      }
+      
+      // Se estamos na seção de observações, processar as linhas
+      if (foundObservationsSectionForFlags) {
+        const rowText = row.map((cell: any) => String(cell || '')).join(' ').trim();
+        
+        // Procurar por padrões de bandeira preta
+        // Padrão: "O competidor de nº 15 recebeu uma bandeira Preta na passagem de nº 9 SOB KART 31"
+        const blackFlagPattern = /O\s+competidor\s+de\s+nº\s+(\d+)\s+recebeu\s+uma\s+bandeira\s+preta/i;
+        const match = rowText.match(blackFlagPattern);
+        
+        if (match && !rowText.toLowerCase().includes('laranja')) {
+          const competitorNumber = parseInt(match[1]);
+          
+          // Buscar o kart correspondente ao número do competidor
+          const kartNumber = Object.keys(kartToUserMapping).find(kart => {
+            const userId = kartToUserMapping[parseInt(kart)];
+            // Aqui precisamos buscar o número do competidor baseado no userId
+            // Por enquanto, vamos usar o kart diretamente
+            return parseInt(kart) === competitorNumber;
+          });
+          
+          if (kartNumber) {
+            penalties.push({
+              kartNumber: parseInt(kartNumber),
+              penaltyText: rowText,
+              type: PenaltyType.DISQUALIFICATION
+            });
+          }
+        }
+      }
+    }
+    
+    return penalties;
+  };
+
   // Funções para lap times
   const loadLapTimes = async (categoryId: string) => {
     try {
@@ -2100,6 +2240,15 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
         let totalTimeCount = 0;
         const allNotFoundKarts: number[] = [];
         
+        // Criar mapeamento de kart para usuário
+        const kartToUserMapping: { [kartNumber: number]: string } = {};
+        Object.entries(categoryResults).forEach(([pilotId, batteryResults]) => {
+          const pilotBatteryData = batteryResults[selectedBatteryIndex];
+          if (pilotBatteryData) {
+            kartToUserMapping[pilotBatteryData.kart] = pilotId;
+          }
+        });
+
         // Processar todas as sheets
         for (const sheetName of workbook.SheetNames) {
           const worksheet = workbook.Sheets[sheetName];
@@ -2229,6 +2378,45 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
             
             if (!pilotFound) {
               notFoundKarts.push(kartNumber);
+            }
+          }
+          
+          // Processar penalidades do arquivo (apenas para corrida)
+          if (importType === 'race') {
+            try {
+              const penalties = processPenaltiesFromExcel(data, kartToUserMapping);
+              let penaltiesCreated = 0;
+              
+              for (const penalty of penalties) {
+                const userId = kartToUserMapping[penalty.kartNumber];
+                if (userId) {
+                  try {
+                    await PenaltyService.createPenalty({
+                      type: penalty.type,
+                      reason: penalty.penaltyText,
+                      description: penalty.penaltyText,
+                      timePenaltySeconds: penalty.timePenaltySeconds,
+                      batteryIndex: selectedBatteryIndex,
+                      userId,
+                      championshipId: championshipId!,
+                      stageId: selectedStageId,
+                      categoryId: selectedOverviewCategory,
+                      status: PenaltyStatus.APPLIED // Aplicar automaticamente
+                    });
+                    penaltiesCreated++;
+                  } catch (error) {
+                    console.error(`Erro ao criar penalidade para kart ${penalty.kartNumber}:`, error);
+                  }
+                }
+              }
+              
+              if (penaltiesCreated > 0) {
+                toast.success(`${penaltiesCreated} penalidades criadas automaticamente`);
+                // Recarregar penalidades do contexto para atualizar a interface
+                await refreshPenalties();
+              }
+            } catch (error) {
+              console.error('Erro ao processar penalidades:', error);
             }
           }
           

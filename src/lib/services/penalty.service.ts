@@ -26,6 +26,7 @@ export interface CreatePenaltyData {
   seasonId?: string;
   stageId?: string;
   categoryId?: string;
+  status?: PenaltyStatus;
 }
 
 export interface UpdatePenaltyData {
