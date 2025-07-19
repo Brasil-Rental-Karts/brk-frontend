@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "brk-design-system";
 import { Card, CardHeader, CardContent } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { AlertTriangle, Plus, Filter, Download, MoreVertical, UserX, Clock, MapPin, Ban, CheckCircle, XCircle, RotateCcw, Edit, Trash2, Calendar } from "lucide-react";
+import { AlertTriangle, Plus, Filter, Download, MoreVertical, UserX, Clock, MapPin, Ban, CheckCircle, XCircle, RotateCcw, Edit, Trash2, Calendar, FileText } from "lucide-react";
 import { EmptyState } from "brk-design-system";
 import {
   DropdownMenu,
@@ -107,9 +107,9 @@ const createFilterFields = (
     placeholder: 'Todos os status',
     options: [
       { value: 'all', label: 'Todos os status' },
-      { value: PenaltyStatus.PENDING, label: 'Pendente' },
+      
       { value: PenaltyStatus.APPLIED, label: 'Aplicada' },
-      { value: PenaltyStatus.CANCELLED, label: 'Cancelada' },
+      { value: PenaltyStatus.NOT_APPLIED, label: 'Não Aplicada' },
       { value: PenaltyStatus.APPEALED, label: 'Recorrida' }
     ]
   }
@@ -146,8 +146,8 @@ const PenaltyCard = ({ penalty, onAction, getPenaltyIcon, getStatusIcon, context
       onClick: () => onAction("edit", penalty.id)
     });
 
-    // Aplicar se estiver pendente, cancelada ou recorrida
-    if (penalty.status === PenaltyStatus.PENDING || penalty.status === PenaltyStatus.CANCELLED || penalty.status === PenaltyStatus.APPEALED) {
+    // Mostrar "Aplicar" para status que não são APPLIED
+    if (penalty.status !== PenaltyStatus.APPLIED) {
       actions.push({
         key: 'apply',
         label: 'Aplicar',
@@ -156,23 +156,33 @@ const PenaltyCard = ({ penalty, onAction, getPenaltyIcon, getStatusIcon, context
       });
     }
 
-    // Cancelar se estiver aplicada ou recorrida
-    if (penalty.status === PenaltyStatus.APPLIED || penalty.status === PenaltyStatus.APPEALED) {
+    // Mostrar "Não Aplicar" para status que não são NOT_APPLIED
+    if (penalty.status !== PenaltyStatus.NOT_APPLIED) {
       actions.push({
         key: 'cancel',
-        label: 'Cancelar',
+        label: 'Não Aplicar',
         icon: <XCircle className="h-4 w-4 mr-2" />,
         onClick: () => onAction("cancel", penalty.id)
       });
     }
 
-    // Recorrer apenas se estiver aplicada
-    if (penalty.status === PenaltyStatus.APPLIED) {
+    // Mostrar "Recorrer" para status que não são APPEALED
+    if (penalty.status !== PenaltyStatus.APPEALED) {
       actions.push({
         key: 'appeal',
         label: 'Recorrer',
         icon: <RotateCcw className="h-4 w-4 mr-2" />,
         onClick: () => onAction("appeal", penalty.id)
+      });
+    }
+
+    // Mostrar "Ver Motivo do Recurso" se tiver appealReason
+    if (penalty.appealReason) {
+      actions.push({
+        key: 'viewAppeal',
+        label: 'Ver Motivo do Recurso',
+        icon: <FileText className="h-4 w-4 mr-2" />,
+        onClick: () => onAction("viewAppeal", penalty.id)
       });
     }
 
@@ -375,6 +385,10 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
   const [selectedPenalty, setSelectedPenalty] = useState<Penalty | null>(null);
   const [showAppealModal, setShowAppealModal] = useState(false);
   const [appealReason, setAppealReason] = useState("");
+  
+  // Estados para modal de visualização do motivo do recurso
+  const [showViewAppealModal, setShowViewAppealModal] = useState(false);
+  const [penaltyToViewAppeal, setPenaltyToViewAppeal] = useState<Penalty | null>(null);
 
   // Estados para o modal de exclusão
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -539,20 +553,18 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
     }
   };
 
-  const getStatusIcon = (status: PenaltyStatus) => {
-    switch (status) {
-      case PenaltyStatus.PENDING:
-        return <Clock className="h-4 w-4" />;
-      case PenaltyStatus.APPLIED:
-        return <CheckCircle className="h-4 w-4" />;
-      case PenaltyStatus.CANCELLED:
-        return <XCircle className="h-4 w-4" />;
-      case PenaltyStatus.APPEALED:
-        return <RotateCcw className="h-4 w-4" />;
-      default:
-        return <Clock className="h-4 w-4" />;
-    }
-  };
+      const getStatusIcon = (status: PenaltyStatus) => {
+      switch (status) {
+        case PenaltyStatus.APPLIED:
+          return <CheckCircle className="h-4 w-4" />;
+        case PenaltyStatus.NOT_APPLIED:
+          return <XCircle className="h-4 w-4" />;
+        case PenaltyStatus.APPEALED:
+          return <RotateCcw className="h-4 w-4" />;
+        default:
+          return <Clock className="h-4 w-4" />;
+      }
+    };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR', {
@@ -576,8 +588,8 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
       onClick: () => handlePenaltyAction("edit", penalty.id)
     });
 
-    // Aplicar se estiver pendente, cancelada ou recorrida
-    if (penalty.status === PenaltyStatus.PENDING || penalty.status === PenaltyStatus.CANCELLED || penalty.status === PenaltyStatus.APPEALED) {
+    // Mostrar "Aplicar" para status que não são APPLIED
+    if (penalty.status !== PenaltyStatus.APPLIED) {
       actions.push({
         key: 'apply',
         label: 'Aplicar',
@@ -586,23 +598,33 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
       });
     }
 
-    // Cancelar se estiver aplicada ou recorrida
-    if (penalty.status === PenaltyStatus.APPLIED || penalty.status === PenaltyStatus.APPEALED) {
+    // Mostrar "Não Aplicar" para status que não são NOT_APPLIED
+    if (penalty.status !== PenaltyStatus.NOT_APPLIED) {
       actions.push({
         key: 'cancel',
-        label: 'Cancelar',
+        label: 'Não Aplicar',
         icon: <XCircle className="h-4 w-4 mr-2" />,
         onClick: () => handlePenaltyAction("cancel", penalty.id)
       });
     }
 
-    // Recorrer apenas se estiver aplicada
-    if (penalty.status === PenaltyStatus.APPLIED) {
+    // Mostrar "Recorrer" para status que não são APPEALED
+    if (penalty.status !== PenaltyStatus.APPEALED) {
       actions.push({
         key: 'appeal',
         label: 'Recorrer',
         icon: <RotateCcw className="h-4 w-4 mr-2" />,
         onClick: () => handlePenaltyAction("appeal", penalty.id)
+      });
+    }
+
+    // Mostrar "Ver Motivo do Recurso" se tiver appealReason
+    if (penalty.appealReason) {
+      actions.push({
+        key: 'viewAppeal',
+        label: 'Ver Motivo do Recurso',
+        icon: <FileText className="h-4 w-4 mr-2" />,
+        onClick: () => handlePenaltyAction("viewAppeal", penalty.id)
       });
     }
 
@@ -720,7 +742,7 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
       setShowCancelDialog(false);
       setPenaltyToCancel(null);
     } catch (err: any) {
-      setCancelError(err.message || 'Erro ao cancelar punição');
+              setCancelError(err.message || 'Erro ao não aplicar punição');
     } finally {
       setIsCancelling(false);
     }
@@ -749,6 +771,10 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
       case 'appeal':
         setSelectedPenalty(penalty);
         setShowAppealModal(true);
+        break;
+      case 'viewAppeal':
+        setPenaltyToViewAppeal(penalty);
+        setShowViewAppealModal(true);
         break;
       case 'edit':
         handleEditPenalty(penalty);
@@ -1093,13 +1119,13 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de confirmação para cancelar punição */}
+      {/* Modal de confirmação para não aplicar punição */}
       <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmar cancelamento</DialogTitle>
+            <DialogTitle>Confirmar não aplicação</DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja cancelar esta punição?
+              Tem certeza que deseja marcar esta punição como não aplicada?
               <br />
               <strong>Piloto:</strong> {formatName(penaltyToCancel?.user?.name || 'N/A')}
               <br />
@@ -1111,7 +1137,7 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
           
           {cancelError && (
             <Alert variant="destructive">
-              <AlertTitle>Erro ao cancelar</AlertTitle>
+              <AlertTitle>Erro ao não aplicar</AlertTitle>
               <AlertDescription>{cancelError}</AlertDescription>
             </Alert>
           )}
@@ -1129,7 +1155,7 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
               onClick={confirmCancelPenalty}
               disabled={isCancelling}
             >
-              {isCancelling ? "Cancelando..." : "Cancelar Punição"}
+              {isCancelling ? "Não Aplicando..." : "Não Aplicar Punição"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1200,6 +1226,66 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
               disabled={isDeleting}
             >
               {isDeleting ? "Excluindo..." : "Excluir Punição"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de visualização do motivo do recurso */}
+      <Dialog open={showViewAppealModal} onOpenChange={setShowViewAppealModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Motivo do Recurso</DialogTitle>
+            <DialogDescription>
+              Detalhes do recurso enviado para esta punição.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Piloto</label>
+              <p className="text-sm text-muted-foreground">
+                {penaltyToViewAppeal?.user?.name || 'N/A'}
+              </p>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium">Tipo de Punição</label>
+              <p className="text-sm text-muted-foreground">
+                {penaltyToViewAppeal ? PenaltyService.getPenaltyTypeLabel(penaltyToViewAppeal.type) : 'N/A'}
+              </p>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium">Motivo Original</label>
+              <p className="text-sm text-muted-foreground">
+                {penaltyToViewAppeal?.reason || 'N/A'}
+              </p>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium">Motivo do Recurso</label>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                {penaltyToViewAppeal?.appealReason || 'N/A'}
+              </p>
+            </div>
+            
+            {penaltyToViewAppeal?.appealedByUser && (
+              <div>
+                <label className="text-sm font-medium">Recorrido por</label>
+                <p className="text-sm text-muted-foreground">
+                  {penaltyToViewAppeal.appealedByUser.name}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowViewAppealModal(false)}
+            >
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -8,9 +8,8 @@ export enum PenaltyType {
 }
 
 export enum PenaltyStatus {
-  PENDING = 'pending',
   APPLIED = 'applied',
-  CANCELLED = 'cancelled',
+  NOT_APPLIED = 'not_applied',
   APPEALED = 'appealed'
 }
 
@@ -193,12 +192,10 @@ export class PenaltyService {
 
   static getPenaltyStatusLabel(status: PenaltyStatus): string {
     switch (status) {
-      case PenaltyStatus.PENDING:
-        return 'Pendente';
       case PenaltyStatus.APPLIED:
         return 'Aplicada';
-      case PenaltyStatus.CANCELLED:
-        return 'Cancelada';
+      case PenaltyStatus.NOT_APPLIED:
+        return 'Não Aplicada';
       case PenaltyStatus.APPEALED:
         return 'Recorrida';
       default:
@@ -208,11 +205,9 @@ export class PenaltyService {
 
   static getPenaltyStatusColor(status: PenaltyStatus): string {
     switch (status) {
-      case PenaltyStatus.PENDING:
-        return 'bg-yellow-100 text-yellow-800';
       case PenaltyStatus.APPLIED:
-        return 'bg-red-100 text-red-800';
-      case PenaltyStatus.CANCELLED:
+        return 'bg-green-100 text-green-800';
+      case PenaltyStatus.NOT_APPLIED:
         return 'bg-gray-100 text-gray-800';
       case PenaltyStatus.APPEALED:
         return 'bg-blue-100 text-blue-800';

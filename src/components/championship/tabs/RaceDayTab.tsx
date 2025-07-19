@@ -1947,9 +1947,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     switch (status) {
       case PenaltyStatus.APPLIED:
         return 'bg-green-100 text-green-800';
-      case PenaltyStatus.PENDING:
-        return 'bg-yellow-100 text-yellow-800';
-      case PenaltyStatus.CANCELLED:
+      case PenaltyStatus.NOT_APPLIED:
         return 'bg-gray-100 text-gray-800';
       case PenaltyStatus.APPEALED:
         return 'bg-blue-100 text-blue-800';
@@ -2386,10 +2384,30 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
             try {
               const penalties = processPenaltiesFromExcel(data, kartToUserMapping);
               let penaltiesCreated = 0;
+              let penaltiesSkipped = 0;
+              
+              // Obter penalidades existentes para esta etapa e categoria
+              const existingPenalties = contextPenalties.filter(penalty => 
+                penalty.stageId === selectedStageId && 
+                penalty.categoryId === selectedOverviewCategory &&
+                penalty.batteryIndex === selectedBatteryIndex
+              );
               
               for (const penalty of penalties) {
                 const userId = kartToUserMapping[penalty.kartNumber];
                 if (userId) {
+                  // Verificar se já existe uma punição com o mesmo motivo para este piloto
+                  const existingPenalty = existingPenalties.find(existing => 
+                    existing.userId === userId && 
+                    existing.reason === penalty.penaltyText
+                  );
+                  
+                  if (existingPenalty) {
+                    console.log(`Punição duplicada descartada para kart ${penalty.kartNumber}: ${penalty.penaltyText}`);
+                    penaltiesSkipped++;
+                    continue;
+                  }
+                  
                   try {
                     await PenaltyService.createPenalty({
                       type: penalty.type,
@@ -2399,6 +2417,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                       batteryIndex: selectedBatteryIndex,
                       userId,
                       championshipId: championshipId!,
+                      seasonId: selectedSeasonId,
                       stageId: selectedStageId,
                       categoryId: selectedOverviewCategory,
                       status: PenaltyStatus.APPLIED // Aplicar automaticamente
@@ -2410,8 +2429,16 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                 }
               }
               
-              if (penaltiesCreated > 0) {
-                toast.success(`${penaltiesCreated} penalidades criadas automaticamente`);
+              if (penaltiesCreated > 0 || penaltiesSkipped > 0) {
+                let message = '';
+                if (penaltiesCreated > 0) {
+                  message += `${penaltiesCreated} penalidades criadas automaticamente`;
+                }
+                if (penaltiesSkipped > 0) {
+                  if (message) message += ' • ';
+                  message += `${penaltiesSkipped} penalidades duplicadas descartadas`;
+                }
+                toast.success(message);
                 // Recarregar penalidades do contexto para atualizar a interface
                 await refreshPenalties();
               }
