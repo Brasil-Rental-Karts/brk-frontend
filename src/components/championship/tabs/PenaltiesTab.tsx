@@ -752,6 +752,41 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
           // Não bloquear o sucesso da exclusão se o recálculo falhar
         }
       }
+
+      // Se for punição de posição aplicada, recalculcar posições
+      if (penaltyToDelete.type === 'position_penalty' && 
+          penaltyToDelete.status === 'applied' &&
+          penaltyToDelete.stageId && 
+          penaltyToDelete.categoryId && 
+          penaltyToDelete.batteryIndex !== null) {
+        
+        try {
+          console.log('🔄 [PENALTIES TAB] Recalculando posições após exclusão de penalidade de posição...');
+          await ChampionshipClassificationService.recalculateStagePositions(
+            penaltyToDelete.stageId,
+            penaltyToDelete.categoryId,
+            penaltyToDelete.batteryIndex!
+          );
+          console.log('✅ Posições recalculadas após exclusão de penalidade de posição');
+          
+          // Buscar dados atualizados da etapa do backend
+          console.log('🔄 [PENALTIES TAB] Buscando dados atualizados da etapa...');
+          const { StageService } = await import('@/lib/services/stage.service');
+          const updatedStage = await StageService.getById(penaltyToDelete.stageId);
+          if (updatedStage) {
+            // Atualizar etapa no contexto com dados mais recentes
+            await updateStage(penaltyToDelete.stageId, updatedStage);
+            console.log('✅ Etapa atualizada no contexto com dados mais recentes');
+          }
+          
+          // Atualizar participações da etapa no contexto
+          await refreshStageParticipations(penaltyToDelete.stageId);
+          console.log('✅ Participações da etapa atualizadas após exclusão de penalidade de posição');
+        } catch (recalcError) {
+          console.error('❌ Erro ao recalcular posições após exclusão de penalidade de posição:', recalcError);
+          // Não bloquear o sucesso da exclusão se o recálculo falhar
+        }
+      }
       
       setShowDeleteDialog(false);
       setPenaltyToDelete(null);
@@ -848,6 +883,40 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
           console.log('✅ Participações da etapa atualizadas após aplicação de desclassificação');
         } catch (recalcError) {
           console.error('❌ Erro ao recalcular posições após aplicação de desclassificação:', recalcError);
+          // Não bloquear o sucesso da aplicação se o recálculo falhar
+        }
+      }
+
+      // Se for punição de posição aplicada, recalculcar posições
+      if (penaltyToApply.type === 'position_penalty' && 
+          penaltyToApply.stageId && 
+          penaltyToApply.categoryId && 
+          penaltyToApply.batteryIndex !== null) {
+        
+        try {
+          console.log('🔄 [PENALTIES TAB] Recalculando posições após aplicação de penalidade de posição...');
+          await ChampionshipClassificationService.recalculateStagePositions(
+            penaltyToApply.stageId,
+            penaltyToApply.categoryId,
+            penaltyToApply.batteryIndex!
+          );
+          console.log('✅ Posições recalculadas após aplicação de penalidade de posição');
+          
+          // Buscar dados atualizados da etapa do backend
+          console.log('🔄 [PENALTIES TAB] Buscando dados atualizados da etapa...');
+          const { StageService } = await import('@/lib/services/stage.service');
+          const updatedStage = await StageService.getById(penaltyToApply.stageId);
+          if (updatedStage) {
+            // Atualizar etapa no contexto com dados mais recentes
+            await updateStage(penaltyToApply.stageId, updatedStage);
+            console.log('✅ Etapa atualizada no contexto com dados mais recentes');
+          }
+          
+          // Atualizar participações da etapa no contexto
+          await refreshStageParticipations(penaltyToApply.stageId);
+          console.log('✅ Participações da etapa atualizadas após aplicação de penalidade de posição');
+        } catch (recalcError) {
+          console.error('❌ Erro ao recalcular posições após aplicação de penalidade de posição:', recalcError);
           // Não bloquear o sucesso da aplicação se o recálculo falhar
         }
       }
@@ -949,6 +1018,41 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
           console.log('✅ Participações da etapa atualizadas após cancelamento de desclassificação');
         } catch (recalcError) {
           console.error('❌ Erro ao recalcular posições após cancelamento de desclassificação:', recalcError);
+          // Não bloquear o sucesso do cancelamento se o recálculo falhar
+        }
+      }
+
+      // Se for punição de posição aplicada, recalculcar posições
+      if (penaltyToCancel.type === 'position_penalty' && 
+          penaltyToCancel.status === 'applied' &&
+          penaltyToCancel.stageId && 
+          penaltyToCancel.categoryId && 
+          penaltyToCancel.batteryIndex !== null) {
+        
+        try {
+          console.log('🔄 [PENALTIES TAB] Recalculando posições após cancelamento de penalidade de posição...');
+          await ChampionshipClassificationService.recalculateStagePositions(
+            penaltyToCancel.stageId,
+            penaltyToCancel.categoryId,
+            penaltyToCancel.batteryIndex!
+          );
+          console.log('✅ Posições recalculadas após cancelamento de penalidade de posição');
+          
+          // Buscar dados atualizados da etapa do backend
+          console.log('🔄 [PENALTIES TAB] Buscando dados atualizados da etapa...');
+          const { StageService } = await import('@/lib/services/stage.service');
+          const updatedStage = await StageService.getById(penaltyToCancel.stageId);
+          if (updatedStage) {
+            // Atualizar etapa no contexto com dados mais recentes
+            await updateStage(penaltyToCancel.stageId, updatedStage);
+            console.log('✅ Etapa atualizada no contexto com dados mais recentes');
+          }
+          
+          // Atualizar participações da etapa no contexto
+          await refreshStageParticipations(penaltyToCancel.stageId);
+          console.log('✅ Participações da etapa atualizadas após cancelamento de penalidade de posição');
+        } catch (recalcError) {
+          console.error('❌ Erro ao recalcular posições após cancelamento de penalidade de posição:', recalcError);
           // Não bloquear o sucesso do cancelamento se o recálculo falhar
         }
       }

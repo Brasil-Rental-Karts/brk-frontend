@@ -692,6 +692,41 @@ export const CreatePenalty = () => {
       }
     }
 
+    // Se for penalidade de posição, atualizar contexto após criação
+    if (data.type === PenaltyType.POSITION_PENALTY && data.seasonId && data.stageId && data.categoryId && data.userId && data.batteryIndex !== undefined) {
+      try {
+        // Recalcular posições da etapa após adicionar penalidade de posição
+        try {
+          console.log('🔄 [FRONTEND] Iniciando recálculo de posições após penalidade de posição...');
+          await ChampionshipClassificationService.recalculateStagePositions(
+            data.stageId,
+            data.categoryId,
+            data.batteryIndex
+          );
+          console.log('✅ Posições recalculadas com sucesso após penalidade de posição');
+          
+          // Buscar dados atualizados da etapa do backend
+          console.log('🔄 [FRONTEND] Buscando dados atualizados da etapa...');
+          const updatedStage = await StageService.getById(data.stageId);
+          if (updatedStage) {
+            // Atualizar etapa no contexto com dados mais recentes
+            await updateStage(data.stageId, updatedStage);
+            console.log('✅ Etapa atualizada no contexto com dados mais recentes');
+          }
+          
+          // Atualizar participações da etapa no contexto para refletir as novas posições
+          console.log('🔄 [FRONTEND] Atualizando participações da etapa no contexto...');
+          await refreshStageParticipations(data.stageId);
+          console.log('✅ Participações da etapa atualizadas no contexto');
+        } catch (recalcError) {
+          console.error('❌ Erro ao recalcular posições após penalidade de posição:', recalcError);
+          // Não bloquear o sucesso da criação da punição se o recálculo falhar
+        }
+      } catch (err) {
+        console.error('Erro ao atualizar contexto após penalidade de posição:', err);
+      }
+    }
+
     return result;
   }, [isEditMode, penaltyId, createPenaltyHook, updatePenaltyHook, getStages, updateStage, refreshStageParticipations]);
 
