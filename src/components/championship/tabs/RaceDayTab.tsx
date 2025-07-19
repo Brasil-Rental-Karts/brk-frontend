@@ -41,6 +41,12 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from 'brk-design-system';
 import { createPortal } from "react-dom";
 import { RaceTrackService } from '@/lib/services/race-track.service';
@@ -1244,6 +1250,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
 
   // Estado para controlar se os dados foram modificados pelo usuário
   const [stageResultsModified, setStageResultsModified] = useState(false);
+  
+  // Estado para controlar o Dialog de confirmação de limpeza
+  const [showClearAllDialog, setShowClearAllDialog] = useState(false);
 
   // Salvar resultados automaticamente quando mudam (apenas se foram modificados pelo usuário)
   useEffect(() => {
@@ -1790,6 +1799,84 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     } finally {
       setTotalTimeLoading(false);
     }
+  };
+
+  // Função para abrir o Dialog de confirmação de limpeza
+  const openClearAllDialog = () => {
+    setShowClearAllDialog(true);
+  };
+
+  // Função para limpar todos os resultados da bateria
+  const clearAllResults = async () => {
+    if (!selectedOverviewCategory || selectedBatteryIndex === null) return;
+    
+    try {
+      
+      // Obter pilotos da categoria selecionada
+      const categoryPilots = registrations.filter(reg =>
+        reg.categories.some((rc: any) => rc.category.id === selectedOverviewCategory) &&
+        stageParticipations.some(
+          (part) => part.userId === reg.userId && part.categoryId === selectedOverviewCategory && part.status === 'confirmed'
+        )
+      );
+      
+      // Criar cópia dos resultados atuais
+      const updatedResults = { ...stageResults };
+      
+      // Para cada piloto da categoria, limpar todos os resultados da bateria selecionada
+      categoryPilots.forEach(pilot => {
+        if (updatedResults[selectedOverviewCategory]?.[pilot.userId]?.[selectedBatteryIndex]) {
+          // Manter apenas os karts sorteados, limpar todo o resto
+          const kartAssignment = updatedResults[selectedOverviewCategory][pilot.userId][selectedBatteryIndex].kart;
+          
+          // Resetar para apenas o kart sorteado e peso OK
+          updatedResults[selectedOverviewCategory][pilot.userId][selectedBatteryIndex] = {
+            kart: kartAssignment,
+            weight: true // Resetar peso para OK
+          };
+        }
+      });
+
+      // Deletar lap times da bateria selecionada
+      try {
+        await LapTimesService.deleteLapTimesByCategoryAndBattery(selectedStageId, selectedOverviewCategory, selectedBatteryIndex);
+        
+        // Limpar lap times do contexto/estado local
+        setLapTimes(prev => {
+          const updated = { ...prev };
+          if (updated[selectedOverviewCategory]) {
+            // Filtrar apenas os lap times que não são da bateria selecionada
+            updated[selectedOverviewCategory] = updated[selectedOverviewCategory].filter(
+              lapTime => lapTime.batteryIndex !== selectedBatteryIndex
+            );
+          }
+          return updated;
+        });
+      } catch (error) {
+        console.error('Erro ao deletar lap times:', error);
+        // Continuar mesmo se falhar ao deletar lap times
+      }
+      
+      // Atualizar o contexto com os novos resultados
+      await updateStage(selectedStageId, { stage_results: updatedResults });
+      
+      // Atualizar estado local
+      setStageResults(updatedResults);
+      
+      // Marcar que os dados foram modificados para trigger do save automático
+      setStageResultsModified(true);
+      
+      toast.success('Todos os resultados foram limpos com sucesso!');
+      setShowClearAllDialog(false);
+    } catch (error) {
+      console.error('Erro ao limpar todos os resultados:', error);
+      toast.error('Erro ao limpar todos os resultados');
+    }
+  };
+
+  // Função para cancelar o Dialog de limpeza
+  const cancelClearAllDialog = () => {
+    setShowClearAllDialog(false);
   };
 
   // Função para filtrar penalidades por categoria e bateria
@@ -2797,6 +2884,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                         >
                           <BarChart3 className="w-4 h-4 mr-2" />
                           Gráfico Volta a Volta
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={openClearAllDialog}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Limpar Todos os Resultados
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -4369,6 +4464,45 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
       onClose={handleCloseBulkConfirmModal}
       onSuccess={handleBulkConfirmSuccess}
     />
+
+    {/* Dialog de confirmação para limpar todos os resultados */}
+    <Dialog open={showClearAllDialog} onOpenChange={setShowClearAllDialog}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Confirmar limpeza de resultados</DialogTitle>
+          <DialogDescription>
+            Tem certeza que deseja limpar todos os resultados desta bateria?
+            <br /><br />
+            <strong>Esta ação irá:</strong>
+            <br />
+            • Manter os karts sorteados
+            <br />
+            • Resetar todos os pesos para "OK"
+            <br />
+            • Limpar todas as posições, voltas e tempos
+            <br />
+            • Remover dados de volta a volta
+            <br /><br />
+            <strong>Esta ação não pode ser desfeita.</strong>
+          </DialogDescription>
+        </DialogHeader>
+        
+        <DialogFooter>
+          <Button 
+            variant="outline" 
+            onClick={cancelClearAllDialog}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            variant="destructive" 
+            onClick={clearAllResults}
+          >
+            Limpar Todos os Resultados
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </div>
   );
 }; 
