@@ -1418,6 +1418,36 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     }));
   };
 
+  // Função para verificar se o piloto tem status que impede alteração de posição de corrida
+  const hasBlockingStatus = (categoryId: string, pilotId: string, batteryIndex: number, positionType: 'startPosition' | 'finishPosition') => {
+    const status = stageResults[categoryId]?.[pilotId]?.[batteryIndex]?.status;
+    
+    // NC/DC/DQ só bloqueiam a posição de corrida (finishPosition)
+    if (positionType === 'startPosition') {
+      return false; // Nunca bloqueia posição de classificação
+    }
+    
+    // Para finishPosition, verificar se tem status NC/DC/DQ
+    return status && ['nc', 'dc', 'dq'].includes(status.toLowerCase());
+  };
+
+  // Função para obter o texto do status
+  const getStatusText = (categoryId: string, pilotId: string, batteryIndex: number) => {
+    const status = stageResults[categoryId]?.[pilotId]?.[batteryIndex]?.status;
+    if (!status) return null;
+    
+    switch (status.toLowerCase()) {
+      case 'nc':
+        return 'NC';
+      case 'dc':
+        return 'DC';
+      case 'dq':
+        return 'DQ';
+      default:
+        return null;
+    }
+  };
+
   // Função para abrir modal de seleção de posição
   const openPositionSelectionModal = (
     categoryId: string,
@@ -1425,6 +1455,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     batteryIndex: number,
     type: 'startPosition' | 'finishPosition'
   ) => {
+    // Verificar se o piloto tem status que impede alteração
+    if (hasBlockingStatus(categoryId, pilotId, batteryIndex, type)) {
+      const statusText = getStatusText(categoryId, pilotId, batteryIndex);
+      toast.error(`Não é possível alterar a posição de corrida de um piloto com status ${statusText}`);
+      return;
+    }
+    
     setSelectedPilotForPosition({ categoryId, pilotId, batteryIndex, type });
     setShowPositionSelectionModal(true);
   };
@@ -2326,40 +2363,68 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
               if (pilotBatteryData && pilotBatteryData.kart === kartNumber) {
                 const fieldToUpdate = importType === 'race' ? 'finishPosition' : 'startPosition';
                 
-                // Verificar se é NC (Não Completou)
-                if (positionValue === 'NC') {
+                // Verificar se é NC (Não Completou) ou DC (Did Not Complete)
+                if (positionValue === 'NC' || positionValue === 'DC') {
                   // Limpar a posição (definir como null/undefined)
                   updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, fieldToUpdate, null);
+                  
+                  // ✅ Salvar o status de não conclusão APENAS para corrida
+                  if (importType === 'race') {
+                    const status = positionValue === 'NC' ? 'nc' : 'dc';
+                    updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'status', status);
+                  }
+                  
+                  ncCount++;
+                } else if (positionValue === 'DQ') {
+                  // Para DQ, também salvar o status APENAS para corrida
+                  updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, fieldToUpdate, null);
+                  if (importType === 'race') {
+                    updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'status', 'dq');
+                  }
                   ncCount++;
                 } else {
                   // Tentar converter para número
                   const position = Number(positionValue);
                   if (!isNaN(position)) {
                     updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, fieldToUpdate, position);
+                    // ✅ Marcar como completado APENAS para corrida
+                    if (importType === 'race') {
+                      updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'status', 'completed');
+                    }
                     processedCount++;
                   }
                 }
                 
-                // Processar melhor volta se disponível
-                if (bestLapColumn >= 0 && bestLapValue && bestLapValue !== 'NC' && positionValue !== 'NC' && positionValue !== 'DQ') {
+                // Processar melhor volta se disponível (apenas para qualificação)
+                if (importType === 'qualification' && bestLapColumn >= 0 && bestLapValue && bestLapValue !== 'NC' && positionValue !== 'DQ') {
                   // Validar formato de tempo (exemplo: 47.123, 1:23.456, 47,123)
                   const timePattern = /^(\d{1,2}:)?\d{1,2}[.,]\d{1,3}$/;
                   if (timePattern.test(bestLapValue)) {
                     // Normalizar formato (trocar vírgula por ponto se necessário)
                     const normalizedTime = bestLapValue.replace(',', '.');
-                    if (importType === 'qualification') {
-                      updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'qualifyingBestLap', normalizedTime);
-                    } else {
-                      updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'bestLap', normalizedTime);
-                    }
+                    updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'qualifyingBestLap', normalizedTime);
                     bestLapCount++;
                   } else {
                     // Formato de tempo inválido ignorado
                   }
                 }
                 
-                // Processar tempo total se disponível (apenas para corrida)
-                if (importType === 'race' && totalTimeColumn >= 0 && totalTimeValue && totalTimeValue !== 'NC' && positionValue !== 'NC' && positionValue !== 'DQ') {
+                // Processar melhor volta da corrida se disponível (apenas para corrida)
+                if (importType === 'race' && bestLapColumn >= 0 && bestLapValue && bestLapValue !== 'NC' && positionValue !== 'DQ') {
+                  // Validar formato de tempo (exemplo: 47.123, 1:23.456, 47,123)
+                  const timePattern = /^(\d{1,2}:)?\d{1,2}[.,]\d{1,3}$/;
+                  if (timePattern.test(bestLapValue)) {
+                    // Normalizar formato (trocar vírgula por ponto se necessário)
+                    const normalizedTime = bestLapValue.replace(',', '.');
+                    updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'bestLap', normalizedTime);
+                    bestLapCount++;
+                  } else {
+                    // Formato de tempo inválido ignorado
+                  }
+                }
+                
+                // Processar tempo total se disponível (apenas para corrida, mesmo para pilotos DC/NC)
+                if (importType === 'race' && totalTimeColumn >= 0 && totalTimeValue && totalTimeValue !== 'NC' && positionValue !== 'DQ') {
                   // Validar formato de tempo (exemplo: 00:14:34.610, 14:34.610, 14:34,610)
                   const timePattern = /^(\d{1,2}:)?\d{1,2}:\d{2}[.,]\d{1,3}$/;
                   if (timePattern.test(totalTimeValue)) {
@@ -2378,8 +2443,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                   }
                 }
                 
-                // Processar total de voltas se disponível (apenas para corrida)
-                if (importType === 'race' && totalLapsColumn >= 0 && totalLapsValue && totalLapsValue !== 'NC' && positionValue !== 'NC' && positionValue !== 'DQ') {
+                // Processar total de voltas se disponível (apenas para corrida, mesmo para pilotos DC/NC)
+                if (importType === 'race' && totalLapsColumn >= 0 && totalLapsValue && totalLapsValue !== 'NC' && positionValue !== 'DQ') {
                   // Validar se é um número válido
                   const totalLaps = Number(totalLapsValue);
                   if (!isNaN(totalLaps) && totalLaps >= 0) {
@@ -2520,7 +2585,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
           }
           if (totalNcCount > 0) {
             if (message) message += ' • ';
-            message += `${totalNcCount} pilotos marcados como NC (não completaram)`;
+            message += `${totalNcCount} pilotos marcados como NC/DC (não completaram)`;
           }
           if (totalBestLapCount > 0) {
             if (message) message += ' • ';
@@ -3252,8 +3317,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                             <div className="flex flex-col">
                               <span className="text-xs text-gray-500 mb-1">Classificação</span>
                               <button
-                                className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 hover:bg-gray-200 transition-colors"
+                                className={`py-3 px-4 rounded-lg font-semibold text-base border transition-colors ${
+                                  hasBlockingStatus(category.id, pilot.userId, selectedBatteryIndex, 'startPosition')
+                                    ? 'bg-red-100 text-red-800 border-red-300 cursor-not-allowed'
+                                    : 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200'
+                                }`}
                                 onClick={() => openPositionSelectionModal(category.id, pilot.userId, selectedBatteryIndex, 'startPosition')}
+                                disabled={hasBlockingStatus(category.id, pilot.userId, selectedBatteryIndex, 'startPosition')}
                               >
                                 {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.startPosition || '-'}
                               </button>
@@ -3263,10 +3333,21 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                             <div className="flex flex-col">
                               <span className="text-xs text-gray-500 mb-1">Corrida</span>
                               <button
-                                className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 hover:bg-gray-200 transition-colors"
+                                className={`py-3 px-4 rounded-lg font-semibold text-base border transition-colors ${
+                                  hasBlockingStatus(category.id, pilot.userId, selectedBatteryIndex, 'finishPosition')
+                                    ? 'bg-red-100 text-red-800 border-red-300 cursor-not-allowed'
+                                    : 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200'
+                                }`}
                                 onClick={() => openPositionSelectionModal(category.id, pilot.userId, selectedBatteryIndex, 'finishPosition')}
+                                disabled={hasBlockingStatus(category.id, pilot.userId, selectedBatteryIndex, 'finishPosition')}
                               >
-                                {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition || '-'}
+                                {(() => {
+                                  const statusText = getStatusText(category.id, pilot.userId, selectedBatteryIndex);
+                                  if (statusText) {
+                                    return statusText;
+                                  }
+                                  return stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition || '-';
+                                })()}
                               </button>
                             </div>
                           </div>
@@ -3468,7 +3549,11 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                           </td>
                           {/* Posição Classificação */}
                           <td
-                            className="px-2 py-1 cursor-pointer hover:bg-gray-50 rounded transition-colors text-center"
+                            className={`px-2 py-1 text-center rounded transition-colors ${
+                              hasBlockingStatus(category.id, pilot.userId, selectedBatteryIndex, 'startPosition')
+                                ? 'cursor-not-allowed'
+                                : 'cursor-pointer hover:bg-gray-50'
+                            }`}
                             onClick={() => openPositionSelectionModal(category.id, pilot.userId, selectedBatteryIndex, 'startPosition')}
                           >
                             {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.startPosition ? (
@@ -3500,16 +3585,30 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                           </td>
                           {/* Posição Corrida */}
                           <td
-                            className="px-2 py-1 cursor-pointer hover:bg-gray-50 rounded transition-colors text-center"
+                            className={`px-2 py-1 text-center rounded transition-colors ${
+                              hasBlockingStatus(category.id, pilot.userId, selectedBatteryIndex, 'finishPosition')
+                                ? 'cursor-not-allowed'
+                                : 'cursor-pointer hover:bg-gray-50'
+                            }`}
                             onClick={() => openPositionSelectionModal(category.id, pilot.userId, selectedBatteryIndex, 'finishPosition')}
                           >
-                            {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition ? (
-                              <span className="font-medium">
-                                {stageResults[category.id][pilot.userId][selectedBatteryIndex].finishPosition}
-                              </span>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
+                            {(() => {
+                              const statusText = getStatusText(category.id, pilot.userId, selectedBatteryIndex);
+                              if (statusText) {
+                                return (
+                                  <span className="font-medium text-red-600">
+                                    {statusText}
+                                  </span>
+                                );
+                              }
+                              return stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition ? (
+                                <span className="font-medium">
+                                  {stageResults[category.id][pilot.userId][selectedBatteryIndex].finishPosition}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              );
+                            })()}
                           </td>
                           {/* Melhor Volta */}
                           <td 

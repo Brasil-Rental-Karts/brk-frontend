@@ -42,6 +42,7 @@ export interface Stage {
           finishPosition?: number;
           qualifyingBestLap?: string;
           weight?: boolean;
+          status?: 'completed' | 'nc' | 'dc' | 'dq'; // Status de conclusão da prova
         };
       };
     };
