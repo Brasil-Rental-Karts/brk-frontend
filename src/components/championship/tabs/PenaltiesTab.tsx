@@ -33,6 +33,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePenalties } from "@/hooks/use-penalties";
 import { Penalty, PenaltyType, PenaltyStatus, PenaltyService } from "@/lib/services/penalty.service";
+import { ChampionshipClassificationService } from "@/lib/services/championship-classification.service";
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { InlineLoader } from '@/components/ui/loading';
 import { toast } from "sonner";
@@ -359,6 +360,8 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
     addPenalty,
     updatePenalty,
     removePenalty,
+    updateStage,
+    refreshStageParticipations,
     loading: contextLoading, 
     error: contextError 
   } = useChampionshipData();
@@ -679,6 +682,42 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
     try {
       await deletePenalty(penaltyToDelete.id);
       toast.success('Punição deletada com sucesso');
+      
+      // Se for punição de tempo aplicada, recalculcar posições
+      if (penaltyToDelete.type === 'time_penalty' && 
+          penaltyToDelete.status === 'applied' &&
+          penaltyToDelete.stageId && 
+          penaltyToDelete.categoryId && 
+          penaltyToDelete.batteryIndex !== null) {
+        
+        try {
+          console.log('🔄 [PENALTIES TAB] Recalculando posições após exclusão de punição...');
+          await ChampionshipClassificationService.recalculateStagePositions(
+            penaltyToDelete.stageId,
+            penaltyToDelete.categoryId,
+            penaltyToDelete.batteryIndex!
+          );
+          console.log('✅ Posições recalculadas após exclusão de punição');
+          
+          // Buscar dados atualizados da etapa do backend
+          console.log('🔄 [PENALTIES TAB] Buscando dados atualizados da etapa...');
+          const { StageService } = await import('@/lib/services/stage.service');
+          const updatedStage = await StageService.getById(penaltyToDelete.stageId);
+          if (updatedStage) {
+            // Atualizar etapa no contexto com dados mais recentes
+            await updateStage(penaltyToDelete.stageId, updatedStage);
+            console.log('✅ Etapa atualizada no contexto com dados mais recentes');
+          }
+          
+          // Atualizar participações da etapa no contexto
+          await refreshStageParticipations(penaltyToDelete.stageId);
+          console.log('✅ Participações da etapa atualizadas após exclusão');
+        } catch (recalcError) {
+          console.error('❌ Erro ao recalcular posições após exclusão:', recalcError);
+          // Não bloquear o sucesso da exclusão se o recálculo falhar
+        }
+      }
+      
       setShowDeleteDialog(false);
       setPenaltyToDelete(null);
     } catch (err: any) {
@@ -709,6 +748,41 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
     try {
       await applyPenalty(penaltyToApply.id);
       toast.success('Punição aplicada com sucesso');
+      
+      // Se for punição de tempo aplicada, recalculcar posições
+      if (penaltyToApply.type === 'time_penalty' && 
+          penaltyToApply.stageId && 
+          penaltyToApply.categoryId && 
+          penaltyToApply.batteryIndex !== null) {
+        
+        try {
+          console.log('🔄 [PENALTIES TAB] Recalculando posições após aplicação de punição...');
+          await ChampionshipClassificationService.recalculateStagePositions(
+            penaltyToApply.stageId,
+            penaltyToApply.categoryId,
+            penaltyToApply.batteryIndex!
+          );
+          console.log('✅ Posições recalculadas após aplicação de punição');
+          
+          // Buscar dados atualizados da etapa do backend
+          console.log('🔄 [PENALTIES TAB] Buscando dados atualizados da etapa...');
+          const { StageService } = await import('@/lib/services/stage.service');
+          const updatedStage = await StageService.getById(penaltyToApply.stageId);
+          if (updatedStage) {
+            // Atualizar etapa no contexto com dados mais recentes
+            await updateStage(penaltyToApply.stageId, updatedStage);
+            console.log('✅ Etapa atualizada no contexto com dados mais recentes');
+          }
+          
+          // Atualizar participações da etapa no contexto
+          await refreshStageParticipations(penaltyToApply.stageId);
+          console.log('✅ Participações da etapa atualizadas após aplicação');
+        } catch (recalcError) {
+          console.error('❌ Erro ao recalcular posições após aplicação:', recalcError);
+          // Não bloquear o sucesso da aplicação se o recálculo falhar
+        }
+      }
+      
       setShowApplyDialog(false);
       setPenaltyToApply(null);
     } catch (err: any) {
@@ -730,7 +804,7 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
     setShowCancelDialog(true);
   };
 
-  const confirmCancelPenalty = async () => {
+    const confirmCancelPenalty = async () => {
     if (!penaltyToCancel) return;
 
     setIsCancelling(true);
@@ -739,10 +813,46 @@ export const PenaltiesTab = ({ championshipId }: PenaltiesTabProps) => {
     try {
       await cancelPenalty(penaltyToCancel.id);
       toast.success('Punição cancelada com sucesso');
+      
+      // Se for punição de tempo aplicada, recalculcar posições
+      if (penaltyToCancel.type === 'time_penalty' && 
+          penaltyToCancel.status === 'applied' &&
+          penaltyToCancel.stageId && 
+          penaltyToCancel.categoryId && 
+          penaltyToCancel.batteryIndex !== null) {
+        
+        try {
+          console.log('🔄 [PENALTIES TAB] Recalculando posições após cancelamento de punição...');
+          await ChampionshipClassificationService.recalculateStagePositions(
+            penaltyToCancel.stageId,
+            penaltyToCancel.categoryId,
+            penaltyToCancel.batteryIndex!
+          );
+          console.log('✅ Posições recalculadas após cancelamento de punição');
+          
+          // Buscar dados atualizados da etapa do backend
+          console.log('🔄 [PENALTIES TAB] Buscando dados atualizados da etapa...');
+          const { StageService } = await import('@/lib/services/stage.service');
+          const updatedStage = await StageService.getById(penaltyToCancel.stageId);
+          if (updatedStage) {
+            // Atualizar etapa no contexto com dados mais recentes
+            await updateStage(penaltyToCancel.stageId, updatedStage);
+            console.log('✅ Etapa atualizada no contexto com dados mais recentes');
+          }
+          
+          // Atualizar participações da etapa no contexto
+          await refreshStageParticipations(penaltyToCancel.stageId);
+          console.log('✅ Participações da etapa atualizadas após cancelamento');
+        } catch (recalcError) {
+          console.error('❌ Erro ao recalcular posições após cancelamento:', recalcError);
+          // Não bloquear o sucesso do cancelamento se o recálculo falhar
+        }
+      }
+      
       setShowCancelDialog(false);
       setPenaltyToCancel(null);
     } catch (err: any) {
-              setCancelError(err.message || 'Erro ao não aplicar punição');
+      setCancelError(err.message || 'Erro ao não aplicar punição');
     } finally {
       setIsCancelling(false);
     }

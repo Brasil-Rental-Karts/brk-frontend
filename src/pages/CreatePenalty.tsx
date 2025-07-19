@@ -4,6 +4,8 @@ import { PenaltyService, PenaltyType } from '../lib/services/penalty.service';
 import { Season } from '../lib/services/season.service';
 import { Category } from '../lib/services/category.service';
 import { Stage } from '../lib/services/stage.service';
+import { StageService } from '../lib/services/stage.service';
+import { ChampionshipClassificationService } from '../lib/services/championship-classification.service';
 import { FormScreen } from '@/components/ui/FormScreen';
 import { FormSectionConfig } from '@/components/ui/dynamic-form';
 import { Loading } from '@/components/ui/loading';
@@ -80,7 +82,7 @@ export const CreatePenalty = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
 
   // Usar o contexto de dados do campeonato
-  const { getSeasons, getStages, getRegistrations, getCategories, getStageParticipations, addPenalty, updatePenalty, updateStage } = useChampionshipData();
+  const { getSeasons, getStages, getRegistrations, getCategories, getStageParticipations, addPenalty, updatePenalty, updateStage, refreshStageParticipations } = useChampionshipData();
 
   // Usar o hook de penalidades com as funções do contexto
   const {
@@ -594,7 +596,7 @@ export const CreatePenalty = () => {
       result = await createPenaltyHook(data);
     }
 
-    // Se for penalidade de tempo, atualizar penaltyTime no resultado da bateria
+    // Se for penalidade de tempo, atualizar penaltyTime no resultado da bateria e recalcular resultados
     if (data.type === PenaltyType.TIME_PENALTY && data.seasonId && data.stageId && data.categoryId && data.userId && data.batteryIndex !== undefined && data.timePenaltySeconds) {
       try {
         // Buscar etapas do contexto
@@ -616,8 +618,39 @@ export const CreatePenalty = () => {
           const updatedCatResults = { ...catResults, [data.userId]: updatedPilotResults };
           const updatedResults = { ...results, [data.categoryId]: updatedCatResults };
 
+          // Salvar no banco de dados
+          await StageService.saveStageResults(data.stageId, updatedResults);
+          
           // Atualizar etapa no contexto
           await updateStage(data.stageId, { stage_results: updatedResults });
+
+          // Recalcular posições da etapa após adicionar punição
+          try {
+            console.log('🔄 [FRONTEND] Iniciando recálculo de posições...');
+            await ChampionshipClassificationService.recalculateStagePositions(
+              data.stageId,
+              data.categoryId,
+              data.batteryIndex
+            );
+            console.log('✅ Posições recalculadas com sucesso após punição');
+            
+            // Buscar dados atualizados da etapa do backend
+            console.log('🔄 [FRONTEND] Buscando dados atualizados da etapa...');
+            const updatedStage = await StageService.getById(data.stageId);
+            if (updatedStage) {
+              // Atualizar etapa no contexto com dados mais recentes
+              await updateStage(data.stageId, updatedStage);
+              console.log('✅ Etapa atualizada no contexto com dados mais recentes');
+            }
+            
+            // Atualizar participações da etapa no contexto para refletir as novas posições
+            console.log('🔄 [FRONTEND] Atualizando participações da etapa no contexto...');
+            await refreshStageParticipations(data.stageId);
+            console.log('✅ Participações da etapa atualizadas no contexto');
+          } catch (recalcError) {
+            console.error('❌ Erro ao recalcular posições:', recalcError);
+            // Não bloquear o sucesso da criação da punição se o recálculo falhar
+          }
         }
       } catch (err) {
         console.error('Erro ao atualizar penaltyTime no resultado:', err);
@@ -625,7 +658,7 @@ export const CreatePenalty = () => {
     }
 
     return result;
-  }, [isEditMode, penaltyId, createPenaltyHook, updatePenaltyHook, getStages, updateStage]);
+  }, [isEditMode, penaltyId, createPenaltyHook, updatePenaltyHook, getStages, updateStage, refreshStageParticipations]);
 
   // Atualizar opções de bateria quando categoria for selecionada
   useEffect(() => {
