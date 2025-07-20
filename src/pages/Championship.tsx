@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Button } from "brk-design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
@@ -40,12 +40,16 @@ export const Championship = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("temporadas");
+  const [classificationLoading, setClassificationLoading] = useState(false);
   const isMobile = useIsMobile();
 
   // Usar o contexto de dados do campeonato
   const { 
     setChampionshipId, 
     getChampionshipInfo,
+    getSeasons,
+    refreshClassification,
+    fetchClassification,
     loading: contextLoading, 
     error: contextError 
   } = useChampionshipData();
@@ -85,6 +89,7 @@ export const Championship = () => {
 
   // Obter dados do campeonato do contexto
   const championship = getChampionshipInfo();
+  const seasons = getSeasons();
   
   // Configurar o championshipId no contexto quando o ID mudar
   useEffect(() => {
@@ -98,6 +103,28 @@ export const Championship = () => {
       setChampionshipId(null);
     }
   }, [id, setChampionshipId]);
+
+  // Função para lidar com a mudança de tab
+  const handleTabChange = useCallback(async (value: string) => {
+    setActiveTab(value);
+    setSearchParams({ tab: value });
+    
+    // Se a tab de classificação foi clicada, chamar as funções necessárias
+    if (value === 'classificacao' && seasons.length > 0) {
+      // Selecionar temporada ativa por padrão ou a primeira disponível
+      const activeSeason = seasons.find((s: any) => s.status === 'em_andamento') || seasons[0];
+      if (activeSeason) {
+        try {
+          setClassificationLoading(true);
+          await refreshClassification(activeSeason.id);
+        } catch (error) {
+          console.error('Erro ao carregar classificação:', error);
+        } finally {
+          setClassificationLoading(false);
+        }
+      }
+    }
+  }, [setSearchParams, seasons, refreshClassification]);
 
   // Ler o parâmetro tab da URL ao montar o componente
   useEffect(() => {
@@ -207,10 +234,7 @@ export const Championship = () => {
       </div>
 
       {/* Sistema de tabs unificado - colado com o header */}
-      <Tabs value={activeTab} onValueChange={(value) => {
-        setActiveTab(value);
-        setSearchParams({ tab: value });
-      }} className="h-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full">
         {/* Seção das tabs com fundo escuro - sem espaçamento do header */}
         <div className="bg-dark-900 text-white w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
           <div 
@@ -334,7 +358,13 @@ export const Championship = () => {
 
           {permissions?.classification && hasSeasons && (
             <TabsContent value="classificacao" className="mt-0 ring-0 focus-visible:outline-none">
-              <ClassificationTab championshipId={id} />
+              {classificationLoading ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loading type="spinner" size="lg" />
+                </div>
+              ) : (
+                <ClassificationTab championshipId={id} />
+              )}
             </TabsContent>
           )}
 

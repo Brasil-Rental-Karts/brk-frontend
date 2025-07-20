@@ -172,4 +172,30 @@ export class ChampionshipClassificationService {
       );
     }
   }
+
+  /**
+   * Recalcular posições da etapa baseado em voltas e tempo + punições
+   */
+  static async recalculateStagePositions(
+    stageId: string,
+    categoryId: string,
+    batteryIndex: number
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await api.post<{ success: boolean; message: string }>(
+        `${ChampionshipClassificationService.BASE_URL}/stages/${stageId}/recalculate-positions`,
+        {
+          categoryId,
+          batteryIndex
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error recalculating stage positions:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao recalcular posições da etapa.'
+      );
+    }
+  }
 } 

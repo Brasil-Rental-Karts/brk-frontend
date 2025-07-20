@@ -4,6 +4,8 @@ import { PenaltyService, PenaltyType } from '../lib/services/penalty.service';
 import { Season } from '../lib/services/season.service';
 import { Category } from '../lib/services/category.service';
 import { Stage } from '../lib/services/stage.service';
+import { StageService } from '../lib/services/stage.service';
+import { ChampionshipClassificationService } from '../lib/services/championship-classification.service';
 import { FormScreen } from '@/components/ui/FormScreen';
 import { FormSectionConfig } from '@/components/ui/dynamic-form';
 import { Loading } from '@/components/ui/loading';
@@ -80,7 +82,7 @@ export const CreatePenalty = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
 
   // Usar o contexto de dados do campeonato
-  const { getSeasons, getStages, getRegistrations, getCategories, getStageParticipations, addPenalty, updatePenalty } = useChampionshipData();
+  const { getSeasons, getStages, getRegistrations, getCategories, getStageParticipations, addPenalty, updatePenalty, updateStage, refreshStageParticipations } = useChampionshipData();
 
   // Usar o hook de penalidades com as funções do contexto
   const {
@@ -587,12 +589,146 @@ export const CreatePenalty = () => {
 
   // Função customizada para lidar com criação e edição
   const handleSubmit = useCallback(async (data: any) => {
+    let result;
     if (isEditMode && penaltyId) {
-      return await updatePenaltyHook(penaltyId, data);
+      result = await updatePenaltyHook(penaltyId, data);
     } else {
-      return await createPenaltyHook(data);
+      result = await createPenaltyHook(data);
     }
-  }, [isEditMode, penaltyId, createPenaltyHook, updatePenaltyHook]);
+
+    // Se for penalidade de tempo, atualizar penaltyTime no resultado da bateria e recalcular resultados
+    if (data.type === PenaltyType.TIME_PENALTY && data.seasonId && data.stageId && data.categoryId && data.userId && data.batteryIndex !== undefined && data.timePenaltySeconds) {
+      try {
+        // Buscar etapas do contexto
+        const allStages = getStages();
+        const stage = allStages.find(s => s.id === data.stageId);
+        if (stage && stage.stage_results) {
+          const results = { ...stage.stage_results };
+          const catResults = results[data.categoryId] || {};
+          const pilotResults = catResults[data.userId] || {};
+          const batteryResults = pilotResults[data.batteryIndex] || {};
+
+          // Somar o tempo da punição ao penaltyTime existente
+          const prevPenalty = batteryResults.penaltyTime ? parseInt(batteryResults.penaltyTime) : 0;
+          const newPenalty = prevPenalty + Number(data.timePenaltySeconds);
+
+          // Atualizar resultado
+          const updatedBatteryResults = { ...batteryResults, penaltyTime: newPenalty.toString() };
+          const updatedPilotResults = { ...pilotResults, [data.batteryIndex]: updatedBatteryResults };
+          const updatedCatResults = { ...catResults, [data.userId]: updatedPilotResults };
+          const updatedResults = { ...results, [data.categoryId]: updatedCatResults };
+
+          // Salvar no banco de dados
+          await StageService.saveStageResults(data.stageId, updatedResults);
+          
+          // Atualizar etapa no contexto
+          await updateStage(data.stageId, { stage_results: updatedResults });
+
+          // Recalcular posições da etapa após adicionar punição
+          try {
+            console.log('🔄 [FRONTEND] Iniciando recálculo de posições...');
+            await ChampionshipClassificationService.recalculateStagePositions(
+              data.stageId,
+              data.categoryId,
+              data.batteryIndex
+            );
+            console.log('✅ Posições recalculadas com sucesso após punição');
+            
+            // Buscar dados atualizados da etapa do backend
+            console.log('🔄 [FRONTEND] Buscando dados atualizados da etapa...');
+            const updatedStage = await StageService.getById(data.stageId);
+            if (updatedStage) {
+              // Atualizar etapa no contexto com dados mais recentes
+              await updateStage(data.stageId, updatedStage);
+              console.log('✅ Etapa atualizada no contexto com dados mais recentes');
+            }
+            
+            // Atualizar participações da etapa no contexto para refletir as novas posições
+            console.log('🔄 [FRONTEND] Atualizando participações da etapa no contexto...');
+            await refreshStageParticipations(data.stageId);
+            console.log('✅ Participações da etapa atualizadas no contexto');
+          } catch (recalcError) {
+            console.error('❌ Erro ao recalcular posições:', recalcError);
+            // Não bloquear o sucesso da criação da punição se o recálculo falhar
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao atualizar penaltyTime no resultado:', err);
+      }
+    }
+
+    // Se for penalidade de desclassificação, atualizar contexto após criação
+    if (data.type === PenaltyType.DISQUALIFICATION && data.seasonId && data.stageId && data.categoryId && data.userId && data.batteryIndex !== undefined) {
+      try {
+        // Recalcular posições da etapa após adicionar desclassificação
+        try {
+          console.log('🔄 [FRONTEND] Iniciando recálculo de posições após desclassificação...');
+          await ChampionshipClassificationService.recalculateStagePositions(
+            data.stageId,
+            data.categoryId,
+            data.batteryIndex
+          );
+          console.log('✅ Posições recalculadas com sucesso após desclassificação');
+          
+          // Buscar dados atualizados da etapa do backend
+          console.log('🔄 [FRONTEND] Buscando dados atualizados da etapa...');
+          const updatedStage = await StageService.getById(data.stageId);
+          if (updatedStage) {
+            // Atualizar etapa no contexto com dados mais recentes
+            await updateStage(data.stageId, updatedStage);
+            console.log('✅ Etapa atualizada no contexto com dados mais recentes');
+          }
+          
+          // Atualizar participações da etapa no contexto para refletir as novas posições
+          console.log('🔄 [FRONTEND] Atualizando participações da etapa no contexto...');
+          await refreshStageParticipations(data.stageId);
+          console.log('✅ Participações da etapa atualizadas no contexto');
+        } catch (recalcError) {
+          console.error('❌ Erro ao recalcular posições após desclassificação:', recalcError);
+          // Não bloquear o sucesso da criação da punição se o recálculo falhar
+        }
+      } catch (err) {
+        console.error('Erro ao atualizar contexto após desclassificação:', err);
+      }
+    }
+
+    // Se for penalidade de posição, atualizar contexto após criação
+    if (data.type === PenaltyType.POSITION_PENALTY && data.seasonId && data.stageId && data.categoryId && data.userId && data.batteryIndex !== undefined) {
+      try {
+        // Recalcular posições da etapa após adicionar penalidade de posição
+        try {
+          console.log('🔄 [FRONTEND] Iniciando recálculo de posições após penalidade de posição...');
+          await ChampionshipClassificationService.recalculateStagePositions(
+            data.stageId,
+            data.categoryId,
+            data.batteryIndex
+          );
+          console.log('✅ Posições recalculadas com sucesso após penalidade de posição');
+          
+          // Buscar dados atualizados da etapa do backend
+          console.log('🔄 [FRONTEND] Buscando dados atualizados da etapa...');
+          const updatedStage = await StageService.getById(data.stageId);
+          if (updatedStage) {
+            // Atualizar etapa no contexto com dados mais recentes
+            await updateStage(data.stageId, updatedStage);
+            console.log('✅ Etapa atualizada no contexto com dados mais recentes');
+          }
+          
+          // Atualizar participações da etapa no contexto para refletir as novas posições
+          console.log('🔄 [FRONTEND] Atualizando participações da etapa no contexto...');
+          await refreshStageParticipations(data.stageId);
+          console.log('✅ Participações da etapa atualizadas no contexto');
+        } catch (recalcError) {
+          console.error('❌ Erro ao recalcular posições após penalidade de posição:', recalcError);
+          // Não bloquear o sucesso da criação da punição se o recálculo falhar
+        }
+      } catch (err) {
+        console.error('Erro ao atualizar contexto após penalidade de posição:', err);
+      }
+    }
+
+    return result;
+  }, [isEditMode, penaltyId, createPenaltyHook, updatePenaltyHook, getStages, updateStage, refreshStageParticipations]);
 
   // Atualizar opções de bateria quando categoria for selecionada
   useEffect(() => {

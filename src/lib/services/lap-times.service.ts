@@ -88,6 +88,14 @@ export class LapTimesService {
     await api.delete(`${this.baseUrl}/stage/${stageId}/category/${categoryId}/user/${userId}`, { params });
   }
 
+  static async deleteLapTimesByCategoryAndBattery(
+    stageId: string,
+    categoryId: string,
+    batteryIndex: number
+  ): Promise<void> {
+    await api.delete(`${this.baseUrl}/stage/${stageId}/category/${categoryId}/battery/${batteryIndex}`);
+  }
+
   // Métodos utilitários
   static parseTimeToMs(timeString: string): number {
     try {

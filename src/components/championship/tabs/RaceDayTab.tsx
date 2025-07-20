@@ -41,11 +41,18 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from 'brk-design-system';
 import { createPortal } from "react-dom";
 import { RaceTrackService } from '@/lib/services/race-track.service';
 import { LapTimesService, LapTimes as LapTimesType } from '@/lib/services/lap-times.service';
 import * as XLSX from 'xlsx';
+import { formatTimeWithPenalty, convertTimeToMs, convertMsToTime } from '@/utils/time';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { BulkConfirmPilotsModal } from '@/components/championship/modals/BulkConfirmPilotsModal';
 
@@ -145,6 +152,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     getSeasons,
     getChampionshipInfo,
     updateStage,
+    refreshPenalties,
     loading: contextLoading, 
     error: contextError
   } = useChampionshipData();
@@ -1244,6 +1252,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
 
   // Estado para controlar se os dados foram modificados pelo usuário
   const [stageResultsModified, setStageResultsModified] = useState(false);
+  
+  // Estado para controlar o Dialog de confirmação de limpeza
+  const [showClearAllDialog, setShowClearAllDialog] = useState(false);
 
   // Salvar resultados automaticamente quando mudam (apenas se foram modificados pelo usuário)
   useEffect(() => {
@@ -1407,6 +1418,36 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     }));
   };
 
+  // Função para verificar se o piloto tem status que impede alteração de posição de corrida
+  const hasBlockingStatus = (categoryId: string, pilotId: string, batteryIndex: number, positionType: 'startPosition' | 'finishPosition') => {
+    const status = stageResults[categoryId]?.[pilotId]?.[batteryIndex]?.status;
+    
+    // NC/DC/DQ só bloqueiam a posição de corrida (finishPosition)
+    if (positionType === 'startPosition') {
+      return false; // Nunca bloqueia posição de classificação
+    }
+    
+    // Para finishPosition, verificar se tem status NC/DC/DQ
+    return status && ['nc', 'dc', 'dq'].includes(status.toLowerCase());
+  };
+
+  // Função para obter o texto do status
+  const getStatusText = (categoryId: string, pilotId: string, batteryIndex: number) => {
+    const status = stageResults[categoryId]?.[pilotId]?.[batteryIndex]?.status;
+    if (!status) return null;
+    
+    switch (status.toLowerCase()) {
+      case 'nc':
+        return 'NC';
+      case 'dc':
+        return 'DC';
+      case 'dq':
+        return 'DQ';
+      default:
+        return null;
+    }
+  };
+
   // Função para abrir modal de seleção de posição
   const openPositionSelectionModal = (
     categoryId: string,
@@ -1414,6 +1455,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     batteryIndex: number,
     type: 'startPosition' | 'finishPosition'
   ) => {
+    // Verificar se o piloto tem status que impede alteração
+    if (hasBlockingStatus(categoryId, pilotId, batteryIndex, type)) {
+      const statusText = getStatusText(categoryId, pilotId, batteryIndex);
+      toast.error(`Não é possível alterar a posição de corrida de um piloto com status ${statusText}`);
+      return;
+    }
+    
     setSelectedPilotForPosition({ categoryId, pilotId, batteryIndex, type });
     setShowPositionSelectionModal(true);
   };
@@ -1792,6 +1840,106 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     }
   };
 
+  // Função para abrir o Dialog de confirmação de limpeza
+  const openClearAllDialog = () => {
+    setShowClearAllDialog(true);
+  };
+
+  // Função para limpar todos os resultados da bateria
+  const clearAllResults = async () => {
+    if (!selectedOverviewCategory || selectedBatteryIndex === null) return;
+    
+    try {
+      
+      // Obter pilotos da categoria selecionada
+      const categoryPilots = registrations.filter(reg =>
+        reg.categories.some((rc: any) => rc.category.id === selectedOverviewCategory) &&
+        stageParticipations.some(
+          (part) => part.userId === reg.userId && part.categoryId === selectedOverviewCategory && part.status === 'confirmed'
+        )
+      );
+      
+      // Criar cópia dos resultados atuais
+      const updatedResults = { ...stageResults };
+      
+      // Para cada piloto da categoria, limpar todos os resultados da bateria selecionada
+      categoryPilots.forEach(pilot => {
+        if (updatedResults[selectedOverviewCategory]?.[pilot.userId]?.[selectedBatteryIndex]) {
+          // Manter apenas os karts sorteados, limpar todo o resto
+          const kartAssignment = updatedResults[selectedOverviewCategory][pilot.userId][selectedBatteryIndex].kart;
+          
+          // Resetar para apenas o kart sorteado e peso OK, removendo todos os resultados da corrida
+          updatedResults[selectedOverviewCategory][pilot.userId][selectedBatteryIndex] = {
+            kart: kartAssignment,
+            weight: true // Resetar peso para OK
+            // Removendo: startPosition, finishPosition, bestLap, totalTime, qualifyingBestLap
+          };
+        }
+      });
+
+      // Deletar lap times da bateria selecionada
+      try {
+        await LapTimesService.deleteLapTimesByCategoryAndBattery(selectedStageId, selectedOverviewCategory, selectedBatteryIndex);
+        
+        // Limpar lap times do contexto/estado local
+        setLapTimes(prev => {
+          const updated = { ...prev };
+          if (updated[selectedOverviewCategory]) {
+            // Filtrar apenas os lap times que não são da bateria selecionada
+            updated[selectedOverviewCategory] = updated[selectedOverviewCategory].filter(
+              lapTime => lapTime.batteryIndex !== selectedBatteryIndex
+            );
+          }
+          return updated;
+        });
+      } catch (error) {
+        console.error('Erro ao deletar lap times:', error);
+        // Continuar mesmo se falhar ao deletar lap times
+      }
+
+      // Deletar penalidades da bateria selecionada
+      try {
+        // Buscar penalidades da bateria selecionada
+        const penalties = getPenalties().filter(penalty => 
+          penalty.stageId === selectedStageId &&
+          penalty.categoryId === selectedOverviewCategory &&
+          penalty.batteryIndex === selectedBatteryIndex
+        );
+
+        // Deletar cada penalidade no backend
+        for (const penalty of penalties) {
+          await PenaltyService.deletePenalty(penalty.id);
+        }
+
+        // Recarregar penalidades do contexto para atualizar a interface
+        await refreshPenalties();
+      } catch (error) {
+        console.error('Erro ao deletar penalidades:', error);
+        // Continuar mesmo se falhar ao deletar penalidades
+      }
+      
+      // Atualizar estado local
+      setStageResults(updatedResults);
+      
+      // Salvar no backend imediatamente
+      await saveStageResults(updatedResults);
+      
+      // Marcar que os dados foram modificados para trigger do save automático
+      setStageResultsModified(true);
+      
+      toast.success('Todos os resultados foram limpos com sucesso!');
+      setShowClearAllDialog(false);
+    } catch (error) {
+      console.error('Erro ao limpar todos os resultados:', error);
+      toast.error('Erro ao limpar todos os resultados');
+    }
+  };
+
+  // Função para cancelar o Dialog de limpeza
+  const cancelClearAllDialog = () => {
+    setShowClearAllDialog(false);
+  };
+
   // Função para filtrar penalidades por categoria e bateria
   const getFilteredPenalties = (categoryId: string, batteryIndex: number) => {
     return filteredPenalties.filter(penalty => 
@@ -1837,9 +1985,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     switch (status) {
       case PenaltyStatus.APPLIED:
         return 'bg-green-100 text-green-800';
-      case PenaltyStatus.PENDING:
-        return 'bg-yellow-100 text-yellow-800';
-      case PenaltyStatus.CANCELLED:
+      case PenaltyStatus.NOT_APPLIED:
         return 'bg-gray-100 text-gray-800';
       case PenaltyStatus.APPEALED:
         return 'bg-blue-100 text-blue-800';
@@ -1901,6 +2047,173 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
       setSortColumn(col);
       setSortDirection('asc');
     }
+  };
+
+  // Função para processar penalidades do arquivo Excel
+  const processPenaltiesFromExcel = (data: any[], kartToUserMapping: { [kartNumber: number]: string }) => {
+    const penalties: Array<{
+      kartNumber: number;
+      penaltyText: string;
+      timePenaltySeconds?: number;
+      type: PenaltyType;
+    }> = [];
+    
+    let foundPenaltiesSection = false;
+    let foundObservationsSection = false;
+    
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i] as any[];
+      if (!row || row.length === 0) continue;
+      
+      const firstCell = String(row[0] || '').trim().toUpperCase();
+      
+      // Procurar pela seção de penalidades
+      if (firstCell.includes('PENALIZAÇÕES') || firstCell.includes('PENALIZACOES')) {
+        foundPenaltiesSection = true;
+        continue;
+      }
+      
+      // Parar quando encontrar "Observações da prova"
+      if (firstCell.includes('OBSERVAÇÕES DA PROVA') || firstCell.includes('OBSERVACOES DA PROVA')) {
+        foundObservationsSection = true;
+        break;
+      }
+      
+      // Se estamos na seção de penalidades, processar as linhas
+      if (foundPenaltiesSection && !foundObservationsSection) {
+        const rowText = row.map((cell: any) => String(cell || '')).join(' ').trim();
+        
+        // Procurar por padrões de penalidade
+        // Padrão: "KART 25 PENALIZADO EM 10 SEC SOB KART 18"
+        const penaltyPattern = /KART\s+(\d+)\s+PENALIZADO\s+EM\s+(\d+)\s+SEC/i;
+        const match = rowText.match(penaltyPattern);
+        
+        if (match) {
+          const kartNumber = parseInt(match[1]);
+          const timePenaltySeconds = parseInt(match[2]);
+          
+          penalties.push({
+            kartNumber,
+            penaltyText: rowText,
+            timePenaltySeconds,
+            type: PenaltyType.TIME_PENALTY
+          });
+        }
+        
+        // Outros padrões podem ser adicionados aqui
+        // Por exemplo: "KART 25 DESQUALIFICADO"
+        const disqualificationPattern = /KART\s+(\d+)\s+DESQUALIFICADO/i;
+        const dqMatch = rowText.match(disqualificationPattern);
+        
+        if (dqMatch) {
+          const kartNumber = parseInt(dqMatch[1]);
+          
+          penalties.push({
+            kartNumber,
+            penaltyText: rowText,
+            type: PenaltyType.DISQUALIFICATION
+          });
+        }
+      }
+    }
+    
+    // Processar observações da prova para bandeiras pretas
+    let foundObservationsSectionForFlags = false;
+    
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i] as any[];
+      if (!row || row.length === 0) continue;
+      
+      const firstCell = String(row[0] || '').trim().toUpperCase();
+      
+      // Procurar pela seção de observações
+      if (firstCell.includes('OBSERVAÇÕES DA PROVA') || firstCell.includes('OBSERVACOES DA PROVA')) {
+        foundObservationsSectionForFlags = true;
+        continue;
+      }
+      
+      // Se estamos na seção de observações, processar as linhas
+      if (foundObservationsSectionForFlags) {
+        const rowText = row.map((cell: any) => String(cell || '')).join(' ').trim();
+        
+        // Procurar por padrões de bandeira preta
+        // Padrão: "O competidor de nº 15 recebeu uma bandeira Preta na passagem de nº 9 SOB KART 31"
+        const blackFlagPattern = /O\s+competidor\s+de\s+nº\s+(\d+)\s+recebeu\s+uma\s+bandeira\s+preta/i;
+        const match = rowText.match(blackFlagPattern);
+        
+        if (match && !rowText.toLowerCase().includes('laranja')) {
+          const competitorNumber = parseInt(match[1]);
+          
+          // Buscar o kart correspondente ao número do competidor
+          const kartNumber = Object.keys(kartToUserMapping).find(kart => {
+            const userId = kartToUserMapping[parseInt(kart)];
+            // Aqui precisamos buscar o número do competidor baseado no userId
+            // Por enquanto, vamos usar o kart diretamente
+            return parseInt(kart) === competitorNumber;
+          });
+          
+          if (kartNumber) {
+            penalties.push({
+              kartNumber: parseInt(kartNumber),
+              penaltyText: rowText,
+              type: PenaltyType.DISQUALIFICATION
+            });
+          }
+        }
+
+        // Procurar por padrões de advertência
+        // Padrão: "O competidor de nº 20 recebeu uma ADV na passagem de nº 2 SOB KART 18"
+        // Suporta múltiplas advertências na mesma linha ou separadas por quebra de linha
+        // Exemplo: "O competidor de nº 2 recebeu uma ADV na passagem de nº 8 SOB KART 21 O competidor de nº 2 recebeu uma ADV na passagem de nº 11 SOB KART 21"
+        // Será processada como duas advertências separadas
+        
+        // Dividir o texto em partes que começam com "O competidor"
+        const warningParts = rowText.split(/(?=O\s+competidor\s+de\s+nº\s+\d+\s+recebeu\s+uma\s+ADV)/i);
+        
+        for (const part of warningParts) {
+          if (part.trim() === '') continue;
+          
+          // Verificar se esta parte é uma advertência
+          const warningMatch = part.match(/O\s+competidor\s+de\s+nº\s+(\d+)\s+recebeu\s+uma\s+ADV[^.]*(?:SOB\s+KART\s+(\d+))?/i);
+          
+          if (warningMatch) {
+            const competitorNumber = parseInt(warningMatch[1]);
+            const kartNumberFromText = warningMatch[2] ? parseInt(warningMatch[2]) : null;
+            
+            // Buscar o kart correspondente ao número do competidor
+            let kartNumber: number | null = null;
+            
+            if (kartNumberFromText) {
+              // Se o kart foi especificado no texto, usar ele
+              kartNumber = kartNumberFromText;
+            } else {
+              // Caso contrário, buscar o kart correspondente ao número do competidor
+              const foundKart = Object.keys(kartToUserMapping).find(kart => {
+                const userId = kartToUserMapping[parseInt(kart)];
+                // Aqui precisamos buscar o número do competidor baseado no userId
+                // Por enquanto, vamos usar o kart diretamente
+                return parseInt(kart) === competitorNumber;
+              });
+              
+              if (foundKart) {
+                kartNumber = parseInt(foundKart);
+              }
+            }
+            
+            if (kartNumber) {
+              // Criar uma penalidade separada para cada advertência encontrada
+              penalties.push({
+                kartNumber,
+                penaltyText: part.trim(),
+                type: PenaltyType.WARNING
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    return penalties;
   };
 
   // Funções para lap times
@@ -2011,8 +2324,18 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
         let totalNcCount = 0;
         let totalBestLapCount = 0;
         let totalTimeCount = 0;
+        let totalLapsCount = 0;
         const allNotFoundKarts: number[] = [];
         
+        // Criar mapeamento de kart para usuário
+        const kartToUserMapping: { [kartNumber: number]: string } = {};
+        Object.entries(categoryResults).forEach(([pilotId, batteryResults]) => {
+          const pilotBatteryData = batteryResults[selectedBatteryIndex];
+          if (pilotBatteryData) {
+            kartToUserMapping[pilotBatteryData.kart] = pilotId;
+          }
+        });
+
         // Processar todas as sheets
         for (const sheetName of workbook.SheetNames) {
           const worksheet = workbook.Sheets[sheetName];
@@ -2024,6 +2347,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
           let kartColumn = -1;
           let bestLapColumn = -1;
           let totalTimeColumn = -1;
+          let totalLapsColumn = -1;
           
           for (let i = 0; i < data.length; i++) {
             const row = data[i] as any[];
@@ -2044,6 +2368,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
               if (cell === 'tt' || cell === 'tempo total' || cell === 'total') {
                 totalTimeColumn = j;
               }
+              // Procurar pela coluna TV (Total de Voltas)
+              if (cell === 'tv' || cell === 'total voltas' || cell === 'voltas' || cell === 'total de voltas') {
+                totalLapsColumn = j;
+              }
             }
             if (headerRow >= 0 && positionColumn >= 0 && kartColumn >= 0) {
               break;
@@ -2059,6 +2387,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
           let ncCount = 0;
           let bestLapCount = 0;
           let totalTimeCountLocal = 0;
+          let totalLapsCountLocal = 0;
           const notFoundKarts: number[] = [];
           
           for (let i = headerRow + 1; i < data.length; i++) {
@@ -2069,6 +2398,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
             const kartNumber = Number(row[kartColumn]);
             const bestLapValue = bestLapColumn >= 0 ? String(row[bestLapColumn] || '').trim() : '';
             const totalTimeValue = totalTimeColumn >= 0 ? String(row[totalTimeColumn] || '').trim() : '';
+            const totalLapsValue = totalLapsColumn >= 0 ? String(row[totalLapsColumn] || '').trim() : '';
 
             // Validar se o kart é um número válido
             if (isNaN(kartNumber)) continue;
@@ -2083,40 +2413,68 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
               if (pilotBatteryData && pilotBatteryData.kart === kartNumber) {
                 const fieldToUpdate = importType === 'race' ? 'finishPosition' : 'startPosition';
                 
-                // Verificar se é NC (Não Completou)
-                if (positionValue === 'NC') {
+                // Verificar se é NC (Não Completou) ou DC (Did Not Complete)
+                if (positionValue === 'NC' || positionValue === 'DC') {
                   // Limpar a posição (definir como null/undefined)
                   updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, fieldToUpdate, null);
+                  
+                  // ✅ Salvar o status de não conclusão APENAS para corrida
+                  if (importType === 'race') {
+                    const status = positionValue === 'NC' ? 'nc' : 'dc';
+                    updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'status', status);
+                  }
+                  
+                  ncCount++;
+                } else if (positionValue === 'DQ') {
+                  // Para DQ, também salvar o status APENAS para corrida
+                  updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, fieldToUpdate, null);
+                  if (importType === 'race') {
+                    updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'status', 'dq');
+                  }
                   ncCount++;
                 } else {
                   // Tentar converter para número
                   const position = Number(positionValue);
                   if (!isNaN(position)) {
                     updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, fieldToUpdate, position);
+                    // ✅ Marcar como completado APENAS para corrida
+                    if (importType === 'race') {
+                      updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'status', 'completed');
+                    }
                     processedCount++;
                   }
                 }
                 
-                // Processar melhor volta se disponível
-                if (bestLapColumn >= 0 && bestLapValue && bestLapValue !== 'NC' && positionValue !== 'NC' && positionValue !== 'DQ') {
+                // Processar melhor volta se disponível (apenas para qualificação)
+                if (importType === 'qualification' && bestLapColumn >= 0 && bestLapValue && bestLapValue !== 'NC' && positionValue !== 'DQ') {
                   // Validar formato de tempo (exemplo: 47.123, 1:23.456, 47,123)
                   const timePattern = /^(\d{1,2}:)?\d{1,2}[.,]\d{1,3}$/;
                   if (timePattern.test(bestLapValue)) {
                     // Normalizar formato (trocar vírgula por ponto se necessário)
                     const normalizedTime = bestLapValue.replace(',', '.');
-                    if (importType === 'qualification') {
-                      updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'qualifyingBestLap', normalizedTime);
-                    } else {
-                      updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'bestLap', normalizedTime);
-                    }
+                    updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'qualifyingBestLap', normalizedTime);
                     bestLapCount++;
                   } else {
                     // Formato de tempo inválido ignorado
                   }
                 }
                 
-                // Processar tempo total se disponível (apenas para corrida)
-                if (importType === 'race' && totalTimeColumn >= 0 && totalTimeValue && totalTimeValue !== 'NC' && positionValue !== 'NC' && positionValue !== 'DQ') {
+                // Processar melhor volta da corrida se disponível (apenas para corrida)
+                if (importType === 'race' && bestLapColumn >= 0 && bestLapValue && bestLapValue !== 'NC' && positionValue !== 'DQ') {
+                  // Validar formato de tempo (exemplo: 47.123, 1:23.456, 47,123)
+                  const timePattern = /^(\d{1,2}:)?\d{1,2}[.,]\d{1,3}$/;
+                  if (timePattern.test(bestLapValue)) {
+                    // Normalizar formato (trocar vírgula por ponto se necessário)
+                    const normalizedTime = bestLapValue.replace(',', '.');
+                    updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'bestLap', normalizedTime);
+                    bestLapCount++;
+                  } else {
+                    // Formato de tempo inválido ignorado
+                  }
+                }
+                
+                // Processar tempo total se disponível (apenas para corrida, mesmo para pilotos DC/NC)
+                if (importType === 'race' && totalTimeColumn >= 0 && totalTimeValue && totalTimeValue !== 'NC' && positionValue !== 'DQ') {
                   // Validar formato de tempo (exemplo: 00:14:34.610, 14:34.610, 14:34,610)
                   const timePattern = /^(\d{1,2}:)?\d{1,2}:\d{2}[.,]\d{1,3}$/;
                   if (timePattern.test(totalTimeValue)) {
@@ -2135,6 +2493,18 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                   }
                 }
                 
+                // Processar total de voltas se disponível (apenas para corrida, mesmo para pilotos DC/NC)
+                if (importType === 'race' && totalLapsColumn >= 0 && totalLapsValue && totalLapsValue !== 'NC' && positionValue !== 'DQ') {
+                  // Validar se é um número válido
+                  const totalLaps = Number(totalLapsValue);
+                  if (!isNaN(totalLaps) && totalLaps >= 0) {
+                    updatePilotResult(selectedOverviewCategory, pilotId, selectedBatteryIndex, 'totalLaps', totalLaps);
+                    totalLapsCountLocal++;
+                  } else {
+                    // Valor inválido ignorado
+                  }
+                }
+                
                 pilotFound = true;
                 break;
               }
@@ -2145,25 +2515,127 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
             }
           }
           
+          // Processar penalidades do arquivo (apenas para corrida)
+          if (importType === 'race') {
+            try {
+              const penalties = processPenaltiesFromExcel(data, kartToUserMapping);
+              let penaltiesCreated = 0;
+              let penaltiesSkipped = 0;
+              let penaltyTimeApplied = 0;
+              
+              // Obter penalidades existentes para esta etapa e categoria
+              const existingPenalties = contextPenalties.filter(penalty => 
+                penalty.stageId === selectedStageId && 
+                penalty.categoryId === selectedOverviewCategory &&
+                penalty.batteryIndex === selectedBatteryIndex
+              );
+              
+              // Mapear punições por piloto para calcular tempo total de punição
+              const penaltyTimeByPilot: { [userId: string]: number } = {};
+              
+              for (const penalty of penalties) {
+                const userId = kartToUserMapping[penalty.kartNumber];
+                if (userId) {
+                  // Verificar se já existe uma punição com o mesmo motivo para este piloto
+                  const existingPenalty = existingPenalties.find(existing => 
+                    existing.userId === userId && 
+                    existing.reason === penalty.penaltyText
+                  );
+                  
+                  if (existingPenalty) {
+                    console.log(`Punição duplicada descartada para kart ${penalty.kartNumber}: ${penalty.penaltyText}`);
+                    penaltiesSkipped++;
+                    continue;
+                  }
+                  
+                  try {
+                    await PenaltyService.createPenalty({
+                      type: penalty.type,
+                      reason: penalty.penaltyText,
+                      description: penalty.penaltyText,
+                      timePenaltySeconds: penalty.timePenaltySeconds,
+                      batteryIndex: selectedBatteryIndex,
+                      userId,
+                      championshipId: championshipId!,
+                      seasonId: selectedSeasonId,
+                      stageId: selectedStageId,
+                      categoryId: selectedOverviewCategory,
+                      status: PenaltyStatus.APPLIED, // Aplicar automaticamente
+                      isImported: true // Marcar como importada
+                    });
+                    penaltiesCreated++;
+                    
+                    // Acumular tempo de punição para este piloto
+                    if (penalty.timePenaltySeconds && penalty.timePenaltySeconds > 0) {
+                      penaltyTimeByPilot[userId] = (penaltyTimeByPilot[userId] || 0) + penalty.timePenaltySeconds;
+                      penaltyTimeApplied++;
+                    }
+                  } catch (error) {
+                    console.error(`Erro ao criar penalidade para kart ${penalty.kartNumber}:`, error);
+                  }
+                }
+              }
+              
+              // Aplicar tempo de punição aos resultados dos pilotos
+              for (const [userId, totalPenaltySeconds] of Object.entries(penaltyTimeByPilot)) {
+                const currentResults = stageResults[selectedOverviewCategory]?.[userId]?.[selectedBatteryIndex];
+                if (currentResults && currentResults.totalTime) {
+                  // Calcular tempo real (subtraindo punições do tempo salvo)
+                  const savedTimeMs = convertTimeToMs(currentResults.totalTime);
+                  const penaltyTimeMs = totalPenaltySeconds * 1000;
+                  const realTimeMs = savedTimeMs - penaltyTimeMs;
+                  
+                  // Atualizar o tempo total com o tempo real (sem punições)
+                  const realTime = convertMsToTime(realTimeMs);
+                  updatePilotResult(selectedOverviewCategory, userId, selectedBatteryIndex, 'totalTime', realTime);
+                  
+                  // Salvar o tempo de punição
+                  updatePilotResult(selectedOverviewCategory, userId, selectedBatteryIndex, 'penaltyTime', totalPenaltySeconds.toString());
+                }
+              }
+              
+              if (penaltiesCreated > 0 || penaltiesSkipped > 0) {
+                let message = '';
+                if (penaltiesCreated > 0) {
+                  message += `${penaltiesCreated} penalidades criadas automaticamente`;
+                }
+                if (penaltiesSkipped > 0) {
+                  if (message) message += ' • ';
+                  message += `${penaltiesSkipped} penalidades duplicadas descartadas`;
+                }
+                if (penaltyTimeApplied > 0) {
+                  if (message) message += ' • ';
+                  message += `${penaltyTimeApplied} tempos de punição aplicados`;
+                }
+                toast.success(message);
+                // Recarregar penalidades do contexto para atualizar a interface
+                await refreshPenalties();
+              }
+            } catch (error) {
+              console.error('Erro ao processar penalidades:', error);
+            }
+          }
+          
           // Acumular totais
           totalProcessedCount += processedCount;
           totalNcCount += ncCount;
           totalBestLapCount += bestLapCount;
           totalTimeCount += totalTimeCountLocal;
+          totalLapsCount += totalLapsCountLocal;
           allNotFoundKarts.push(...notFoundKarts);
           
 
         }
         
         // Feedback detalhado final
-        if (totalProcessedCount > 0 || totalNcCount > 0 || totalBestLapCount > 0 || totalTimeCount > 0) {
+        if (totalProcessedCount > 0 || totalNcCount > 0 || totalBestLapCount > 0 || totalTimeCount > 0 || totalLapsCount > 0) {
           let message = '';
           if (totalProcessedCount > 0) {
             message += `${totalProcessedCount} ${importType === 'race' ? 'posições de corrida' : 'posições de classificação'} importadas`;
           }
           if (totalNcCount > 0) {
             if (message) message += ' • ';
-            message += `${totalNcCount} pilotos marcados como NC (não completaram)`;
+            message += `${totalNcCount} pilotos marcados como NC/DC (não completaram)`;
           }
           if (totalBestLapCount > 0) {
             if (message) message += ' • ';
@@ -2172,6 +2644,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
           if (totalTimeCount > 0) {
             if (message) message += ' • ';
             message += `${totalTimeCount} tempos totais importados`;
+          }
+          if (totalLapsCount > 0) {
+            if (message) message += ' • ';
+            message += `${totalLapsCount} totais de voltas importados`;
           }
           if (workbook.SheetNames.length > 1) {
             message += ` (processadas ${workbook.SheetNames.length} sheets)`;
@@ -2184,7 +2660,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
           toast.warning(`Karts não encontrados no sorteio: ${uniqueNotFoundKarts.join(', ')}`);
         }
         
-        if (totalProcessedCount === 0 && totalNcCount === 0 && totalBestLapCount === 0 && totalTimeCount === 0) {
+        if (totalProcessedCount === 0 && totalNcCount === 0 && totalBestLapCount === 0 && totalTimeCount === 0 && totalLapsCount === 0) {
           toast.error('Nenhum resultado foi importado. Verifique se o arquivo está no formato correto.');
         }
       }
@@ -2798,6 +3274,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                           <BarChart3 className="w-4 h-4 mr-2" />
                           Gráfico Volta a Volta
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={openClearAllDialog}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Limpar Todos os Resultados
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
@@ -2883,8 +3367,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                             <div className="flex flex-col">
                               <span className="text-xs text-gray-500 mb-1">Classificação</span>
                               <button
-                                className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 hover:bg-gray-200 transition-colors"
+                                className={`py-3 px-4 rounded-lg font-semibold text-base border transition-colors ${
+                                  hasBlockingStatus(category.id, pilot.userId, selectedBatteryIndex, 'startPosition')
+                                    ? 'bg-red-100 text-red-800 border-red-300 cursor-not-allowed'
+                                    : 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200'
+                                }`}
                                 onClick={() => openPositionSelectionModal(category.id, pilot.userId, selectedBatteryIndex, 'startPosition')}
+                                disabled={hasBlockingStatus(category.id, pilot.userId, selectedBatteryIndex, 'startPosition')}
                               >
                                 {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.startPosition || '-'}
                               </button>
@@ -2894,10 +3383,21 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                             <div className="flex flex-col">
                               <span className="text-xs text-gray-500 mb-1">Corrida</span>
                               <button
-                                className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 hover:bg-gray-200 transition-colors"
+                                className={`py-3 px-4 rounded-lg font-semibold text-base border transition-colors ${
+                                  hasBlockingStatus(category.id, pilot.userId, selectedBatteryIndex, 'finishPosition')
+                                    ? 'bg-red-100 text-red-800 border-red-300 cursor-not-allowed'
+                                    : 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200'
+                                }`}
                                 onClick={() => openPositionSelectionModal(category.id, pilot.userId, selectedBatteryIndex, 'finishPosition')}
+                                disabled={hasBlockingStatus(category.id, pilot.userId, selectedBatteryIndex, 'finishPosition')}
                               >
-                                {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition || '-'}
+                                {(() => {
+                                  const statusText = getStatusText(category.id, pilot.userId, selectedBatteryIndex);
+                                  if (statusText) {
+                                    return statusText;
+                                  }
+                                  return stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition || '-';
+                                })()}
                               </button>
                             </div>
                           </div>
@@ -2965,22 +3465,55 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                             </div>
                           </div>
                           
-                          {/* Quarta linha: Tempo Total */}
-                          <div className="grid grid-cols-1 gap-3 mt-3">
+                          {/* Quarta linha: Tempo Total e Total de Voltas */}
+                          <div className="grid grid-cols-2 gap-3 mt-3">
                             <div className="flex flex-col">
                               <span className="text-xs text-gray-500 mb-1">Tempo Total</span>
                               <button
                                 className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 hover:bg-gray-200 transition-colors min-h-[49px] flex items-center justify-center"
                                 onClick={() => openTotalTimeModal(category.id, pilot.userId, selectedBatteryIndex)}
                               >
-                                {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalTime ? (
+                                {(() => {
+                                  const totalTime = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalTime;
+                                  const penaltyTime = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.penaltyTime;
+                                  
+                                  if (!totalTime) {
+                                    return <span className="text-gray-400">-</span>;
+                                  }
+                                  
+                                  const penaltySeconds = penaltyTime ? parseInt(penaltyTime) : undefined;
+                                  
+                                  // Verificar se há punições importadas para este piloto nesta bateria
+                                  const pilotPenalties = contextPenalties.filter(penalty => 
+                                    penalty.userId === pilot.userId && 
+                                    penalty.stageId === selectedStageId && 
+                                    penalty.categoryId === category.id &&
+                                    penalty.batteryIndex === selectedBatteryIndex &&
+                                    penalty.isImported
+                                  );
+                                  const hasImportedPenalties = pilotPenalties.length > 0;
+                                  
+                                  const formattedTime = formatTimeWithPenalty(totalTime, penaltySeconds, false, hasImportedPenalties);
+                                  
+                                  return (
+                                    <span className="font-medium">
+                                      {formattedTime}
+                                    </span>
+                                  );
+                                })()}
+                              </button>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs text-gray-500 mb-1">Total de Voltas</span>
+                              <div className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 min-h-[49px] flex items-center justify-center">
+                                {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalLaps ? (
                                   <span className="font-medium">
-                                    {stageResults[category.id][pilot.userId][selectedBatteryIndex].totalTime}
+                                    {stageResults[category.id][pilot.userId][selectedBatteryIndex].totalLaps}
                                   </span>
                                 ) : (
                                   <span className="text-gray-400">-</span>
                                 )}
-                              </button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -3013,6 +3546,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                         </th>
                         <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('totalTime')}>
                           Tempo Total {sortColumn === 'totalTime' && (sortDirection === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('totalLaps')}>
+                          Total de Voltas {sortColumn === 'totalLaps' && (sortDirection === 'asc' ? '↑' : '↓')}
                         </th>
                         <th className="px-2 py-1 text-right">
                           Ações
@@ -3063,7 +3599,11 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                           </td>
                           {/* Posição Classificação */}
                           <td
-                            className="px-2 py-1 cursor-pointer hover:bg-gray-50 rounded transition-colors text-center"
+                            className={`px-2 py-1 text-center rounded transition-colors ${
+                              hasBlockingStatus(category.id, pilot.userId, selectedBatteryIndex, 'startPosition')
+                                ? 'cursor-not-allowed'
+                                : 'cursor-pointer hover:bg-gray-50'
+                            }`}
                             onClick={() => openPositionSelectionModal(category.id, pilot.userId, selectedBatteryIndex, 'startPosition')}
                           >
                             {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.startPosition ? (
@@ -3095,16 +3635,30 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                           </td>
                           {/* Posição Corrida */}
                           <td
-                            className="px-2 py-1 cursor-pointer hover:bg-gray-50 rounded transition-colors text-center"
+                            className={`px-2 py-1 text-center rounded transition-colors ${
+                              hasBlockingStatus(category.id, pilot.userId, selectedBatteryIndex, 'finishPosition')
+                                ? 'cursor-not-allowed'
+                                : 'cursor-pointer hover:bg-gray-50'
+                            }`}
                             onClick={() => openPositionSelectionModal(category.id, pilot.userId, selectedBatteryIndex, 'finishPosition')}
                           >
-                            {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition ? (
-                              <span className="font-medium">
-                                {stageResults[category.id][pilot.userId][selectedBatteryIndex].finishPosition}
-                              </span>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
+                            {(() => {
+                              const statusText = getStatusText(category.id, pilot.userId, selectedBatteryIndex);
+                              if (statusText) {
+                                return (
+                                  <span className="font-medium text-red-600">
+                                    {statusText}
+                                  </span>
+                                );
+                              }
+                              return stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.finishPosition ? (
+                                <span className="font-medium">
+                                  {stageResults[category.id][pilot.userId][selectedBatteryIndex].finishPosition}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              );
+                            })()}
                           </td>
                           {/* Melhor Volta */}
                           <td 
@@ -3158,18 +3712,52 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                             className="px-2 py-1 cursor-pointer hover:bg-gray-50 rounded transition-colors text-center"
                             onClick={() => openTotalTimeModal(category.id, pilot.userId, selectedBatteryIndex)}
                           >
-                            {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalTime ? (
-                              <div className="flex items-center justify-center gap-1">
-                                <span className="font-medium">
-                                  {stageResults[category.id][pilot.userId][selectedBatteryIndex].totalTime}
-                                </span>
-                                <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              </div>
+                            {(() => {
+                              const totalTime = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalTime;
+                              const penaltyTime = stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.penaltyTime;
+                              
+                              if (!totalTime) {
+                                return (
+                                  <div className="flex items-center justify-center gap-1">
+                                    <span className="text-gray-400">-</span>
+                                    <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                  </div>
+                                );
+                              }
+                              
+                              const penaltySeconds = penaltyTime ? parseInt(penaltyTime) : undefined;
+                              
+                              // Verificar se há punições importadas para este piloto nesta bateria
+                              const pilotPenalties = contextPenalties.filter(penalty => 
+                                penalty.userId === pilot.userId && 
+                                penalty.stageId === selectedStageId && 
+                                penalty.categoryId === category.id &&
+                                penalty.batteryIndex === selectedBatteryIndex &&
+                                penalty.isImported
+                              );
+                              const hasImportedPenalties = pilotPenalties.length > 0;
+                              
+                              const formattedTime = formatTimeWithPenalty(totalTime, penaltySeconds, false, hasImportedPenalties);
+                              
+                              return (
+                                <div className="flex items-center justify-center gap-1">
+                                  <span className="font-medium">
+                                    {formattedTime}
+                                  </span>
+                                  <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                              );
+                            })()}
+                          </td>
+                          
+                          {/* Total de Voltas */}
+                          <td className="px-2 py-1 text-center">
+                            {stageResults[category.id]?.[pilot.userId]?.[selectedBatteryIndex]?.totalLaps ? (
+                              <span className="font-medium">
+                                {stageResults[category.id][pilot.userId][selectedBatteryIndex].totalLaps}
+                              </span>
                             ) : (
-                              <div className="flex items-center justify-center gap-1">
-                                <span className="text-gray-400">-</span>
-                                <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              </div>
+                              <span className="text-gray-400">-</span>
                             )}
                           </td>
                           
@@ -4369,6 +4957,45 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
       onClose={handleCloseBulkConfirmModal}
       onSuccess={handleBulkConfirmSuccess}
     />
+
+    {/* Dialog de confirmação para limpar todos os resultados */}
+    <Dialog open={showClearAllDialog} onOpenChange={setShowClearAllDialog}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Confirmar limpeza de resultados</DialogTitle>
+          <DialogDescription>
+            Tem certeza que deseja limpar todos os resultados desta bateria?
+            <br /><br />
+            <strong>Esta ação irá:</strong>
+            <br />
+            • Manter os karts sorteados
+            <br />
+            • Resetar todos os pesos para "OK"
+            <br />
+            • Limpar todas as posições, voltas e tempos
+            <br />
+            • Remover dados de volta a volta
+            <br /><br />
+            <strong>Esta ação não pode ser desfeita.</strong>
+          </DialogDescription>
+        </DialogHeader>
+        
+        <DialogFooter>
+          <Button 
+            variant="outline" 
+            onClick={cancelClearAllDialog}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            variant="destructive" 
+            onClick={clearAllResults}
+          >
+            Limpar Todos os Resultados
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </div>
   );
 }; 

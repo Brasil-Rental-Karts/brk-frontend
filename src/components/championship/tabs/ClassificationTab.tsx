@@ -215,6 +215,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
   const isMobile = useIsMobile();
   const [filters, setFilters] = useState<FilterValues>({});
   const [updatingCache, setUpdatingCache] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
   
   // Usar o contexto de dados do campeonato
   const { 
@@ -503,7 +504,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
     if (!selectedSeasonId) return;
     
     try {
-      setUpdatingCache(true);
+      setShowLoading(true);
       
       // Atualizar cache da classificação
       await ChampionshipClassificationService.updateSeasonClassificationCache(selectedSeasonId);
@@ -518,7 +519,7 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
     } catch (err: any) {
       toast.error('Erro ao atualizar classificação');
     } finally {
-      setUpdatingCache(false);
+      setShowLoading(false);
     }
   }, [selectedSeasonId, refreshClassification, loadClassification]);
 
@@ -579,16 +580,23 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
         <div className="flex items-center gap-2">
           <Button
             onClick={handleUpdateClassificationCache}
-            disabled={updatingCache || !selectedSeasonId}
+            disabled={showLoading || !selectedSeasonId}
             variant="outline"
             size="sm"
             className="flex items-center gap-2"
           >
-            <RefreshCw className={`h-4 w-4 ${updatingCache ? 'animate-spin' : ''}`} />
-            {updatingCache ? 'Atualizando...' : 'Atualizar Classificação'}
+            <RefreshCw className="h-4 w-4" />
+            Atualizar Classificação
           </Button>
         </div>
       </div>
+
+      {/* Loading padrão durante atualização */}
+      {showLoading && (
+        <div className="flex justify-center items-center py-8">
+          <Loading type="spinner" size="lg" />
+        </div>
+      )}
 
       {/* Mensagens de feedback */}
       {dataError && (
@@ -598,161 +606,165 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
         </Alert>
       )}
 
-      {/* Classificação */}
-      {filteredPilots.length === 0 ? (
-        <EmptyState
-          icon={Trophy}
-          title="Nenhuma classificação disponível"
-          description="Ainda não há resultados para exibir na classificação"
-        />
-      ) : (
+      {/* Classificação - só mostrar se não estiver carregando */}
+      {!showLoading && (
         <>
-          {/* Subtítulo da categoria selecionada */}
-          <div className="border-b border-gray-200 pb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              {filters.categoryId && filters.categoryId !== 'all' 
-                ? categoriesMap[filters.categoryId]?.name || `Categoria ${filters.categoryId.slice(0, 8)}...`
-                : 'Classificação Geral'
-              }
-            </h3>
-            {filters.categoryId && filters.categoryId !== 'all' && filteredPilots.length === 0 && (
-              <p className="text-sm text-muted-foreground mt-1">
-                Nenhum piloto encontrado para esta categoria na classificação atual.
-              </p>
-            )}
-          </div>
-          
-          {isMobile ? (
+          {filteredPilots.length === 0 ? (
+            <EmptyState
+              icon={Trophy}
+              title="Nenhuma classificação disponível"
+              description="Ainda não há resultados para exibir na classificação"
+            />
+          ) : (
             <>
-              <div className="space-y-4">
-                {processedPilots.map((entry, index) => {
-                  const position = isMobile ? 
-                    filteredPilots.findIndex(p => p.user.id === entry.user.id && p.categoryId === entry.categoryId) + 1 :
-                    pagination.info.startIndex + index + 1;
-                  
-                  return (
-                    <div key={`${entry.user.id}-${entry.categoryId}`} ref={processedPilots.length === index + 1 ? lastPilotElementRef : null}>
-                      <ClassificationCard 
-                        entry={entry} 
-                        position={position}
-                        onAction={handlePilotAction}
-                      />
-                    </div>
-                  );
-                })}
+              {/* Subtítulo da categoria selecionada */}
+              <div className="border-b border-gray-200 pb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {filters.categoryId && filters.categoryId !== 'all' 
+                    ? categoriesMap[filters.categoryId]?.name || `Categoria ${filters.categoryId.slice(0, 8)}...`
+                    : 'Classificação Geral'
+                  }
+                </h3>
+                {filters.categoryId && filters.categoryId !== 'all' && filteredPilots.length === 0 && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Nenhum piloto encontrado para esta categoria na classificação atual.
+                  </p>
+                )}
               </div>
-              {loadingMore && (
-                <div className="flex justify-center items-center py-4">
-                  <InlineLoader size="sm" />
-                </div>
-              )}
-              {!loadingMore && !hasMore && processedPilots.length > 0 && (
-                <div className="text-center text-sm text-muted-foreground py-4">
-                  Fim dos resultados.
-                </div>
+              
+              {isMobile ? (
+                <>
+                  <div className="space-y-4">
+                    {processedPilots.map((entry, index) => {
+                      const position = isMobile ? 
+                        filteredPilots.findIndex(p => p.user.id === entry.user.id && p.categoryId === entry.categoryId) + 1 :
+                        pagination.info.startIndex + index + 1;
+                      
+                      return (
+                        <div key={`${entry.user.id}-${entry.categoryId}`} ref={processedPilots.length === index + 1 ? lastPilotElementRef : null}>
+                          <ClassificationCard 
+                            entry={entry} 
+                            position={position}
+                            onAction={handlePilotAction}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {loadingMore && (
+                    <div className="flex justify-center items-center py-4">
+                      <InlineLoader size="sm" />
+                    </div>
+                  )}
+                  {!loadingMore && !hasMore && processedPilots.length > 0 && (
+                    <div className="text-center text-sm text-muted-foreground py-4">
+                      Fim dos resultados.
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Card className="w-full flex flex-col">
+                  <div className="flex-1 overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-16">Pos.</TableHead>
+                          <TableHead>Piloto</TableHead>
+                          <TableHead>Categoria</TableHead>
+                          <TableHead className="text-center">Pontos</TableHead>
+                          <TableHead className="text-center">Vitórias</TableHead>
+                          <TableHead className="text-center">Pódios</TableHead>
+                          <TableHead className="text-center">Poles</TableHead>
+                          <TableHead className="text-center">V. Rápidas</TableHead>
+                          <TableHead className="text-center">Melhor Pos.</TableHead>
+                          <TableHead className="text-center">Etapas</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {processedPilots.map((entry, index) => (
+                          <TableRow key={`${entry.user.id}-${entry.categoryId}`}>
+                            <TableCell className="font-medium">
+                              {renderPositionBadge(pagination.info.startIndex + index + 1)}
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <div className="font-medium">{formatName(entry.user.name)}</div>
+                                {entry.user.nickname && (
+                                  <div className="text-xs text-muted-foreground">@{entry.user.nickname}</div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">
+                                  {entry.categoryId && categoriesMap[entry.categoryId]?.name 
+                                    ? categoriesMap[entry.categoryId].name 
+                                    : entry.categoryId 
+                                      ? `Categoria ${entry.categoryId.slice(0, 8)}...` 
+                                      : 'N/A'
+                                  }
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="space-y-1">
+                                <div className="text-lg font-bold">{entry.totalPoints}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                {entry.wins > 0 && <Trophy className="h-3 w-3 text-yellow-500" />}
+                                <span className="font-medium">{entry.wins}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                {entry.podiums > 0 && <Medal className="h-3 w-3 text-gray-400" />}
+                                <span className="font-medium">{entry.podiums}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                {entry.polePositions > 0 && <Target className="h-3 w-3 text-blue-500" />}
+                                <span className="font-medium">{entry.polePositions}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                {entry.fastestLaps > 0 && <Star className="h-3 w-3 text-purple-500" />}
+                                <span className="font-medium">{entry.fastestLaps}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <span className="font-medium">
+                                {entry.bestPosition === null ? '-' : `${entry.bestPosition}º`}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <span className="font-medium">{entry.totalStages}</span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <Pagination
+                      currentPage={pagination.state.currentPage}
+                      totalPages={pagination.info.totalPages}
+                      itemsPerPage={pagination.state.itemsPerPage}
+                      totalItems={pagination.state.totalItems}
+                      startIndex={pagination.info.startIndex}
+                      endIndex={pagination.info.endIndex}
+                      hasNextPage={pagination.info.hasNextPage}
+                      hasPreviousPage={pagination.info.hasPreviousPage}
+                      onPageChange={handlePageChange}
+                      onItemsPerPageChange={handleItemsPerPageChange}
+                    />
+                  </div>
+                </Card>
               )}
             </>
-          ) : (
-            <Card className="w-full flex flex-col">
-              <div className="flex-1 overflow-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-16">Pos.</TableHead>
-                      <TableHead>Piloto</TableHead>
-                      <TableHead>Categoria</TableHead>
-                      <TableHead className="text-center">Pontos</TableHead>
-                      <TableHead className="text-center">Vitórias</TableHead>
-                      <TableHead className="text-center">Pódios</TableHead>
-                      <TableHead className="text-center">Poles</TableHead>
-                      <TableHead className="text-center">V. Rápidas</TableHead>
-                      <TableHead className="text-center">Melhor Pos.</TableHead>
-                      <TableHead className="text-center">Etapas</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {processedPilots.map((entry, index) => (
-                      <TableRow key={`${entry.user.id}-${entry.categoryId}`}>
-                        <TableCell className="font-medium">
-                          {renderPositionBadge(pagination.info.startIndex + index + 1)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="font-medium">{formatName(entry.user.name)}</div>
-                            {entry.user.nickname && (
-                              <div className="text-xs text-muted-foreground">@{entry.user.nickname}</div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">
-                              {entry.categoryId && categoriesMap[entry.categoryId]?.name 
-                                ? categoriesMap[entry.categoryId].name 
-                                : entry.categoryId 
-                                  ? `Categoria ${entry.categoryId.slice(0, 8)}...` 
-                                  : 'N/A'
-                              }
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="space-y-1">
-                            <div className="text-lg font-bold">{entry.totalPoints}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            {entry.wins > 0 && <Trophy className="h-3 w-3 text-yellow-500" />}
-                            <span className="font-medium">{entry.wins}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            {entry.podiums > 0 && <Medal className="h-3 w-3 text-gray-400" />}
-                            <span className="font-medium">{entry.podiums}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            {entry.polePositions > 0 && <Target className="h-3 w-3 text-blue-500" />}
-                            <span className="font-medium">{entry.polePositions}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            {entry.fastestLaps > 0 && <Star className="h-3 w-3 text-purple-500" />}
-                            <span className="font-medium">{entry.fastestLaps}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span className="font-medium">
-                            {entry.bestPosition === null ? '-' : `${entry.bestPosition}º`}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span className="font-medium">{entry.totalStages}</span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="flex-shrink-0">
-                <Pagination
-                  currentPage={pagination.state.currentPage}
-                  totalPages={pagination.info.totalPages}
-                  itemsPerPage={pagination.state.itemsPerPage}
-                  totalItems={pagination.state.totalItems}
-                  startIndex={pagination.info.startIndex}
-                  endIndex={pagination.info.endIndex}
-                  hasNextPage={pagination.info.hasNextPage}
-                  hasPreviousPage={pagination.info.hasPreviousPage}
-                  onPageChange={handlePageChange}
-                  onItemsPerPageChange={handleItemsPerPageChange}
-                />
-              </div>
-            </Card>
           )}
         </>
       )}

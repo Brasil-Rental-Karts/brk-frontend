@@ -44,20 +44,18 @@ export const PenaltyList: React.FC<PenaltyListProps> = ({
     }
   };
 
-  const getStatusIcon = (status: PenaltyStatus) => {
-    switch (status) {
-      case PenaltyStatus.PENDING:
-        return <Clock className="h-4 w-4" />;
-      case PenaltyStatus.APPLIED:
-        return <CheckCircle className="h-4 w-4" />;
-      case PenaltyStatus.CANCELLED:
-        return <XCircle className="h-4 w-4" />;
-      case PenaltyStatus.APPEALED:
-        return <RotateCcw className="h-4 w-4" />;
-      default:
-        return <Clock className="h-4 w-4" />;
-    }
-  };
+      const getStatusIcon = (status: PenaltyStatus) => {
+      switch (status) {
+        case PenaltyStatus.APPLIED:
+          return <CheckCircle className="h-4 w-4" />;
+        case PenaltyStatus.NOT_APPLIED:
+          return <XCircle className="h-4 w-4" />;
+        case PenaltyStatus.APPEALED:
+          return <RotateCcw className="h-4 w-4" />;
+        default:
+          return <Clock className="h-4 w-4" />;
+      }
+    };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR', {
@@ -179,7 +177,7 @@ export const PenaltyList: React.FC<PenaltyListProps> = ({
 
               {showActions && (
                 <div className="flex items-center justify-end space-x-2 pt-4 border-t">
-                  {penalty.status === PenaltyStatus.PENDING && onApplyPenalty && (
+                  {penalty.status === PenaltyStatus.NOT_APPLIED && onApplyPenalty && (
                     <Button
                       size="sm"
                       onClick={() => onApplyPenalty(penalty.id)}
@@ -201,7 +199,7 @@ export const PenaltyList: React.FC<PenaltyListProps> = ({
                     </Button>
                   )}
 
-                  {penalty.status !== PenaltyStatus.CANCELLED && onCancelPenalty && (
+                  {penalty.status !== PenaltyStatus.NOT_APPLIED && onCancelPenalty && (
                     <Button
                       size="sm"
                       variant="outline"
