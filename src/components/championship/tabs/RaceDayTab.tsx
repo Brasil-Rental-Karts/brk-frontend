@@ -2163,26 +2163,51 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
 
         // Procurar por padrões de advertência
         // Padrão: "O competidor de nº 20 recebeu uma ADV na passagem de nº 2 SOB KART 18"
-        const warningPattern = /O\s+competidor\s+de\s+nº\s+(\d+)\s+recebeu\s+uma\s+ADV/i;
-        const warningMatch = rowText.match(warningPattern);
+        // Suporta múltiplas advertências na mesma linha ou separadas por quebra de linha
+        // Exemplo: "O competidor de nº 2 recebeu uma ADV na passagem de nº 8 SOB KART 21 O competidor de nº 2 recebeu uma ADV na passagem de nº 11 SOB KART 21"
+        // Será processada como duas advertências separadas
         
-        if (warningMatch) {
-          const competitorNumber = parseInt(warningMatch[1]);
+        // Dividir o texto em partes que começam com "O competidor"
+        const warningParts = rowText.split(/(?=O\s+competidor\s+de\s+nº\s+\d+\s+recebeu\s+uma\s+ADV)/i);
+        
+        for (const part of warningParts) {
+          if (part.trim() === '') continue;
           
-          // Buscar o kart correspondente ao número do competidor
-          const kartNumber = Object.keys(kartToUserMapping).find(kart => {
-            const userId = kartToUserMapping[parseInt(kart)];
-            // Aqui precisamos buscar o número do competidor baseado no userId
-            // Por enquanto, vamos usar o kart diretamente
-            return parseInt(kart) === competitorNumber;
-          });
+          // Verificar se esta parte é uma advertência
+          const warningMatch = part.match(/O\s+competidor\s+de\s+nº\s+(\d+)\s+recebeu\s+uma\s+ADV[^.]*(?:SOB\s+KART\s+(\d+))?/i);
           
-          if (kartNumber) {
-            penalties.push({
-              kartNumber: parseInt(kartNumber),
-              penaltyText: rowText,
-              type: PenaltyType.WARNING
-            });
+          if (warningMatch) {
+            const competitorNumber = parseInt(warningMatch[1]);
+            const kartNumberFromText = warningMatch[2] ? parseInt(warningMatch[2]) : null;
+            
+            // Buscar o kart correspondente ao número do competidor
+            let kartNumber: number | null = null;
+            
+            if (kartNumberFromText) {
+              // Se o kart foi especificado no texto, usar ele
+              kartNumber = kartNumberFromText;
+            } else {
+              // Caso contrário, buscar o kart correspondente ao número do competidor
+              const foundKart = Object.keys(kartToUserMapping).find(kart => {
+                const userId = kartToUserMapping[parseInt(kart)];
+                // Aqui precisamos buscar o número do competidor baseado no userId
+                // Por enquanto, vamos usar o kart diretamente
+                return parseInt(kart) === competitorNumber;
+              });
+              
+              if (foundKart) {
+                kartNumber = parseInt(foundKart);
+              }
+            }
+            
+            if (kartNumber) {
+              // Criar uma penalidade separada para cada advertência encontrada
+              penalties.push({
+                kartNumber,
+                penaltyText: part.trim(),
+                type: PenaltyType.WARNING
+              });
+            }
           }
         }
       }
