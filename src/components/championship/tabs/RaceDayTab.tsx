@@ -1255,6 +1255,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
   
   // Estado para controlar o Dialog de confirmação de limpeza
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
+  const [clearAllLoading, setClearAllLoading] = useState(false);
 
   // Salvar resultados automaticamente quando mudam (apenas se foram modificados pelo usuário)
   useEffect(() => {
@@ -1523,7 +1524,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
       updateStage(selectedStageId, { stage_results: updatedResults });
       
       closePositionSelectionModal();
-      toast.success(`${type === 'startPosition' ? 'Posição de classificação' : 'Posição de corrida'} removida!`);
+              toast.success(`${type === 'startPosition' ? 'Posição de qualificação' : 'Posição de corrida'} removida!`);
     } catch (error) {
       toast.error('Erro ao remover posição');
     } finally {
@@ -1541,7 +1542,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
   const [bestLapTimeInput, setBestLapTimeInput] = useState('');
   const [bestLapLoading, setBestLapLoading] = useState(false);
 
-  // Estados para modal de melhor volta de classificação
+      // Estados para modal de melhor volta de qualificação
   const [showQualifyingBestLapModal, setShowQualifyingBestLapModal] = useState(false);
   const [selectedPilotForQualifyingBestLap, setSelectedPilotForQualifyingBestLap] = useState<{
     categoryId: string;
@@ -1654,7 +1655,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     }
   };
 
-  // Função para abrir modal de melhor volta de classificação
+  // Função para abrir modal de melhor volta de qualificação
   const openQualifyingBestLapModal = (
     categoryId: string,
     pilotId: string,
@@ -1666,7 +1667,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     setShowQualifyingBestLapModal(true);
   };
 
-  // Função para fechar modal de melhor volta de classificação
+  // Função para fechar modal de melhor volta de qualificação
   const closeQualifyingBestLapModal = () => {
     setShowQualifyingBestLapModal(false);
     setSelectedPilotForQualifyingBestLap(null);
@@ -1674,7 +1675,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     setQualifyingBestLapLoading(false);
   };
 
-  // Função para salvar melhor volta de classificação
+  // Função para salvar melhor volta de qualificação
   const saveQualifyingBestLap = async () => {
     if (!selectedPilotForQualifyingBestLap) return;
     
@@ -1708,15 +1709,15 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
       updateStage(selectedStageId, { stage_results: updatedResults });
       
       closeQualifyingBestLapModal();
-      toast.success('Melhor volta de classificação salva!');
+              toast.success('Melhor volta de qualificação salva!');
     } catch (error) {
-      toast.error('Erro ao salvar melhor volta de classificação');
+              toast.error('Erro ao salvar melhor volta de qualificação');
     } finally {
       setQualifyingBestLapLoading(false);
     }
   };
 
-  // Função para limpar melhor volta de classificação
+  // Função para limpar melhor volta de qualificação
   const clearQualifyingBestLap = async () => {
     if (!selectedPilotForQualifyingBestLap) return;
     
@@ -1739,9 +1740,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
       updateStage(selectedStageId, { stage_results: updatedResults });
       
       closeQualifyingBestLapModal();
-      toast.success('Melhor volta de classificação removida!');
+              toast.success('Melhor volta de qualificação removida!');
     } catch (error) {
-      toast.error('Erro ao remover melhor volta de classificação');
+              toast.error('Erro ao remover melhor volta de qualificação');
     } finally {
       setQualifyingBestLapLoading(false);
     }
@@ -1849,6 +1850,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
   const clearAllResults = async () => {
     if (!selectedOverviewCategory || selectedBatteryIndex === null) return;
     
+    setClearAllLoading(true);
+    
     try {
       
       // Obter pilotos da categoria selecionada
@@ -1932,6 +1935,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     } catch (error) {
       console.error('Erro ao limpar todos os resultados:', error);
       toast.error('Erro ao limpar todos os resultados');
+    } finally {
+      setClearAllLoading(false);
     }
   };
 
@@ -2319,7 +2324,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
           toast.error('Erro ao processar arquivo de volta a volta. Verifique o formato.');
         }
       } else {
-        // Processar arquivo de corrida/classificação com múltiplas sheets
+        // Processar arquivo de corrida/qualificação com múltiplas sheets
         let totalProcessedCount = 0;
         let totalNcCount = 0;
         let totalBestLapCount = 0;
@@ -2631,7 +2636,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
         if (totalProcessedCount > 0 || totalNcCount > 0 || totalBestLapCount > 0 || totalTimeCount > 0 || totalLapsCount > 0) {
           let message = '';
           if (totalProcessedCount > 0) {
-            message += `${totalProcessedCount} ${importType === 'race' ? 'posições de corrida' : 'posições de classificação'} importadas`;
+            message += `${totalProcessedCount} ${importType === 'race' ? 'posições de corrida' : 'posições de qualificação'} importadas`;
           }
           if (totalNcCount > 0) {
             if (message) message += ' • ';
@@ -3255,7 +3260,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => openImportModal('qualification')}>
                           <Upload className="w-4 h-4 mr-2" />
-                          Importar Classificação
+                          Importar Qualificação
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openImportModal('race')}>
                           <Upload className="w-4 h-4 mr-2" />
@@ -3361,11 +3366,11 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                             </div>
                           </div>
                           
-                          {/* Segunda linha: Classificação e Corrida */}
+                          {/* Segunda linha: Qualificação e Corrida */}
                           <div className="grid grid-cols-2 gap-3">
-                            {/* Classificação */}
+                            {/* Qualificação */}
                             <div className="flex flex-col">
-                              <span className="text-xs text-gray-500 mb-1">Classificação</span>
+                              <span className="text-xs text-gray-500 mb-1">Qualificação</span>
                               <button
                                 className={`py-3 px-4 rounded-lg font-semibold text-base border transition-colors ${
                                   hasBlockingStatus(category.id, pilot.userId, selectedBatteryIndex, 'startPosition')
@@ -3449,7 +3454,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                                 </button>
                             </div>
                             <div className="flex flex-col">
-                              <span className="text-xs text-gray-500 mb-1">Melhor Volta Classificação</span>
+                              <span className="text-xs text-gray-500 mb-1">Melhor Volta Qualificação</span>
                               <button
                                 className="py-3 px-4 rounded-lg bg-gray-100 text-gray-800 font-semibold text-base border border-gray-200 hover:bg-gray-200 transition-colors min-h-[49px] flex items-center justify-center"
                                 onClick={() => openQualifyingBestLapModal(category.id, pilot.userId, selectedBatteryIndex)}
@@ -3535,9 +3540,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                           Peso {sortColumn === 'peso' && (sortDirection === 'asc' ? '↑' : '↓')}
                         </th>
                         <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('classificacao')}>
-                          Posição Classificação {sortColumn === 'classificacao' && (sortDirection === 'asc' ? '↑' : '↓')}
+                          Posição Qualificação {sortColumn === 'classificacao' && (sortDirection === 'asc' ? '↑' : '↓')}
                         </th>
-                        <th className="px-2 py-1 text-left">Melhor Volta Classificação</th>
+                        <th className="px-2 py-1 text-left">Melhor Volta Qualificação</th>
                         <th className="px-2 py-1 text-left cursor-pointer select-none" onClick={() => handleSort('corrida')}>
                           Posição Corrida {sortColumn === 'corrida' && (sortDirection === 'asc' ? '↑' : '↓')}
                         </th>
@@ -3597,7 +3602,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                             </span>
                             <ChevronDown className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-1" />
                           </td>
-                          {/* Posição Classificação */}
+                          {/* Posição Qualificação */}
                           <td
                             className={`px-2 py-1 text-center rounded transition-colors ${
                               hasBlockingStatus(category.id, pilot.userId, selectedBatteryIndex, 'startPosition')
@@ -3614,7 +3619,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                               <span className="text-gray-400">-</span>
                             )}
                           </td>
-                          {/* Melhor Volta Classificação */}
+                          {/* Melhor Volta Qualificação */}
                           <td 
                             className="px-2 py-1 cursor-pointer hover:bg-gray-50 rounded transition-colors text-center"
                             onClick={() => openQualifyingBestLapModal(category.id, pilot.userId, selectedBatteryIndex)}
@@ -4266,78 +4271,84 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
         />
         
         {/* Modal Content */}
-        <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden flex flex-col z-10">
+        <div className="relative bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 overflow-hidden flex flex-col z-10">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">
-                Importar {importType === 'race' ? 'Corrida' : importType === 'qualification' ? 'Classificação' : 'Volta a Volta'}
+              <h2 className="text-lg font-semibold text-gray-900">
+                Importar {importType === 'race' ? 'Corrida' : importType === 'qualification' ? 'Qualificação' : 'Volta a Volta'}
               </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Selecione o arquivo Excel com os resultados.
-              </p>
             </div>
             <button
               onClick={closeImportModal}
               className="text-gray-400 hover:text-gray-600 transition-colors"
+              disabled={importLoading}
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
           </div>
           
           {/* Content */}
-          <div className="flex-1 p-6">
-            <div className="space-y-4">
-              {/* Informações do formato */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-blue-900 mb-2">
-                  Formato do arquivo Excel:
-                </h3>
-                {importType === 'lapTimes' ? (
-                  <ul className="text-sm text-blue-800 space-y-1">
-                    <li>• Coluna A: Marcador <strong>#</strong> seguido pelos dados</li>
-                    <li>• Coluna A: Número do kart (após o marcador #)</li>
-                    <li>• Coluna C: Número da volta</li>
-                    <li>• Coluna D: Tempo de volta (formato MM:SS.sss)</li>
-                    <li>• Exemplo: <code>NOVATOS - VOLTA A VOLTA 01.xlsx</code></li>
-                  </ul>
-                ) : (
-                  <ul className="text-sm text-blue-800 space-y-1">
-                    <li>• Cabeçalho com coluna <strong>POS</strong> (posição)</li>
-                    <li>• Cabeçalho com coluna <strong>#</strong> (número do kart)</li>
-                    <li>• Dados numéricos nas colunas POS e #</li>
-                    <li>• Use <strong>NC</strong> para pilotos que não completaram</li>
-                    <li>• Arquivo de exemplo: <code>exemplo-importacao-corrida.xlsx</code></li>
-                  </ul>
-                )}
+          <div className="p-4">
+            {importLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loading type="spinner" size="md" message="Importando dados..." />
               </div>
-              
-              {/* Upload de arquivo */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Selecionar arquivo Excel
-                </label>
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleFileSelect}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                />
-              </div>
-              
-              {/* Arquivo selecionado */}
-              {importFile && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                  <p className="text-sm text-green-800">
-                    <strong>Arquivo selecionado:</strong> {importFile.name}
-                  </p>
+            ) : (
+              <div className="space-y-4">
+                {/* Upload de arquivo estilizado */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Selecionar arquivo da {importType === 'race' ? 'corrida' : importType === 'qualification' ? 'classificação' : 'volta a volta'}
+                  </label>
+                  
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleFileSelect}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      id="file-upload"
+                    />
+                    <label
+                      htmlFor="file-upload"
+                      className="flex flex-col items-center justify-center w-full h-32 px-4 transition bg-white border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 hover:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <svg className="w-8 h-8 mb-4 text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                          <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                        </svg>
+                        <p className="mb-2 text-sm text-gray-500">
+                          <span className="font-semibold">Clique para selecionar</span> ou arraste e solte
+                        </p>
+                        <p className="text-xs text-gray-500">XLSX, XLS (máx. 10MB)</p>
+                      </div>
+                    </label>
+                  </div>
+                  
+                  {/* Arquivo selecionado */}
+                  {importFile && (
+                    <div className="flex items-center p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <svg className="w-5 h-5 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-green-800 truncate">
+                          {importFile.name}
+                        </p>
+                        <p className="text-xs text-green-600">
+                          {(importFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
           
           {/* Footer */}
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+          <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200">
             <Button 
               variant="outline" 
               onClick={closeImportModal}
@@ -4350,14 +4361,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
               disabled={!importFile || importLoading}
               className="bg-orange-500 hover:bg-orange-600 text-black"
             >
-              {importLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Importando...
-                </>
-              ) : (
-                'Importar'
-              )}
+              Importar
             </Button>
           </div>
         </div>
@@ -4471,7 +4475,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
       document.body
     )}
 
-    {/* Modal de Melhor Volta de Classificação */}
+                    {/* Modal de Melhor Volta de Qualificação */}
     {showQualifyingBestLapModal && selectedPilotForQualifyingBestLap && createPortal(
       <div className="fixed inset-0 z-50 flex items-center justify-center">
         {/* Backdrop */}
@@ -4485,10 +4489,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Editar Melhor Volta de Classificação</h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Digite o tempo da melhor volta de classificação do piloto.
-              </p>
+                                <h2 className="text-xl font-semibold text-gray-900">Editar Melhor Volta de Qualificação</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Digite o tempo da melhor volta de qualificação do piloto.
+                  </p>
             </div>
             <button
               onClick={closeQualifyingBestLapModal}
@@ -4524,7 +4528,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
               {/* Input de tempo */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Tempo da melhor volta de classificação
+                  Tempo da melhor volta de qualificação
                 </label>
                 <input
                   type="text"
@@ -4961,39 +4965,51 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     {/* Dialog de confirmação para limpar todos os resultados */}
     <Dialog open={showClearAllDialog} onOpenChange={setShowClearAllDialog}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Confirmar limpeza de resultados</DialogTitle>
-          <DialogDescription>
-            Tem certeza que deseja limpar todos os resultados desta bateria?
-            <br /><br />
-            <strong>Esta ação irá:</strong>
-            <br />
-            • Manter os karts sorteados
-            <br />
-            • Resetar todos os pesos para "OK"
-            <br />
-            • Limpar todas as posições, voltas e tempos
-            <br />
-            • Remover dados de volta a volta
-            <br /><br />
-            <strong>Esta ação não pode ser desfeita.</strong>
-          </DialogDescription>
-        </DialogHeader>
-        
-        <DialogFooter>
-          <Button 
-            variant="outline" 
-            onClick={cancelClearAllDialog}
-          >
-            Cancelar
-          </Button>
-          <Button 
-            variant="destructive" 
-            onClick={clearAllResults}
-          >
-            Limpar Todos os Resultados
-          </Button>
-        </DialogFooter>
+        {clearAllLoading ? (
+          <div className="flex items-center justify-center" style={{ minHeight: '200px' }}>
+            <Loading type="spinner" size="md" message="Limpando dados... Este processo pode demorar alguns segundos." />
+          </div>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>Confirmar limpeza de resultados</DialogTitle>
+              <DialogDescription>
+                Tem certeza que deseja limpar todos os dados desta bateria?
+                <br /><br />
+                <strong>Esta ação irá:</strong>
+                <br />
+                • Manter os karts sorteados
+                <br />
+                • Resetar todos os pesos para "OK"
+                <br />
+                • Limpar todas as posições, voltas e tempos
+                <br />
+                • Remover todas as penalizações
+                <br />
+                • Remover dados de volta a volta
+                <br /><br />
+                <strong>Esta ação não pode ser desfeita.</strong>
+              </DialogDescription>
+            </DialogHeader>
+            
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={cancelClearAllDialog}
+                disabled={clearAllLoading}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={clearAllResults}
+                disabled={clearAllLoading}
+              >
+                Limpar Todos os Resultados
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
     </div>
