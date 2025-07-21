@@ -2799,15 +2799,22 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
       });
       sortedPilots.forEach(pilot => {
         const pilotKartAssignments = fleetDrawResults[category.id]?.[pilot.userId] || {};
+        const assignedFleetId = categoryFleetAssignments[category.id];
+        let fleetName = '';
+        if (assignedFleetId) {
+          const fleet = fleets.find(f => f.id === assignedFleetId);
+          if (fleet) fleetName = fleet.name;
+        }
         const row: any = {
           'Nome': formatName(pilot.user?.name || ''),
           'Apelido': formatName((pilot.user?.nickname || (pilot as any).profile?.nickName || '')),
           'Estado': (pilot as any).profile && (pilot as any).profile.state ? (pilot as any).profile.state : '',
           'Categoria': category.name,
+          'Frota': fleetName,
         };
         for (let i = 0; i < maxBatteries; i++) {
           const kart = pilotKartAssignments[i] ? pilotKartAssignments[i].kart : '';
-          row[`Bateria ${i + 1}`] = kart;
+          row[`Bateria ${i + 1}`] = kart ? `${kart}` : '';
         }
         exportData.push(row);
       });
