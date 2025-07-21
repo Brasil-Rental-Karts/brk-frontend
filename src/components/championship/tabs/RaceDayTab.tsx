@@ -2800,8 +2800,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
       sortedPilots.forEach(pilot => {
         const pilotKartAssignments = fleetDrawResults[category.id]?.[pilot.userId] || {};
         const row: any = {
-          'Nome': pilot.user?.name || '',
-          'Apelido': pilot.user?.nickname || '',
+          'Nome': formatName(pilot.user?.name || ''),
+          'Apelido': formatName((pilot.user?.nickname || (pilot as any).profile?.nickName || '')),
           'Estado': (pilot as any).profile && (pilot as any).profile.state ? (pilot as any).profile.state : '',
           'Categoria': category.name,
         };
