@@ -2758,7 +2758,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     }
   };
 
-  // Função para exportar XLSX dos pilotos confirmados
+  // Função para exportar Planilha dos pilotos confirmados
   const exportConfirmedPilotsXLSX = useCallback(() => {
     // Descobrir o maior número de baterias entre todos os pilotos confirmados
     let maxBatteries = 0;
@@ -2963,7 +2963,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                   Gerenciar Participações na Etapa
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={exportConfirmedPilotsXLSX}>
-                  Exportar XLSX dos Pilotos Confirmados
+                  Exportar Planilha dos Pilotos Confirmados
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
