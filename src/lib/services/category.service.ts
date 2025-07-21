@@ -9,9 +9,13 @@ export interface Category {
   maxPilots: number;
   batteriesConfig: BatteriesConfig;
   minimumAge: number;
+  allowDiscarding: boolean;
+  discardingType?: 'bateria' | 'etapa';
+  discardingQuantity?: number;
   seasonId: string;
   createdAt: string;
   updatedAt: string;
+  registrationCount?: number;
 }
 
 export interface CategoryData {
@@ -20,6 +24,9 @@ export interface CategoryData {
   maxPilots: number;
   batteriesConfig: BatteriesConfig;
   minimumAge: number;
+  allowDiscarding: boolean;
+  discardingType?: 'bateria' | 'etapa';
+  discardingQuantity?: number;
   seasonId: string;
 }
 
@@ -73,6 +80,21 @@ export class CategoryService {
       return response.data;
     } catch (error) {
       console.error(`Failed to retrieve categories for season ID ${seasonId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves categories for a given stage.
+   * @param stageId - The ID of the stage.
+   * @returns A list of categories for the stage.
+   */
+  static async getByStageId(stageId: string): Promise<Category[]> {
+    try {
+      const response = await api.get<Category[]>(`${CategoryService.BASE_URL}/stage/${stageId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to retrieve categories for stage ID ${stageId}:`, error);
       throw error;
     }
   }

@@ -220,6 +220,11 @@ const validateVisibleFields = (data: any, config: FormSectionConfig[]) => {
           if (!value || !Array.isArray(value) || value.length === 0) {
             errors[field.id] = `${field.name} é obrigatório`;
           }
+        } else if (field.type === "custom") {
+          // For custom fields, check if it's an array and if it's empty
+          if (!value || !Array.isArray(value) || value.length === 0) {
+            errors[field.id] = `${field.name} é obrigatório`;
+          }
         } else if (field.type !== "checkbox") {
           // For other fields except checkbox, check if empty
           if (!value || (typeof value === "string" && value.trim() === "")) {
@@ -280,7 +285,8 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
         } else if (field.type === "file") {
           defaults[field.id] = "";
         } else if (field.type === "custom") {
-          defaults[field.id] = null;
+          // Inicializar com array vazio para campos de posições
+          defaults[field.id] = field.id === "positions" ? [] : null;
         } else {
           defaults[field.id] = "";
         }

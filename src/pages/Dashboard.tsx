@@ -13,6 +13,7 @@ import {
   Clock,
   X,
   Users,
+  Navigation,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Alert, AlertTitle, AlertDescription } from "brk-design-system";
@@ -27,19 +28,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useNavigation } from "@/router";
-import { useDashboardChampionships } from "@/hooks/use-dashboard-championships";
-import { useChampionshipContext } from "@/contexts/ChampionshipContext";
 import { formatDateToBrazilian } from "@/utils/date";
 import { useAuth } from "@/contexts/AuthContext";
-import { useUserRegistrations } from "@/hooks/use-user-registrations";
-import { useUserUpcomingRaces } from "@/hooks/use-user-upcoming-races";
-import { useUserStats } from "@/hooks/use-user-stats";
 import { useProfileCompletion } from "@/hooks/use-profile-completion";
 import { StageParticipationService } from "@/lib/services/stage-participation.service";
 import { CompleteProfileModal } from "@/components/profile/CompleteProfileModal";
 import { toast } from "sonner";
-import { differenceInHours, parseISO } from "date-fns";
 import { Loading } from '@/components/ui/loading';
+import { useUser } from '@/contexts/UserContext';
 
 export const Dashboard = () => {
   const nav = useNavigation();
@@ -56,34 +52,20 @@ export const Dashboard = () => {
   // Check if user is manager or administrator
   const isManager = user?.role === 'Manager' || user?.role === 'Administrator';
   
-  // Use context for championships data and hook for loading/error states
-  const { championshipsOrganized } = useChampionshipContext();
-  const { 
-    loadingChampionships, 
-    championshipsError, 
-    refreshChampionships 
-  } = useDashboardChampionships();
-  
-  // Hooks para dados do usuário
-  const { 
-    championshipsParticipating, 
-    loading: loadingRegistrations, 
-    error: registrationsError 
-  } = useUserRegistrations();
-  
-  const { 
-    upcomingRaces, 
-    loading: loadingRaces, 
-    error: racesError,
-    refresh: refreshUpcomingRaces
-  } = useUserUpcomingRaces();
-  
+  // Use Dashboard context
   const {
-    stats: userStats,
-    loading: loadingStats,
-    error: statsError,
-    refresh: refreshUserStats
-  } = useUserStats();
+    championshipsOrganized,
+    championshipsParticipating,
+    upcomingRaces,
+    userStats,
+    raceTracks,
+    loading,
+    errors,
+    refreshChampionships,
+    refreshUserStats,
+    refreshAll,
+    updateRaceParticipation
+  } = useUser();
 
   const { isProfileCompleted, loading: loadingProfile, shouldShowModal, markAsSkipped } = useProfileCompletion();
 
@@ -110,11 +92,8 @@ export const Dashboard = () => {
       setConfirmingParticipation(stageId);
       await StageParticipationService.confirmParticipation({ stageId, categoryId });
       toast.success('Participação confirmada com sucesso!');
-      // Refresh data to update the UI
-      await Promise.all([
-        refreshUpcomingRaces(),
-        refreshUserStats()
-      ]);
+      // Atualizar apenas a corrida específica
+      await updateRaceParticipation(stageId);
       setShowConfirmConfirmation(null);
     } catch (error: any) {
       toast.error(error.message || 'Erro ao confirmar participação');
@@ -129,11 +108,8 @@ export const Dashboard = () => {
       setCancellingParticipation(stageId);
       await StageParticipationService.cancelParticipation({ stageId, categoryId });
       toast.success('Participação cancelada com sucesso!');
-      // Refresh data to update the UI
-      await Promise.all([
-        refreshUpcomingRaces(),
-        refreshUserStats()
-      ]);
+      // Atualizar apenas a corrida específica
+      await updateRaceParticipation(stageId);
       setShowCancelConfirmation(null);
     } catch (error: any) {
       toast.error(error.message || 'Erro ao cancelar participação');
@@ -161,7 +137,7 @@ export const Dashboard = () => {
       }
       const timeDifference = eventDate.getTime() - now.getTime();
       const hoursDifference = timeDifference / (1000 * 60 * 60);
-      return hoursDifference > 48;
+      return hoursDifference > 24;
     } catch (error) {
       console.error('Error calculating participation deadline:', error);
       return false;
@@ -224,15 +200,15 @@ export const Dashboard = () => {
             Editar Perfil
           </Button>
         </div>
-        {loadingStats ? (
+        {loading.championships ? (
           <div className="flex items-center justify-center py-8">
             <Loading type="spinner" size="sm" message="Carregando estatísticas..." />
           </div>
-        ) : statsError ? (
+        ) : errors.championships ? (
           <div className="py-4">
             <Alert variant="destructive">
               <AlertTitle>Erro ao carregar estatísticas</AlertTitle>
-              <AlertDescription>{statsError}</AlertDescription>
+              <AlertDescription>{errors.championships}</AlertDescription>
             </Alert>
           </div>
         ) : (
@@ -266,7 +242,7 @@ export const Dashboard = () => {
       {/* Grid principal */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Campeonatos Organizados - Mostra para managers ou para quem tem campeonatos como staff */}
-        {(isManager || championshipsOrganized.length > 0) && (
+        {isManager && (
           <Card className="p-6">
             <div className="mb-4">
               <h2 className="text-xl font-semibold">Organizando</h2>
@@ -275,15 +251,15 @@ export const Dashboard = () => {
               </p>
             </div>
             
-            {loadingChampionships ? (
+            {loading.championships ? (
               <div className="flex items-center justify-center py-8">
                 <Loading type="spinner" size="sm" message="Carregando campeonatos..." />
               </div>
-            ) : championshipsError ? (
+            ) : errors.championships ? (
               <div className="py-4">
                 <Alert variant="destructive">
                   <AlertTitle>Erro ao carregar campeonatos</AlertTitle>
-                  <AlertDescription>{championshipsError}</AlertDescription>
+                  <AlertDescription>{errors.championships}</AlertDescription>
                 </Alert>
                 <div className="mt-4 text-center">
                   <Button 
@@ -305,43 +281,22 @@ export const Dashboard = () => {
                 }}
               />
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {championshipsOrganized.map((championship) => (
                   <div
                     key={championship.id}
                     className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => nav.goToChampionship(championship.id)}
+                    onClick={() => {
+                      nav.goToChampionship(championship.id);
+                    }}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-medium text-sm truncate flex-1 mr-2" title={championship.name}>
                         {championship.name}
                       </h3>
-                      <div className="flex gap-1 flex-shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          title="Ver campeonato"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            nav.goToChampionship(championship.id);
-                          }}
-                        >
-                          <Eye className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          title="Gerenciar campeonato"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            nav.goToChampionship(championship.id);
-                          }}
-                        >
-                          <Settings className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {championship.isOwner ? 'Proprietário' : 'Staff'}
+                      </Badge>
                     </div>
                     
                     {championship.shortDescription && (
@@ -354,14 +309,11 @@ export const Dashboard = () => {
                       </p>
                     )}
                     
-                    <div className="flex justify-between items-center text-xs text-muted-foreground">
-                      <span>Criado em {formatDateToBrazilian(championship.createdAt)}</span>
-                      <Badge 
-                        variant={championship.isOwner !== false ? "default" : "secondary"} 
-                        className="text-xs"
-                      >
-                        {championship.isOwner !== false ? "Organizador" : "Equipe"}
-                      </Badge>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      <span>
+                        {championship.createdAt ? formatDateToBrazilian(championship.createdAt) : 'Data não disponível'}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -371,7 +323,7 @@ export const Dashboard = () => {
         )}
 
         {/* Campeonatos Participando - Ocupa mais espaço quando não há seção "Organizando" */}
-        <Card className={`p-6 ${!(isManager || championshipsOrganized.length > 0) ? 'lg:col-span-2' : ''}`}>
+        <Card className={`p-6 ${!isManager ? 'lg:col-span-2' : ''}`}>
           <div className="mb-4">
             <h2 className="text-xl font-semibold">Participando</h2>
             <p className="text-sm text-muted-foreground">
@@ -379,15 +331,15 @@ export const Dashboard = () => {
             </p>
           </div>
           
-          {loadingRegistrations ? (
+          {loading.championships ? (
             <div className="flex items-center justify-center py-8">
               <Loading type="spinner" size="sm" message="Carregando inscrições..." />
             </div>
-          ) : registrationsError ? (
+          ) : errors.championships ? (
             <div className="py-4">
               <Alert variant="destructive">
                 <AlertTitle>Erro ao carregar inscrições</AlertTitle>
-                <AlertDescription>{registrationsError}</AlertDescription>
+                <AlertDescription>{errors.championships}</AlertDescription>
               </Alert>
             </div>
           ) : championshipsParticipating.length === 0 ? (
@@ -409,8 +361,14 @@ export const Dashboard = () => {
                   key={participation.championship.id}
                   className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
                   onClick={() => {
-                    const siteUrl = import.meta.env.VITE_SITE_URL;
-                    window.location.href = `${siteUrl}/campeonato/${participation.championship.slug}`;
+                    // Se for staff ou owner, usar navigate interno
+                    if (participation.championship.isOwner || participation.championship.isStaff) {
+                      nav.goToChampionship(participation.championship.id);
+                    } else {
+                      // Se for apenas piloto, ir para a página pública
+                      const siteUrl = import.meta.env.VITE_SITE_URL;
+                      window.location.href = `${siteUrl}/campeonato/${participation.championship.slug}`;
+                    }
                   }}
                 >
                   <div className="flex justify-between items-start mb-2">
@@ -469,15 +427,15 @@ export const Dashboard = () => {
             </p>
           </div>
           
-          {loadingRaces ? (
+          {loading.races ? (
             <div className="flex items-center justify-center py-8">
               <Loading type="spinner" size="sm" message="Carregando corridas..." />
             </div>
-          ) : racesError ? (
+          ) : errors.races ? (
             <div className="py-4">
               <Alert variant="destructive">
                 <AlertTitle>Erro ao carregar corridas</AlertTitle>
-                <AlertDescription>{racesError}</AlertDescription>
+                <AlertDescription>{errors.races}</AlertDescription>
               </Alert>
             </div>
           ) : upcomingRaces.length === 0 ? (
@@ -538,7 +496,18 @@ export const Dashboard = () => {
                     </div>
                     <div className="flex items-center gap-1 min-w-0">
                       <MapPin className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{race.stage.kartodrome}</span>
+                      <span className="truncate">
+                        {(() => {
+                          const raceTrackId = race.stage.raceTrackId;
+                          const raceTrack = raceTracks[raceTrackId];
+                          const trackName = raceTrackId && raceTrack 
+                            ? raceTrack.name 
+                            : 'Carregando...';
+                          return race.stage.trackLayoutId && race.stage.trackLayoutId !== 'undefined'
+                            ? `${trackName} - ${race.stage.trackLayoutId}`
+                            : trackName;
+                        })()}
+                      </span>
                     </div>
                   </div>
                   
@@ -643,13 +612,31 @@ export const Dashboard = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-card-foreground">Local</h3>
-                  <p className="text-sm text-muted-foreground">{selectedRace?.stage?.kartodrome}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {(() => {
+                      const raceTrackId = selectedRace?.stage?.raceTrackId;
+                      const raceTrack = raceTracks[raceTrackId];
+                      return raceTrackId && raceTrack 
+                        ? raceTrack.name 
+                        : 'Carregando...';
+                    })()}
+                  </p>
                 </div>
               </div>
-              {selectedRace?.stage?.kartodromeAddress && (
-                <p className="text-xs text-muted-foreground pl-11">
-                  {selectedRace.stage.kartodromeAddress}
-                </p>
+              {(() => {
+                const raceTrackId = selectedRace?.stage?.raceTrackId;
+                const raceTrack = raceTracks[raceTrackId];
+                return raceTrackId && raceTrack?.address ? (
+                  <p className="text-xs text-muted-foreground pl-11">
+                    {raceTrack.address}
+                  </p>
+                ) : null;
+              })()}
+              {selectedRace?.stage?.trackLayoutId && selectedRace.stage.trackLayoutId !== 'undefined' && (
+                <div className="flex items-center gap-2 mt-3 pl-11">
+                  <Navigation className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Traçado: {selectedRace.stage.trackLayoutId}</span>
+                </div>
               )}
             </div>
 

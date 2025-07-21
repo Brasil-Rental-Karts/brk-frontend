@@ -6,14 +6,47 @@ export interface Stage {
   name: string;
   date: string; // ISO date string
   time: string; // HH:MM format
-  kartodrome: string;
-  kartodromeAddress: string;
+  raceTrackId: string;
+  trackLayoutId?: string;
   streamLink?: string;
   seasonId: string;
   categoryIds: string[];
   doublePoints: boolean;
   briefing?: string;
   briefingTime?: string; // HH:MM format
+  schedule?: any; // JSONB field for schedule items
+  fleets?: any[]; // JSONB field for fleets configuration
+  kart_draw_assignments?: {
+    results: {
+      [categoryId: string]: {
+        [pilotId: string]: {
+          [batteryIndex: number]: {
+            kart: number;
+          };
+        };
+      };
+    };
+    categoryFleetAssignments: {
+      [categoryId: string]: string;
+    };
+  };
+  stage_results?: {
+    [categoryId: string]: {
+      [pilotId: string]: {
+        [batteryIndex: number]: {
+          bestLap?: string;
+          totalTime?: string;
+          penaltyTime?: string; // Tempo de punição em segundos
+          totalLaps?: number; // Total de voltas (TV)
+          startPosition?: number;
+          finishPosition?: number;
+          qualifyingBestLap?: string;
+          weight?: boolean;
+          status?: 'completed' | 'nc' | 'dc' | 'dq'; // Status de conclusão da prova
+        };
+      };
+    };
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -25,8 +58,8 @@ export interface CreateStageData {
   name: string;
   date: string; // YYYY-MM-DD format
   time: string; // HH:MM format
-  kartodrome: string;
-  kartodromeAddress: string;
+  raceTrackId: string;
+  trackLayoutId?: string;
   streamLink?: string;
   seasonId: string;
   categoryIds: string[];
@@ -42,13 +75,14 @@ export interface UpdateStageData {
   name?: string;
   date?: string; // YYYY-MM-DD format
   time?: string; // HH:MM format
-  kartodrome?: string;
-  kartodromeAddress?: string;
+  raceTrackId?: string;
+  trackLayoutId?: string;
   streamLink?: string;
   categoryIds?: string[];
   doublePoints?: boolean;
   briefing?: string;
   briefingTime?: string; // HH:MM format
+  fleets?: any[]; // JSONB field for fleets configuration
 }
 
 /**

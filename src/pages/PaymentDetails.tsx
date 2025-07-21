@@ -14,6 +14,7 @@ import { PageLoader } from '@/components/ui/loading';
 import { SeasonRegistrationService, SeasonRegistration, RegistrationPaymentData } from '@/lib/services/season-registration.service';
 import { formatCurrency } from '@/utils/currency';
 import { formatDateToBrazilian } from '@/utils/date';
+import { formatName } from '@/utils/name';
 import { Loading } from '@/components/ui/loading';
 
 interface PaymentDetailsData {
@@ -193,8 +194,10 @@ export const PaymentDetails: React.FC = () => {
   const getPaymentMethodIcon = (billingType: string) => {
     switch (billingType) {
       case 'PIX':
+      case 'pix':
         return <Smartphone className="w-4 h-4" />;
       case 'CREDIT_CARD':
+      case 'cartao_credito':
         return <CreditCard className="w-4 h-4" />;
       case 'ADMIN_EXEMPT':
       case 'ADMIN_DIRECT':
@@ -216,8 +219,10 @@ export const PaymentDetails: React.FC = () => {
 
     switch (billingType) {
       case 'PIX':
+      case 'pix':
         return 'PIX';
       case 'CREDIT_CARD':
+      case 'cartao_credito':
         return 'Cartão de Crédito';
       case 'BOLETO':
         return 'Boleto';
@@ -353,7 +358,7 @@ export const PaymentDetails: React.FC = () => {
                 <CardTitle className="flex items-center gap-2"><FileText className="w-5 h-5" />Resumo da Inscrição</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 md:space-y-4">
-                <div><p className="text-xs md:text-sm text-muted-foreground">Piloto</p><p className="font-medium text-sm md:text-base">{registration.user?.name}</p></div>
+                <div><p className="text-xs md:text-sm text-muted-foreground">Piloto</p><p className="font-medium text-sm md:text-base">{formatName(registration.user?.name)}</p></div>
                 <div><p className="text-xs md:text-sm text-muted-foreground">Campeonato</p><p className="font-medium text-sm md:text-base">{registration.season?.championship?.name}</p></div>
                 <div><p className="text-xs md:text-sm text-muted-foreground">Temporada</p><p className="font-medium text-sm md:text-base">{registration.season?.name}</p></div>
                 <div><p className="text-xs md:text-sm text-muted-foreground">Categorias</p><div className="flex flex-wrap gap-1 mt-1">{registration.categories && registration.categories.length > 0 ? (registration.categories.map((regCategory) => (<Badge key={regCategory.id} variant="outline" className="text-xs">{regCategory.category.name}</Badge>))) : (<span className="text-xs text-muted-foreground">Nenhuma categoria</span>)}</div></div>

@@ -1,29 +1,25 @@
-import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Badge } from "brk-design-system";
-import { Card } from "brk-design-system";
-
-import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
-import { 
-  Calendar, 
-  MapPin, 
-  Users, 
-  Check, 
-  X, 
-  Trophy,
-  Link as LinkIcon 
-} from "lucide-react";
-import { Stage } from "@/lib/types/stage";
-import { StageParticipationService, StageParticipation } from "@/lib/services/stage-participation.service";
-import { CategoryService } from "@/lib/services/category.service";
-import { StageService } from "@/lib/services/stage.service";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
+import { Button, Badge } from 'brk-design-system';
+import { X, Mail, Phone, MapPin, Calendar, User, Award, Trophy, Flag, Clock, DollarSign, CreditCard, AlertCircle, CheckCircle, XCircle, Eye, Edit, Trash2, MoreHorizontal, ChevronDown, ChevronRight, ChevronUp, ChevronLeft, Search, Filter, Plus, Minus, Settings, Users, Timer, BarChart3, TrendingUp, TrendingDown, Activity, Zap, Star, Heart, ThumbsUp, ThumbsDown, MessageCircle, Share2, Download, Upload, RefreshCw, RotateCcw, Play, Pause, SkipBack, SkipForward, FastForward, Rewind, Volume2, VolumeX, Mic, MicOff, Camera, CameraOff, Video, VideoOff, Image, FileText, File, Folder, FolderOpen, FolderPlus, FolderMinus, FolderX, FilePlus, FileMinus, FileX, FileCheck, FileEdit, FileSearch, FileImage, FileVideo, FileAudio, FileArchive, FileCode, FileSpreadsheet, FileJson, Check, Navigation, Link as LinkIcon } from 'lucide-react';
+import { SeasonRegistrationService, SeasonRegistration } from '@/lib/services/season-registration.service';
+import { CategoryService } from '@/lib/services/category.service';
 import { Loading } from '@/components/ui/loading';
+import { toast } from 'sonner';
+import { StageParticipationService, StageParticipation } from '@/lib/services/stage-participation.service';
+import { formatName } from '@/utils/name';
+import { StageService } from "@/lib/services/stage.service";
+import { RaceTrackService } from '@/lib/services/race-track.service';
+import { Stage } from '@/lib/types/stage';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle 
+} from 'brk-design-system';
+import { Alert, AlertDescription, AlertTitle } from 'brk-design-system';
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 interface StageDetailsModalProps {
   stage: Stage | null;
@@ -31,11 +27,20 @@ interface StageDetailsModalProps {
   onClose: () => void;
 }
 
+interface PilotInfo {
+  id: string;
+  userId: string;
+  user: any;
+  categoryId: string;
+  status: 'confirmed' | 'not_confirmed';
+  confirmedAt?: string | null;
+}
+
 interface CategoryWithParticipants {
   id: string;
   name: string;
   ballast: number;
-  participants: StageParticipation[];
+  participants: PilotInfo[];
   totalRegistered: number;
 }
 
@@ -43,35 +48,73 @@ export const StageDetailsModal = ({ stage, isOpen, onClose }: StageDetailsModalP
   const [categories, setCategories] = useState<CategoryWithParticipants[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [raceTrack, setRaceTrack] = useState<any>(null);
+
+  // Usar o contexto de dados do campeonato
+  const { getCategories, getRaceTracks, getRegistrations, getStageParticipations } = useChampionshipData();
 
   const fetchStageDetails = async (stageId: string) => {
     try {
       setLoading(true);
       setError(null);
 
-      // Buscar participações da etapa
-      const stageParticipations = await StageParticipationService.getStageParticipations(stageId);
+      // Usar kartódromos do contexto em vez de buscar novamente
+      const allRaceTracks = getRaceTracks();
+      if (stage?.raceTrackId && allRaceTracks[stage.raceTrackId]) {
+        setRaceTrack(allRaceTracks[stage.raceTrackId]);
+      }
 
-      // Buscar todas as categorias da etapa
-      const allCategories = await CategoryService.getAll();
+      // Usar categorias do contexto em vez de buscar novamente
+      const allCategories = getCategories();
       
       // Filtrar apenas as categorias que estão na etapa
       const stageCategories = allCategories.filter(category => 
         stage?.categoryIds.includes(category.id)
       );
 
-      // Organizar participações por categoria
+      // Usar inscrições do contexto em vez de buscar do backend
+      const allRegistrations = getRegistrations();
+      const seasonRegistrations = allRegistrations.filter(reg => reg.seasonId === stage!.seasonId);
+
+      // Usar participações do contexto em vez de buscar do backend
+      const stageParticipations = getStageParticipations(stageId);
+
+      // Organizar pilotos por categoria usando a mesma lógica do RaceDayTab
       const categoriesWithParticipants: CategoryWithParticipants[] = stageCategories.map(category => {
-        const categoryParticipations = stageParticipations.filter(
+        // Filtrar inscrições que incluem esta categoria (mesma lógica do RaceDayTab)
+        const categoryPilots = seasonRegistrations.filter(reg =>
+          reg.categories.some((rc: any) => rc.category.id === category.id)
+        );
+
+        // Filtrar participações confirmadas desta categoria (mesma lógica do RaceDayTab)
+        const confirmedParticipations = stageParticipations.filter(
           participation => participation.categoryId === category.id
         );
+
+        // Criar lista de todos os pilotos (confirmados e não confirmados)
+        const allPilots: PilotInfo[] = categoryPilots.map(registration => {
+          const isConfirmed = confirmedParticipations.some(
+            participation => participation.userId === registration.userId
+          );
+          
+          return {
+            id: registration.id,
+            userId: registration.userId,
+            user: registration.user,
+            categoryId: category.id,
+            status: isConfirmed ? 'confirmed' : 'not_confirmed',
+            confirmedAt: isConfirmed ? confirmedParticipations.find(
+              p => p.userId === registration.userId
+            )?.confirmedAt : null
+          };
+        });
 
         return {
           id: category.id,
           name: category.name,
           ballast: category.ballast,
-          participants: categoryParticipations,
-          totalRegistered: categoryParticipations.length
+          participants: allPilots,
+          totalRegistered: allPilots.length
         };
       });
 
@@ -89,8 +132,8 @@ export const StageDetailsModal = ({ stage, isOpen, onClose }: StageDetailsModalP
     }
   }, [stage, isOpen]);
 
-  const getStatusBadge = (participation: StageParticipation) => {
-    if (participation.status === 'confirmed') {
+  const getStatusBadge = (pilot: PilotInfo) => {
+    if (pilot.status === 'confirmed') {
       return (
         <Badge variant="default" className="bg-green-500 text-xs">
           <Check className="h-3 w-3 mr-1" />
@@ -99,9 +142,9 @@ export const StageDetailsModal = ({ stage, isOpen, onClose }: StageDetailsModalP
       );
     } else {
       return (
-        <Badge variant="secondary" className="text-xs">
-          <X className="h-3 w-3 mr-1" />
-          Cancelado
+        <Badge variant="outline" className="text-xs">
+          <Clock className="h-3 w-3 mr-1" />
+          Não Confirmado
         </Badge>
       );
     }
@@ -137,12 +180,18 @@ export const StageDetailsModal = ({ stage, isOpen, onClose }: StageDetailsModalP
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span>{stage.kartodrome}</span>
+                <span>{raceTrack?.name || 'Carregando...'}</span>
               </div>
-              {stage.kartodromeAddress && (
+              {raceTrack?.address && (
                 <div className="flex items-start gap-2 md:col-span-2">
                   <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <span className="text-sm text-muted-foreground">{stage.kartodromeAddress}</span>
+                  <span className="text-sm text-muted-foreground">{raceTrack.address}</span>
+                </div>
+              )}
+              {stage.trackLayoutId && stage.trackLayoutId !== 'undefined' && (
+                <div className="flex items-center gap-2 md:col-span-2">
+                  <Navigation className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Traçado: {stage.trackLayoutId}</span>
                 </div>
               )}
               {stage.doublePoints && (
@@ -186,9 +235,9 @@ export const StageDetailsModal = ({ stage, isOpen, onClose }: StageDetailsModalP
             ) : categories.length === 0 ? (
               <Card className="p-8 text-center">
                 <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h4 className="font-medium mb-2">Nenhuma participação encontrada</h4>
+                <h4 className="font-medium mb-2">Nenhuma categoria encontrada</h4>
                 <p className="text-sm text-muted-foreground">
-                  Ainda não há pilotos confirmados para esta etapa.
+                  Esta etapa não possui categorias configuradas.
                 </p>
               </Card>
             ) : (
@@ -210,28 +259,23 @@ export const StageDetailsModal = ({ stage, isOpen, onClose }: StageDetailsModalP
                     {category.participants.length === 0 ? (
                       <div className="text-center py-6 text-muted-foreground">
                         <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">Nenhum piloto confirmado nesta categoria</p>
+                        <p className="text-sm">Nenhum piloto registrado nesta categoria</p>
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {category.participants.map((participation) => (
+                        {category.participants.map((pilot) => (
                           <div 
-                            key={participation.id}
+                            key={pilot.id}
                             className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
                           >
                             <div className="flex items-center gap-3">
                               <div>
-                                <p className="font-medium">{participation.user.name}</p>
-                                <p className="text-xs text-muted-foreground">{participation.user.email}</p>
+                                <p className="font-medium">{formatName(pilot.user.name)}</p>
+                                <p className="text-xs text-muted-foreground">{pilot.user.email}</p>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              {getStatusBadge(participation)}
-                              {participation.confirmedAt && (
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(participation.confirmedAt).toLocaleDateString('pt-BR')}
-                                </span>
-                              )}
+                              {getStatusBadge(pilot)}
                             </div>
                           </div>
                         ))}

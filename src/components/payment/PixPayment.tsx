@@ -8,6 +8,7 @@ import { SeasonRegistration, RegistrationPaymentData } from '@/lib/services/seas
 import { formatCurrency } from '@/utils/currency';
 import { QRCodeSVG as QRCode } from 'qrcode.react';
 import { SeasonRegistrationService } from '@/lib/services/season-registration.service';
+import { useUser } from '@/contexts/UserContext';
 
 interface PixPaymentProps {
   paymentData: RegistrationPaymentData;
@@ -25,6 +26,7 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState<string | null>(null);
+  const { refreshFinancial } = useUser();
 
   const handleCopy = async (text: string, type: string) => {
     try {
@@ -161,20 +163,22 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
         if (onPaymentUpdate) {
           onPaymentUpdate(updatedPayment);
         }
+        // Atualizar dados financeiros do dashboard
+        refreshFinancial();
       } else if (updatedPayment.status === 'PENDING') {
         setCheckResult('⏳ Pagamento ainda não foi identificado. Aguarde alguns minutos e tente novamente.');
       } else if (updatedPayment.status === 'DIRECT_PAYMENT') {
         setCheckResult('✅ Pagamento direto confirmado pelo administrador!');
-        // Atualizar o estado local do pagamento
         if (onPaymentUpdate) {
           onPaymentUpdate(updatedPayment);
         }
+        refreshFinancial();
       } else if (updatedPayment.status === 'EXEMPT') {
         setCheckResult('✅ Inscrição isenta confirmada pelo administrador!');
-        // Atualizar o estado local do pagamento
         if (onPaymentUpdate) {
           onPaymentUpdate(updatedPayment);
         }
+        refreshFinancial();
       } else {
         setCheckResult(`Status atual: ${getStatusDisplayText(updatedPayment.status)}`);
       }

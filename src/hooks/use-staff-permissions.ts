@@ -7,7 +7,10 @@ export interface UserPermissions {
   categories: boolean;
   stages: boolean;
   pilots: boolean;
+  classification: boolean;
   regulations: boolean;
+  penalties: boolean;
+  raceDay: boolean;
   editChampionship: boolean;
   gridTypes: boolean;
   scoringSystems: boolean;
@@ -45,7 +48,10 @@ export const useStaffPermissions = (championshipId: string) => {
             categories: true,
             stages: true,
             pilots: true,
+            classification: true,
             regulations: true,
+            penalties: true,
+            raceDay: true,
             editChampionship: true,
             gridTypes: true,
             scoringSystems: true,
@@ -68,7 +74,10 @@ export const useStaffPermissions = (championshipId: string) => {
             categories: staffMember.permissions.categories || false,
             stages: staffMember.permissions.stages || false,
             pilots: staffMember.permissions.pilots || false,
+            classification: staffMember.permissions.classification || false,
             regulations: staffMember.permissions.regulations || false,
+            penalties: staffMember.permissions.penalties || false,
+            raceDay: staffMember.permissions.raceDay || false,
             editChampionship: staffMember.permissions.editChampionship || false,
             gridTypes: staffMember.permissions.gridTypes || false,
             scoringSystems: staffMember.permissions.scoringSystems || false,
@@ -83,7 +92,10 @@ export const useStaffPermissions = (championshipId: string) => {
             categories: false,
             stages: false,
             pilots: false,
+            classification: false,
             regulations: false,
+            penalties: false,
+            raceDay: false,
             editChampionship: false,
             gridTypes: false,
             scoringSystems: false,
@@ -101,7 +113,10 @@ export const useStaffPermissions = (championshipId: string) => {
           categories: false,
           stages: false,
           pilots: false,
+          classification: false,
           regulations: false,
+          penalties: false,
+          raceDay: false,
           editChampionship: false,
           gridTypes: false,
           scoringSystems: false,

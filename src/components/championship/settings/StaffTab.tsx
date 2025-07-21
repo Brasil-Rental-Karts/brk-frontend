@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { Button } from "brk-design-system";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "brk-design-system";
@@ -18,6 +18,8 @@ import { ChampionshipStaffService, StaffMember, StaffPermissions } from "@/lib/s
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Loading } from '@/components/ui/loading';
+import { formatName } from '@/utils/name';
+import { useChampionshipData } from '@/contexts/ChampionshipContext';
 
 interface StaffTabProps {
   championshipId: string;
@@ -25,6 +27,10 @@ interface StaffTabProps {
 
 export const StaffTab = ({ championshipId }: StaffTabProps) => {
   const isMobile = useIsMobile();
+  
+  // Usar o contexto de dados do campeonato
+  const { getStaff, addStaff, updateStaff, removeStaff, loading: contextLoading, error: contextError } = useChampionshipData();
+  
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,13 +44,11 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
   const [isUpdatingPermissions, setIsUpdatingPermissions] = useState(false);
   const [permissions, setPermissions] = useState<StaffPermissions>({});
 
-  // Carregar membros do staff
-  const loadStaffMembers = async () => {
+  // Carregar membros do staff do contexto
+  const loadStaffMembers = useCallback(() => {
     try {
-      setLoading(true);
       setError(null);
-      
-      const members = await ChampionshipStaffService.getStaffMembers(championshipId);
+      const members = getStaff();
       setStaffMembers(members);
     } catch (err) {
       console.error('Erro ao carregar staff:', err);
@@ -52,11 +56,18 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getStaff]);
 
   useEffect(() => {
     loadStaffMembers();
-  }, [championshipId]);
+  }, [loadStaffMembers]);
+
+  // Atualizar staff members quando o contexto mudar
+  useEffect(() => {
+    const members = getStaff();
+    setStaffMembers(members);
+    setLoading(false);
+  }, [getStaff]);
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,16 +81,16 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
       setIsAddingMember(true);
       setError(null);
 
-      await ChampionshipStaffService.addStaffMember(championshipId, { 
+      const newMember = await ChampionshipStaffService.addStaffMember(championshipId, { 
         email: newMemberEmail.trim(),
         permissions: {}
       });
       
+      // Atualizar o contexto com o novo membro
+      addStaff(newMember);
+      
       toast.success('Membro adicionado à equipe com sucesso!');
       setNewMemberEmail('');
-      
-      // Recarregar lista
-      await loadStaffMembers();
     } catch (err) {
       console.error('Erro ao adicionar membro:', err);
       const errorMessage = err instanceof Error ? err.message : 'Erro ao adicionar membro à equipe';
@@ -104,10 +115,10 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
 
       await ChampionshipStaffService.removeStaffMember(championshipId, memberToDelete.id);
       
-      toast.success('Membro removido da equipe com sucesso!');
+      // Atualizar o contexto removendo o membro
+      removeStaff(memberToDelete.id);
       
-      // Recarregar lista
-      await loadStaffMembers();
+      toast.success('Membro removido da equipe com sucesso!');
     } catch (err) {
       console.error('Erro ao remover membro:', err);
       const errorMessage = err instanceof Error ? err.message : 'Erro ao remover membro da equipe';
@@ -138,16 +149,16 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
       setIsUpdatingPermissions(true);
       setError(null);
 
-      await ChampionshipStaffService.updateStaffMemberPermissions(
+      const updatedMember = await ChampionshipStaffService.updateStaffMemberPermissions(
         championshipId,
         memberToEdit.id,
         { permissions }
       );
       
-      toast.success('Permissões atualizadas com sucesso!');
+      // Atualizar o contexto com as novas permissões
+      updateStaff(memberToEdit.id, { permissions: updatedMember.permissions });
       
-      // Recarregar lista
-      await loadStaffMembers();
+      toast.success('Permissões atualizadas com sucesso!');
       setShowPermissionsDialog(false);
       setMemberToEdit(null);
     } catch (err) {
@@ -187,7 +198,10 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
   const teamMembers = staffMembers.filter(member => !member.isOwner);
   const hasTeamMembers = teamMembers.length > 0;
 
-  if (loading) {
+  // Usar loading do contexto se disponível
+  const isLoading = contextLoading.staff || loading;
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loading type="spinner" size="sm" message="Carregando equipe..." />
@@ -279,7 +293,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                     <div className="flex items-center gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-semibold">{member.user.name}</h4>
+                          <h4 className="font-semibold">{formatName(member.user.name)}</h4>
                           {member.isOwner ? (
                             <Badge variant="default" className="bg-yellow-500 hover:bg-yellow-600">
                               <Crown className="h-3 w-3 mr-1" />
@@ -311,7 +325,10 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                                     categories: 'Categorias',
                                     stages: 'Etapas',
                                     pilots: 'Pilotos',
+                                    classification: 'Classificação',
                                     regulations: 'Regulamentos',
+                                    penalties: 'Punições',
+                                    raceDay: 'Race Day',
                                     editChampionship: 'Editar Campeonato',
                                     gridTypes: 'Tipos de Grid',
                                     scoringSystems: 'Sistemas de Pontuação',
@@ -385,7 +402,9 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
             <li><strong>Categorias:</strong> Configurar categorias e suas regras</li>
             <li><strong>Etapas:</strong> Gerenciar etapas e eventos</li>
             <li><strong>Pilotos:</strong> Visualizar e gerenciar pilotos inscritos</li>
+            <li><strong>Classificação:</strong> Acessar a aba de classificação do campeonato</li>
             <li><strong>Regulamentos:</strong> Editar regulamentos das temporadas</li>
+            <li><strong>Race Day:</strong> Acessar funcionalidades do dia da corrida</li>
             <li><strong>Editar Campeonato:</strong> Modificar dados básicos do campeonato</li>
             <li><strong>Tipos de Grid:</strong> Configurar tipos de grid disponíveis</li>
             <li><strong>Sistemas de Pontuação:</strong> Criar e editar sistemas de pontuação</li>
@@ -408,7 +427,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
           <DialogHeader>
             <DialogTitle>Confirmar remoção</DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja remover <strong>"{memberToDelete?.user.name}"</strong> da equipe?
+                              Tem certeza que deseja remover <strong>"{memberToDelete?.user.name ? formatName(memberToDelete.user.name) : 'Usuário'}"</strong> da equipe?
               <br />
               Esta ação não pode ser desfeita.
             </DialogDescription>
@@ -446,7 +465,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
           <DialogHeader>
             <DialogTitle>Editar Permissões</DialogTitle>
             <DialogDescription>
-              Configure as permissões de acesso para <strong>"{memberToEdit?.user.name}"</strong>
+                              Configure as permissões de acesso para <strong>"{memberToEdit?.user.name ? formatName(memberToEdit.user.name) : 'Usuário'}"</strong>
             </DialogDescription>
           </DialogHeader>
           
@@ -501,12 +520,42 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox
+                  id="classification"
+                  checked={permissions.classification || false}
+                  onCheckedChange={(checked) => handlePermissionChange('classification', checked as boolean)}
+                />
+                <label htmlFor="classification" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Classificação
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
                   id="regulations"
                   checked={permissions.regulations || false}
                   onCheckedChange={(checked) => handlePermissionChange('regulations', checked as boolean)}
                 />
                 <label htmlFor="regulations" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   Regulamentos
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="penalties"
+                  checked={permissions.penalties || false}
+                  onCheckedChange={(checked) => handlePermissionChange('penalties', checked as boolean)}
+                />
+                <label htmlFor="penalties" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Punições
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="raceDay"
+                  checked={permissions.raceDay || false}
+                  onCheckedChange={(checked) => handlePermissionChange('raceDay', checked as boolean)}
+                />
+                <label htmlFor="raceDay" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Race Day
                 </label>
               </div>
               <div className="flex items-center space-x-2">

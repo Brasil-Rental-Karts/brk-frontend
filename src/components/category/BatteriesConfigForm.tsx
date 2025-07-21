@@ -235,6 +235,7 @@ export const BatteriesConfigForm = forwardRef<HTMLDivElement, BatteriesConfigFor
                               Opcional
                             </Badge>
                           )}
+
                         </div>
                         <div className="mt-1 space-y-1">
                           <p className="text-sm text-muted-foreground">
@@ -341,6 +342,7 @@ export const BatteriesConfigForm = forwardRef<HTMLDivElement, BatteriesConfigFor
                             {battery.duration} min
                           </Badge>
                         )}
+
                       </div>
                     </div>
                   </div>
@@ -562,6 +564,8 @@ const BatteryFormDialog = ({
               Bateria obrigatória
             </Label>
           </div>
+
+
         </form>
 
         <DialogFooter>

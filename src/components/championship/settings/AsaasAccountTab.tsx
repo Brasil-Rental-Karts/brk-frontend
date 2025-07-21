@@ -16,66 +16,57 @@ import {
 } from "lucide-react";
 import { Championship, ChampionshipService, AsaasStatus } from "@/lib/services/championship.service";
 import { Loading } from '@/components/ui/loading';
+import { useChampionshipData } from '@/contexts/ChampionshipContext';
 
 interface AsaasAccountTabProps {
   championshipId: string;
 }
 
 export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
-  const [championship, setChampionship] = useState<Championship | null>(null);
-  const [asaasStatus, setAsaasStatus] = useState<AsaasStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { 
+    getAsaasStatus, 
+    getChampionshipInfo, 
+    loading, 
+    error, 
+    refreshAsaasStatus 
+  } = useChampionshipData();
+  
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [walletId, setWalletId] = useState<string>("");
 
-  // Carregar dados do campeonato e status Asaas
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const [championshipData, statusData] = await Promise.all([
-          ChampionshipService.getById(championshipId),
-          ChampionshipService.getAsaasStatus(championshipId)
-        ]);
-        
-        setChampionship(championshipData);
-        setAsaasStatus(statusData);
-        setWalletId(statusData?.asaasWalletId || "");
-      } catch (err: any) {
-        setError(err.message || 'Erro ao carregar dados');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Obter dados do contexto
+  const championship = getChampionshipInfo();
+  const asaasStatus = getAsaasStatus();
 
-    loadData();
-  }, [championshipId]);
+  // Inicializar walletId quando os dados carregarem
+  useEffect(() => {
+    if (asaasStatus?.asaasWalletId) {
+      setWalletId(asaasStatus.asaasWalletId);
+    }
+  }, [asaasStatus?.asaasWalletId]);
 
   const handleSaveWalletId = async () => {
     try {
       setSaving(true);
-      setError(null);
+      setLocalError(null);
       
       // Atualizar o campeonato com o novo Wallet ID
       await ChampionshipService.updateAsaasWalletId(championshipId, walletId.trim());
       
       // Recarregar status após salvar
-      const updatedStatus = await ChampionshipService.getAsaasStatus(championshipId);
-      setAsaasStatus(updatedStatus);
+      await refreshAsaasStatus();
       
       // TODO: Adicionar toast de sucesso
       
     } catch (err: any) {
-      setError(err.message || 'Erro ao salvar Wallet ID');
+      setLocalError(err.message || 'Erro ao salvar Wallet ID');
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
+  if (loading.asaasStatus) {
     return (
       <div className="space-y-6">
         <Loading type="spinner" size="lg" />
@@ -83,11 +74,11 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
     );
   }
 
-  if (error && !asaasStatus) {
+  if (error.asaasStatus && !asaasStatus) {
     return (
       <Alert variant="destructive">
         <AlertTitle>Erro ao Carregar Dados</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
+        <AlertDescription>{error.asaasStatus}</AlertDescription>
       </Alert>
     );
   }
@@ -150,10 +141,10 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {error && (
+          {localError && (
             <Alert variant="destructive">
               <AlertTitle>Erro</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{localError}</AlertDescription>
             </Alert>
           )}
 

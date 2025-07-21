@@ -8,7 +8,20 @@ import { AlertTriangle, Plus, Edit, Trash2, GripVertical, HelpCircle, Power, Pow
 import { RegulationService, Regulation, CreateRegulationData, UpdateRegulationData } from "@/lib/services/regulation.service";
 import { Season, SeasonService } from "@/lib/services/season.service";
 import { ChampionshipService, Championship } from "@/lib/services/championship.service";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Label } from "brk-design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
 import ReactMarkdown from "react-markdown";
@@ -16,27 +29,15 @@ import remarkGfm from "remark-gfm";
 import { Switch } from "@radix-ui/react-switch";
 import { PDFGenerator, RegulationPDFData } from "@/utils/pdf-generator";
 import { InlineLoader } from '@/components/ui/loading';
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 interface RegulationTabProps {
   championshipId: string;
-  seasons: Season[];
-  isLoading?: boolean;
-  error?: string | null;
-  onRefresh?: () => void;
 }
 
-export const RegulationTab = ({ 
-  championshipId, 
-  seasons, 
-  isLoading = false, 
-  error = null, 
-  onRefresh 
-}: RegulationTabProps) => {
+export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
   const [selectedSeason, setSelectedSeason] = useState<string>("");
   const [seasonData, setSeasonData] = useState<Season | null>(null);
-  const [championshipData, setChampionshipData] = useState<Championship | null>(null);
-  const [regulations, setRegulations] = useState<Regulation[]>([]);
-  const [loading, setLoading] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [editingRegulation, setEditingRegulation] = useState<Regulation | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -48,52 +49,64 @@ export const RegulationTab = ({
   });
   const [showMarkdownHelp, setShowMarkdownHelp] = useState(false);
 
+  // Usar o contexto de dados do campeonato
+  const { 
+    getSeasons, 
+    getRegulations,
+    fetchRegulations,
+    refreshRegulations,
+    addRegulation,
+    updateRegulation,
+    removeRegulation,
+    updateRegulationsOrder,
+    getChampionshipInfo,
+    loading: contextLoading, 
+    error: contextError
+  } = useChampionshipData();
+
+  // Obter dados do contexto
+  const contextSeasons = getSeasons();
+  const championshipData = getChampionshipInfo();
+
   // Carregar dados da temporada selecionada
   useEffect(() => {
     if (selectedSeason) {
       SeasonService.getById(selectedSeason).then(setSeasonData).catch(() => setSeasonData(null));
       loadRegulations(selectedSeason);
     } else {
-      setRegulations([]);
       setSeasonData(null);
     }
   }, [selectedSeason]);
 
-  // Carregar dados do campeonato
-  useEffect(() => {
-    if (championshipId) {
-      ChampionshipService.getById(championshipId)
-        .then(setChampionshipData)
-        .catch(() => setChampionshipData(null));
-    }
-  }, [championshipId]);
-
   const loadRegulations = async (seasonId: string) => {
     try {
-      setLoading(true);
-      const data = await RegulationService.getBySeasonIdOrdered(seasonId);
-      setRegulations(data);
+      // Buscar regulamentos do contexto
+      let regulations = getRegulations(seasonId);
+      
+      // Se não existe no contexto, buscar do backend
+      if (regulations.length === 0) {
+        await fetchRegulations(seasonId);
+        regulations = getRegulations(seasonId);
+      }
     } catch (error) {
       console.error("Error loading regulations:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleCreateRegulation = async () => {
     try {
-      setLoading(true);
       const newRegulation = await RegulationService.create({
         ...formData,
         seasonId: selectedSeason
       });
-      setRegulations(prev => [...prev, newRegulation]);
+      
+      // Adicionar ao contexto
+      addRegulation(selectedSeason, newRegulation);
+      
       setShowCreateForm(false);
       setFormData({ title: "", content: "", seasonId: "" });
     } catch (error) {
       console.error("Error creating regulation:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -101,21 +114,19 @@ export const RegulationTab = ({
     if (!editingRegulation) return;
     
     try {
-      setLoading(true);
       const updatedRegulation = await RegulationService.update(editingRegulation.id, {
         title: formData.title,
         content: formData.content
       });
-      setRegulations(prev => 
-        prev.map(reg => reg.id === editingRegulation.id ? updatedRegulation : reg)
-      );
+      
+      // Atualizar no contexto
+      updateRegulation(selectedSeason, editingRegulation.id, updatedRegulation);
+      
       setShowEditForm(false);
       setEditingRegulation(null);
       setFormData({ title: "", content: "", seasonId: "" });
     } catch (error) {
       console.error("Error updating regulation:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -123,39 +134,41 @@ export const RegulationTab = ({
     if (!confirm("Tem certeza que deseja excluir esta seção do regulamento?")) return;
     
     try {
-      setLoading(true);
       await RegulationService.delete(id);
-      setRegulations(prev => prev.filter(reg => reg.id !== id));
+      
+      // Remover do contexto
+      removeRegulation(selectedSeason, id);
     } catch (error) {
       console.error("Error deleting regulation:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleDragEnd = async (result: any) => {
-    if (!result.destination) return;
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    })
+  );
 
-    const items = Array.from(regulations);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-
-    setRegulations(items);
-
-    // Update order in backend
-    try {
-      const regulationIds = items.map(item => item.id);
-
-      await RegulationService.reorder({
+  function handleDragEnd(event: any) {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      const currentRegulations = getRegulations(selectedSeason);
+      const oldIndex = currentRegulations.findIndex(item => item.id === active.id);
+      const newIndex = currentRegulations.findIndex(item => item.id === over.id);
+      const items = arrayMove(currentRegulations, oldIndex, newIndex);
+      
+      // Atualizar ordem no contexto
+      updateRegulationsOrder(selectedSeason, items);
+      
+      // Update order in backend
+      RegulationService.reorder({
         seasonId: selectedSeason,
-        regulationIds
-      });
-    } catch (error) {
-      console.error("Error reordering regulations:", error);
-      // Reload regulations to restore original order
-      loadRegulations(selectedSeason);
+        regulationIds: items.map(item => item.id)
+      }).catch(() => refreshRegulations(selectedSeason));
     }
-  };
+  }
 
   const openEditModal = (regulation: Regulation) => {
     setEditingRegulation(regulation);
@@ -177,8 +190,14 @@ export const RegulationTab = ({
   };
 
   const handleGeneratePDF = async () => {
-    if (!championshipData || !seasonData || regulations.length === 0) {
+    if (!championshipData || !seasonData) {
       alert('Não é possível gerar o PDF. Verifique se há regulamentos cadastrados.');
+      return;
+    }
+
+    const regulations = getRegulations(selectedSeason);
+    if (regulations.length === 0) {
+      alert('Não há regulamentos cadastrados para gerar o PDF.');
       return;
     }
 
@@ -212,25 +231,16 @@ export const RegulationTab = ({
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <InlineLoader size="lg" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
-  }
-
   return (
     <div className="space-y-6">
+      {/* Título da aba */}
+      <div className="border-b border-gray-200 pb-4">
+        <h2 className="text-2xl font-bold text-gray-900">Regulamento</h2>
+        <p className="text-sm text-gray-600 mt-1">
+          Gerencie o regulamento e as regras do campeonato
+        </p>
+      </div>
+
       {/* Season Selector */}
       <div className="space-y-2">
         <Label htmlFor="season-select">Selecionar Temporada</Label>
@@ -241,7 +251,7 @@ export const RegulationTab = ({
           className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <option value="">Selecione uma temporada</option>
-          {seasons.map((season) => (
+          {contextSeasons.map((season) => (
             <option key={season.id} value={season.id}>
               {season.name}
             </option>
@@ -305,16 +315,16 @@ export const RegulationTab = ({
 
       {selectedSeason && (
         <>
-          {/* Header with Create Button */}
-          <div className="flex justify-between items-center">
+          {/* Header with Buttons */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <h3 className="text-lg font-semibold">Seções do Regulamento</h3>
-            <div className="flex items-center gap-2">
-              {regulations.length > 0 && (
+            <div className="flex flex-col sm:flex-row gap-2">
+              {getRegulations(selectedSeason).length > 0 && (
                 <Button 
                   onClick={handleGeneratePDF}
                   variant="outline"
                   disabled={generatingPDF || showCreateForm || showEditForm}
-                  className="flex items-center gap-2"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2"
                 >
                   <FileText className="h-4 w-4" />
                   {generatingPDF ? "Gerando PDF..." : "Gerar PDF"}
@@ -327,8 +337,9 @@ export const RegulationTab = ({
                 }}
                 variant={showCreateForm ? "outline" : "default"}
                 disabled={showEditForm}
+                className="w-full sm:w-auto flex items-center justify-center gap-2"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-4 w-4" />
                 {showCreateForm ? "Cancelar" : "Nova Seção"}
               </Button>
             </div>
@@ -426,7 +437,7 @@ export const RegulationTab = ({
                   <Button variant="outline" onClick={() => setShowCreateForm(false)}>
                     Cancelar
                   </Button>
-                  <Button onClick={handleCreateRegulation} disabled={loading || !formData.title || !formData.content}>
+                  <Button onClick={handleCreateRegulation} disabled={!formData.title || !formData.content}>
                     Criar
                   </Button>
                 </div>
@@ -526,7 +537,7 @@ export const RegulationTab = ({
                   <Button variant="outline" onClick={() => setShowEditForm(false)}>
                     Cancelar
                   </Button>
-                  <Button onClick={handleUpdateRegulation} disabled={loading || !formData.title || !formData.content}>
+                  <Button onClick={handleUpdateRegulation} disabled={!formData.title || !formData.content}>
                     Salvar
                   </Button>
                 </div>
@@ -535,91 +546,112 @@ export const RegulationTab = ({
           )}
 
           {/* Regulations List */}
-          {loading ? (
+          {contextLoading.regulations ? (
             <div className="space-y-4">
               <InlineLoader size="md" />
             </div>
-          ) : regulations.length === 0 ? (
+          ) : getRegulations(selectedSeason).length === 0 ? (
             <Alert>
               <AlertDescription>
                 Nenhuma seção do regulamento encontrada para esta temporada.
               </AlertDescription>
             </Alert>
           ) : (
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <Droppable droppableId="regulations">
-                {(provided) => (
-                  <div
-                    {...provided.droppableProps}
-                    ref={provided.innerRef}
-                    className="space-y-3"
-                  >
-                    {regulations.map((regulation, index) => (
-                      <Draggable key={regulation.id} draggableId={regulation.id} index={index}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            className={`${snapshot.isDragging ? 'opacity-50' : ''}`}
-                          >
-                            <Card>
-                              <CardHeader className="pb-3">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center space-x-2">
-                                    <div {...provided.dragHandleProps}>
-                                      <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
-                                    </div>
-                                    <CardTitle className="text-base prose prose-sm max-w-none">
-                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                        {regulation.title}
-                                      </ReactMarkdown>
-                                    </CardTitle>
-                                    <span className="text-xs text-gray-500">
-                                      #{regulation.order}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center space-x-2">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => openEditModal(regulation)}
-                                      title="Editar"
-                                      disabled={showCreateForm || showEditForm}
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleDeleteRegulation(regulation.id)}
-                                      title="Excluir"
-                                      disabled={showCreateForm || showEditForm}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </CardHeader>
-                              <CardContent>
-                                <div className="text-sm text-gray-600 prose prose-sm max-w-none">
-                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                    {regulation.content}
-                                  </ReactMarkdown>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </DragDropContext>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={getRegulations(selectedSeason).map(i => i.id)} strategy={verticalListSortingStrategy}>
+                {getRegulations(selectedSeason).map((regulation, index) => (
+                  <SortableRegulationCard
+                    key={regulation.id}
+                    regulation={regulation}
+                    index={index}
+                    onEdit={openEditModal}
+                    onDelete={handleDeleteRegulation}
+                    canEdit={!(showCreateForm || showEditForm)}
+                    isEditing={showEditForm}
+                    isCreating={showCreateForm}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </>
       )}
     </div>
   );
-}; 
+};
+
+function SortableRegulationCard({ regulation, index, onEdit, onDelete, canEdit, isEditing, isCreating }: any) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: regulation.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    background: isDragging ? '#f3f4f6' : undefined,
+    marginBottom: '0.75rem',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                className="cursor-grab text-gray-400 hover:text-gray-600"
+                {...attributes}
+                {...listeners}
+                tabIndex={-1}
+                aria-label="Arrastar para reordenar"
+                disabled={isEditing || isCreating}
+              >
+                <GripVertical className="h-4 w-4" />
+              </button>
+              <CardTitle className="text-base prose prose-sm max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {regulation.title}
+                </ReactMarkdown>
+              </CardTitle>
+              <span className="text-xs text-gray-500">#{regulation.order}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onEdit(regulation)}
+                title="Editar"
+                disabled={isEditing || isCreating}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDelete(regulation.id)}
+                title="Excluir"
+                disabled={isEditing || isCreating}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-gray-600 prose prose-sm max-w-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {regulation.content}
+            </ReactMarkdown>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+} 

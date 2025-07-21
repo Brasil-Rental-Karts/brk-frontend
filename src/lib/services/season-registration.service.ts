@@ -30,6 +30,7 @@ export interface CreateRegistrationData {
   paymentMethod: 'pix' | 'cartao_credito';
   userDocument: string;
   installments?: number;
+  totalAmount?: number; // Valor total calculado incluindo taxas
 }
 
 export interface CreateAdminRegistrationData {
@@ -153,6 +154,25 @@ export class SeasonRegistrationService {
       throw new Error(
         error.response?.data?.message || 
         'Erro ao buscar dados de pagamento.'
+      );
+    }
+  }
+
+  /**
+   * Buscar inscrições de um usuário em uma temporada específica
+   */
+  static async getUserRegistrationsBySeason(userId: string, seasonId: string): Promise<SeasonRegistration[]> {
+    try {
+      const response = await api.get<{
+        message: string;
+        data: SeasonRegistration[];
+      }>(`/season-registrations/user/${userId}/season/${seasonId}`);
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Error fetching user registrations by season:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        'Erro ao buscar inscrições do usuário na temporada.'
       );
     }
   }
@@ -318,22 +338,31 @@ export class SeasonRegistrationService {
   }
 
   /**
-   * Criar inscrição administrativa
+   * Criar ou atualizar inscrição administrativa
    */
-  static async createAdminRegistration(data: CreateAdminRegistrationData): Promise<SeasonRegistration> {
+  static async createAdminRegistration(data: CreateAdminRegistrationData): Promise<{
+    registration: SeasonRegistration;
+    isUpdate: boolean;
+  }> {
     try {
       const response = await api.post<{
         message: string;
         data: SeasonRegistration;
+        isUpdate?: boolean;
       }>(`${SeasonRegistrationService.BASE_URL}/admin`, data);
       
-      return response.data.data;
+      return {
+        registration: response.data.data,
+        isUpdate: response.data.isUpdate || false
+      };
     } catch (error: any) {
-      console.error('Error creating admin registration:', error);
+      console.error('Error creating/updating admin registration:', error);
       throw new Error(
         error.response?.data?.message || 
-        'Erro ao criar inscrição administrativa.'
+        'Erro ao criar/atualizar inscrição administrativa.'
       );
     }
   }
+
+
 } 

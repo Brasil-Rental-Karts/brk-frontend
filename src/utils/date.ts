@@ -146,12 +146,4 @@ export const compareDates = (dateA: string, dateB: string): number => {
   return getTimeFromDateStr(dateA) - getTimeFromDateStr(dateB);
 };
 
-/**
- * Formats currency value for Brazilian format
- */
-export const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(value);
-}; 
+ 

@@ -1,8 +1,8 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Button } from "brk-design-system";
 import { Card, CardHeader, CardContent } from "brk-design-system";
 import { Badge } from "brk-design-system";
-import { Users, Mail, Phone, Calendar, MoreVertical, Eye, Loader2 } from "lucide-react";
+import { Users, Mail, Phone, Calendar, MoreVertical, Eye, Loader2, Download, Filter, Search } from "lucide-react";
 import { EmptyState } from "brk-design-system";
 import {
   DropdownMenu,
@@ -29,10 +29,12 @@ import {
 import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
 import { Pagination } from "brk-design-system";
 import { useIsMobile } from "@/hooks/use-mobile";
+import * as XLSX from 'xlsx';
 
 import { SeasonRegistrationService, SeasonRegistration } from "@/lib/services/season-registration.service";
 import { SeasonService } from "@/lib/services/season.service";
 import { CategoryService, Category } from "@/lib/services/category.service";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { formatDateToBrazilian } from "@/utils/date";
@@ -40,19 +42,74 @@ import PaymentInfo from "../pilots/PaymentInfo";
 import { PilotDetailsModal } from "../pilots/PilotDetailsModal";
 import { InlineLoader } from '@/components/ui/loading';
 import { Loading } from '@/components/ui/loading';
+import { formatName } from '@/utils/name';
+import { usePagination } from '@/hooks/usePagination';
+import { formatCurrency } from '@/utils/currency';
+
+// Labels centralizados para status e métodos
+const RegistrationStatusLabels: Record<string, string> = {
+  pending: 'Pendente',
+  payment_pending: 'Aguardando pagamento',
+  confirmed: 'Confirmado',
+  cancelled: 'Cancelado',
+  expired: 'Expirado',
+  exempt: 'Isento',
+  direct_payment: 'Pagamento Direto',
+};
+
+const PaymentStatusLabels: Record<string, string> = {
+  paid: 'Pago',
+  pending: 'Pendente',
+  processing: 'Processando',
+  failed: 'Falhou',
+  cancelled: 'Cancelado',
+  refunded: 'Estornado',
+  overdue: 'Vencido',
+  exempt: 'Isento',
+  direct_payment: 'Pagamento Direto',
+};
+
+const getRegistrationStatusLabel = (status: string) =>
+  RegistrationStatusLabels[status] || status;
+const getPaymentStatusLabel = (status: string) =>
+  PaymentStatusLabels[status] || status;
+
+const getPaymentMethodLabel = (method?: string, paymentStatus?: string) => {
+  if (paymentStatus === 'exempt') return 'Isento';
+  if (paymentStatus === 'direct_payment') return 'Pagamento Direto';
+  switch (method) {
+    case 'credit_card':
+    case 'cartao_credito':
+      return 'Cartão de Crédito';
+    case 'pix':
+      return 'PIX';
+    case undefined:
+    case null:
+      return 'Não informado';
+    default:
+      return method;
+  }
+};
 
 interface PilotsTabProps {
   championshipId: string;
 }
 
 // Configuração inicial dos filtros
-const createFilterFields = (seasonOptions: { value: string; label: string }[] = []): FilterField[] => [
+const createFilterFields = (seasonOptions: { value: string; label: string }[] = [], categoryOptions: { value: string; label: string }[] = []): FilterField[] => [
   {
     key: 'seasonId',
     label: 'Temporada',
     type: 'combobox',
     placeholder: 'Todas as temporadas',
     options: seasonOptions
+  },
+  {
+    key: 'categoryId',
+    label: 'Categoria',
+    type: 'combobox',
+    placeholder: 'Todas as categorias',
+    options: categoryOptions
   },
   {
     key: 'status',
@@ -72,31 +129,30 @@ const createFilterFields = (seasonOptions: { value: string; label: string }[] = 
     key: 'paymentStatus',
     label: 'Status do Pagamento',
     type: 'combobox',
-    placeholder: 'Todos os status de pagamento',
+    placeholder: 'Todos os pagamentos',
     options: [
-      { value: 'all', label: 'Todos os status de pagamento' },
-      { value: 'pending', label: 'Pendente' },
-      { value: 'processing', label: 'Processando' },
+      { value: 'all', label: 'Todos os pagamentos' },
       { value: 'paid', label: 'Pago' },
-      { value: 'failed', label: 'Falhou' },
-      { value: 'cancelled', label: 'Cancelado' },
-      { value: 'refunded', label: 'Reembolsado' },
+      { value: 'pending', label: 'Pendente' },
+      { value: 'overdue', label: 'Vencido' },
       { value: 'exempt', label: 'Isento' },
-      { value: 'direct_payment', label: 'Pagamento Direto' }
+      { value: 'direct_payment', label: 'Pagamento Direto' },
+      { value: 'refunded', label: 'Estornado' }
     ]
   }
 ];
 
+// Componente para o card do piloto (mobile)
 const PilotCard = ({ registration, onAction, getStatusBadge }: { 
   registration: SeasonRegistration, 
   onAction: (action: string, registrationId: string) => void,
   getStatusBadge: (registration: SeasonRegistration) => JSX.Element 
 }) => {
   return (
-    <Card className="w-full">
+    <Card className="w-full hover:shadow-md transition-shadow">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="flex-1 pr-2">
-          <h3 className="text-lg font-semibold tracking-tight">{registration.user.name}</h3>
+          <h3 className="text-lg font-semibold tracking-tight">{formatName(registration.user.name)}</h3>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
           {getStatusBadge(registration)}
@@ -110,11 +166,13 @@ const PilotCard = ({ registration, onAction, getStatusBadge }: {
               <DropdownMenuItem 
                 onClick={() => onAction("viewDetails", registration.id)}
               >
+                <Eye className="h-4 w-4 mr-2" />
                 Ver detalhes
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={() => onAction("changeCategories", registration.id)}
               >
+                <Users className="h-4 w-4 mr-2" />
                 Trocar categorias
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -197,22 +255,163 @@ const PilotCard = ({ registration, onAction, getStatusBadge }: {
   );
 };
 
+// Componente para a linha da tabela (desktop)
+const PilotTableRow = ({ 
+  registration, 
+  onAction, 
+  getStatusBadge 
+}: { 
+  registration: SeasonRegistration, 
+  onAction: (action: string, registrationId: string) => void,
+  getStatusBadge: (registration: SeasonRegistration) => JSX.Element 
+}) => {
+  return (
+    <TableRow key={registration.id} className="hover:bg-muted/50">
+      <TableCell className="py-4">
+        <div className="space-y-2">
+          <div className="font-medium">{formatName(registration.user.name)}</div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Mail className="h-3 w-3" />
+            {registration.user.email}
+          </div>
+          {registration.user.phone && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Phone className="h-3 w-3" />
+              {registration.user.phone}
+            </div>
+          )}
+          <div className="text-xs text-muted-foreground">
+            <span className="font-medium">Valor:</span> R$ {Number(registration.amount).toFixed(2).replace('.', ',')}
+          </div>
+          {registration.paymentMethod && (
+            <div className="text-xs text-muted-foreground">
+              <span className="font-medium">Método:</span> {
+                registration.paymentStatus === 'exempt' ? 'Isento' :
+                registration.paymentStatus === 'direct_payment' ? 'Pagamento Direto' :
+                registration.paymentMethod === 'pix' ? 'PIX' : 
+                registration.paymentMethod === 'cartao_credito' ? 'Cartão de Crédito' : 
+                registration.paymentMethod
+              }
+            </div>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="text-center py-4">
+        <div className="text-sm font-medium">
+          {registration.season.name}
+        </div>
+      </TableCell>
+      <TableCell className="text-center py-4">
+        <div className="space-y-2">
+          <div className="text-xs text-muted-foreground">
+            {registration.categories?.length || 0} categoria{(registration.categories?.length || 0) !== 1 ? 's' : ''}
+          </div>
+          <div className="flex flex-wrap gap-1 justify-center">
+            {registration.categories && registration.categories.length > 0 ? (
+              registration.categories.map((regCategory) => (
+                <Badge key={regCategory.id} variant="outline" className="text-xs">
+                  <div className="flex flex-col items-center">
+                    <span>{regCategory.category.name}</span>
+                    <span className="text-xs opacity-75">
+                      Lastro: {regCategory.category.ballast}kg
+                    </span>
+                  </div>
+                </Badge>
+              ))
+            ) : (
+              <span className="text-xs text-muted-foreground">Sem categorias</span>
+            )}
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className="text-center py-4">
+        {getStatusBadge(registration)}
+      </TableCell>
+      <TableCell className="text-center py-4">
+        <PaymentInfo registration={registration} />
+      </TableCell>
+      <TableCell className="text-center py-4">
+        <div className="text-sm font-medium">
+          {formatDateToBrazilian(registration.createdAt)}
+        </div>
+      </TableCell>
+      <TableCell className="text-center py-4">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem 
+              onClick={() => onAction("viewDetails", registration.id)}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              Ver detalhes
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => onAction("changeCategories", registration.id)}
+            >
+              <Users className="h-4 w-4 mr-2" />
+              Trocar categorias
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
+  );
+};
+
+// Hook personalizado para gerenciar filtros e ordenação
+const usePilotsFilters = () => {
+  const [filters, setFilters] = useState<FilterValues>({});
+  const [sortBy, setSortBy] = useState<string>("user.name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  const handleSort = useCallback((column: string) => {
+    setSortBy(prevSortBy => {
+      if (prevSortBy === column) {
+        setSortOrder(prevOrder => (prevOrder === 'asc' ? 'desc' : 'asc'));
+      } else {
+        setSortOrder('asc');
+      }
+      return column;
+    });
+  }, []);
+
+  const handleFiltersChange = useCallback((newFilters: FilterValues) => {
+    setFilters(newFilters);
+  }, []);
+
+  return {
+    filters,
+    sortBy,
+    sortOrder,
+    handleSort,
+    handleFiltersChange
+  };
+};
+
 /**
  * Tab de pilotos inscritos no campeonato
  * Exibe lista de todos os pilotos inscritos nas temporadas do campeonato
  */
 export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
   const isMobile = useIsMobile();
-  const [filters, setFilters] = useState<FilterValues>({});
-  const [sortBy, setSortBy] = useState<keyof SeasonRegistration>("createdAt");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [registrations, setRegistrations] = useState<SeasonRegistration[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [seasonOptions, setSeasonOptions] = useState<{ value: string; label: string }[]>([]);
-  const [, setSeasons] = useState<any[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Usar o contexto de dados do campeonato
+  const { 
+    getSeasons,
+    getCategories,
+    getRegistrations,
+    loading: contextLoading, 
+    error: contextError
+  } = useChampionshipData();
+
+  // Obter dados do contexto
+  const contextSeasons = getSeasons();
+  const contextCategories = getCategories();
+  const contextRegistrations = getRegistrations();
 
   // Estados para o modal de edição de categorias
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -228,92 +427,24 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
 
   // --- Lógica para Mobile (Scroll Infinito) ---
   const [visibleMobileRegistrations, setVisibleMobileRegistrations] = useState<SeasonRegistration[]>([]);
-  const [mobilePage, setMobilePage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const observer = useRef<IntersectionObserver>();
-  const mobileItemsPerPage = 5;
 
-  // Memoizar a configuração dos filtros para evitar re-renders
-  const filterFields = useMemo(() => createFilterFields(seasonOptions), [seasonOptions]);
-
-  // Buscar temporadas do campeonato
-  const fetchSeasons = useCallback(async () => {
-    try {
-      const seasonsData = await SeasonService.getByChampionshipId(championshipId, 1, 100);
-      
-      // Atualizar opções do filtro
-      const newSeasonOptions = [
-        { value: 'all', label: 'Todas as temporadas' },
-        ...seasonsData.data.map((season: any) => ({
-          value: season.id,
-          label: season.name
-        }))
-      ];
-      setSeasonOptions(newSeasonOptions);
-      setSeasons(seasonsData.data);
-      return seasonsData.data;
-    } catch (err: any) {
-      console.error('Error loading seasons:', err);
-      return [];
-    }
-  }, [championshipId]);
-
-  // Buscar registrações de todas as temporadas ou de uma específica
-  const fetchRegistrations = useCallback(async (_seasons: any[] = []) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      let allRegistrations: SeasonRegistration[] = [];
-      
-      if (filters.seasonId && filters.seasonId !== 'all') {
-        // Se filtro por temporada específica
-        allRegistrations = await SeasonRegistrationService.getBySeasonId(filters.seasonId as string);
-      } else {
-        // Buscar todas as inscrições do campeonato diretamente
-        allRegistrations = await SeasonRegistrationService.getByChampionshipId(championshipId);
-      }
-
-      setRegistrations(allRegistrations);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar inscrições');
-      setRegistrations([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters.seasonId, championshipId]);
-
-  // Carregar dados iniciais
-  useEffect(() => {
-    let mounted = true;
-    
-    const initializeData = async () => {
-      try {
-        const seasons = await fetchSeasons();
-        if (mounted) {
-          await fetchRegistrations(seasons);
-        }
-      } catch (error) {
-        console.error('Error initializing data:', error);
-      }
-    };
-    
-    initializeData();
-    
-    return () => {
-      mounted = false;
-    };
-  }, [championshipId]);
-
-  // Aplicar filtros e ordenação aos dados
+  // Usar hooks personalizados
+  const { filters, sortBy, sortOrder, handleSort, handleFiltersChange } = usePilotsFilters();
+  
+  // Usar inscrições do contexto e aplicar filtros
   const processedRegistrations = useMemo(() => {
-    let result = [...registrations];
+    let result = [...contextRegistrations];
 
     // Aplicar filtros
     result = result.filter(registration => {
       // Filtro por temporada
       if (filters.seasonId && filters.seasonId !== 'all' && registration.season.id !== filters.seasonId) {
+        return false;
+      }
+
+      // Filtro por categoria
+      if (filters.categoryId && filters.categoryId !== 'all' && !registration.categories?.some(rc => rc.category.id === filters.categoryId)) {
         return false;
       }
 
@@ -323,8 +454,36 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
       }
 
       // Filtro por status do pagamento
-      if (filters.paymentStatus && filters.paymentStatus !== 'all' && registration.paymentStatus !== filters.paymentStatus) {
-        return false;
+      if (filters.paymentStatus && filters.paymentStatus !== 'all') {
+        // Verificação especial para filtro "overdue" - incluir pilotos com parcelas vencidas
+        if (filters.paymentStatus === 'overdue') {
+          // Verificar se o status do pagamento é 'overdue' OU se há parcelas vencidas
+          const hasOverdueStatus = registration.paymentStatus === 'overdue';
+          const hasOverduePayments = registration.payments?.some(payment => payment.status === 'OVERDUE');
+          
+          if (!hasOverdueStatus && !hasOverduePayments) {
+            return false;
+          }
+        } 
+        // Verificação especial para filtro "pending" - incluir pilotos com parcelas pendentes (sem parcelas vencidas)
+        else if (filters.paymentStatus === 'pending') {
+          // Verificar se o status do pagamento é 'pending' OU se há parcelas pendentes (sem vencidas)
+          const hasPendingStatus = registration.paymentStatus === 'pending';
+          const hasPendingPayments = registration.payments?.some(payment => 
+            ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(payment.status)
+          );
+          const hasOverduePayments = registration.payments?.some(payment => payment.status === 'OVERDUE');
+          
+          // Só incluir se tem status pending OU tem parcelas pendentes E não tem parcelas vencidas
+          if (!hasPendingStatus && (!hasPendingPayments || hasOverduePayments)) {
+            return false;
+          }
+        } else {
+          // Para outros filtros, usar a lógica original
+          if (registration.paymentStatus !== filters.paymentStatus) {
+            return false;
+          }
+        }
       }
 
       return true;
@@ -332,13 +491,27 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
 
     // Aplicar ordenação
     result.sort((a, b) => {
-      let aValue: any = a[sortBy];
-      let bValue: any = b[sortBy];
+      let aValue: any;
+      let bValue: any;
 
-      if (sortBy === 'createdAt') {
-        aValue = new Date(aValue);
-        bValue = new Date(bValue);
-      } else if (typeof aValue === 'string') {
+      // Obter valores baseado no campo de ordenação
+      if (sortBy === 'user.name') {
+        aValue = a.user?.name || '';
+        bValue = b.user?.name || '';
+      } else if (sortBy === 'createdAt') {
+        aValue = new Date(a.createdAt);
+        bValue = new Date(b.createdAt);
+      } else if (sortBy === 'paymentStatus') {
+        aValue = a.paymentStatus || '';
+        bValue = b.paymentStatus || '';
+      } else {
+        // Fallback para outros campos
+        aValue = (a as any)[sortBy] || '';
+        bValue = (b as any)[sortBy] || '';
+      }
+
+      // Converter para string e normalizar para comparação
+      if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
@@ -349,30 +522,41 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     });
 
     return result;
-  }, [registrations, filters, sortBy, sortOrder]);
+  }, [contextRegistrations, filters, sortBy, sortOrder]);
+
+  // Hook de paginação usando os dados filtrados
+  const pagination = usePagination(processedRegistrations.length, 10, 1);
+  
+  // Estados para mobile (scroll infinito)
+  const [mobilePage, setMobilePage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const mobileItemsPerPage = 5;
+
+  // Memoizar a configuração dos filtros para evitar re-renders
+  const seasonOptions = useMemo(() => [
+    { value: 'all', label: 'Todas as temporadas' },
+    ...contextSeasons.map((season: any) => ({
+      value: season.id,
+      label: season.name
+    }))
+  ], [contextSeasons]);
+
+  const categoryOptions = useMemo(() => [
+    { value: 'all', label: 'Todas as categorias' },
+    ...contextCategories.map((category: any) => ({
+      value: category.id,
+      label: category.name
+    }))
+  ], [contextCategories]);
+
+  const filterFields = useMemo(() => createFilterFields(seasonOptions, categoryOptions), [seasonOptions, categoryOptions]);
 
   // --- Lógica para Desktop (Paginação) ---
-  const paginationInfo = useMemo(() => {
-    const totalItems = processedRegistrations.length;
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-    const hasNextPage = currentPage < totalPages;
-    const hasPreviousPage = currentPage > 1;
-
-    return {
-      totalPages,
-      startIndex,
-      endIndex,
-      hasNextPage,
-      hasPreviousPage
-    };
-  }, [processedRegistrations.length, currentPage, itemsPerPage]);
-
   const paginatedDesktopRegistrations = useMemo(() => {
     if (isMobile) return [];
-    return processedRegistrations.slice(paginationInfo.startIndex, paginationInfo.endIndex);
-  }, [isMobile, processedRegistrations, paginationInfo.startIndex, paginationInfo.endIndex]);
+    return processedRegistrations.slice(pagination.info.startIndex, pagination.info.endIndex);
+  }, [isMobile, processedRegistrations, pagination.info.startIndex, pagination.info.endIndex]);
 
   // --- Lógica para Mobile (Scroll Infinito) ---
   useEffect(() => {
@@ -381,7 +565,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
       setMobilePage(2);
       setHasMore(processedRegistrations.length > mobileItemsPerPage);
     }
-  }, [isMobile, processedRegistrations]);
+  }, [isMobile, processedRegistrations, mobileItemsPerPage]);
 
   const lastRegistrationElementRef = useCallback((node: HTMLElement | null) => {
     if (loadingMore) return;
@@ -401,43 +585,35 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     });
 
     if (node) observer.current.observe(node);
-  }, [loadingMore, hasMore, mobilePage, processedRegistrations]);
+  }, [loadingMore, hasMore, mobilePage, processedRegistrations, mobileItemsPerPage]);
 
   const processedRegistrationsForDisplay = isMobile ? visibleMobileRegistrations : paginatedDesktopRegistrations;
 
-  const handleSort = (column: keyof SeasonRegistration) => {
-    setSortBy(prevSortBy => {
-      if (prevSortBy === column) {
-        setSortOrder(prevOrder => (prevOrder === 'asc' ? 'desc' : 'asc'));
-      } else {
-        setSortOrder('asc');
-      }
-      return column;
-    });
+  // Resetar página quando filtros mudarem
+  useEffect(() => {
     if (!isMobile) {
-      setCurrentPage(1);
+      pagination.actions.goToFirstPage();
     }
-  };
+  }, [filters, sortBy, sortOrder, isMobile]);
 
-  const handleFiltersChange = useCallback((newFilters: FilterValues) => {
-    setFilters(newFilters);
+  // Scroll ao topo quando a página mudar
+  useEffect(() => {
     if (!isMobile) {
-      setCurrentPage(1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [isMobile]);
-
-  const handlePageChange = (page: number) => setCurrentPage(page);
-  const handleItemsPerPageChange = (items: number) => setItemsPerPage(items);
+  }, [pagination.state.currentPage, isMobile]);
 
   const handleRegistrationAction = async (action: string, registrationId: string) => {
-    const registration = registrations.find(r => r.id === registrationId);
+    const registration = contextRegistrations.find((r: SeasonRegistration) => r.id === registrationId);
     if (!registration) return;
 
     switch (action) {
       case "changeCategories":
         try {
-          const categories = await CategoryService.getBySeasonId(registration.season.id);
-          setAvailableCategories(categories);
+          // Usar categorias do contexto em vez de buscar do backend
+          const allCategories = getCategories();
+          const seasonCategories = allCategories.filter(cat => cat.seasonId === registration.season.id);
+          setAvailableCategories(seasonCategories);
           setSelectedCategoryIds(registration.categories?.map(rc => rc.category.id) || []);
           setSelectedRegistration(registration);
           setCategoryError(null);
@@ -509,8 +685,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         categoryIds: selectedCategoryIds
       });
 
-      // Atualizar a lista de inscrições
-      await fetchRegistrations();
+      // A lista será atualizada automaticamente pelo contexto
       
       // Fechar modal
       setShowCategoryModal(false);
@@ -539,26 +714,146 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
            registration.paymentStatus === 'direct_payment';
   };
 
-  if (loading) {
+  // Função para exportar dados para Excel
+  const exportToExcel = useCallback(() => {
+    if (processedRegistrations.length === 0) {
+      alert('Não há dados para exportar');
+      return;
+    }
+
+    // Função explicativa de status de pagamento para o Excel
+    const getPaymentStatusLabelForExcel = (registration: SeasonRegistration) => {
+      let label = '';
+      // Status que indicam parcela paga
+      const paidStatusList = [
+        'PAID', 'RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH', 'EXEMPT', 'DIRECT_PAYMENT'
+      ];
+      if (registration.paymentStatus === 'failed') {
+        // Se houver algum pagamento vencido
+        if (registration.payments && registration.payments.some(p => p.status === 'OVERDUE')) {
+          label = 'Vencido';
+        } else {
+          label = 'Falhou (Erro no pagamento)';
+        }
+      } else if (registration.paymentStatus === 'overdue') {
+        label = 'Vencido';
+      } else if (registration.paymentStatus === 'processing') {
+        label = getPaymentStatusLabel(registration.paymentStatus);
+        if (registration.payments && registration.payments.length > 1) {
+          const paidCount = registration.payments.filter(p => paidStatusList.includes(p.status)).length;
+          label += ` (${paidCount}/${registration.payments.length} pagas)`;
+        }
+      } else {
+        label = getPaymentStatusLabel(registration.paymentStatus);
+      }
+
+      // Se for parcelado e status vencido, mostrar apenas vencidas
+      if (
+        label.startsWith('Vencido') &&
+        registration.payments && registration.payments.length > 1
+      ) {
+        const overdueCount = registration.payments.filter(p => p.status === 'OVERDUE').length;
+        label += ` (${overdueCount}/${registration.payments.length} vencidas)`;
+        return label;
+      }
+
+      // Se for parcelado, mostrar quantidade de parcelas pagas/vencidas (exceto para processing e vencido, já tratados acima)
+      if (
+        registration.paymentStatus !== 'processing' &&
+        !label.startsWith('Vencido') &&
+        registration.payments && registration.payments.length > 1
+      ) {
+        const paidCount = registration.payments.filter(p => paidStatusList.includes(p.status)).length;
+        const overdueCount = registration.payments.filter(p => p.status === 'OVERDUE').length;
+        if (paidCount > 0 || overdueCount > 0) {
+          label += ` (${paidCount} pagas / ${overdueCount} vencidas)`;
+        }
+      }
+      return label;
+    };
+
+    try {
+      // Preparar dados para exportação
+      const exportData = processedRegistrations.map(registration => {
+        const categories = registration.categories?.map(rc => rc.category.name).join(', ') || 'Sem categorias';
+        return {
+          'Nome do Piloto': formatName(registration.user.name),
+          'Email': registration.user.email,
+          'Telefone': registration.user.phone || 'Não informado',
+          'Temporada': registration.season.name,
+          'Categorias': categories,
+          'Status da Inscrição': getRegistrationStatusLabel(registration.status),
+          'Status do Pagamento': getPaymentStatusLabelForExcel(registration),
+          'Valor': formatCurrency(registration.amount),
+          'Método de Pagamento': getPaymentMethodLabel(registration.paymentMethod, registration.paymentStatus),
+          'Data de Inscrição': formatDateToBrazilian(registration.createdAt)
+        };
+      });
+
+      // Ordenar por nome do piloto (alfabeticamente)
+      exportData.sort((a, b) => {
+        const nameA = a['Nome do Piloto'] || '';
+        const nameB = b['Nome do Piloto'] || '';
+        return nameA.localeCompare(nameB, 'pt-BR');
+      });
+
+      // Criar workbook e worksheet
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Pilotos');
+
+      // Ajustar largura das colunas
+      ws['!cols'] = [
+        { wch: 25 }, // Nome do Piloto
+        { wch: 30 }, // Email
+        { wch: 15 }, // Telefone
+        { wch: 20 }, // Temporada
+        { wch: 30 }, // Categorias
+        { wch: 20 }, // Status da Inscrição
+        { wch: 20 }, // Status do Pagamento
+        { wch: 12 }, // Valor
+        { wch: 20 }, // Método de Pagamento
+        { wch: 15 }  // Data de Inscrição
+      ];
+
+      // Gerar nome do arquivo com data atual
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const fileName = `pilotos_campeonato_${dateStr}.xlsx`;
+
+      // Exportar arquivo
+      XLSX.writeFile(wb, fileName);
+    } catch (error) {
+      console.error('Erro ao exportar para Excel:', error);
+      alert('Erro ao exportar dados para Excel');
+    }
+  }, [processedRegistrations]);
+
+  // Verificar se o contexto está pronto e se há dados
+  if (contextRegistrations.length === 0 && !contextLoading.registrations) {
     return (
       <Card className="w-full">
         <div className="p-6">
-          <InlineLoader size="lg" />
+          <EmptyState
+            icon={Users}
+            title="Nenhum piloto inscrito"
+            description="Ainda não há pilotos inscritos nas temporadas deste campeonato"
+          />
         </div>
       </Card>
     );
   }
 
-  if (error) {
+  if (contextError.registrations) {
     return (
       <Card className="w-full">
         <div className="p-6">
           <Alert variant="destructive">
             <AlertTitle>Erro ao carregar pilotos</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>{contextError.registrations}</AlertDescription>
           </Alert>
           <div className="mt-4">
-            <Button onClick={() => fetchRegistrations()} variant="outline">
+            <Button onClick={() => window.location.reload()} variant="outline">
               Tentar novamente
             </Button>
           </div>
@@ -567,7 +862,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     );
   }
 
-  if (processedRegistrations.length === 0 && Object.keys(filters).length === 0) {
+  if (processedRegistrations.length === 0 && Object.keys(filters).length === 0 && !contextLoading.registrations) {
     return (
       <EmptyState
         icon={Users}
@@ -579,6 +874,14 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
 
   return (
     <div className="space-y-6">
+      {/* Título da aba */}
+      <div className="border-b border-gray-200 pb-4">
+        <h2 className="text-2xl font-bold text-gray-900">Pilotos</h2>
+        <p className="text-sm text-gray-600 mt-1">
+          Gerencie os pilotos inscritos no campeonato
+        </p>
+      </div>
+
       {/* Header com filtros */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div className="flex-1 w-full sm:w-auto">
@@ -588,8 +891,21 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
             className="w-full"
           />
         </div>
-        <div className="text-sm text-muted-foreground">
-          {processedRegistrations.length} piloto{processedRegistrations.length !== 1 ? 's' : ''} encontrado{processedRegistrations.length !== 1 ? 's' : ''}
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-muted-foreground">
+            {processedRegistrations.length} piloto{processedRegistrations.length !== 1 ? 's' : ''} encontrado{processedRegistrations.length !== 1 ? 's' : ''}
+          </div>
+          {processedRegistrations.length > 0 && (
+            <Button
+              onClick={exportToExcel}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Exportar Excel
+            </Button>
+          )}
         </div>
       </div>
 
@@ -623,10 +939,18 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="min-w-[200px]">
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 min-w-[200px]"
+                    onClick={() => handleSort("user.name")}
+                  >
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4" />
                       Piloto
+                      {sortBy === "user.name" && (
+                        <span className="text-xs">
+                          {sortOrder === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
                     </div>
                   </TableHead>
                   <TableHead className="text-center">Temporada</TableHead>
@@ -671,97 +995,12 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                   </TableRow>
                 ) : (
                   processedRegistrationsForDisplay.map((registration) => (
-                    <TableRow key={registration.id} className="hover:bg-muted/50">
-                      <TableCell className="py-4">
-                        <div className="space-y-2">
-                          <div className="font-medium">{registration.user.name}</div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Mail className="h-3 w-3" />
-                            {registration.user.email}
-                          </div>
-                          {registration.user.phone && (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <Phone className="h-3 w-3" />
-                              {registration.user.phone}
-                            </div>
-                          )}
-                          <div className="text-xs text-muted-foreground">
-                            <span className="font-medium">Valor:</span> R$ {Number(registration.amount).toFixed(2).replace('.', ',')}
-                          </div>
-                          {registration.paymentMethod && (
-                            <div className="text-xs text-muted-foreground">
-                              <span className="font-medium">Método:</span> {
-                                registration.paymentStatus === 'exempt' ? 'Isento' :
-                                registration.paymentStatus === 'direct_payment' ? 'Pagamento Direto' :
-                                registration.paymentMethod === 'pix' ? 'PIX' : 
-                                registration.paymentMethod === 'cartao_credito' ? 'Cartão de Crédito' : 
-                                registration.paymentMethod
-                              }
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <div className="text-sm font-medium">
-                          {registration.season.name}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <div className="space-y-2">
-                          <div className="text-xs text-muted-foreground">
-                            {registration.categories?.length || 0} categoria{(registration.categories?.length || 0) !== 1 ? 's' : ''}
-                          </div>
-                          <div className="flex flex-wrap gap-1 justify-center">
-                            {registration.categories && registration.categories.length > 0 ? (
-                              registration.categories.map((regCategory) => (
-                                <Badge key={regCategory.id} variant="outline" className="text-xs">
-                                  <div className="flex flex-col items-center">
-                                    <span>{regCategory.category.name}</span>
-                                    <span className="text-xs opacity-75">
-                                      Lastro: {regCategory.category.ballast}kg
-                                    </span>
-                                  </div>
-                                </Badge>
-                              ))
-                            ) : (
-                              <span className="text-xs text-muted-foreground">Sem categorias</span>
-                            )}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        {getStatusBadge(registration)}
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <PaymentInfo registration={registration} />
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <div className="text-sm font-medium">
-                          {formatDateToBrazilian(registration.createdAt)}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem 
-                              onClick={() => handleRegistrationAction("viewDetails", registration.id)}
-                            >
-                              Ver detalhes
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleRegistrationAction("changeCategories", registration.id)}
-                            >
-                              Trocar categorias
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
+                    <PilotTableRow
+                      key={registration.id}
+                      registration={registration}
+                      onAction={handleRegistrationAction}
+                      getStatusBadge={getStatusBadge}
+                    />
                   ))
                 )}
               </TableBody>
@@ -772,16 +1011,16 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
           {processedRegistrations.length > 0 && (
             <div className="flex-shrink-0">
               <Pagination
-                currentPage={currentPage}
-                totalPages={paginationInfo.totalPages}
-                itemsPerPage={itemsPerPage}
+                currentPage={pagination.state.currentPage}
+                totalPages={pagination.info.totalPages}
+                itemsPerPage={pagination.state.itemsPerPage}
                 totalItems={processedRegistrations.length}
-                startIndex={paginationInfo.startIndex}
-                endIndex={paginationInfo.endIndex}
-                hasNextPage={paginationInfo.hasNextPage}
-                hasPreviousPage={paginationInfo.hasPreviousPage}
-                onPageChange={handlePageChange}
-                onItemsPerPageChange={handleItemsPerPageChange}
+                startIndex={pagination.info.startIndex}
+                endIndex={pagination.info.endIndex}
+                hasNextPage={pagination.info.hasNextPage}
+                hasPreviousPage={pagination.info.hasPreviousPage}
+                onPageChange={pagination.actions.setCurrentPage}
+                onItemsPerPageChange={pagination.actions.setItemsPerPage}
               />
             </div>
           )}
@@ -794,7 +1033,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
           <DialogHeader>
             <DialogTitle>Trocar Categorias</DialogTitle>
             <DialogDescription>
-              Selecione as novas categorias para {selectedRegistration?.user.name}. 
+              Selecione as novas categorias para {formatName(selectedRegistration?.user.name)}. 
               A quantidade deve ser a mesma da inscrição original ({selectedRegistration?.categories?.length || 0} categoria{selectedRegistration?.categories?.length !== 1 ? 's' : ''}).
             </DialogDescription>
           </DialogHeader>

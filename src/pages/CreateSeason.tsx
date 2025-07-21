@@ -1,158 +1,186 @@
-import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { FormScreen } from "@/components/ui/FormScreen";
-import { FormSectionConfig } from "@/components/ui/dynamic-form";
-import { SeasonData, SeasonService } from "@/lib/services/season.service";
-import { formatDateForDisplay, formatDateToISO, formatCurrency } from "@/utils/date";
-import { useCallback } from "react";
+import React, { useCallback, useState, useEffect } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { SeasonService, SeasonData, PaymentCondition } from '../lib/services/season.service';
+import { ChampionshipService } from '../lib/services/championship.service';
+import { formatDateForDisplay, formatDateToISO } from '../utils/date';
+import { PaymentConditions } from '../components/ui/payment-conditions';
+import { FormScreen } from '@/components/ui/FormScreen';
+import { FormSectionConfig } from '@/components/ui/dynamic-form';
+import { useChampionshipData } from '@/contexts/ChampionshipContext';
+
+type FormPaymentCondition = {
+  type: "por_temporada" | "por_etapa";
+  value: number;
+  description: string;
+  enabled: boolean;
+  paymentMethods: ("pix" | "cartao_credito")[];
+  pixInstallments?: number;
+  creditCardInstallments?: number;
+};
+
+type FormData = {
+  name: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  status: "agendado" | "em_andamento" | "cancelado" | "finalizado";
+  registrationOpen: boolean;
+  paymentConditions: FormPaymentCondition[];
+};
 
 export const CreateSeason = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { championshipId, seasonId } = useParams<{ championshipId: string; seasonId?: string }>();
-  const isEditMode = seasonId !== 'new';
-  const currentSeasonId = isEditMode ? seasonId : undefined;
+  const { addSeason, updateSeason, getSeasons, getChampionshipInfo } = useChampionshipData();
+  const isEditMode = seasonId !== 'new' && seasonId !== undefined;
+  
+  // Obter dados duplicados do location.state
   const duplicatedData = location.state?.initialData;
+  
+  // Obter dados do campeonato do contexto
+  const championship = getChampionshipInfo();
+  
+  const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
 
-  const createInstallmentOptions = () => {
-    return Array.from({ length: 12 }, (_, i) => ({
-      value: i + 1,
-      description: `${i + 1}x`
-    }));
-  };
+  // Configurar o formulário
+  useEffect(() => {
+    const config: FormSectionConfig[] = [
+      {
+        section: "Dados Gerais",
+        detail: "Informações básicas da temporada",
+        fields: [
+          {
+            id: "name",
+            name: "Nome da temporada",
+            type: "input",
+            mandatory: true,
+            max_char: 75,
+            placeholder: "Ex: Temporada 2024/1",
+          },
+          {
+            id: "description",
+            name: "Descrição da temporada",
+            type: "textarea",
+            mandatory: true,
+            max_char: 1000,
+            placeholder: "Descrição detalhada da temporada, regulamento, categorias, etc.",
+          },
+          {
+            id: "startDate",
+            name: "Data de início",
+            type: "inputMask",
+            mask: "date",
+            mandatory: true,
+            placeholder: "DD/MM/AAAA",
+            inline: true,
+            inlineGroup: "dates",
+          },
+          {
+            id: "endDate",
+            name: "Data de fim",
+            type: "inputMask",
+            mask: "date",
+            mandatory: true,
+            placeholder: "DD/MM/AAAA",
+            inline: true,
+            inlineGroup: "dates",
+          },
+          {
+            id: "status",
+            name: "Status",
+            type: "select",
+            mandatory: true,
+            options: [
+              { value: "agendado", description: "Agendado" },
+              { value: "em_andamento", description: "Em andamento" },
+              { value: "cancelado", description: "Cancelado" },
+              { value: "finalizado", description: "Finalizado" },
+            ],
+            inline: true,
+            inlineGroup: "status",
+          },
+          {
+            id: "registrationOpen",
+            name: "Inscrições abertas",
+            type: "select",
+            mandatory: true,
+            options: [
+              { value: "true", description: "Sim" },
+              { value: "false", description: "Não" },
+            ],
+            inline: true,
+            inlineGroup: "status",
+          },
+        ],
+      },
+      {
+        section: "Condições de Pagamento",
+        detail: "Configure as condições de pagamento disponíveis. Cada condição pode ter métodos de pagamento específicos.",
+        fields: [
+          {
+            id: "paymentConditions",
+            name: "Condições de pagamento",
+            type: "custom",
+            customComponent: PaymentConditions,
+          },
+        ],
+      },
+    ];
+    setFormConfig(config);
+  }, []);
 
-  // Formulário estático - sem lógica dinâmica
-  const formConfig: FormSectionConfig[] = [
-    {
-      section: "Dados Gerais",
-      detail: "Informações básicas da temporada",
-      fields: [
+  const transformInitialData = useCallback((data: any) => {
+
+    
+    // Verificar se as datas são válidas antes de formatar
+    const formatDateSafely = (dateValue: any): string => {
+      if (!dateValue) return "";
+      
+      // Se já é uma string no formato DD/MM/YYYY, retornar como está
+      if (typeof dateValue === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(dateValue)) {
+        return dateValue;
+      }
+      
+      // Se é uma string ISO (YYYY-MM-DD), formatar
+      if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateValue)) {
+        return formatDateForDisplay(dateValue);
+      }
+      
+      // Se é um objeto Date, formatar
+      if (dateValue instanceof Date) {
+        return formatDateForDisplay(dateValue);
+      }
+      
+      console.warn('🔍 CreateSeason: Data inválida:', dateValue);
+      return "";
+    };
+    
+    return {
+      ...data,
+      startDate: formatDateSafely(data.startDate),
+      endDate: formatDateSafely(data.endDate),
+      registrationOpen: data.registrationOpen.toString(),
+      paymentConditions: data.paymentConditions || [
         {
-          id: "name",
-          name: "Nome da temporada",
-          type: "input",
-          mandatory: true,
-          max_char: 75,
-          placeholder: "Ex: Temporada 2024/1"
+          type: "por_temporada",
+          value: 0,
+          description: "Pagamento por temporada",
+          enabled: true,
+          paymentMethods: [],
+          pixInstallments: 1,
+          creditCardInstallments: 1
         },
         {
-          id: "description",
-          name: "Descrição da temporada",
-          type: "textarea",
-          mandatory: true,
-          max_char: 1000,
-          placeholder: "Descrição detalhada da temporada, regulamento, categorias, etc."
-        },
-        {
-          id: "startDate",
-          name: "Data de início",
-          type: "inputMask",
-          mandatory: true,
-          mask: "date",
-          placeholder: "DD/MM/AAAA"
-        },
-        {
-          id: "endDate",
-          name: "Data de fim",
-          type: "inputMask",
-          mandatory: true,
-          mask: "date",
-          placeholder: "DD/MM/AAAA"
-        },
-        {
-          id: "status",
-          name: "Status",
-          type: "select",
-          mandatory: true,
-          options: [
-            { value: "agendado", description: "Agendado" },
-            { value: "em_andamento", description: "Em andamento" },
-            { value: "cancelado", description: "Cancelado" },
-            { value: "finalizado", description: "Finalizado" }
-          ]
-        },
-        {
-          id: "registrationOpen",
-          name: "Inscrições abertas",
-          type: "select",
-          mandatory: true,
-          options: [
-            { value: "true", description: "Sim" },
-            { value: "false", description: "Não" }
-          ]
+          type: "por_etapa",
+          value: 0,
+          description: "Pagamento por etapa",
+          enabled: false,
+          paymentMethods: [],
+          pixInstallments: 1,
+          creditCardInstallments: 1
         }
       ]
-    },
-    {
-      section: "Dados Financeiros",
-      detail: "Informações sobre inscrições e pagamentos",
-      fields: [
-        {
-          id: "inscriptionValue",
-          name: "Valor da inscrição",
-          type: "inputMask",
-          mandatory: true,
-          mask: "currency",
-          placeholder: "R$ 0,00"
-        },
-        {
-          id: "inscriptionType",
-          name: "Condições de pagamento",
-          type: "select",
-          mandatory: true,
-          options: [
-            { value: "por_temporada", description: "Pagamento por Temporada" },
-            { value: "por_etapa", description: "Pagamento por Etapa" }
-          ]
-        },
-        {
-          id: "paymentMethods",
-          name: "Métodos de pagamento aceitos",
-          type: "checkbox-group",
-          mandatory: true,
-          options: [
-            { value: "pix", description: "PIX" },
-            { value: "cartao_credito", description: "Cartão de Crédito" }
-          ]
-        },
-        {
-          id: "pixInstallments",
-          name: "Parcelas PIX",
-          type: "select",
-          mandatory: false,
-          options: createInstallmentOptions(),
-          conditionalField: {
-            dependsOn: "paymentMethods",
-            showWhen: (value: any) => Array.isArray(value) && value.includes("pix")
-          }
-        },
-        {
-          id: "creditCardInstallments",
-          name: "Parcelas Cartão de Crédito", 
-          type: "select",
-          mandatory: false,
-          options: createInstallmentOptions(),
-          conditionalField: {
-            dependsOn: "paymentMethods",
-            showWhen: (value: any) => Array.isArray(value) && value.includes("cartao_credito")
-          }
-        },
-      ]
-    }
-  ];
-
-  const transformInitialData = useCallback((season: any) => {
-    return {
-      name: season.name,
-      description: season.description,
-      startDate: formatDateForDisplay(season.startDate),
-      endDate: formatDateForDisplay(season.endDate),
-      status: season.status,
-      registrationOpen: season.registrationOpen !== undefined ? season.registrationOpen.toString() : "true",
-      inscriptionValue: formatCurrency(parseFloat(season.inscriptionValue?.toString() || '0')),
-      inscriptionType: season.inscriptionType,
-      paymentMethods: season.paymentMethods || [],
-      pixInstallments: (season.pixInstallments || 1).toString(),
-      creditCardInstallments: (season.creditCardInstallments || 1).toString()
     };
   }, []);
 
@@ -162,24 +190,71 @@ export const CreateSeason = () => {
       description: data.description,
       startDate: formatDateToISO(data.startDate) || '',
       endDate: formatDateToISO(data.endDate) || '',
-      status: data.status || 'agendado',
-      registrationOpen: data.registrationOpen === "true" || data.registrationOpen === true,
-      inscriptionValue: parseFloat(data.inscriptionValue.replace(/[^\d,]/g, '').replace(',', '.')),
-      inscriptionType: data.inscriptionType,
-      paymentMethods: data.paymentMethods || [],
+      status: data.status,
+      registrationOpen: data.registrationOpen === 'true',
+      paymentConditions: data.paymentConditions, // Enviar todas as condições, incluindo as inativas
+      paymentMethods: [], // Campo legado - será removido
       championshipId: championshipId!,
-      pixInstallments: parseInt(data.pixInstallments) || 1,
-      creditCardInstallments: parseInt(data.creditCardInstallments) || 1
+      pixInstallments: 1, // Campo legado - será removido
+      creditCardInstallments: 1 // Campo legado - será removido
     };
   }, [championshipId]);
 
   const onSuccess = useCallback(() => {
-    navigate(`/championship/${championshipId}`, { replace: true });
+    navigate(`/championship/${championshipId}?tab=seasons`);
   }, [navigate, championshipId]);
 
   const onCancel = useCallback(() => {
-    navigate(`/championship/${championshipId}`);
+    navigate(`/championship/${championshipId}?tab=seasons`);
   }, [navigate, championshipId]);
+
+  const fetchData = useCallback(async () => {
+    if (!isEditMode || !seasonId) return null;
+    
+    try {
+      // Buscar temporada do contexto primeiro
+      const seasons = getSeasons();
+      const seasonFromContext = seasons.find(s => s.id === seasonId);
+      
+      if (seasonFromContext) {
+
+        return seasonFromContext;
+      } else {
+        
+        // Fallback para backend se não encontrar no contexto
+        const season = await SeasonService.getById(seasonId);
+        
+        return season;
+      }
+    } catch (err: any) {
+      console.error('❌ CreateSeason: Erro ao carregar temporada:', err);
+      throw new Error('Erro ao carregar temporada: ' + err.message);
+    }
+  }, [isEditMode, seasonId, getSeasons]);
+  
+  const createData = useCallback(async (data: SeasonData) => {
+    
+    const createdSeason = await SeasonService.create(data);
+    
+    
+    // Atualizar o contexto com a nova temporada
+    addSeason(createdSeason);
+    
+    
+    return createdSeason;
+  }, [addSeason]);
+  
+  const updateData = useCallback(async (id: string, data: SeasonData) => {
+    
+    const updatedSeason = await SeasonService.update(id, data);
+    
+    
+    // Atualizar o contexto com a temporada atualizada
+    updateSeason(id, updatedSeason);
+    
+    
+    return updatedSeason;
+  }, [updateSeason]);
 
   if (!championshipId) {
     return (
@@ -195,35 +270,49 @@ export const CreateSeason = () => {
   return (
     <FormScreen
       title={isEditMode ? "Editar Temporada" : "Criar Temporada"}
+      description="Configure as informações da temporada e as condições de pagamento"
       formId="season-form"
       formConfig={formConfig}
-      id={currentSeasonId}
-      fetchData={isEditMode ? () => SeasonService.getById(currentSeasonId!) : undefined}
-      createData={(data) => SeasonService.create(data)}
-      updateData={(id, data) => SeasonService.update(id, data)}
+      id={isEditMode ? seasonId : undefined}
+      fetchData={isEditMode ? fetchData : undefined}
+      createData={createData}
+      updateData={updateData}
       transformInitialData={transformInitialData}
       transformSubmitData={transformSubmitData}
       onSuccess={onSuccess}
       onCancel={onCancel}
-      initialValues={duplicatedData ? transformInitialData(duplicatedData) : SEASON_INITIAL_VALUES}
+      initialValues={duplicatedData ? transformInitialData(duplicatedData) : {
+        name: "",
+        description: "",
+        startDate: "",
+        endDate: "",
+        status: "agendado",
+        registrationOpen: "true",
+        paymentConditions: [
+          {
+            type: "por_temporada",
+            value: 0,
+            description: "Pagamento por temporada",
+            enabled: true,
+            paymentMethods: [],
+            pixInstallments: 1,
+            creditCardInstallments: 1
+          },
+          {
+            type: "por_etapa",
+            value: 0,
+            description: "Pagamento por etapa",
+            enabled: false,
+            paymentMethods: [],
+            pixInstallments: 1,
+            creditCardInstallments: 1
+          }
+        ]
+      }}
       successMessage={isEditMode ? "Temporada atualizada com sucesso!" : "Temporada criada com sucesso!"}
       errorMessage={isEditMode ? "Erro ao atualizar temporada." : "Erro ao criar temporada."}
     />
   );
-};
-
-const SEASON_INITIAL_VALUES = {
-  name: "",
-  description: "",
-  startDate: "",
-  endDate: "",
-  status: "agendado",
-  registrationOpen: "true",
-  inscriptionValue: "",
-  inscriptionType: "por_temporada",
-  paymentMethods: [],
-  pixInstallments: "1",
-  creditCardInstallments: "1"
 };
 
 export default CreateSeason; 

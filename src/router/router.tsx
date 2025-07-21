@@ -22,6 +22,8 @@ const CreateCategory = lazy(() => import('@/pages/CreateCategory'));
 const CreateGridType = lazy(() => import('@/pages/CreateGridType').then(module => ({ default: module.CreateGridType })));
 const CreateScoringSystem = lazy(() => import('@/pages/CreateScoringSystem').then(module => ({ default: module.CreateScoringSystem })));
 const CreateStage = lazy(() => import('@/pages/CreateStage').then(module => ({ default: module.CreateStage })));
+const CreateRaceTrack = lazy(() => import('@/pages/CreateRaceTrack'));
+const CreatePenalty = lazy(() => import('@/pages/CreatePenalty'));
 const SeasonRegistration = lazy(() => import('@/pages/SeasonRegistration').then(module => ({ default: module.SeasonRegistration })));
 const RegistrationPayment = lazy(() => import('@/pages/RegistrationPayment').then(module => ({ default: module.RegistrationPayment })));
 const PaymentDetails = lazy(() => import('@/pages/PaymentDetails').then(module => ({ default: module.PaymentDetails })));
@@ -30,6 +32,7 @@ const EditProfile = lazy(() => import('@/pages/EditProfile'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const Financial = lazy(() => import('@/pages/Financial').then(module => ({ default: module.Financial })));
 const Admin = lazy(() => import('@/pages/Admin').then(module => ({ default: module.Admin })));
+const CreditCardFeesAdmin = lazy(() => import('@/pages/CreditCardFeesAdmin'));
 const GoogleCallback = lazy(() => import('@/pages/GoogleCallback'));
 const LoginSuccess = lazy(() => import('@/pages/LoginSuccess'));
 const ConfirmEmailInfo = lazy(() => import('@/pages/ConfirmEmailInfo').then(module => ({ default: module.ConfirmEmailInfo })));
@@ -339,6 +342,30 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "championship/:championshipId/penalties/new",
+        element: (
+          <ProtectedRoute>
+            <MainFullWidthLayout>
+              <LazyWrapper>
+                <CreatePenalty />
+              </LazyWrapper>
+            </MainFullWidthLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "championship/:championshipId/penalties/edit/:penaltyId",
+        element: (
+          <ProtectedRoute>
+            <MainFullWidthLayout>
+              <LazyWrapper>
+                <CreatePenalty />
+              </LazyWrapper>
+            </MainFullWidthLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "championship/:championshipSlug/season/:seasonSlug/register",
         element: (
           <ProtectedRoute>
@@ -353,6 +380,19 @@ export const router = createBrowserRouter([
       // Nova rota simplificada para inscrições
       {
         path: "registration/:seasonSlug",
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <LazyWrapper>
+                <SeasonRegistration />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      // Rota para inscrição com condição específica
+      {
+        path: "registration/:seasonSlug/:conditionType",
         element: (
           <ProtectedRoute>
             <MainLayout>
@@ -413,12 +453,60 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "championship/:championshipId/edit",
+        element: (
+          <ProtectedRoute requiredRoles={['Manager', 'Administrator']}>
+            <MainLayout>
+              <LazyWrapper>
+                <CreateChampionship />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "admin",
         element: (
           <ProtectedRoute requiredRoles={['Administrator']}>
             <MainLayout>
               <LazyWrapper>
                 <Admin />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "admin/race-tracks/create",
+        element: (
+          <ProtectedRoute requiredRoles={['Administrator']}>
+            <MainLayout>
+              <LazyWrapper>
+                <CreateRaceTrack />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "admin/race-tracks/edit/:id",
+        element: (
+          <ProtectedRoute requiredRoles={['Administrator']}>
+            <MainLayout>
+              <LazyWrapper>
+                <CreateRaceTrack />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "admin/credit-card-fees",
+        element: (
+          <ProtectedRoute requiredRoles={['Administrator']}>
+            <MainLayout>
+              <LazyWrapper>
+                <CreditCardFeesAdmin />
               </LazyWrapper>
             </MainLayout>
           </ProtectedRoute>

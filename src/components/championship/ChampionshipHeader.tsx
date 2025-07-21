@@ -29,7 +29,11 @@ export const ChampionshipHeader = ({ championship, permissions }: ChampionshipHe
   };
 
   const handleConfigurationOption = (option: 'grid-types' | 'scoring-systems' | 'asaas-account' | 'edit-data' | 'sponsors' | 'staff') => {
-    navigate(`/championship/${championship.id}?tab=${option}`);
+    if (option === 'edit-data') {
+      navigate(`/championship/${championship.id}/edit`);
+    } else {
+      navigate(`/championship/${championship.id}?tab=${option}`);
+    }
   };
 
   // Gerar iniciais do nome do campeonato para o avatar

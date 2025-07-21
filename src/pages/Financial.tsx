@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUser } from '@/contexts/UserContext';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
 import { Badge } from 'brk-design-system';
@@ -16,7 +17,6 @@ import {
   TableRow,
 } from 'brk-design-system';
 
-import { SeasonRegistrationService, SeasonRegistration } from '@/lib/services/season-registration.service';
 import { formatCurrency } from '@/utils/currency';
 import { formatDateToBrazilian } from '@/utils/date';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -32,37 +32,11 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-interface RegistrationWithPayments extends SeasonRegistration {
-  paymentDetails?: {
-    totalInstallments: number;
-    paidInstallments: number;
-    paidAmount: number;
-    pendingAmount: number;
-    overdueAmount: number;
-    payments: any[];
-  };
-}
-
-interface FinancialData {
-  registrations: RegistrationWithPayments[];
-  totalPaid: number;
-  totalPending: number;
-  totalOverdue: number;
-}
-
 export const Financial: React.FC = () => {
   const { user } = useAuth();
+  const { financialData, loading, errors } = useUser();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [financialData, setFinancialData] = useState<FinancialData>({
-    registrations: [],
-    totalPaid: 0,
-    totalPending: 0,
-    totalOverdue: 0
-  });
 
   // --- Estados para paginação desktop ---
   const pagination = usePagination(financialData.registrations.length, 5, 1);
@@ -72,7 +46,7 @@ export const Financial: React.FC = () => {
   }, [isMobile, financialData.registrations, pagination.info.startIndex, pagination.info.endIndex]);
 
   // --- Estados para scroll infinito mobile ---
-  const [visibleMobileRegistrations, setVisibleMobileRegistrations] = useState<RegistrationWithPayments[]>([]);
+  const [visibleMobileRegistrations, setVisibleMobileRegistrations] = useState<any[]>([]);
   const [mobilePage, setMobilePage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -112,159 +86,7 @@ export const Financial: React.FC = () => {
   // Define os dados a serem processados com base no dispositivo
   const processedRegistrations = isMobile ? visibleMobileRegistrations : paginatedDesktopRegistrations;
 
-  const loadFinancialData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      if (!user?.id) {
-        throw new Error('Usuário não encontrado');
-      }
-
-      // Buscar todas as inscrições do usuário
-      const registrations = await SeasonRegistrationService.getMyRegistrations();
-      
-      // Verificar se há inscrições com pagamentos pendentes
-      const registrationsWithPendingPayments = [];
-      for (const reg of registrations) {
-        try {
-          const payments = await SeasonRegistrationService.getPaymentData(reg.id);
-          if (payments && payments.some(p => ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(p.status))) {
-            registrationsWithPendingPayments.push(reg.id);
-          }
-        } catch (error) {
-          console.warn(`Erro ao verificar pagamentos pendentes da inscrição ${reg.id}:`, error);
-        }
-      }
-      
-      // Se há pagamentos pendentes, mostrar indicador de sincronização
-      if (registrationsWithPendingPayments.length > 0) {
-        setSyncing(true);
-      }
-      
-      // Buscar detalhes de pagamento para cada inscrição
-      const registrationsWithPayments: RegistrationWithPayments[] = await Promise.all(
-        registrations.map(async (reg) => {
-          try {
-            const payments = await SeasonRegistrationService.getPaymentData(reg.id);
-            
-            if (payments && payments.length > 0) {
-              // Verificar se há pagamentos pendentes que precisam ser sincronizados
-              const pendingPaymentsToSync = payments.filter(p => 
-                ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(p.status)
-              );
-              
-              // Sincronizar pagamentos pendentes com o Asaas
-              if (pendingPaymentsToSync.length > 0) {
-                try {
-                  await SeasonRegistrationService.syncPaymentStatus(reg.id);
-                  
-                  // Buscar dados atualizados após a sincronização
-                  const updatedPayments = await SeasonRegistrationService.getPaymentData(reg.id);
-                  if (updatedPayments) {
-                    // Usar os dados atualizados
-                    payments.splice(0, payments.length, ...updatedPayments);
-                  }
-                } catch (syncError) {
-                  console.warn(`⚠️ Erro ao sincronizar pagamentos da inscrição ${reg.id}:`, syncError);
-                  // Continuar com os dados originais em caso de erro
-                }
-              }
-              
-              // Status que indicam pagamento completo
-              const paidStatusList = ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'];
-              
-              // Status que indicam pagamento pendente
-              const pendingStatusList = ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'];
-              
-              // Status que indicam pagamento vencido
-              const overdueStatusList = ['OVERDUE'];
-              
-              const paidPayments = payments.filter(p => paidStatusList.includes(p.status));
-              const pendingPayments = payments.filter(p => pendingStatusList.includes(p.status));
-              const overduePayments = payments.filter(p => overdueStatusList.includes(p.status));
-              
-              const paidAmount = paidPayments.reduce((sum, p) => sum + Number(p.value), 0);
-              const pendingAmount = pendingPayments.reduce((sum, p) => sum + Number(p.value), 0);
-              const overdueAmount = overduePayments.reduce((sum, p) => sum + Number(p.value), 0);
-              
-              return {
-                ...reg,
-                paymentDetails: {
-                  totalInstallments: payments.length,
-                  paidInstallments: paidPayments.length,
-                  paidAmount,
-                  pendingAmount,
-                  overdueAmount,
-                  payments
-                }
-              };
-            }
-            
-            // Fallback em caso de erro
-            return {
-              ...reg,
-              paymentDetails: {
-                totalInstallments: 1,
-                paidInstallments: ['paid', 'exempt', 'direct_payment'].includes(reg.paymentStatus) ? 1 : 0,
-                paidAmount: ['paid', 'exempt', 'direct_payment'].includes(reg.paymentStatus) ? Number(reg.amount) : 0,
-                pendingAmount: reg.paymentStatus === 'pending' || reg.paymentStatus === 'processing' ? Number(reg.amount) : 0,
-                overdueAmount: reg.paymentStatus === 'failed' || reg.paymentStatus === 'overdue' ? Number(reg.amount) : 0,
-                payments: []
-              }
-            };
-          } catch (error) {
-            console.warn(`Erro ao buscar pagamentos da inscrição ${reg.id}:`, error);
-            // Fallback em caso de erro
-            return {
-              ...reg,
-              paymentDetails: {
-                totalInstallments: 1,
-                paidInstallments: ['paid', 'exempt', 'direct_payment'].includes(reg.paymentStatus) ? 1 : 0,
-                paidAmount: ['paid', 'exempt', 'direct_payment'].includes(reg.paymentStatus) ? reg.amount : 0,
-                pendingAmount: reg.paymentStatus === 'pending' ? reg.amount : 0,
-                overdueAmount: reg.paymentStatus === 'overdue' ? reg.amount : 0,
-                payments: []
-              }
-            };
-          }
-        })
-      );
-      
-      // Calcular totais baseado nos detalhes de pagamento
-      let totalPaid = 0;
-      let totalPending = 0;
-      let totalOverdue = 0;
-
-      registrationsWithPayments.forEach((reg) => {
-        if (reg.paymentDetails) {
-          totalPaid += reg.paymentDetails.paidAmount;
-          totalPending += reg.paymentDetails.pendingAmount;
-          totalOverdue += reg.paymentDetails.overdueAmount;
-        }
-      });
-
-      setFinancialData({
-        registrations: registrationsWithPayments,
-        totalPaid,
-        totalPending,
-        totalOverdue
-      });
-
-    } catch (err: any) {
-      console.error('Erro ao carregar dados financeiros:', err);
-      setError(err.message || 'Erro ao carregar dados financeiros');
-    } finally {
-      setLoading(false);
-      setSyncing(false);
-    }
-  };
-
-  useEffect(() => {
-    loadFinancialData();
-  }, [user?.id]);
-
-  const getPaymentStatusBadge = (registration: RegistrationWithPayments) => {
+  const getPaymentStatusBadge = (registration: any) => {
     // Verificar se é inscrição administrativa
     if (registration.paymentStatus === 'exempt') {
       return <Badge className="bg-green-100 text-green-800 border-green-200">Isento</Badge>;
@@ -314,6 +136,7 @@ export const Financial: React.FC = () => {
   const getPaymentMethodIcon = (method: string) => {
     switch (method) {
       case 'credit_card':
+      case 'cartao_credito':
         return <CreditCard className="w-4 h-4" />;
       case 'pix':
         return <Smartphone className="w-4 h-4" />;
@@ -334,6 +157,7 @@ export const Financial: React.FC = () => {
 
     switch (method) {
       case 'credit_card':
+      case 'cartao_credito':
         return 'Cartão de Crédito';
       case 'pix':
         return 'PIX';
@@ -411,7 +235,7 @@ export const Financial: React.FC = () => {
                 {/* Categories */}
                 {registration.categories && registration.categories.length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {registration.categories.slice(0, 3).map((regCategory) => (
+                    {registration.categories.slice(0, 3).map((regCategory: any) => (
                       <Badge key={regCategory.id} variant="outline" className="text-xs truncate">
                         {regCategory.category.name}
                       </Badge>
@@ -429,7 +253,7 @@ export const Financial: React.FC = () => {
                   <div className="space-y-2">
                     <div className="text-xs font-medium text-muted-foreground">Etapas Inscritas:</div>
                     <div className="flex flex-wrap gap-1">
-                      {registration.stages.slice(0, 3).map((regStage) => (
+                      {registration.stages.slice(0, 3).map((regStage: any) => (
                         <Badge key={regStage.id} variant="secondary" className="text-xs truncate">
                           {regStage.stage.name}
                         </Badge>
@@ -520,7 +344,7 @@ export const Financial: React.FC = () => {
             <div className="col-span-1">
               {registration.categories && registration.categories.length > 0 ? (
                 <div className="flex flex-wrap gap-1 max-w-full">
-                  {registration.categories.slice(0, 2).map((regCategory) => (
+                  {registration.categories.slice(0, 2).map((regCategory: any) => (
                     <Badge key={regCategory.id} variant="outline" className="text-xs truncate">
                       {regCategory.category.name}
                     </Badge>
@@ -540,7 +364,7 @@ export const Financial: React.FC = () => {
                 <div className="mt-2">
                   <div className="text-xs text-muted-foreground mb-1">Etapas:</div>
                   <div className="flex flex-wrap gap-1">
-                    {registration.stages.slice(0, 2).map((regStage) => (
+                    {registration.stages.slice(0, 2).map((regStage: any) => (
                       <Badge key={regStage.id} variant="secondary" className="text-xs truncate">
                         {regStage.stage.name}
                       </Badge>
@@ -585,7 +409,7 @@ export const Financial: React.FC = () => {
     </div>
   );
 
-  if (loading) {
+  if (loading.financial) {
     return (
       <div className="min-h-screen bg-background">
         <PageHeader
@@ -599,22 +423,15 @@ export const Financial: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (errors.financial) {
     return (
       <div className="min-h-screen bg-background">
         <PageHeader
           title="Financeiro"
-          actions={[
-            {
-              label: "Tentar Novamente",
-              onClick: () => loadFinancialData(),
-              variant: "default"
-            }
-          ]}
         />
         <div className="w-full max-w-6xl mx-auto px-6 py-6">
           <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>{errors.financial}</AlertDescription>
           </Alert>
         </div>
       </div>
@@ -625,19 +442,11 @@ export const Financial: React.FC = () => {
     <div className="min-h-screen bg-background">
       <PageHeader
         title="Financeiro"
-        subtitle={syncing ? "Sincronizando status dos pagamentos..." : "Acompanhe seus pagamentos e inscrições"}
-        actions={[
-          {
-            label: syncing ? "Sincronizando..." : "Atualizar",
-            onClick: () => loadFinancialData(),
-            disabled: syncing,
-            variant: "default"
-          }
-        ]}
+        subtitle={financialData.syncing ? "Sincronizando status dos pagamentos..." : "Acompanhe seus pagamentos e inscrições"}
       />
       
       {/* Indicador de Sincronização */}
-      {syncing && (
+      {financialData.syncing && (
         <div className="w-full max-w-6xl mx-auto px-6">
           <Alert className="border-blue-200 bg-blue-50">
             <Clock className="h-4 w-4 text-blue-600" />
@@ -688,7 +497,7 @@ export const Financial: React.FC = () => {
                 {(() => {
                   const totalPendingInstallments = financialData.registrations.reduce((sum, reg) => {
                     if (!reg.paymentDetails) return sum;
-                    const pendingCount = reg.paymentDetails.payments?.filter(p => 
+                    const pendingCount = reg.paymentDetails.payments?.filter((p: any) => 
                       ['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(p.status)
                     ).length || 0;
                     return sum + pendingCount;
@@ -718,7 +527,7 @@ export const Financial: React.FC = () => {
                 {(() => {
                   const totalOverdueInstallments = financialData.registrations.reduce((sum, reg) => {
                     if (!reg.paymentDetails) return sum;
-                    const overdueCount = reg.paymentDetails.payments?.filter(p => p.status === 'OVERDUE').length || 0;
+                    const overdueCount = reg.paymentDetails.payments?.filter((p: any) => p.status === 'OVERDUE').length || 0;
                     return sum + overdueCount;
                   }, 0);
                   
@@ -781,7 +590,7 @@ export const Financial: React.FC = () => {
                         <TableCell>
                           {registration.categories && registration.categories.length > 0 ? (
                             <div className="flex flex-wrap gap-1 max-w-full">
-                              {registration.categories.slice(0, 2).map((regCategory) => (
+                              {registration.categories.slice(0, 2).map((regCategory: any) => (
                                 <Badge key={regCategory.id} variant="outline" className="text-xs truncate">
                                   {regCategory.category.name}
                                 </Badge>
