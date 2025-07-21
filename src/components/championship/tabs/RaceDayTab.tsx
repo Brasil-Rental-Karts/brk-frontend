@@ -2758,7 +2758,71 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     }
   };
 
+  // Função para exportar XLSX dos pilotos confirmados
+  const exportConfirmedPilotsXLSX = useCallback(() => {
+    // Descobrir o maior número de baterias entre todos os pilotos confirmados
+    let maxBatteries = 0;
+    // Ordenar categorias por nome
+    const sortedCategories = [...categories].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    sortedCategories.forEach(category => {
+      const categoryPilots = registrations.filter(reg =>
+        reg.categories.some((rc: any) => rc.category.id === category.id)
+      );
+      const confirmedPilots = categoryPilots.filter(reg =>
+        stageParticipations.some(
+          (part) => part.userId === reg.userId && part.categoryId === category.id && part.status === 'confirmed'
+        )
+      );
+      confirmedPilots.forEach(pilot => {
+        const pilotKartAssignments = fleetDrawResults[category.id]?.[pilot.userId] || {};
+        const numBatteries = Object.keys(pilotKartAssignments).length;
+        if (numBatteries > maxBatteries) maxBatteries = numBatteries;
+      });
+    });
 
+    // Montar dados para exportação
+    const exportData: any[] = [];
+    sortedCategories.forEach(category => {
+      const categoryPilots = registrations.filter(reg =>
+        reg.categories.some((rc: any) => rc.category.id === category.id)
+      );
+      const confirmedPilots = categoryPilots.filter(reg =>
+        stageParticipations.some(
+          (part) => part.userId === reg.userId && part.categoryId === category.id && part.status === 'confirmed'
+        )
+      );
+      // Ordenar pilotos por nome
+      const sortedPilots = [...confirmedPilots].sort((a, b) => {
+        const nameA = a.user?.name || '';
+        const nameB = b.user?.name || '';
+        return nameA.localeCompare(nameB, 'pt-BR');
+      });
+      sortedPilots.forEach(pilot => {
+        const pilotKartAssignments = fleetDrawResults[category.id]?.[pilot.userId] || {};
+        const row: any = {
+          'Nome': pilot.user?.name || '',
+          'Apelido': pilot.user?.nickname || '',
+          'Estado': pilot.user?.state || '',
+          'Categoria': category.name,
+        };
+        for (let i = 0; i < maxBatteries; i++) {
+          const kart = pilotKartAssignments[i] ? pilotKartAssignments[i].kart : '';
+          row[`Bateria ${i + 1}`] = kart;
+        }
+        exportData.push(row);
+      });
+    });
+    if (exportData.length === 0) {
+      toast.error('Não há pilotos confirmados para exportar.');
+      return;
+    }
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Pilotos Confirmados');
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    XLSX.writeFile(wb, `pilotos_confirmados_etapa_${dateStr}.xlsx`);
+  }, [categories, registrations, stageParticipations, fleetDrawResults]);
 
   return (
     <div className="space-y-6">
@@ -2897,6 +2961,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleOpenBulkConfirmModal}>
                   Gerenciar Participações na Etapa
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportConfirmedPilotsXLSX}>
+                  Exportar XLSX dos Pilotos Confirmados
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
