@@ -2802,7 +2802,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
         const row: any = {
           'Nome': pilot.user?.name || '',
           'Apelido': pilot.user?.nickname || '',
-          'Estado': pilot.user?.state || '',
+          'Estado': (pilot as any).profile && (pilot as any).profile.state ? (pilot as any).profile.state : '',
           'Categoria': category.name,
         };
         for (let i = 0; i < maxBatteries; i++) {
