@@ -44,6 +44,52 @@ import { InlineLoader } from '@/components/ui/loading';
 import { Loading } from '@/components/ui/loading';
 import { formatName } from '@/utils/name';
 import { usePagination } from '@/hooks/usePagination';
+import { formatCurrency } from '@/utils/currency';
+
+// Labels centralizados para status e métodos
+const RegistrationStatusLabels: Record<string, string> = {
+  pending: 'Pendente',
+  payment_pending: 'Aguardando pagamento',
+  confirmed: 'Confirmado',
+  cancelled: 'Cancelado',
+  expired: 'Expirado',
+  exempt: 'Isento',
+  direct_payment: 'Pagamento Direto',
+};
+
+const PaymentStatusLabels: Record<string, string> = {
+  paid: 'Pago',
+  pending: 'Pendente',
+  processing: 'Processando',
+  failed: 'Falhou',
+  cancelled: 'Cancelado',
+  refunded: 'Estornado',
+  overdue: 'Vencido',
+  exempt: 'Isento',
+  direct_payment: 'Pagamento Direto',
+};
+
+const getRegistrationStatusLabel = (status: string) =>
+  RegistrationStatusLabels[status] || status;
+const getPaymentStatusLabel = (status: string) =>
+  PaymentStatusLabels[status] || status;
+
+const getPaymentMethodLabel = (method?: string, paymentStatus?: string) => {
+  if (paymentStatus === 'exempt') return 'Isento';
+  if (paymentStatus === 'direct_payment') return 'Pagamento Direto';
+  switch (method) {
+    case 'credit_card':
+    case 'cartao_credito':
+      return 'Cartão de Crédito';
+    case 'pix':
+      return 'PIX';
+    case undefined:
+    case null:
+      return 'Não informado';
+    default:
+      return method;
+  }
+};
 
 interface PilotsTabProps {
   championshipId: string;
@@ -675,39 +721,72 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
       return;
     }
 
+    // Função explicativa de status de pagamento para o Excel
+    const getPaymentStatusLabelForExcel = (registration: SeasonRegistration) => {
+      let label = '';
+      // Status que indicam parcela paga
+      const paidStatusList = [
+        'PAID', 'RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH', 'EXEMPT', 'DIRECT_PAYMENT'
+      ];
+      if (registration.paymentStatus === 'failed') {
+        // Se houver algum pagamento vencido
+        if (registration.payments && registration.payments.some(p => p.status === 'OVERDUE')) {
+          label = 'Vencido';
+        } else {
+          label = 'Falhou (Erro no pagamento)';
+        }
+      } else if (registration.paymentStatus === 'overdue') {
+        label = 'Vencido';
+      } else if (registration.paymentStatus === 'processing') {
+        label = getPaymentStatusLabel(registration.paymentStatus);
+        if (registration.payments && registration.payments.length > 1) {
+          const paidCount = registration.payments.filter(p => paidStatusList.includes(p.status)).length;
+          label += ` (${paidCount}/${registration.payments.length} pagas)`;
+        }
+      } else {
+        label = getPaymentStatusLabel(registration.paymentStatus);
+      }
+
+      // Se for parcelado e status vencido, mostrar apenas vencidas
+      if (
+        label.startsWith('Vencido') &&
+        registration.payments && registration.payments.length > 1
+      ) {
+        const overdueCount = registration.payments.filter(p => p.status === 'OVERDUE').length;
+        label += ` (${overdueCount}/${registration.payments.length} vencidas)`;
+        return label;
+      }
+
+      // Se for parcelado, mostrar quantidade de parcelas pagas/vencidas (exceto para processing e vencido, já tratados acima)
+      if (
+        registration.paymentStatus !== 'processing' &&
+        !label.startsWith('Vencido') &&
+        registration.payments && registration.payments.length > 1
+      ) {
+        const paidCount = registration.payments.filter(p => paidStatusList.includes(p.status)).length;
+        const overdueCount = registration.payments.filter(p => p.status === 'OVERDUE').length;
+        if (paidCount > 0 || overdueCount > 0) {
+          label += ` (${paidCount} pagas / ${overdueCount} vencidas)`;
+        }
+      }
+      return label;
+    };
+
     try {
       // Preparar dados para exportação
       const exportData = processedRegistrations.map(registration => {
         const categories = registration.categories?.map(rc => rc.category.name).join(', ') || 'Sem categorias';
-        const categoryBallasts = registration.categories?.map(rc => `${rc.category.name} (${rc.category.ballast}kg)`).join(', ') || 'Sem categorias';
-        
         return {
           'Nome do Piloto': formatName(registration.user.name),
           'Email': registration.user.email,
           'Telefone': registration.user.phone || 'Não informado',
           'Temporada': registration.season.name,
           'Categorias': categories,
-          'Categorias com Lastro': categoryBallasts,
-          'Status da Inscrição': registration.status === 'confirmed' ? 'Confirmado' : 
-                                registration.status === 'payment_pending' ? 'Aguardando pagamento' :
-                                registration.status === 'pending' ? 'Pendente' :
-                                registration.status === 'cancelled' ? 'Cancelado' :
-                                registration.status === 'expired' ? 'Expirado' : registration.status,
-          'Status do Pagamento': registration.paymentStatus === 'exempt' ? 'Isento' :
-                                registration.paymentStatus === 'direct_payment' ? 'Pagamento Direto' :
-                                registration.paymentStatus === 'paid' ? 'Pago' :
-                                registration.paymentStatus === 'pending' ? 'Pendente' :
-                                registration.paymentStatus === 'processing' ? 'Processando' :
-                                registration.paymentStatus === 'failed' ? 'Falhou' :
-                                registration.paymentStatus === 'cancelled' ? 'Cancelado' :
-                                registration.paymentStatus === 'refunded' ? 'Estornado' : registration.paymentStatus,
-          'Valor': `R$ ${Number(registration.amount).toFixed(2).replace('.', ',')}`,
-          'Método de Pagamento': registration.paymentMethod ? 
-                                (registration.paymentMethod === 'pix' ? 'PIX' : 
-                                 registration.paymentMethod === 'cartao_credito' ? 'Cartão de Crédito' : 
-                                 registration.paymentMethod) : 'Não informado',
-          'Data de Inscrição': formatDateToBrazilian(registration.createdAt),
-          'Piloto Confirmado': isPilotConfirmed(registration) ? 'Sim' : 'Não'
+          'Status da Inscrição': getRegistrationStatusLabel(registration.status),
+          'Status do Pagamento': getPaymentStatusLabelForExcel(registration),
+          'Valor': formatCurrency(registration.amount),
+          'Método de Pagamento': getPaymentMethodLabel(registration.paymentMethod, registration.paymentStatus),
+          'Data de Inscrição': formatDateToBrazilian(registration.createdAt)
         };
       });
 
@@ -724,21 +803,18 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
       XLSX.utils.book_append_sheet(wb, ws, 'Pilotos');
 
       // Ajustar largura das colunas
-      const colWidths = [
+      ws['!cols'] = [
         { wch: 25 }, // Nome do Piloto
         { wch: 30 }, // Email
         { wch: 15 }, // Telefone
         { wch: 20 }, // Temporada
         { wch: 30 }, // Categorias
-        { wch: 40 }, // Categorias com Lastro
         { wch: 20 }, // Status da Inscrição
         { wch: 20 }, // Status do Pagamento
         { wch: 12 }, // Valor
         { wch: 20 }, // Método de Pagamento
-        { wch: 15 }, // Data de Inscrição
-        { wch: 15 }  // Piloto Confirmado
+        { wch: 15 }  // Data de Inscrição
       ];
-      ws['!cols'] = colWidths;
 
       // Gerar nome do arquivo com data atual
       const now = new Date();
