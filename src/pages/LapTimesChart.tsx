@@ -256,6 +256,16 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
   
   useEffect(() => {
     const checkFullscreenSupport = () => {
+      // Detectar se é iPhone/iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+      
+      // No iPhone/Safari, fullscreen pode não estar disponível, mas sempre mostrar o botão
+      if (isIOS && isSafari) {
+        setFullscreenSupported(true); // Sempre mostrar o botão no iPhone
+        return;
+      }
+      
       const isSupported = !!(
         document.fullscreenEnabled ||
         (document as any).webkitFullscreenEnabled ||
@@ -270,8 +280,18 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
 
   // Função para alternar fullscreen
   const handleToggleFullscreen = () => {
+    // Detectar se é iPhone/iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+    
     if (!isFullscreen) {
       if (chartCardRef.current) {
+        // No iPhone/Safari, usar modo maximizado visual
+        if (isIOS && isSafari) {
+          setIsFullscreen(true);
+          return;
+        }
+        
         // Suporte para diferentes navegadores mobile
         if (chartCardRef.current.requestFullscreen) {
           chartCardRef.current.requestFullscreen().catch((err: any) => {
@@ -280,7 +300,10 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
             setIsFullscreen(true);
           });
         } else if ((chartCardRef.current as any).webkitRequestFullscreen) {
-          (chartCardRef.current as any).webkitRequestFullscreen();
+          (chartCardRef.current as any).webkitRequestFullscreen().catch((err: any) => {
+            console.log('Webkit fullscreen não suportado:', err);
+            setIsFullscreen(true);
+          });
         } else if ((chartCardRef.current as any).mozRequestFullScreen) {
           (chartCardRef.current as any).mozRequestFullScreen();
         } else if ((chartCardRef.current as any).msRequestFullscreen) {
@@ -293,6 +316,12 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
         setIsFullscreen(true);
       }
     } else {
+      // No iPhone/Safari, sair do modo maximizado visual
+      if (isIOS && isSafari) {
+        setIsFullscreen(false);
+        return;
+      }
+      
       // Suporte para sair do fullscreen em diferentes navegadores
       if (document.exitFullscreen) {
         document.exitFullscreen().catch((err: any) => {
@@ -776,11 +805,11 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
             <Button
               variant="ghost"
               size="icon"
-              className="fixed left-0 top-1/2 -translate-y-1/2 z-20 border border-gray-100 bg-white/80 rounded-l-[2px] h-8 w-5 px-1.5 opacity-80 hover:opacity-100 transition-all flex items-center justify-center"
+              className="fixed left-0 top-1/2 -translate-y-1/2 z-20 border border-gray-100 bg-white/80 rounded-l-[2px] h-16 w-10 px-2 opacity-80 hover:opacity-100 transition-all flex items-center justify-center"
               onClick={() => setSidebarVisible(true)}
               title="Mostrar painel lateral"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-8 h-8" />
             </Button>
           )}
 
@@ -791,7 +820,24 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
             
             const shouldShowPortraitWarning = isMobile && isPortrait && !forcarGraficoNoPortrait && showChartMobile && !sidebarVisible;
             
-            if (!shouldShowChart) return null;
+            // Se não deve mostrar o gráfico, mostrar mensagem para abrir o filtro
+            if (!shouldShowChart) {
+              return (
+                <div className="w-full pt-6 px-4 flex flex-col items-center">
+                  <div className="text-center">
+                    <div className="text-4xl mb-4">📊</div>
+                    <div className="text-lg font-medium mb-2">Configure os filtros</div>
+                    <div className="text-sm text-gray-500 mb-4">Abra o painel lateral para selecionar temporada, etapa, categoria e pilotos</div>
+                    <Button 
+                      onClick={() => setSidebarVisible(true)}
+                      className="mx-auto"
+                    >
+                      Abrir Filtros
+                    </Button>
+                  </div>
+                </div>
+              );
+            }
             
 
             
@@ -812,11 +858,11 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                 <Card 
                   ref={chartCardRef} 
                   className={`h-full min-h-0 flex flex-col relative ${
-                    isFullscreen && !fullscreenSupported ? 'ring-2 ring-orange-500 ring-opacity-50 shadow-lg' : ''
+                    isFullscreen ? 'ring-2 ring-orange-500 ring-opacity-50 shadow-lg' : ''
                   }`}
                 >
                   {/* Indicador de modo maximizado quando fullscreen não está disponível */}
-                  {isFullscreen && !fullscreenSupported && (
+                  {isFullscreen && (
                     <div className="absolute top-2 left-2 z-10 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
                       Modo Maximizado
                     </div>
@@ -828,9 +874,15 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                     className="absolute top-2 right-2 z-10"
                     onClick={fullscreenSupported ? handleToggleFullscreen : handleToggleMaximized}
                     title={
-                      fullscreenSupported 
-                        ? (isFullscreen ? 'Sair do modo tela cheia' : 'Tela cheia')
-                        : (isFullscreen ? 'Sair do modo maximizado' : 'Maximizar gráfico')
+                      (() => {
+                        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                        const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+                        return isIOS && isSafari
+                          ? (isFullscreen ? 'Sair do modo maximizado' : 'Maximizar gráfico')
+                          : fullscreenSupported 
+                            ? (isFullscreen ? 'Sair do modo tela cheia' : 'Tela cheia')
+                            : (isFullscreen ? 'Sair do modo maximizado' : 'Maximizar gráfico');
+                      })()
                     }
                   >
                     {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
