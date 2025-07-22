@@ -715,7 +715,7 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
           {sidebarVisible && (
             <div
               className={`lg:col-span-1 relative flex flex-col${
-                isMobile ? " w-full" : " h-full"
+                isMobile ? " fixed inset-0 z-50 bg-white/95" : " h-full"
               }`}
               style={
                 isMobile
@@ -725,7 +725,7 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
             >
               <Card
                 className={`relative flex flex-col${
-                  isMobile ? "" : " h-full flex-1 min-h-0"
+                  isMobile ? " h-full" : " h-full flex-1 min-h-0"
                 }`}
               >
                 {/* Botão de fechar (X) no topo direito do Card */}
