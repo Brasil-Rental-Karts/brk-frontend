@@ -234,37 +234,109 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
   const chartCardRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const isMobile = useIsMobile();
+  
+  // Detectar se está em modo PWA
+  const [isPWA, setIsPWA] = useState(false);
+  
+  useEffect(() => {
+    const checkPWA = () => {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      const isFullscreen = window.matchMedia('(display-mode: fullscreen)').matches;
+      const isMinimalUI = window.matchMedia('(display-mode: minimal-ui)').matches;
+      setIsPWA(isStandalone || isFullscreen || isMinimalUI);
+    };
+    
+    checkPWA();
+    window.matchMedia('(display-mode: standalone)').addEventListener('change', checkPWA);
+    return () => window.matchMedia('(display-mode: standalone)').removeEventListener('change', checkPWA);
+  }, []);
+  
+  // Verificar se fullscreen está disponível
+  const [fullscreenSupported, setFullscreenSupported] = useState(false);
+  
+  useEffect(() => {
+    const checkFullscreenSupport = () => {
+      const isSupported = !!(
+        document.fullscreenEnabled ||
+        (document as any).webkitFullscreenEnabled ||
+        (document as any).mozFullScreenEnabled ||
+        (document as any).msFullscreenEnabled
+      );
+      setFullscreenSupported(isSupported);
+    };
+    
+    checkFullscreenSupport();
+  }, []);
 
   // Função para alternar fullscreen
   const handleToggleFullscreen = () => {
     if (!isFullscreen) {
       if (chartCardRef.current) {
+        // Suporte para diferentes navegadores mobile
         if (chartCardRef.current.requestFullscreen) {
-          chartCardRef.current.requestFullscreen();
+          chartCardRef.current.requestFullscreen().catch((err: any) => {
+            console.log('Fullscreen não suportado:', err);
+            // Fallback: maximizar o card visualmente
+            setIsFullscreen(true);
+          });
         } else if ((chartCardRef.current as any).webkitRequestFullscreen) {
           (chartCardRef.current as any).webkitRequestFullscreen();
+        } else if ((chartCardRef.current as any).mozRequestFullScreen) {
+          (chartCardRef.current as any).mozRequestFullScreen();
+        } else if ((chartCardRef.current as any).msRequestFullscreen) {
+          (chartCardRef.current as any).msRequestFullscreen();
+        } else {
+          // Fallback para navegadores que não suportam fullscreen
+          console.log('Fullscreen não suportado neste navegador');
+          setIsFullscreen(true);
         }
         setIsFullscreen(true);
       }
     } else {
+      // Suporte para sair do fullscreen em diferentes navegadores
       if (document.exitFullscreen) {
-        document.exitFullscreen();
+        document.exitFullscreen().catch((err: any) => {
+          console.log('Erro ao sair do fullscreen:', err);
+          setIsFullscreen(false);
+        });
       } else if ((document as any).webkitExitFullscreen) {
         (document as any).webkitExitFullscreen();
+      } else if ((document as any).mozCancelFullScreen) {
+        (document as any).mozCancelFullScreen();
+      } else if ((document as any).msExitFullscreen) {
+        (document as any).msExitFullscreen();
       }
       setIsFullscreen(false);
     }
+  };
+  
+  // Função para alternar modo maximizado (fallback quando fullscreen não está disponível)
+  const handleToggleMaximized = () => {
+    setIsFullscreen(!isFullscreen);
   };
 
   // Listener para sair do fullscreen
   useEffect(() => {
     const onFullscreenChange = () => {
-      if (!document.fullscreenElement) {
+      if (!document.fullscreenElement && 
+          !(document as any).webkitFullscreenElement && 
+          !(document as any).mozFullScreenElement && 
+          !(document as any).msFullscreenElement) {
         setIsFullscreen(false);
       }
     };
+    
     document.addEventListener('fullscreenchange', onFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+    document.addEventListener('mozfullscreenchange', onFullscreenChange);
+    document.addEventListener('MSFullscreenChange', onFullscreenChange);
+    
+    return () => {
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', onFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', onFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', onFullscreenChange);
+    };
   }, []);
 
   // Tooltip customizado
@@ -308,21 +380,97 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
   // Estado para forçar exibição do gráfico mesmo em portrait
   const [forcarGraficoNoPortrait, setForcarGraficoNoPortrait] = useState(false);
 
-  // Detectar orientação
-  const [isPortrait, setIsPortrait] = useState(() => window.innerHeight > window.innerWidth);
+  // Detectar orientação com suporte melhorado para PWA
+  const [isPortrait, setIsPortrait] = useState(() => {
+    // Detecção inicial mais robusta
+    const width = window.innerWidth || document.documentElement.clientWidth;
+    const height = window.innerHeight || document.documentElement.clientHeight;
+    
+    // Tentar usar a API de orientação do dispositivo se disponível
+    if ('orientation' in window) {
+      const orientation = (window as any).orientation;
+      if (orientation !== undefined) {
+        return orientation === 0 || orientation === 180; // 0 e 180 são portrait
+      }
+    }
+    
+    return height > width;
+  });
+  
   useEffect(() => {
     const handleResize = () => {
-      setIsPortrait(window.innerHeight > window.innerWidth);
+      // Usar múltiplas fontes para detectar dimensões
+      const width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+      const height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+      const newIsPortrait = height > width;
+      
+      // Adicionar um pequeno delay para PWA
+      setTimeout(() => {
+        setIsPortrait(newIsPortrait);
+      }, 100);
     };
+    
+    // Detectar mudanças de orientação específicas para mobile
+    const handleOrientationChange = () => {
+      // Aguardar um pouco para o PWA processar a mudança
+      setTimeout(() => {
+        // Tentar usar a API de orientação primeiro
+        if ('orientation' in window) {
+          const orientation = (window as any).orientation;
+          if (orientation !== undefined) {
+            setIsPortrait(orientation === 0 || orientation === 180);
+            return;
+          }
+        }
+        
+        // Fallback para detecção por dimensões
+        const width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+        const height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+        setIsPortrait(height > width);
+      }, 200);
+    };
+    
+    // Event listeners para diferentes tipos de mudança
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    window.addEventListener('orientationchange', handleOrientationChange);
+    
+    // Para PWA, também escutar mudanças no viewport
+    if ('visualViewport' in window) {
+      (window as any).visualViewport?.addEventListener('resize', handleResize);
+    }
+    
+    // Para PWA, adicionar um listener mais frequente para detectar mudanças
+    let orientationCheckInterval: NodeJS.Timeout;
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      orientationCheckInterval = setInterval(() => {
+        const width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+        const height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+        const currentIsPortrait = height > width;
+        if (currentIsPortrait !== isPortrait) {
+          setIsPortrait(currentIsPortrait);
+        }
+      }, 500); // Verificar a cada 500ms no PWA
+    }
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      if ('visualViewport' in window) {
+        (window as any).visualViewport?.removeEventListener('resize', handleResize);
+      }
+      if (orientationCheckInterval) {
+        clearInterval(orientationCheckInterval);
+      }
+    };
+  }, [isPortrait]); // Adicionar isPortrait como dependência
 
   // Se o usuário virar o celular para landscape, mostrar o gráfico automaticamente
   useEffect(() => {
     if (!isPortrait) {
       setForcarGraficoNoPortrait(false);
     }
+    
+
   }, [isPortrait]);
 
   const isStandalone = !propChampionshipId;
@@ -636,115 +784,54 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
             </Button>
           )}
 
-          {/* Renderizar gráfico apenas se não estiver no mobile OU (no mobile e showChartMobile e sidebar oculto) */}
-          {(!isMobile && (
-            <div className={sidebarVisible ? "lg:col-span-3" : "lg:col-span-4"}>
-              <Card ref={chartCardRef} className="h-full min-h-0 flex flex-col relative">
-                {/* Botão de fullscreen no canto superior direito */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-2 right-2 z-10"
-                  onClick={handleToggleFullscreen}
-                  title={isFullscreen ? 'Sair do modo tela cheia' : 'Tela cheia'}
+          {/* Renderizar gráfico */}
+          {(() => {
+            // Lógica para determinar quando mostrar o gráfico
+            const shouldShowChart = !isMobile || (isMobile && showChartMobile && !sidebarVisible);
+            
+            const shouldShowPortraitWarning = isMobile && isPortrait && !forcarGraficoNoPortrait && showChartMobile && !sidebarVisible;
+            
+            if (!shouldShowChart) return null;
+            
+
+            
+            if (shouldShowPortraitWarning) {
+              return (
+                <div className="w-full pt-6 px-4 flex flex-col items-center">
+                  <div className="flex items-center justify-center mb-2 w-full">
+                    <img src="/landscape-phone.svg" alt="Gire o celular" className="w-14 h-14" />
+                  </div>
+                  <div className="text-sm text-gray-500 text-center mb-4">Vire o celular para ver o gráfico volta a volta</div>
+                  <Button onClick={() => setForcarGraficoNoPortrait(true)} className="mx-auto">Ver assim mesmo</Button>
+                </div>
+              );
+            }
+            
+            return (
+              <div className={sidebarVisible ? "lg:col-span-3" : "lg:col-span-4"}>
+                <Card 
+                  ref={chartCardRef} 
+                  className={`h-full min-h-0 flex flex-col relative ${
+                    isFullscreen && !fullscreenSupported ? 'ring-2 ring-orange-500 ring-opacity-50 shadow-lg' : ''
+                  }`}
                 >
-                  {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
-                </Button>
-                <CardContent className="h-full min-h-0 flex-1 flex flex-col p-4">
-                  {lapTimesLoading ? (
-                    <div className="flex items-center justify-center h-full">
-                      <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-                      <span className="ml-2 text-gray-600">Carregando tempos volta a volta...</span>
-                    </div>
-                  ) : selectedPilotsForChart.length > 0 ? (
-                    <div className="h-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                          <XAxis 
-                            dataKey="lap" 
-                            type="number"
-                            domain={['dataMin', 'dataMax']}
-                            label={{ value: 'Volta', position: 'insideBottom', offset: -5 }}
-                            tick={{ fontSize: 12 }}
-                          />
-                          <YAxis 
-                            domain={['dataMin - 1000', 'dataMax + 1000']}
-                            tickFormatter={(value) => LapTimesService.formatMsToTime(value)}
-                            label={{ value: 'Tempo', angle: -90, position: 'insideLeft' }}
-                            tick={{ fontSize: 12 }}
-                            width={80}
-                          />
-                          {/* Legenda dos pilotos */}
-                          <Legend wrapperStyle={{ marginLeft: 32, marginTop: 24 }}/>
-                          {/* Tooltip customizado */}
-                          <RechartsTooltip 
-                            content={CustomTooltip}
-                          />
-                          {selectedPilotsForChart.map((pilotId, idx) => {
-                            const lapTime = lapTimes[selectedCategory]?.find(
-                              lt => lt.userId === pilotId && lt.batteryIndex === selectedBatteryIndex
-                            );
-                            if (!lapTime) return null;
-
-                            const data = lapTime.lapTimes.map(lt => ({
-                              lap: lt.lap,
-                              timeMs: lt.timeMs,
-                              time: lt.time
-                            }));
-
-                            // Usar cor distinta para até 4 pilotos
-                            const pilotColor = getPilotColor(pilotId, idx);
-                            const pilotName = `${lapTime.user?.name ? formatName(lapTime.user.name) : `Piloto ${pilotId}`} (Kart ${lapTime.kartNumber})`;
-
-                            return (
-                              <Line
-                                key={pilotId}
-                                type="monotone"
-                                dataKey="timeMs"
-                                data={data}
-                                stroke={pilotColor}
-                                strokeWidth={2.5}
-                                dot={{ r: 4, strokeWidth: 2 }}
-                                activeDot={{ r: 6, strokeWidth: 2 }}
-                                name={pilotName}
-                              />
-                            );
-                          })}
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                      <div className="text-center">
-                        <div className="text-4xl mb-4">📊</div>
-                        <div className="text-lg font-medium mb-2">Selecione os pilotos</div>
-                        <div className="text-sm">Escolha os pilotos na lateral para visualizar o gráfico</div>
-                      </div>
+                  {/* Indicador de modo maximizado quando fullscreen não está disponível */}
+                  {isFullscreen && !fullscreenSupported && (
+                    <div className="absolute top-2 left-2 z-10 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
+                      Modo Maximizado
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            </div>
-          )) || (isMobile && showChartMobile && !sidebarVisible && (
-            isPortrait && !forcarGraficoNoPortrait ? (
-              <div className="w-full pt-6 px-4 flex flex-col items-center">
-                <div className="flex items-center justify-center mb-2 w-full">
-                  <img src="/landscape-phone.svg" alt="Gire o celular" className="w-14 h-14" />
-                </div>
-                <div className="text-sm text-gray-500 text-center mb-4">Vire o celular para ver o gráfico volta a volta</div>
-                <Button onClick={() => setForcarGraficoNoPortrait(true)} className="mx-auto">Ver assim mesmo</Button>
-              </div>
-            ) : (
-              <div className={sidebarVisible ? "lg:col-span-3" : "lg:col-span-4"}>
-                <Card ref={chartCardRef} className="h-full min-h-0 flex flex-col relative">
-                  {/* Botão de fullscreen no canto superior direito */}
+                  {/* Botão de fullscreen/maximizar no canto superior direito */}
                   <Button
                     variant="ghost"
                     size="icon"
                     className="absolute top-2 right-2 z-10"
-                    onClick={handleToggleFullscreen}
-                    title={isFullscreen ? 'Sair do modo tela cheia' : 'Tela cheia'}
+                    onClick={fullscreenSupported ? handleToggleFullscreen : handleToggleMaximized}
+                    title={
+                      fullscreenSupported 
+                        ? (isFullscreen ? 'Sair do modo tela cheia' : 'Tela cheia')
+                        : (isFullscreen ? 'Sair do modo maximizado' : 'Maximizar gráfico')
+                    }
                   >
                     {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
                   </Button>
@@ -824,8 +911,8 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                   </CardContent>
                 </Card>
               </div>
-            )
-          ))}
+            );
+          })()}
         </div>
       </div>
     </div>
