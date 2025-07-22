@@ -37,6 +37,7 @@ const GoogleCallback = lazy(() => import('@/pages/GoogleCallback'));
 const LoginSuccess = lazy(() => import('@/pages/LoginSuccess'));
 const ConfirmEmailInfo = lazy(() => import('@/pages/ConfirmEmailInfo').then(module => ({ default: module.ConfirmEmailInfo })));
 const ConfirmEmail = lazy(() => import('@/pages/ConfirmEmail').then(module => ({ default: module.ConfirmEmail })));
+const LapTimesChart = lazy(() => import('@/pages/LapTimesChart').then(module => ({ default: module.LapTimesChart })));
 
 // Route metadata interface
 export interface RouteMetadata {
@@ -288,6 +289,18 @@ export const router = createBrowserRouter([
             <MainFullWidthLayout>
               <LazyWrapper>
                 <CreateStage />
+              </LazyWrapper>
+            </MainFullWidthLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "championship/:championshipId/lap-times-chart",
+        element: (
+          <ProtectedRoute>
+            <MainFullWidthLayout>
+              <LazyWrapper>
+                <LapTimesChart />
               </LazyWrapper>
             </MainFullWidthLayout>
           </ProtectedRoute>

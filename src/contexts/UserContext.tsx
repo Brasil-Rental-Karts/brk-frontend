@@ -199,6 +199,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           isOwner: championship.isOwner || false,
           isStaff: championship.isStaff || false,
           isPilot: championship.isPilot || false,
+          championshipImage: championship.championshipImage, // ADICIONADO
         }));
       
       setChampionshipsOrganized(organized);
@@ -239,6 +240,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
             isOwner: championship.isOwner || false,
             isStaff: championship.isStaff || false,
             isPilot: championship.isPilot || false,
+            championshipImage: championship.championshipImage, // ADICIONADO
           },
           seasons
         };

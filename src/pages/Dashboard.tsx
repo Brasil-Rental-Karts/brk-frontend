@@ -14,6 +14,8 @@ import {
   X,
   Users,
   Navigation,
+  BarChart3,
+  Car,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Alert, AlertTitle, AlertDescription } from "brk-design-system";
@@ -36,6 +38,8 @@ import { CompleteProfileModal } from "@/components/profile/CompleteProfileModal"
 import { toast } from "sonner";
 import { Loading } from '@/components/ui/loading';
 import { useUser } from '@/contexts/UserContext';
+import { Avatar, AvatarFallback, AvatarImage } from "brk-design-system";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "brk-design-system";
 
 export const Dashboard = () => {
   const nav = useNavigation();
@@ -142,6 +146,59 @@ export const Dashboard = () => {
       console.error('Error calculating participation deadline:', error);
       return false;
     }
+  };
+
+  // Função utilitária para buscar karts sorteados do piloto para uma etapa
+  const getSortedKartsForUser = (stage: any, availableCategories: any[] = []) => {
+    if (!stage?.kart_draw_assignments || !user?.id) return null;
+
+    // NOVO: Se vier como array
+    if (Array.isArray(stage.kart_draw_assignments)) {
+      const confirmedCategories = Array.isArray(availableCategories)
+        ? availableCategories.filter((cat: any) => cat && cat.isConfirmed)
+        : [];
+      if (confirmedCategories.length === 0) return null;
+      return confirmedCategories.map((cat: any) => {
+        if (!cat || !cat.id) return null;
+        // Filtra todos os sorteios desse user e categoria
+        const draws = stage.kart_draw_assignments.filter(
+          (draw: any) => draw.userId === user.id && draw.categoryId === cat.id
+        );
+        if (!draws.length) return null;
+        // Agrupa por bateria
+        const batteries = draws.map((draw: any) => ({
+          battery: (draw.batteryIndex ?? 0) + 1,
+          kart: draw.kart
+        }));
+        return {
+          categoryName: cat.name,
+          batteries
+        };
+      }).filter(Boolean);
+    }
+
+    // ANTIGO: objeto aninhado
+    const results = stage.kart_draw_assignments.results;
+    if (!results) return null;
+    const confirmedCategories = Array.isArray(availableCategories)
+      ? availableCategories.filter((cat: any) => cat && cat.isConfirmed)
+      : [];
+    if (confirmedCategories.length === 0) return null;
+    return confirmedCategories.map((cat: any) => {
+      if (!cat || typeof cat.id !== 'string' || typeof results !== 'object' || typeof user.id !== 'string') return null;
+      const catResults = results[cat.id];
+      if (!catResults || !catResults[user.id]) return null;
+      const pilotKarts = catResults[user.id];
+      if (!pilotKarts) return null;
+      const batteries = Object.entries(pilotKarts).map(([batteryIdx, obj]: any) => ({
+        battery: Number(batteryIdx) + 1,
+        kart: obj.kart
+      }));
+      return {
+        categoryName: cat.name,
+        batteries
+      };
+    }).filter((cat: any) => !!cat);
   };
 
   // Show loading while checking for redirect
@@ -282,41 +339,56 @@ export const Dashboard = () => {
               />
             ) : (
               <div className="space-y-4">
-                {championshipsOrganized.map((championship) => (
-                  <div
-                    key={championship.id}
-                    className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => {
-                      nav.goToChampionship(championship.id);
-                    }}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-medium text-sm truncate flex-1 mr-2" title={championship.name}>
-                        {championship.name}
-                      </h3>
-                      <Badge variant="outline" className="text-xs">
-                        {championship.isOwner ? 'Proprietário' : 'Staff'}
-                      </Badge>
-                    </div>
-                    
-                    {championship.shortDescription && (
-                      <p className="text-xs text-muted-foreground mb-2 overflow-hidden" style={{
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical'
-                      }}>
-                        {championship.shortDescription}
-                      </p>
-                    )}
-                    
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Calendar className="h-3 w-3" />
-                      <span>
-                        {championship.createdAt ? formatDateToBrazilian(championship.createdAt) : 'Data não disponível'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                {championshipsOrganized.map((championship) => {
+                  // Gerar iniciais do nome do campeonato para o avatar
+                  const getInitials = (name: string) => {
+                    return name
+                      .split(' ')
+                      .filter(Boolean)
+                      .map(word => word[0])
+                      .join('')
+                      .toUpperCase()
+                      .slice(0, 2);
+                  };
+                  // Corrige tipagem para aceitar championshipImage
+                  const champ = championship as typeof championship & { championshipImage?: string };
+                  return (
+                    <Card key={champ.id} className="overflow-hidden shadow-md border-2 border-muted/40 hover:border-primary/60 transition-all">
+                      <div className="flex flex-col md:flex-row md:items-center gap-4 p-6">
+                        {/* Bloco avatar, nome e badge */}
+                        <div className="flex flex-col items-center md:items-start md:flex-row md:items-center gap-2 md:gap-4 flex-shrink-0 w-full md:w-auto">
+                          <Avatar className="h-14 w-14 bg-muted text-primary-foreground text-xl font-bold">
+                            {champ.championshipImage ? (
+                              <AvatarImage 
+                                src={champ.championshipImage} 
+                                alt={`Avatar ${champ.name}`}
+                              />
+                            ) : null}
+                            <AvatarFallback>{getInitials(champ.name)}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col items-center md:items-start">
+                            <h3 className="text-lg font-semibold leading-tight truncate max-w-xs" title={champ.name}>
+                              {champ.name}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="outline" className="text-xs">{champ.isOwner ? 'Proprietário' : 'Staff'}</Badge>
+                            </div>
+                          </div>
+                        </div>
+                        {/* NÃO exibir descrição ou temporadas aqui para organizador */}
+                      </div>
+                      <div className="bg-muted/40 px-6 py-4 flex flex-col gap-2 border-t min-w-0">
+                        <Button
+                          className="w-full text-base py-3 font-semibold shadow-sm text-center"
+                          variant="default"
+                          onClick={() => nav.goToChampionship(champ.id)}
+                        >
+                          Ir para o Campeonato
+                        </Button>
+                      </div>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </Card>
@@ -356,64 +428,123 @@ export const Dashboard = () => {
             />
           ) : (
             <div className="space-y-4">
-              {championshipsParticipating.map((participation) => (
-                <div
-                  key={participation.championship.id}
-                  className="border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                  onClick={() => {
-                    // Se for staff ou owner, usar navigate interno
-                    if (participation.championship.isOwner || participation.championship.isStaff) {
-                      nav.goToChampionship(participation.championship.id);
-                    } else {
-                      // Se for apenas piloto, ir para a página pública
-                      const siteUrl = import.meta.env.VITE_SITE_URL;
-                      window.location.href = `${siteUrl}/campeonato/${participation.championship.slug}`;
-                    }
-                  }}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-medium text-sm truncate flex-1 mr-2" title={participation.championship.name}>
-                      {participation.championship.name}
-                    </h3>
-                    <Badge variant="outline" className="text-xs">
-                      Piloto
-                    </Badge>
-                  </div>
-                  
-                  {participation.championship.shortDescription && (
-                    <p className="text-xs text-muted-foreground mb-2 overflow-hidden" style={{
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical'
-                    }}>
-                      {participation.championship.shortDescription}
-                    </p>
-                  )}
-                  
-                  <div className="space-y-1">
-                    {participation.seasons.map((season) => (
-                      <div key={season.id} className="flex justify-between items-center text-xs">
-                        <span className="text-muted-foreground">{season.name}</span>
-                        <div className="flex items-center gap-2">
-                          {season.totalInstallments > 1 && (
-                            <span className="text-xs text-muted-foreground">
-                              {season.paidInstallments}/{season.totalInstallments} parcelas
-                            </span>
-                          )}
-                          <Badge 
-                            variant={season.registrationStatus === 'confirmed' ? 'default' : 'secondary'}
-                            className="text-xs"
-                          >
-                            {season.registrationStatus === 'confirmed' ? 'Confirmado' : 
-                             season.registrationStatus === 'payment_pending' ? 'Pag. Pendente' : 
-                             season.registrationStatus}
-                          </Badge>
+              {championshipsParticipating.map((participation) => {
+                // Gerar iniciais do nome do campeonato para o avatar
+                const getInitials = (name: string) => {
+                  return name
+                    .split(' ')
+                    .filter(Boolean)
+                    .map(word => word[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2);
+                };
+                // Corrige tipagem para aceitar championshipImage
+                const championship = participation.championship as typeof participation.championship & { championshipImage?: string };
+                // Verifica se pode acessar o gráfico: pelo menos uma temporada confirmada ou com parcela paga
+                const canAccessChart = participation.seasons.some(
+                  season => season.registrationStatus === 'confirmed' || season.paidInstallments > 0
+                );
+                return (
+                  <Card key={championship.id} className="overflow-hidden shadow-md border-2 border-muted/40 hover:border-primary/60 transition-all">
+                    <div className="flex flex-col gap-4 p-6">
+                      {/* Bloco avatar, nome e badge */}
+                      <div className="flex flex-col items-center gap-2 flex-shrink-0 w-full">
+                        <Avatar className="h-14 w-14 bg-muted text-primary-foreground text-xl font-bold">
+                          {championship.championshipImage ? (
+                            <AvatarImage 
+                              src={championship.championshipImage} 
+                              alt={`Avatar ${championship.name}`}
+                            />
+                          ) : null}
+                          <AvatarFallback>{getInitials(championship.name)}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col items-center">
+                          <h3 className="text-lg font-semibold leading-tight truncate max-w-xs" title={championship.name}>
+                            {championship.name}
+                          </h3>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline" className="text-xs">Piloto</Badge>
+                          </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                      {/* Descrição e temporadas sempre abaixo do bloco acima */}
+                      <div className="flex-1 flex flex-col gap-2 w-full mt-3">
+                        {championship.shortDescription && (
+                          <p className="text-xs text-muted-foreground mb-1 overflow-hidden" style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical'
+                          }}>
+                            {championship.shortDescription}
+                          </p>
+                        )}
+                        <div className="space-y-1">
+                          {participation.seasons.map((season) => (
+                            <div key={season.id} className="flex justify-between items-center text-xs">
+                              <span className="text-muted-foreground font-medium">{season.name}</span>
+                              <div className="flex items-center gap-2">
+                                {season.totalInstallments > 1 && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {season.paidInstallments}/{season.totalInstallments} parcelas
+                                  </span>
+                                )}
+                                <Badge 
+                                  variant={season.registrationStatus === 'confirmed' ? 'default' : 'secondary'}
+                                  className="text-xs"
+                                >
+                                  {season.registrationStatus === 'confirmed' ? 'Confirmado' : 
+                                    season.registrationStatus === 'payment_pending' ? 'Pag. Pendente' : 
+                                    season.registrationStatus}
+                                </Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-muted/40 px-6 py-4 flex flex-col gap-2 border-t min-w-0">
+                      <Button
+                        className="w-full text-base py-3 font-semibold shadow-sm text-center"
+                        variant="default"
+                        onClick={() => {
+                          if (championship.isOwner || championship.isStaff) {
+                            nav.goToChampionship(championship.id);
+                          } else {
+                            const siteUrl = import.meta.env.VITE_SITE_URL;
+                            window.location.href = `${siteUrl}/campeonato/${championship.slug}`;
+                          }
+                        }}
+                      >
+                        Ir para o Campeonato
+                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Button
+                                className="w-full text-base py-3 font-semibold shadow-sm text-center"
+                                variant="secondary"
+                                onClick={() => {
+                                  window.location.href = `/championship/${championship.id}/lap-times-chart`;
+                                }}
+                                disabled={!canAccessChart}
+                              >
+                                <BarChart3 className="w-5 h-5 mr-2 shrink-0" /> Gráfico Volta a Volta
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          {!canAccessChart && (
+                            <TooltipContent side="top">
+                              Disponível apenas após confirmação do pagamento.
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </Card>
@@ -446,144 +577,165 @@ export const Dashboard = () => {
             />
           ) : (
             <div className="space-y-4">
-              {upcomingRaces.map((race) => (
-                <div
-                  key={race.stage.id}
-                  className="border rounded-lg p-5 hover:bg-muted/50 transition-colors cursor-pointer"
-                  onClick={() => setSelectedRace(race)}
-                >
-                  {/* Header com título e status principal */}
-                  <div className="flex justify-between items-start mb-4 gap-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-lg mb-1 truncate">
-                        {race.stage.name}
-                      </h3>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {race.season.name}
-                      </p>
-                    </div>
-                    
-                    {/* Status badges - apenas os mais importantes */}
-                    <div className="flex flex-col gap-1 items-end shrink-0">
-                      {race.isOrganizer && (
-                        <Badge variant="default" className="bg-orange-500 text-xs whitespace-nowrap">
-                          Organizador
-                        </Badge>
-                      )}
-                      {race.hasConfirmedParticipation && (
-                        <Badge variant="default" className="bg-green-500 text-xs whitespace-nowrap">
-                          <Check className="h-3 w-3 mr-1" />
-                          Confirmado
-                        </Badge>
-                      )}
-                      {race.stage.doublePoints && (
-                        <Badge variant="secondary" className="text-xs whitespace-nowrap">
-                          2x Pontos
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Informações essenciais */}
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      <span className="whitespace-nowrap">{formatDateToBrazilian(race.stage.date)}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      <span className="whitespace-nowrap">{race.stage.time}</span>
-                    </div>
-                    <div className="flex items-center gap-1 min-w-0">
-                      <MapPin className="h-4 w-4 shrink-0" />
-                      <span className="truncate">
-                        {(() => {
-                          const raceTrackId = race.stage.raceTrackId;
-                          const raceTrack = raceTracks[raceTrackId];
-                          const trackName = raceTrackId && raceTrack 
-                            ? raceTrack.name 
-                            : 'Carregando...';
-                          return race.stage.trackLayoutId && race.stage.trackLayoutId !== 'undefined'
-                            ? `${trackName} - ${race.stage.trackLayoutId}`
-                            : trackName;
-                        })()}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* Botões de ação */}
-                  {race.availableCategories && race.availableCategories.length > 0 && (
-                    <div className="space-y-2">
-                      {!race.hasConfirmedParticipation ? (
-                        <Button
-                          size="default"
-                          variant="default"
-                          disabled={confirmingParticipation === race.stage.id || !isParticipationAllowed(race.stage)}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (race.availableCategories!.length === 1) {
-                              setShowConfirmConfirmation({
-                                stageId: race.stage.id,
-                                categoryId: race.availableCategories![0].id,
-                                categoryName: race.availableCategories![0].name
-                              });
-                            } else {
-                              setSelectedRace(race);
-                            }
-                          }}
-                          className="w-full bg-primary hover:bg-primary/90"
-                        >
-                          {confirmingParticipation === race.stage.id ? (
-                            <>
-                              <Clock className="h-4 w-4 mr-2" />
-                              Confirmando...
-                            </>
-                          ) : (
-                            <>
-                              <Check className="h-4 w-4 mr-2" />
-                              Confirmar Participação
-                            </>
+              {upcomingRaces.map((race) => {
+                const sortedKarts = getSortedKartsForUser(race.stage, race.availableCategories);
+                return (
+                  <Card
+                    key={race.stage.id}
+                    className="overflow-hidden shadow-md border-2 border-muted/40 hover:border-primary/60 transition-all group cursor-pointer"
+                    onClick={() => setSelectedRace(race)}
+                  >
+                    <div className="flex flex-col gap-4 p-5 relative">
+                      {/* Header com título e status principal */}
+                      <div className="flex justify-between items-start mb-2 gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-lg mb-1 truncate">
+                            {race.stage.name}
+                          </h3>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {race.season.name}
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-1 items-end shrink-0">
+                          {race.isOrganizer && (
+                            <Badge variant="default" className="bg-orange-500 text-xs whitespace-nowrap">
+                              Organizador
+                            </Badge>
                           )}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="default"
-                          variant="outline"
-                          disabled={cancellingParticipation === race.stage.id || !isParticipationAllowed(race.stage)}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // Log extra para debug
-                            const allowed = isParticipationAllowed(race.stage);
-                            if (!allowed) return;
-                            // Encontrar a categoria confirmada
-                            const confirmedCategory = race.availableCategories!.find(cat => cat.isConfirmed);
-                            if (confirmedCategory) {
-                              setShowCancelConfirmation({
-                                stageId: race.stage.id,
-                                categoryId: confirmedCategory.id,
-                                categoryName: confirmedCategory.name
-                              });
-                            }
-                          }}
-                          className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-                        >
-                          {cancellingParticipation === race.stage.id ? (
-                            <>
-                              <Clock className="h-4 w-4 mr-2" />
-                              Cancelando...
-                            </>
-                          ) : (
-                            <>
-                              <X className="h-4 w-4 mr-2" />
-                              Cancelar Participação
-                            </>
+                          {race.stage.doublePoints && (
+                            <Badge variant="secondary" className="text-xs whitespace-nowrap">
+                              2x Pontos
+                            </Badge>
                           )}
-                        </Button>
+                        </div>
+                      </div>
+                      {/* Informações essenciais */}
+                      <div className="text-sm text-muted-foreground mb-2">
+                        <div className="flex items-center gap-4 mb-1">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-4 w-4" />
+                            <span className="whitespace-nowrap">{formatDateToBrazilian(race.stage.date)}</span>
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-4 w-4" />
+                            <span className="whitespace-nowrap">{race.stage.time}</span>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 mb-1">
+                          <MapPin className="h-4 w-4 shrink-0" />
+                          <span className="truncate">
+                            {(() => {
+                              const raceTrackId = race.stage.raceTrackId;
+                              const raceTrack = raceTracks[raceTrackId];
+                              return raceTrackId && raceTrack 
+                                ? raceTrack.name 
+                                : 'Carregando...';
+                            })()}
+                          </span>
+                        </div>
+                        {race.stage.trackLayoutId && race.stage.trackLayoutId !== 'undefined' && (
+                          <div className="flex items-center gap-1 mb-1">
+                            <Navigation className="h-4 w-4 text-muted-foreground" />
+                            <span className="truncate">Traçado: {race.stage.trackLayoutId}</span>
+                          </div>
+                        )}
+                      </div>
+                      {/* Substituir bloco de karts sorteados por uma linha minimalista */}
+                      {sortedKarts && sortedKarts.length > 0 && (
+                        <div className="flex flex-col gap-1 mt-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm text-black">Karts sorteados</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {sortedKarts
+                              .map((cat: any) =>
+                                cat && cat.batteries && cat.batteries.length > 0
+                                  ? cat.batteries.map((batt: any, idx: number) => (
+                                      <span key={cat.categoryName + '-' + idx} className="inline-block bg-white border border-gray-300 rounded-lg px-2 py-1 text-xs font-semibold text-black shadow-sm">
+                                        B{idx + 1}: {batt.kart}
+                                      </span>
+                                    ))
+                                  : null
+                              )
+                              .flat()
+                              .filter(Boolean)
+                            }
+                          </div>
+                        </div>
+                      )}
+                      {/* Botões de ação */}
+                      {race.availableCategories && race.availableCategories.length > 0 && (
+                        <div className="space-y-2 mt-2">
+                          {!race.hasConfirmedParticipation ? (
+                            <Button
+                              size="default"
+                              variant="default"
+                              disabled={confirmingParticipation === race.stage.id || !isParticipationAllowed(race.stage)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (race.availableCategories!.length === 1) {
+                                  setShowConfirmConfirmation({
+                                    stageId: race.stage.id,
+                                    categoryId: race.availableCategories![0].id,
+                                    categoryName: race.availableCategories![0].name
+                                  });
+                                } else {
+                                  setSelectedRace(race);
+                                }
+                              }}
+                              className="w-full bg-primary hover:bg-primary/90"
+                            >
+                              {confirmingParticipation === race.stage.id ? (
+                                <>
+                                  <Clock className="h-4 w-4 mr-2" />
+                                  Confirmando...
+                                </>
+                              ) : (
+                                <>
+                                  Vou Correr!
+                                </>
+                              )}
+                            </Button>
+                          ) : (
+                            <Button
+                              size="default"
+                              variant="outline"
+                              disabled={cancellingParticipation === race.stage.id || !isParticipationAllowed(race.stage)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Log extra para debug
+                                const allowed = isParticipationAllowed(race.stage);
+                                if (!allowed) return;
+                                // Encontrar a categoria confirmada
+                                const confirmedCategory = race.availableCategories!.find(cat => cat.isConfirmed);
+                                if (confirmedCategory) {
+                                  setShowCancelConfirmation({
+                                    stageId: race.stage.id,
+                                    categoryId: confirmedCategory.id,
+                                    categoryName: confirmedCategory.name
+                                  });
+                                }
+                              }}
+                              className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                            >
+                              {cancellingParticipation === race.stage.id ? (
+                                <>
+                                  <Clock className="h-4 w-4 mr-2" />
+                                  Cancelando...
+                                </>
+                              ) : (
+                                <>
+                                  Cancelar Participação
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           )}
         </Card>
@@ -700,15 +852,6 @@ export const Dashboard = () => {
               
               {selectedRace.hasConfirmedParticipation ? (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-xl">
-                    <div className="p-2 bg-primary rounded-lg">
-                      <Check className="h-4 w-4 text-primary-foreground" />
-                    </div>
-                    <div>
-                      <h5 className="font-semibold text-card-foreground">Participação Confirmada</h5>
-                      <p className="text-sm text-muted-foreground">Sua inscrição está ativa para esta etapa</p>
-                    </div>
-                  </div>
                   {!isParticipationAllowed(selectedRace.stage) && (
                     <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800 dark:bg-yellow-900 dark:border-yellow-700 dark:text-yellow-100 text-sm">
                       O prazo para cancelar participação expirou. Entre em contato com o organizador do campeonato para alterações.
@@ -750,7 +893,6 @@ export const Dashboard = () => {
                               </>
                             ) : (
                               <>
-                                <X className="h-3 w-3 mr-1" />
                                 Cancelar
                               </>
                             )}
@@ -824,6 +966,33 @@ export const Dashboard = () => {
             </div>
           )}
 
+          {/* Bloco de Karts Sorteados no modal */}
+          {selectedRace && (() => {
+            const sortedKarts = getSortedKartsForUser(selectedRace.stage, selectedRace.availableCategories);
+            if (sortedKarts && sortedKarts.length > 0) {
+              return (
+                <div className="flex flex-col gap-4 mt-2 mb-6">
+                  <div className="font-bold text-lg text-black mb-1">Karts sorteados</div>
+                  {sortedKarts.map((cat: any, idx: number) => (
+                    cat && cat.batteries && cat.batteries.length > 0 ? (
+                      <div key={cat.categoryName || idx} className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 flex flex-col gap-2">
+                        <div className="font-semibold text-black text-base mb-2">{cat.categoryName}</div>
+                        <div className="flex flex-wrap gap-3">
+                          {cat.batteries.map((batt: any, bidx: number) => (
+                            <span key={bidx} className="inline-block bg-white border border-gray-300 rounded-lg px-3 py-1 text-base font-semibold text-black shadow-sm">
+                              B{bidx + 1}: {batt.kart}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null
+                  ))}
+                </div>
+              );
+            }
+            return null;
+          })()}
+
           <DialogFooter className="pt-4">
             <Button 
               variant="outline" 
@@ -881,7 +1050,6 @@ export const Dashboard = () => {
                 </>
               ) : (
                 <>
-                  <X className="h-4 w-4 mr-2" />
                   Confirmar Cancelamento
                 </>
               )}
@@ -894,7 +1062,7 @@ export const Dashboard = () => {
       <Dialog open={!!showConfirmConfirmation} onOpenChange={() => setShowConfirmConfirmation(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmar Participação</DialogTitle>
+            <DialogTitle>Vou Correr!</DialogTitle>
             <DialogDescription>
               Tem certeza que deseja confirmar sua participação nesta etapa?
             </DialogDescription>
@@ -935,8 +1103,7 @@ export const Dashboard = () => {
                 </>
               ) : (
                 <>
-                  <Check className="h-4 w-4 mr-2" />
-                  Confirmar Participação
+                  Vou Correr!
                 </>
               )}
             </Button>

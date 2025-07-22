@@ -55,10 +55,17 @@ export const ChampionshipHeader = ({ championship, permissions }: ChampionshipHe
           {/* Avatar e nome */}
           <div className="flex items-center gap-4">
             <Avatar className="h-12 w-12 border-2 border-white/20">
-              <AvatarImage 
-                src={`/api/championships/${championship.id}/avatar`} 
-                alt={`Avatar ${championship.name}`}
-              />
+              {championship.championshipImage ? (
+                <AvatarImage 
+                  src={championship.championshipImage} 
+                  alt={`Avatar ${championship.name}`}
+                />
+              ) : (
+                <AvatarImage 
+                  src={`/api/championships/${championship.id}/avatar`} 
+                  alt={`Avatar ${championship.name}`}
+                />
+              )}
               <AvatarFallback className="text-sm font-bold text-black bg-white">
                 {getInitials(championship.name)}
               </AvatarFallback>
