@@ -811,11 +811,11 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
             <Button
               variant="ghost"
               size="icon"
-              className="fixed left-0 top-1/2 -translate-y-1/2 z-20 border border-gray-100 bg-white/80 rounded-l-[2px] h-16 w-10 px-2 opacity-80 hover:opacity-100 transition-all flex items-center justify-center"
+              className="fixed left-0 top-1/2 -translate-y-1/2 z-20 border border-gray-100 bg-white/80 rounded-l-[2px] h-12 w-12 min-h-[48px] min-w-[48px] p-0 opacity-80 hover:opacity-100 transition-all flex items-center justify-center"
               onClick={() => setSidebarVisible(true)}
               title="Mostrar painel lateral"
             >
-              <ChevronRight className="w-8 h-8" />
+              <ChevronRight className="w-8 h-8 min-w-[32px] min-h-[32px] max-w-[32px] max-h-[32px]" />
             </Button>
           )}
 
