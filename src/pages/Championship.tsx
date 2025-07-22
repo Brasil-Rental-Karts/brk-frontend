@@ -27,6 +27,7 @@ import { RaceDayTab } from "@/components/championship/tabs/RaceDayTab";
 import { ClassificationTab } from "@/components/championship/tabs/ClassificationTab";
 import { PenaltiesTab } from "@/components/championship/tabs/PenaltiesTab";
 import { useStaffPermissions, UserPermissions } from "@/hooks/use-staff-permissions";
+import { LapTimesChart } from "@/pages/LapTimesChart";
 
 // Estende a interface base da temporada para incluir as categorias
 type Season = BaseSeason & { categories?: Category[]; stages?: Stage[] };
@@ -55,7 +56,31 @@ export const Championship = () => {
   } = useChampionshipData();
 
   // Usar o hook de permissões de staff que encontra o usuário atual corretamente
-  const { permissions, loading: permissionsLoading, error: permissionsError } = useStaffPermissions(id || '');
+  type UserPermissionsWithAnalise = UserPermissions & { analise?: boolean };
+  type UseStaffPermissionsReturn = {
+    permissions: UserPermissionsWithAnalise;
+    loading: boolean;
+    error: string | null;
+  };
+  const { permissions: rawPermissions, loading: permissionsLoading, error: permissionsError } = useStaffPermissions(id || '');
+  const emptyPermissions: UserPermissionsWithAnalise = {
+    seasons: false,
+    categories: false,
+    stages: false,
+    pilots: false,
+    classification: false,
+    regulations: false,
+    penalties: false,
+    raceDay: false,
+    editChampionship: false,
+    gridTypes: false,
+    scoringSystems: false,
+    sponsors: false,
+    staff: false,
+    asaasAccount: false,
+    analise: false,
+  };
+  const permissions: UserPermissionsWithAnalise = rawPermissions || emptyPermissions;
 
   // Mapeamento de tabs (aceita inglês e português)
   const tabMapping: { [key: string]: string } = {
@@ -85,6 +110,8 @@ export const Championship = () => {
     'config-scoring': 'config-scoring',
     'asaas-account': 'config-asaas',
     'config-asaas': 'config-asaas',
+    'analise': 'analise',
+    'analises': 'analises',
   };
 
   // Obter dados do campeonato do contexto
@@ -153,7 +180,9 @@ export const Championship = () => {
       'config-scoring': 'scoringSystems',
       'config-sponsors': 'sponsors',
       'config-staff': 'staff',
-      'config-asaas': 'asaasAccount'
+      'config-asaas': 'asaasAccount',
+      'analise': 'staff',
+      'analises': 'analise',
     };
 
     if (tabFromUrl) {
@@ -312,6 +341,14 @@ export const Championship = () => {
                   Race Day
                 </TabsTrigger>
               )}
+              {permissions?.analise && (
+                <TabsTrigger 
+                  value="analises" 
+                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
+                >
+                  Análises
+                </TabsTrigger>
+              )}
             </TabsList>
           </div>
         </div>
@@ -421,6 +458,12 @@ export const Championship = () => {
           {permissions?.asaasAccount && (
             <TabsContent value="config-asaas" className="mt-0 ring-0 focus-visible:outline-none">
               <AsaasAccountTab championshipId={id} />
+            </TabsContent>
+          )}
+
+          {permissions?.analise && (
+            <TabsContent value="analises" className="mt-0 ring-0 focus-visible:outline-none">
+              <LapTimesChart championshipId={id} />
             </TabsContent>
           )}
 

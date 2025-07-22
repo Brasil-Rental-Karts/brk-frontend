@@ -9,6 +9,7 @@ import { useRouteMetadata } from './hooks/useRouteMetadata';
 import { MainLayout } from '@/layouts/MainLayout';
 import { MainFullWidthLayout } from '@/layouts/MainFullWidhtLayout';
 import { AuthLayout } from '@/layouts/AuthLayout';
+import ConfirmParticipation from '@/pages/ConfirmParticipation';
 
 // Lazy load pages for better performance
 const Login = lazy(() => import('@/pages/Login').then(module => ({ default: module.Login })));
@@ -37,6 +38,7 @@ const GoogleCallback = lazy(() => import('@/pages/GoogleCallback'));
 const LoginSuccess = lazy(() => import('@/pages/LoginSuccess'));
 const ConfirmEmailInfo = lazy(() => import('@/pages/ConfirmEmailInfo').then(module => ({ default: module.ConfirmEmailInfo })));
 const ConfirmEmail = lazy(() => import('@/pages/ConfirmEmail').then(module => ({ default: module.ConfirmEmail })));
+const LapTimesChart = lazy(() => import('@/pages/LapTimesChart').then(module => ({ default: module.LapTimesChart })));
 
 // Route metadata interface
 export interface RouteMetadata {
@@ -294,6 +296,18 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "championship/:championshipId/lap-times-chart",
+        element: (
+          <ProtectedRoute>
+            <MainFullWidthLayout>
+              <LazyWrapper>
+                <LapTimesChart />
+              </LazyWrapper>
+            </MainFullWidthLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "championship/:championshipId/grid-type/new",
         element: (
           <ProtectedRoute>
@@ -542,6 +556,26 @@ export const router = createBrowserRouter([
           <LazyWrapper>
             <ChangePassword />
           </LazyWrapper>
+        ),
+      },
+      {
+        path: "confirm-participation",
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <LazyWrapper>
+                <ConfirmParticipation />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "confirm-participation/stage/:stageId/category/:categoryId",
+        element: (
+          <ProtectedRoute>
+            <ConfirmParticipation />
+          </ProtectedRoute>
         ),
       },
 

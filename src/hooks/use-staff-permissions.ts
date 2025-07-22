@@ -17,6 +17,7 @@ export interface UserPermissions {
   sponsors: boolean;
   staff: boolean;
   asaasAccount: boolean;
+  analise: boolean;
 }
 
 export const useStaffPermissions = (championshipId: string) => {
@@ -57,7 +58,8 @@ export const useStaffPermissions = (championshipId: string) => {
             scoringSystems: true,
             sponsors: true,
             staff: true,
-            asaasAccount: true
+            asaasAccount: true,
+            analise: true,
           });
           return;
         }
@@ -83,7 +85,8 @@ export const useStaffPermissions = (championshipId: string) => {
             scoringSystems: staffMember.permissions.scoringSystems || false,
             sponsors: staffMember.permissions.sponsors || false,
             staff: staffMember.permissions.staff || false,
-            asaasAccount: staffMember.permissions.asaasAccount || false
+            asaasAccount: staffMember.permissions.asaasAccount || false,
+            analise: staffMember.permissions.analise || false,
           });
         } else {
           // Usuário não tem permissões específicas
@@ -101,7 +104,8 @@ export const useStaffPermissions = (championshipId: string) => {
             scoringSystems: false,
             sponsors: false,
             staff: false,
-            asaasAccount: false
+            asaasAccount: false,
+            analise: false,
           });
         }
       } catch (err) {
@@ -122,7 +126,8 @@ export const useStaffPermissions = (championshipId: string) => {
           scoringSystems: false,
           sponsors: false,
           staff: false,
-          asaasAccount: false
+          asaasAccount: false,
+          analise: false,
         });
       } finally {
         setLoading(false);

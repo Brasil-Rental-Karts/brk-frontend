@@ -419,9 +419,15 @@ export const CreatePenalty = () => {
               ...section,
               fields: section.fields.map(field => {
                 if (field.id === 'userId') {
+                  // Ordenar pilotos por nome
+                  const sortedPilots = [...confirmedPilots].sort((a, b) => {
+                    const nameA = a.user.name.toLowerCase();
+                    const nameB = b.user.name.toLowerCase();
+                    return nameA.localeCompare(nameB);
+                  });
                   return { 
                     ...field, 
-                    options: confirmedPilots.map(p => ({ 
+                    options: sortedPilots.map(p => ({ 
                       value: p.userId, 
                       description: `${formatName(p.user.name)}` 
                     }))
@@ -478,6 +484,14 @@ export const CreatePenalty = () => {
         formActions.setValue('batteryIndex', '');
       }
       await loadPilotsForCategory(value, formData.seasonId, formData.stageId);
+    }
+
+    if (fieldId === 'type') {
+      // Limpar campos de tempo e posição ao trocar o tipo de penalidade
+      if (formActions.setValue) {
+        formActions.setValue('timePenaltySeconds', '');
+        formActions.setValue('positionPenalty', '');
+      }
     }
   }, [loadStagesForSeason, loadCategoriesForStage, loadPilotsForCategory]);
 

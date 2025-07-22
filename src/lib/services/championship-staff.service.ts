@@ -16,6 +16,7 @@ export interface StaffPermissions {
   sponsors?: boolean;
   staff?: boolean;
   asaasAccount?: boolean;
+  analise?: boolean;
 }
 
 export interface StaffMember {
