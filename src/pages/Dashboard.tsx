@@ -504,9 +504,36 @@ export const Dashboard = () => {
                       </div>
                     </div>
                     <div className="bg-muted/40 px-6 py-4 flex flex-col gap-2 border-t min-w-0">
+                      {/* Botão de Análise Volta a Volta (laranja, sem ícone, texto customizado) */}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Button
+                                className="w-full text-base py-3 font-semibold shadow-sm text-center bg-primary text-white border-none hover:bg-primary/90"
+                                style={{ backgroundColor: '#ff8800', color: '#fff', border: 'none' }}
+                                variant="default"
+                                onClick={() => {
+                                  window.location.href = `/championship/${championship.id}/lap-times-chart`;
+                                }}
+                                disabled={!canAccessChart}
+                              >
+                                Análise Volta a Volta
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          {!canAccessChart && (
+                            <TooltipContent side="top">
+                              Disponível apenas após confirmação do pagamento.
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      </TooltipProvider>
+                      {/* Botão Ir para o Campeonato (outline branco e preto) */}
                       <Button
-                        className="w-full text-base py-3 font-semibold shadow-sm text-center"
-                        variant="default"
+                        className="w-full text-base py-3 font-semibold shadow-sm text-center border-black text-black bg-white hover:bg-gray-100"
+                        variant="outline"
+                        style={{ borderColor: '#000', color: '#000', backgroundColor: '#fff' }}
                         onClick={() => {
                           if (championship.isOwner || championship.isStaff) {
                             nav.goToChampionship(championship.id);
@@ -518,29 +545,6 @@ export const Dashboard = () => {
                       >
                         Ir para o Campeonato
                       </Button>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span>
-                              <Button
-                                className="w-full text-base py-3 font-semibold shadow-sm text-center"
-                                variant="secondary"
-                                onClick={() => {
-                                  window.location.href = `/championship/${championship.id}/lap-times-chart`;
-                                }}
-                                disabled={!canAccessChart}
-                              >
-                                <BarChart3 className="w-5 h-5 mr-2 shrink-0" /> Gráfico Volta a Volta
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          {!canAccessChart && (
-                            <TooltipContent side="top">
-                              Disponível apenas após confirmação do pagamento.
-                            </TooltipContent>
-                          )}
-                        </Tooltip>
-                      </TooltipProvider>
                     </div>
                   </Card>
                 );
