@@ -1119,7 +1119,7 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
               !sidebarVisible;
 
             // Se não deve mostrar o gráfico, mostrar mensagem para abrir o filtro
-            if (!shouldShowChart) {
+            if (!shouldShowChart && !sidebarVisible) {
               return (
                 <div
                   className="w-full min-h-[60vh] flex flex-1 px-4"
