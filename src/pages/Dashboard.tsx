@@ -597,11 +597,6 @@ export const Dashboard = () => {
                           </p>
                         </div>
                         <div className="flex flex-col gap-1 items-end shrink-0">
-                          {race.isOrganizer && (
-                            <Badge variant="default" className="bg-orange-500 text-xs whitespace-nowrap">
-                              Organizador
-                            </Badge>
-                          )}
                           {race.stage.doublePoints && (
                             <Badge variant="secondary" className="text-xs whitespace-nowrap">
                               2x Pontos
@@ -819,12 +814,6 @@ export const Dashboard = () => {
                 Pontuação em Dobro
               </Badge>
             )}
-            {selectedRace?.isOrganizer && (
-              <Badge variant="default" className="px-3 py-1">
-                <Settings className="h-3 w-3 mr-1" />
-                Organizador
-              </Badge>
-            )}
             {selectedRace?.hasConfirmedParticipation && (
               <Badge variant="default" className="px-3 py-1">
                 <Check className="h-3 w-3 mr-1" />
@@ -842,11 +831,6 @@ export const Dashboard = () => {
                 </div>
                 <div>
                   <h4 className="font-semibold text-lg">Gerenciar Participação</h4>
-                  {selectedRace.isOrganizer && (
-                    <Badge variant="secondary" className="text-xs mt-1">
-                      {selectedRace.hasConfirmedParticipation ? 'Organizador & Piloto' : 'Organizador'}
-                    </Badge>
-                  )}
                 </div>
               </div>
               
