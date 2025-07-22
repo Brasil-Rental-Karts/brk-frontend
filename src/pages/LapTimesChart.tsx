@@ -719,7 +719,7 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
               }`}
               style={
                 isMobile
-                  ? { maxWidth: "100vw", minWidth: 0, height: "100dvh" }
+                  ? { maxWidth: "100vw", minWidth: 0, height: "100dvh", zIndex: 50 }
                   : {}
               }
             >
@@ -943,11 +943,8 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
 
                       {/* Pilots List */}
                       <div
-                        className={`space-y-2${
-                          isMobile
-                            ? ""
-                            : " flex-1 overflow-y-auto max-h-[600px]"
-                        }`}
+                        className={['space-y-2', 'flex-1', 'min-h-0', 'overflow-y-auto'].join(' ')}
+                        style={{ maxHeight: isMobile ? '60vh' : '600px' }}
                       >
                         <div className="text-xs text-gray-500 mb-2">
                           Selecione até{" "}
@@ -1130,8 +1127,14 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
             // Se não deve mostrar o gráfico, mostrar mensagem para abrir o filtro
             if (!shouldShowChart) {
               return (
-                <div className="w-full min-h-[60vh] flex flex-1 items-center justify-center px-4">
-                  <div className="text-center max-w-xs w-full">
+                <div
+                  className="w-full min-h-[60vh] flex flex-1 px-4"
+                  style={{ zIndex: 0 }}
+                >
+                  <div
+                    className="max-w-xs w-full mx-auto flex flex-col items-center justify-start lg:justify-center text-center pt-12 lg:pt-0"
+                    style={{ minHeight: '40vh' }}
+                  >
                     <div className="text-4xl mb-4">📊</div>
                     <div className="text-lg font-medium mb-2">
                       Configure os filtros
