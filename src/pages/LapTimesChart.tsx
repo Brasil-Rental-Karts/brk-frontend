@@ -1130,17 +1130,17 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
             // Se não deve mostrar o gráfico, mostrar mensagem para abrir o filtro
             if (!shouldShowChart) {
               return (
-                <div className="w-full pt-6 px-4 flex flex-col items-center">
-                  <div className="text-center">
+                <div className="w-full min-h-[60vh] flex flex-1 items-center justify-center px-4">
+                  <div className="text-center max-w-xs w-full">
                     <div className="text-4xl mb-4">📊</div>
                     <div className="text-lg font-medium mb-2">
                       Configure os filtros
                     </div>
                     <div className="text-sm text-gray-500 mb-4">
-                      Abra o painel lateral para selecionar temporada, etapa,
-                      categoria e pilotos
+                      Abra o painel lateral para selecionar temporada, etapa, categoria e pilotos
                     </div>
                     <Button
+                      type="button"
                       onClick={() => setSidebarVisible(true)}
                       className="mx-auto"
                     >
