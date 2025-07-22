@@ -49,6 +49,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "brk-design-system";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "brk-design-system";
 
 interface LapTimesChartProps {
   championshipId?: string;
@@ -661,6 +662,28 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
 
   const isStandalone = !propChampionshipId;
 
+  // Estado para controlar o alerta de limite de pilotos
+  const [showMaxPilotsDialog, setShowMaxPilotsDialog] = useState(false);
+
+  // Dialog de limite de pilotos
+  const MaxPilotsDialog = () => (
+    <Dialog open={showMaxPilotsDialog} onOpenChange={setShowMaxPilotsDialog}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Limite de pilotos atingido</DialogTitle>
+        </DialogHeader>
+        <div className="py-2 text-sm text-gray-700">
+          A visualização gráfica é limitada a no máximo <b>4 pilotos</b> por vez.
+        </div>
+        <DialogFooter>
+          <Button onClick={() => setShowMaxPilotsDialog(false)} autoFocus>
+            OK
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   return (
     <div className="min-h-screen">
       <div className="space-y-6">
@@ -984,6 +1007,8 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                                             ...prev,
                                             lapTime.userId,
                                           ]);
+                                        } else {
+                                          setShowMaxPilotsDialog(true);
                                         }
                                       } else {
                                         setSelectedPilotsForChart((prev) =>
@@ -1306,6 +1331,8 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
           })()}
         </div>
       </div>
+      {/* Dialog de limite de pilotos */}
+      <MaxPilotsDialog />
     </div>
   );
 };
