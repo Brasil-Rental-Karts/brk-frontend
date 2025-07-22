@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
-import { Button, Badge } from 'brk-design-system';
+import { Button, Badge, Input } from 'brk-design-system';
 import { X, Mail, Phone, MapPin, Calendar, User, Award, Trophy, Flag, Clock, DollarSign, CreditCard, AlertCircle, CheckCircle, XCircle, Eye, Edit, Trash2, MoreHorizontal, ChevronDown, ChevronRight, ChevronUp, ChevronLeft, Search, Filter, Plus, Minus, Settings, Users, Timer, BarChart3, TrendingUp, TrendingDown, Activity, Zap, Star, Heart, ThumbsUp, ThumbsDown, MessageCircle, Share2, Download, Upload, RefreshCw, RotateCcw, Play, Pause, SkipBack, SkipForward, FastForward, Rewind, Volume2, VolumeX, Mic, MicOff, Camera, CameraOff, Video, VideoOff, Image, FileText, File, Folder, FolderOpen, FolderPlus, FolderMinus, FolderX, FilePlus, FileMinus, FileX, FileCheck, FileEdit, FileSearch, FileImage, FileVideo, FileAudio, FileArchive, FileCode, FileSpreadsheet, FileJson, Check, Navigation, Link as LinkIcon } from 'lucide-react';
 import { SeasonRegistrationService, SeasonRegistration } from '@/lib/services/season-registration.service';
 import { CategoryService } from '@/lib/services/category.service';
@@ -11,14 +11,7 @@ import { formatName } from '@/utils/name';
 import { StageService } from "@/lib/services/stage.service";
 import { RaceTrackService } from '@/lib/services/race-track.service';
 import { Stage } from '@/lib/types/stage';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle 
-} from 'brk-design-system';
-import { Alert, AlertDescription, AlertTitle } from 'brk-design-system';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, Alert, AlertDescription, AlertTitle } from 'brk-design-system';
 import { useChampionshipData } from "@/contexts/ChampionshipContext";
 
 interface StageDetailsModalProps {
@@ -50,8 +43,12 @@ export const StageDetailsModal = ({ stage, isOpen, onClose }: StageDetailsModalP
   const [error, setError] = useState<string | null>(null);
   const [raceTrack, setRaceTrack] = useState<any>(null);
 
+  // Estado para controlar o modal de link de confirmação
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkModalData, setLinkModalData] = useState<{pilotName: string, stageName: string, link: string} | null>(null);
+
   // Usar o contexto de dados do campeonato
-  const { getCategories, getRaceTracks, getRegistrations, getStageParticipations } = useChampionshipData();
+  const { getCategories, getRaceTracks, getRegistrations, getStageParticipations, getChampionshipInfo } = useChampionshipData();
 
   const fetchStageDetails = async (stageId: string) => {
     try {
@@ -275,7 +272,26 @@ export const StageDetailsModal = ({ stage, isOpen, onClose }: StageDetailsModalP
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              {getStatusBadge(pilot)}
+                              {pilot.status === 'confirmed' ? (
+                                getStatusBadge(pilot)
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    const siteUrl = window.location.origin;
+                                    const link = `${siteUrl}/confirm-participation/stage/${stage.id}/category/${category.id}`;
+                                    setLinkModalData({
+                                      pilotName: pilot.user.name,
+                                      stageName: stage.name,
+                                      link,
+                                    });
+                                    setShowLinkModal(true);
+                                  }}
+                                >
+                                  Gerar Link de Confirmação
+                                </Button>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -288,6 +304,54 @@ export const StageDetailsModal = ({ stage, isOpen, onClose }: StageDetailsModalP
           </div>
         </div>
       </DialogContent>
+
+      {/* Modal de link de confirmação */}
+      <Dialog open={showLinkModal} onOpenChange={setShowLinkModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Convite para confirmação de participação</DialogTitle>
+            {/* DialogDescription removido conforme solicitado */}
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            {/* Mensagem personalizada para WhatsApp */}
+            <label className="text-sm font-medium">Mensagem para WhatsApp:</label>
+            <textarea
+              className="w-full p-2 rounded border bg-muted/50 font-sans text-sm resize-none"
+              rows={5}
+              value={
+                linkModalData
+                  ? (() => {
+                      const championshipName = getChampionshipInfo()?.name || '';
+                      const championshipHashtag = championshipName.replace(/\s+/g, '');
+                      return `Olá ${formatName(linkModalData.pilotName)} 🏎️\n\n🏁 Você está convocado(a) para acelerar na etapa "${linkModalData.stageName}" do campeonato ${championshipName}!\n\n⏱️ Confirme sua presença no grid pelo link abaixo:\n${linkModalData.link}\n\nNos vemos na pista! 🏆\n\n#BRK #Kart #Corrida #${championshipHashtag}`;
+                    })()
+                  : ''
+              }
+              readOnly
+              id="whatsapp-message-textarea"
+              onFocus={e => e.target.select()}
+            />
+          </div>
+          <DialogFooter className="flex flex-row gap-2 justify-end">
+            <Button onClick={() => setShowLinkModal(false)} variant="outline">Fechar</Button>
+            <Button
+              type="button"
+              variant="default"
+              onClick={() => {
+                if (linkModalData) {
+                  const championshipName = getChampionshipInfo()?.name || '';
+                  const championshipHashtag = championshipName.replace(/\s+/g, '');
+                  const msg = `Olá ${formatName(linkModalData.pilotName)} 🏎️\n\n🏁 Você está convocado(a) para acelerar na etapa \"${linkModalData.stageName}\" do campeonato ${championshipName}!\n\n⏱️ Confirme sua presença no grid pelo link abaixo:\n${linkModalData.link}\n\nNos vemos na pista! 🏆\n\n#BRK #Kart #Corrida #${championshipHashtag}`;
+                  navigator.clipboard.writeText(msg);
+                  toast.success('Mensagem copiada!');
+                }
+              }}
+            >
+              Copiar mensagem
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }; 

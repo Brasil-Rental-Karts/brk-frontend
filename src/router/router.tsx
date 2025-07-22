@@ -9,6 +9,7 @@ import { useRouteMetadata } from './hooks/useRouteMetadata';
 import { MainLayout } from '@/layouts/MainLayout';
 import { MainFullWidthLayout } from '@/layouts/MainFullWidhtLayout';
 import { AuthLayout } from '@/layouts/AuthLayout';
+import ConfirmParticipation from '@/pages/ConfirmParticipation';
 
 // Lazy load pages for better performance
 const Login = lazy(() => import('@/pages/Login').then(module => ({ default: module.Login })));
@@ -555,6 +556,26 @@ export const router = createBrowserRouter([
           <LazyWrapper>
             <ChangePassword />
           </LazyWrapper>
+        ),
+      },
+      {
+        path: "confirm-participation",
+        element: (
+          <ProtectedRoute>
+            <MainLayout>
+              <LazyWrapper>
+                <ConfirmParticipation />
+              </LazyWrapper>
+            </MainLayout>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "confirm-participation/stage/:stageId/category/:categoryId",
+        element: (
+          <ProtectedRoute>
+            <ConfirmParticipation />
+          </ProtectedRoute>
         ),
       },
 
