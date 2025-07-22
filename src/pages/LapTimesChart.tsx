@@ -1140,9 +1140,10 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                       Abra o painel lateral para selecionar temporada, etapa, categoria e pilotos
                     </div>
                     <Button
-                      type="button"
+                      variant="default"
+                      size="default"
                       onClick={() => setSidebarVisible(true)}
-                      className="mx-auto"
+                      title="Mostrar painel lateral"
                     >
                       Abrir Filtros
                     </Button>
