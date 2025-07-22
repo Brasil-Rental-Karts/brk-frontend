@@ -510,8 +510,8 @@ export const Dashboard = () => {
                           <TooltipTrigger asChild>
                             <span>
                               <Button
-                                className="w-full text-base py-3 font-semibold shadow-sm text-center bg-primary text-white border-none hover:bg-primary/90"
-                                style={{ backgroundColor: '#ff8800', color: '#fff', border: 'none' }}
+                                className="w-full text-base py-3 font-semibold shadow-sm text-center bg-primary border-none hover:bg-primary/90"
+                                style={{ backgroundColor: '#ff8800', color: '#000', border: 'none' }}
                                 variant="default"
                                 onClick={() => {
                                   window.location.href = `/championship/${championship.id}/lap-times-chart`;
@@ -535,12 +535,8 @@ export const Dashboard = () => {
                         variant="outline"
                         style={{ borderColor: '#000', color: '#000', backgroundColor: '#fff' }}
                         onClick={() => {
-                          if (championship.isOwner || championship.isStaff) {
-                            nav.goToChampionship(championship.id);
-                          } else {
-                            const siteUrl = import.meta.env.VITE_SITE_URL;
-                            window.location.href = `${siteUrl}/campeonato/${championship.slug}`;
-                          }
+                          const siteUrl = import.meta.env.VITE_SITE_URL;
+                          window.location.href = `${siteUrl}/campeonato/${championship.slug}`;
                         }}
                       >
                         Ir para o Campeonato

@@ -42,7 +42,27 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
   const [showPermissionsDialog, setShowPermissionsDialog] = useState(false);
   const [memberToEdit, setMemberToEdit] = useState<StaffMember | null>(null);
   const [isUpdatingPermissions, setIsUpdatingPermissions] = useState(false);
-  const [permissions, setPermissions] = useState<StaffPermissions>({});
+  type StaffPermissionsWithAnalise = StaffPermissions & { analise?: boolean };
+  const [permissions, setPermissions] = useState<StaffPermissionsWithAnalise>({});
+
+  // Definir permissões padrão (todas false)
+  const defaultPermissions = {
+    seasons: false,
+    categories: false,
+    stages: false,
+    pilots: false,
+    classification: false,
+    regulations: false,
+    penalties: false,
+    raceDay: false,
+    editChampionship: false,
+    gridTypes: false,
+    scoringSystems: false,
+    sponsors: false,
+    staff: false,
+    asaasAccount: false,
+    analise: false,
+  };
 
   // Carregar membros do staff do contexto
   const loadStaffMembers = useCallback(() => {
@@ -83,7 +103,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
 
       const newMember = await ChampionshipStaffService.addStaffMember(championshipId, { 
         email: newMemberEmail.trim(),
-        permissions: {}
+        permissions: { ...defaultPermissions }
       });
       
       // Atualizar o contexto com o novo membro
@@ -91,6 +111,10 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
       
       toast.success('Membro adicionado à equipe com sucesso!');
       setNewMemberEmail('');
+      // Abrir modal de permissões para o novo membro
+      setMemberToEdit(newMember);
+      setPermissions(newMember.permissions || { ...defaultPermissions });
+      setShowPermissionsDialog(true);
     } catch (err) {
       console.error('Erro ao adicionar membro:', err);
       const errorMessage = err instanceof Error ? err.message : 'Erro ao adicionar membro à equipe';
@@ -177,7 +201,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
     setPermissions({});
   };
 
-  const handlePermissionChange = (permission: keyof StaffPermissions, checked: boolean) => {
+  const handlePermissionChange = (permission: keyof StaffPermissionsWithAnalise, checked: boolean) => {
     setPermissions(prev => ({
       ...prev,
       [permission]: checked
@@ -208,6 +232,42 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
       </div>
     );
   }
+
+  // Permissões em ordem alfabética para o card explicativo
+  const permissionOrder = [
+    'analise',
+    'categories',
+    'classification',
+    'asaasAccount',
+    'editChampionship',
+    'stages',
+    'staff',
+    'sponsors',
+    'pilots',
+    'penalties',
+    'raceDay',
+    'regulations',
+    'scoringSystems',
+    'seasons',
+    'gridTypes',
+  ];
+  const permissionLabels: Record<string, string> = {
+    analise: 'Análises',
+    categories: 'Categorias',
+    classification: 'Classificação',
+    asaasAccount: 'Conta Asaas',
+    editChampionship: 'Editar Campeonato',
+    stages: 'Etapas',
+    staff: 'Gerenciar Equipe',
+    sponsors: 'Patrocinadores',
+    pilots: 'Pilotos',
+    penalties: 'Punições',
+    raceDay: 'Race Day',
+    regulations: 'Regulamentos',
+    scoringSystems: 'Sistemas de Pontuação',
+    seasons: 'Temporadas',
+    gridTypes: 'Tipos de Grid',
+  };
 
   return (
     <div className="space-y-6">
@@ -334,7 +394,8 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                                     scoringSystems: 'Sistemas de Pontuação',
                                     sponsors: 'Patrocinadores',
                                     staff: 'Equipe',
-                                    asaasAccount: 'Conta Asaas'
+                                    asaasAccount: 'Conta Asaas',
+                                    analise: 'Análises',
                                   };
                                   return (
                                     <Badge key={key} variant="outline" className="text-xs">
@@ -381,45 +442,6 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
           </div>
         )}
       </div>
-
-      {/* Info Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4" />
-            Sobre a Equipe e Permissões
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>
-            • <strong>Proprietário:</strong> Tem acesso total a todas as funcionalidades do campeonato.
-          </p>
-          <p>
-            • <strong>Membros da Equipe:</strong> Podem ter permissões específicas configuradas para diferentes áreas:
-          </p>
-          <ul className="list-disc list-inside ml-4 space-y-1">
-            <li><strong>Temporadas:</strong> Criar, editar e gerenciar temporadas</li>
-            <li><strong>Categorias:</strong> Configurar categorias e suas regras</li>
-            <li><strong>Etapas:</strong> Gerenciar etapas e eventos</li>
-            <li><strong>Pilotos:</strong> Visualizar e gerenciar pilotos inscritos</li>
-            <li><strong>Classificação:</strong> Acessar a aba de classificação do campeonato</li>
-            <li><strong>Regulamentos:</strong> Editar regulamentos das temporadas</li>
-            <li><strong>Race Day:</strong> Acessar funcionalidades do dia da corrida</li>
-            <li><strong>Editar Campeonato:</strong> Modificar dados básicos do campeonato</li>
-            <li><strong>Tipos de Grid:</strong> Configurar tipos de grid disponíveis</li>
-            <li><strong>Sistemas de Pontuação:</strong> Criar e editar sistemas de pontuação</li>
-            <li><strong>Patrocinadores:</strong> Gerenciar patrocinadores</li>
-            <li><strong>Gerenciar Equipe:</strong> Adicionar/remover membros e configurar permissões</li>
-            <li><strong>Conta Asaas:</strong> Configurar integração de pagamentos</li>
-          </ul>
-          <p>
-            • Use o ícone de configurações (⚙️) ao lado de cada membro para definir suas permissões específicas.
-          </p>
-          <p>
-            • Apenas o proprietário do campeonato e administradores podem gerenciar a equipe.
-          </p>
-        </CardContent>
-      </Card>
 
       {/* Modal de confirmação de exclusão */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -478,146 +500,18 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
 
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-3">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="seasons"
-                  checked={permissions.seasons || false}
-                  onCheckedChange={(checked) => handlePermissionChange('seasons', checked as boolean)}
-                />
-                <label htmlFor="seasons" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Temporadas
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="categories"
-                  checked={permissions.categories || false}
-                  onCheckedChange={(checked) => handlePermissionChange('categories', checked as boolean)}
-                />
-                <label htmlFor="categories" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Categorias
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="stages"
-                  checked={permissions.stages || false}
-                  onCheckedChange={(checked) => handlePermissionChange('stages', checked as boolean)}
-                />
-                <label htmlFor="stages" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Etapas
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="pilots"
-                  checked={permissions.pilots || false}
-                  onCheckedChange={(checked) => handlePermissionChange('pilots', checked as boolean)}
-                />
-                <label htmlFor="pilots" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Pilotos
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="classification"
-                  checked={permissions.classification || false}
-                  onCheckedChange={(checked) => handlePermissionChange('classification', checked as boolean)}
-                />
-                <label htmlFor="classification" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Classificação
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="regulations"
-                  checked={permissions.regulations || false}
-                  onCheckedChange={(checked) => handlePermissionChange('regulations', checked as boolean)}
-                />
-                <label htmlFor="regulations" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Regulamentos
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="penalties"
-                  checked={permissions.penalties || false}
-                  onCheckedChange={(checked) => handlePermissionChange('penalties', checked as boolean)}
-                />
-                <label htmlFor="penalties" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Punições
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="raceDay"
-                  checked={permissions.raceDay || false}
-                  onCheckedChange={(checked) => handlePermissionChange('raceDay', checked as boolean)}
-                />
-                <label htmlFor="raceDay" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Race Day
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="editChampionship"
-                  checked={permissions.editChampionship || false}
-                  onCheckedChange={(checked) => handlePermissionChange('editChampionship', checked as boolean)}
-                />
-                <label htmlFor="editChampionship" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Editar Campeonato
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="gridTypes"
-                  checked={permissions.gridTypes || false}
-                  onCheckedChange={(checked) => handlePermissionChange('gridTypes', checked as boolean)}
-                />
-                <label htmlFor="gridTypes" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Tipos de Grid
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="scoringSystems"
-                  checked={permissions.scoringSystems || false}
-                  onCheckedChange={(checked) => handlePermissionChange('scoringSystems', checked as boolean)}
-                />
-                <label htmlFor="scoringSystems" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Sistemas de Pontuação
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="sponsors"
-                  checked={permissions.sponsors || false}
-                  onCheckedChange={(checked) => handlePermissionChange('sponsors', checked as boolean)}
-                />
-                <label htmlFor="sponsors" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Patrocinadores
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="staff"
-                  checked={permissions.staff || false}
-                  onCheckedChange={(checked) => handlePermissionChange('staff', checked as boolean)}
-                />
-                <label htmlFor="staff" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Gerenciar Equipe
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="asaasAccount"
-                  checked={permissions.asaasAccount || false}
-                  onCheckedChange={(checked) => handlePermissionChange('asaasAccount', checked as boolean)}
-                />
-                <label htmlFor="asaasAccount" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Conta Asaas
-                </label>
-              </div>
+              {permissionOrder.map((key) => (
+                <div className="flex items-center space-x-2" key={key}>
+                  <Checkbox
+                    id={key}
+                    checked={permissions[key as keyof StaffPermissionsWithAnalise] || false}
+                    onCheckedChange={(checked) => handlePermissionChange(key as keyof StaffPermissionsWithAnalise, checked as boolean)}
+                  />
+                  <label htmlFor={key} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    {permissionLabels[key]}
+                  </label>
+                </div>
+              ))}
             </div>
           </div>
 

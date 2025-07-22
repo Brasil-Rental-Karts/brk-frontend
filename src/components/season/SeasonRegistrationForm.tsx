@@ -226,7 +226,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { refreshFinancial } = useUser();
+  const { refreshFinancial, refreshAll } = useUser();
   
   // Remover dependência do contexto - buscar dados diretamente do backend
 
@@ -472,8 +472,9 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       } else {
         navigate(`/registration/${result.registration.id}/payment`);
       }
-      // Recarregar dados financeiros do dashboard
       refreshFinancial();
+      // Chamar refreshAll de forma assíncrona para não bloquear a experiência do usuário
+      setTimeout(() => { refreshAll(); }, 0);
     },
     onCancel: () => {
       if(onCancel) onCancel();

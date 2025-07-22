@@ -214,9 +214,7 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
     setSelectedPilotsForChart([]);
   }, [selectedSeasonId, selectedStageId, selectedCategory, selectedBatteryIndex]);
 
-  const handleBack = () => {
-    navigate(-1);
-  };
+  const handleBack = () => navigate(-1);
 
   const handleNext = () => {
     setShowFilters(false);
@@ -327,30 +325,31 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
     }
   }, [isPortrait]);
 
+  const isStandalone = !propChampionshipId;
+
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBack}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
+      <div className="space-y-6">
+        {/* Título da aba */}
+        <div className="border-b border-gray-200 pb-4 mb-6 flex items-center gap-2">
+          {isStandalone && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleBack}
+              className="mr-2"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+          )}
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Gráfico Volta a Volta</h1>
-            <p className="text-sm text-muted-foreground">
-              {currentSeason?.name} • {currentStage?.name} • {currentCategory?.name} • {currentBattery?.name || `Bateria ${selectedBatteryIndex + 1}`}
+            <h2 className="text-2xl font-bold text-gray-900">Análise Volta a Volta</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Compare o desempenho dos pilotos volta a volta nas baterias do campeonato
             </p>
           </div>
         </div>
-      </div>
-
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-2">
+        {/* Content */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-[calc(100vh-120px)]">
           {/* Sidebar - Pilot Selection */}
           {sidebarVisible && (
