@@ -14,6 +14,7 @@ import type { TooltipProps } from 'recharts';
 import { LegendProps } from 'recharts';
 import { useRef } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from 'brk-design-system';
 
 interface LapTimesChartProps {
   championshipId?: string;
@@ -628,23 +629,25 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                           <label className="text-sm font-medium text-gray-700 mb-2 block">
                             Categoria
                           </label>
-                          <select
+                          <Select
                             value={selectedCategory}
-                            onChange={(e) => {
-                              const categoryId = e.target.value;
+                            onValueChange={(categoryId) => {
                               setSelectedCategory(categoryId);
                               setSelectedBatteryIndex(0); // Reset bateria
                             }}
-                            className="w-full p-2 border border-gray-300 rounded-md text-sm"
                             disabled={!selectedStageId}
                           >
-                            <option value="">Selecione uma categoria</option>
-                            {categories.map(category => (
-                              <option key={category.id} value={category.id}>
-                                {category.name}
-                              </option>
-                            ))}
-                          </select>
+                            <SelectTrigger className="w-full p-2 border border-gray-300 rounded-md text-sm">
+                              <SelectValue placeholder="Selecione uma categoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categories.map(category => (
+                                <SelectItem key={category.id} value={category.id}>
+                                  {category.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
 
                         <div>
@@ -652,19 +655,22 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                             Bateria
                             {loadingBatteries && <Loader2 className="w-3 h-3 animate-spin ml-1 inline" />}
                           </label>
-                          <select
-                            value={selectedBatteryIndex}
-                            onChange={(e) => setSelectedBatteryIndex(parseInt(e.target.value))}
-                            className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                          <Select
+                            value={selectedBatteryIndex?.toString()}
+                            onValueChange={(value) => setSelectedBatteryIndex(parseInt(value))}
                             disabled={!selectedCategory || loadingBatteries}
                           >
-                            <option value="">{loadingBatteries ? 'Carregando...' : 'Selecione uma bateria'}</option>
-                            {batteries.map((battery, index) => (
-                              <option key={index} value={index}>
-                                {battery?.name || `Bateria ${index + 1}`}
-                              </option>
-                            ))}
-                          </select>
+                            <SelectTrigger className="w-full p-2 border border-gray-300 rounded-md text-sm">
+                              <SelectValue placeholder={loadingBatteries ? 'Carregando...' : 'Selecione uma bateria'} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {batteries.map((battery, index) => (
+                                <SelectItem key={index} value={index.toString()}>
+                                  {battery?.name || `Bateria ${index + 1}`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
