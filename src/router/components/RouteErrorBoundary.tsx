@@ -51,7 +51,7 @@ export const RouteErrorBoundary = () => {
             to="/dashboard"
             className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
           >
-            Voltar ao Dashboard
+            Voltar à Minha Página
           </Link>
         </div>
       );

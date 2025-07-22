@@ -166,7 +166,7 @@ export const Dashboard = () => {
       )}
       {/* Cabeçalho com CTA */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <h1 className="text-3xl font-bold">Minha Página</h1>
         {isManager && (
           <Button 
             className="bg-primary hover:bg-primary/90 w-full sm:w-auto"

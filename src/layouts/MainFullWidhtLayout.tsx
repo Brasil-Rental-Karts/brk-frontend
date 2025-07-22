@@ -47,30 +47,25 @@ export const MainFullWidthLayout = ({ children }: MainFullWidthLayoutProps = {})
       <header className="bg-primary text-navbar-foreground py-4 px-6 shadow-md">
         <div className="container flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <img
-              src="/logo-brk-marca-horizontal-black.svg"
-              alt="BRK Logo"
-              className="h-6 w-auto"
-            />
+            <button
+              onClick={() => {
+                if ((window as any).navigateToExternal) {
+                  (window as any).navigateToExternal(siteUrl);
+                } else {
+                  window.location.href = siteUrl;
+                }
+              }}
+              className="focus:outline-none"
+            >
+              <img
+                src="/logo-brk-marca-horizontal-black.svg"
+                alt="BRK Logo"
+                className="h-6 w-auto"
+              />
+            </button>
             {/* Menu para Desktop */}
             <NavigationMenu className="hidden md:flex">
               <NavigationMenuList>
-                <NavigationMenuItem>
-                  <NavigationMenuLink
-                    className="group inline-flex h-9 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent/30 hover:text-accent-foreground focus:bg-accent/30 focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50"
-                    asChild
-                  >
-                    <button
-                      onClick={() => {
-                        navigate("/dashboard");
-                      }}
-                      data-navigation="/dashboard"
-                    >
-                      Início
-                    </button>
-                  </NavigationMenuLink>
-                </NavigationMenuItem>
-
                 <NavigationMenuItem>
                   <NavigationMenuLink
                     className="group inline-flex h-9 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent/30 hover:text-accent-foreground focus:bg-accent/30 focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50"
@@ -83,6 +78,37 @@ export const MainFullWidthLayout = ({ children }: MainFullWidthLayoutProps = {})
                         window.location.href = `${siteUrl}/campeonatos`;
                       }
                     }}>Campeonatos</button>
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
+
+                <NavigationMenuItem>
+                  <NavigationMenuLink
+                    className="group inline-flex h-9 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent/30 hover:text-accent-foreground focus:bg-accent/30 focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50"
+                    asChild
+                  >
+                    <button
+                      onClick={() => {
+                        navigate("/dashboard");
+                      }}
+                      data-navigation="/dashboard"
+                    >
+                      Minha Página
+                    </button>
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
+
+                <NavigationMenuItem>
+                  <NavigationMenuLink
+                    className="group inline-flex h-9 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent/30 hover:text-accent-foreground focus:bg-accent/30 focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50"
+                    asChild
+                  >
+                    <button
+                      onClick={() => {
+                        navigate("/financial");
+                      }}
+                    >
+                      Meus Pagamentos
+                    </button>
                   </NavigationMenuLink>
                 </NavigationMenuItem>
               </NavigationMenuList>
@@ -108,20 +134,6 @@ export const MainFullWidthLayout = ({ children }: MainFullWidthLayoutProps = {})
                 </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <button
-                    onClick={() => {
-                      navigate("/dashboard");
-                    }}
-                    className="w-full text-left"
-                    data-navigation="/dashboard"
-                  >
-                    Dashboard
-                  </button>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/financial">Financeiro</Link>
-                </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/profile/edit">Perfil</Link>
                 </DropdownMenuItem>
@@ -175,13 +187,6 @@ export const MainFullWidthLayout = ({ children }: MainFullWidthLayoutProps = {})
                     <span className="text-sm font-medium">{user?.name}</span>
                   </div>
                   <nav className="flex flex-col gap-2">
-                    <Link
-                      to="/"
-                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Início
-                    </Link>
                     <button
                       className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors text-left"
                       onClick={() => {
@@ -195,24 +200,26 @@ export const MainFullWidthLayout = ({ children }: MainFullWidthLayoutProps = {})
                     >
                       Campeonatos
                     </button>
-                    <div className="h-px bg-border my-2" />
                     <button
-                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors text-left w-full"
+                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors text-left"
                       onClick={() => {
                         setIsOpen(false);
                         navigate("/dashboard");
                       }}
                       data-navigation="/dashboard"
                     >
-                      Dashboard
+                      Minha Página
                     </button>
-                    <Link
-                      to="/financial"
-                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
-                      onClick={() => setIsOpen(false)}
+                    <button
+                      className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors text-left"
+                      onClick={() => {
+                        setIsOpen(false);
+                        navigate("/financial");
+                      }}
                     >
-                      Financeiro
-                    </Link>
+                      Meus Pagamentos
+                    </button>
+                    <div className="h-px bg-border my-2" />
                     <Link
                       to="/profile/edit"
                       className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors"
