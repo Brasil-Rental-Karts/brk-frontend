@@ -989,35 +989,29 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                                       ? "bg-orange-50 border-orange-200"
                                       : "bg-white border-gray-200 hover:border-gray-300"
                                   }`}
+                                  onClick={(e) => {
+                                    // Evitar duplo clique no checkbox
+                                    if (e.target instanceof HTMLElement && e.target.tagName === 'INPUT') return;
+                                    if (!isSelected && selectedPilotsForChart.length >= 4) {
+                                      setShowMaxPilotsDialog(true);
+                                      return;
+                                    }
+                                    if (!isSelected) {
+                                      setSelectedPilotsForChart((prev) => [
+                                        ...prev,
+                                        lapTime.userId,
+                                      ]);
+                                    } else {
+                                      setSelectedPilotsForChart((prev) =>
+                                        prev.filter((id) => id !== lapTime.userId)
+                                      );
+                                    }
+                                  }}
                                 >
                                   <input
                                     type="checkbox"
                                     checked={isSelected}
-                                    disabled={
-                                      !isSelected &&
-                                      selectedPilotsForChart.length >= 4
-                                    } // Limita a 4
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        if (
-                                          selectedPilotsForChart.length >= 4 &&
-                                          !selectedPilotsForChart.includes(lapTime.userId)
-                                        ) {
-                                          setShowMaxPilotsDialog(true);
-                                          return;
-                                        }
-                                        setSelectedPilotsForChart((prev) => [
-                                          ...prev,
-                                          lapTime.userId,
-                                        ]);
-                                      } else {
-                                        setSelectedPilotsForChart((prev) =>
-                                          prev.filter(
-                                            (id) => id !== lapTime.userId
-                                          )
-                                        );
-                                      }
-                                    }}
+                                    readOnly
                                     className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 mr-3"
                                   />
 
