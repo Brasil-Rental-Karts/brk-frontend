@@ -302,6 +302,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
   
   // Estado para modal de confirmação em massa
   const [showBulkConfirmModal, setShowBulkConfirmModal] = useState(false);
+  
+  // Estado para modal de compartilhar cronograma
+  const [showShareScheduleModal, setShowShareScheduleModal] = useState(false);
+  const [scheduleText, setScheduleText] = useState('');
 
   // Atualizar selectedBatteryIndex quando a URL mudar
   useEffect(() => {
@@ -2685,6 +2689,25 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
 
 
   // Função para copiar mensagem com emojis
+  const handleOpenShareScheduleModal = async () => {
+    await copyMessageWithEmojis();
+  };
+
+  const handleCloseShareScheduleModal = () => {
+    setShowShareScheduleModal(false);
+    setScheduleText('');
+  };
+
+  const handleCopyScheduleText = async () => {
+    try {
+      await navigator.clipboard.writeText(scheduleText);
+      toast.success('Cronograma copiado para área de transferência!');
+    } catch (error) {
+      console.error('Erro ao copiar texto:', error);
+      toast.error('Erro ao copiar cronograma');
+    }
+  };
+
   const copyMessageWithEmojis = async () => {
     try {
       const stageData = stages.find((s: StageType) => s.id === selectedStageId);
@@ -2735,6 +2758,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
       
       if (stageData.streamLink) {
         message += `📺 *TRANSMISSÃO:*\n`;
+        message += `🎥 Assista ao vivo:\n`;
         message += `${stageData.streamLink}\n\n`;
       }
       
@@ -2746,15 +2770,15 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
       
       message += `🏆 ${seasonName}\n`;
       message += `\n`;
-              message += `#BRK #Kart #Corrida #${championship?.name?.replace(/\s+/g, '') || 'Championship'}`;
+      message += `#BRK #Kart #Corrida #${championship?.name?.replace(/\s+/g, '') || 'Championship'}`;
       
-      // Copiar para clipboard
-      await navigator.clipboard.writeText(message);
-      toast.success('Cronograma copiado para área de transferência!');
+      // Definir o texto e abrir o modal
+      setScheduleText(message);
+      setShowShareScheduleModal(true);
       
     } catch (error) {
-      console.error('Erro ao copiar mensagem:', error);
-      toast.error('Erro ao copiar mensagem do cronograma');
+      console.error('Erro ao gerar mensagem:', error);
+      toast.error('Erro ao gerar mensagem do cronograma');
     }
   };
 
@@ -3098,7 +3122,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={copyMessageWithEmojis}>
+                <DropdownMenuItem onClick={handleOpenShareScheduleModal}>
                   Compartilhar cronograma
                 </DropdownMenuItem>
                 {canEditSchedule && (
@@ -5035,6 +5059,48 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
       onClose={handleCloseBulkConfirmModal}
       onSuccess={handleBulkConfirmSuccess}
     />
+
+    {/* Modal de compartilhamento do cronograma */}
+    <Dialog open={showShareScheduleModal} onOpenChange={setShowShareScheduleModal}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Compartilhar Cronograma</DialogTitle>
+          <DialogDescription>
+            Copie o texto abaixo para compartilhar o cronograma da etapa.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div className="relative">
+            <textarea
+              value={scheduleText}
+              onChange={(e) => setScheduleText(e.target.value)}
+              className="w-full h-64 p-3 border border-gray-300 rounded-md text-sm font-mono resize-none"
+              placeholder="Texto do cronograma será gerado automaticamente..."
+            />
+          </div>
+          
+        </div>
+        
+        <DialogFooter>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleCloseShareScheduleModal}
+            >
+              Fechar
+            </Button>
+            <Button 
+              onClick={handleCopyScheduleText}
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+            >
+              <Copy className="w-4 h-4 mr-2" />
+              Copiar
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     {/* Dialog de confirmação para limpar todos os resultados */}
     <Dialog open={showClearAllDialog} onOpenChange={setShowClearAllDialog}>
