@@ -1002,14 +1002,17 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                                     } // Limita a 4
                                     onChange={(e) => {
                                       if (e.target.checked) {
-                                        if (selectedPilotsForChart.length < 4) {
-                                          setSelectedPilotsForChart((prev) => [
-                                            ...prev,
-                                            lapTime.userId,
-                                          ]);
-                                        } else {
+                                        if (
+                                          selectedPilotsForChart.length >= 4 &&
+                                          !selectedPilotsForChart.includes(lapTime.userId)
+                                        ) {
                                           setShowMaxPilotsDialog(true);
+                                          return;
                                         }
+                                        setSelectedPilotsForChart((prev) => [
+                                          ...prev,
+                                          lapTime.userId,
+                                        ]);
                                       } else {
                                         setSelectedPilotsForChart((prev) =>
                                           prev.filter(
