@@ -1,4 +1,4 @@
-import api from '../axios';
+import api from "../axios";
 
 export interface UserStats {
   memberSince: string;
@@ -34,7 +34,7 @@ export interface UserBasicStats {
 }
 
 export class UserStatsService {
-  private static readonly BASE_URL = '/user-stats';
+  private static readonly BASE_URL = "/user-stats";
 
   /**
    * Retrieves the complete statistics for the current user.
@@ -42,7 +42,9 @@ export class UserStatsService {
    */
   static async getFullStats(): Promise<UserStats> {
     try {
-      const response = await api.get<{ message: string; data: UserStats }>(UserStatsService.BASE_URL);
+      const response = await api.get<{ message: string; data: UserStats }>(
+        UserStatsService.BASE_URL,
+      );
       return response.data.data;
     } catch (error) {
       console.error("Failed to get user stats:", error);
@@ -57,7 +59,7 @@ export class UserStatsService {
   static async getBasicStats(): Promise<UserBasicStats> {
     try {
       const response = await api.get<{ message: string; data: UserBasicStats }>(
-        `${UserStatsService.BASE_URL}/basic`
+        `${UserStatsService.BASE_URL}/basic`,
       );
       return response.data.data;
     } catch (error) {
@@ -65,4 +67,4 @@ export class UserStatsService {
       throw error;
     }
   }
-} 
+}

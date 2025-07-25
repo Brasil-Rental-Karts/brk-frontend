@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { ChampionshipStaffService, StaffPermissions } from '@/lib/services/championship-staff.service';
-import { useAuth } from '@/contexts/AuthContext';
+import { useEffect, useState } from "react";
+
+import { useAuth } from "@/contexts/AuthContext";
+import { ChampionshipStaffService } from "@/lib/services/championship-staff.service";
 
 export interface UserPermissions {
   seasons: boolean;
@@ -38,10 +39,11 @@ export const useStaffPermissions = (championshipId: string) => {
         setError(null);
 
         // Buscar membros do staff para verificar se o usuário é owner ou tem permissões
-        const staffMembers = await ChampionshipStaffService.getStaffMembers(championshipId);
-        
+        const staffMembers =
+          await ChampionshipStaffService.getStaffMembers(championshipId);
+
         // Verificar se é owner
-        const owner = staffMembers.find(member => member.isOwner);
+        const owner = staffMembers.find((member) => member.isOwner);
         if (owner && owner.user.id === user.id) {
           // Owner tem todas as permissões
           setPermissions({
@@ -65,8 +67,8 @@ export const useStaffPermissions = (championshipId: string) => {
         }
 
         // Verificar se é membro do staff
-        const staffMember = staffMembers.find(member => 
-          !member.isOwner && member.user.id === user.id
+        const staffMember = staffMembers.find(
+          (member) => !member.isOwner && member.user.id === user.id,
         );
 
         if (staffMember && staffMember.permissions) {
@@ -109,8 +111,10 @@ export const useStaffPermissions = (championshipId: string) => {
           });
         }
       } catch (err) {
-        console.error('Erro ao carregar permissões:', err);
-        setError(err instanceof Error ? err.message : 'Erro ao carregar permissões');
+        console.error("Erro ao carregar permissões:", err);
+        setError(
+          err instanceof Error ? err.message : "Erro ao carregar permissões",
+        );
         // Em caso de erro, não dar permissões
         setPermissions({
           seasons: false,
@@ -138,4 +142,4 @@ export const useStaffPermissions = (championshipId: string) => {
   }, [user, championshipId]);
 
   return { permissions, loading, error };
-}; 
+};

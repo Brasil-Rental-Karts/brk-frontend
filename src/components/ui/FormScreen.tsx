@@ -1,9 +1,5 @@
-import {
-  DynamicForm,
-  FormSectionConfig,
-} from "@/components/ui/dynamic-form";
-import { Button } from "brk-design-system";
-import { Alert, AlertTitle, AlertDescription } from "brk-design-system";
+import { Alert, AlertDescription, AlertTitle, Button } from "brk-design-system";
+
 import {
   Dialog,
   DialogContent,
@@ -12,12 +8,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DynamicForm, FormSectionConfig } from "@/components/ui/dynamic-form";
+import { ButtonLoader, PageLoader } from "@/components/ui/loading";
 import { PageHeader } from "@/components/ui/page-header";
-import {
-  useFormScreen,
-  UseFormScreenOptions,
-} from "@/hooks/use-form-screen";
-import { PageLoader, ButtonLoader } from "@/components/ui/loading";
+import { useFormScreen, UseFormScreenOptions } from "@/hooks/use-form-screen";
 
 interface FormScreenProps<TData, TSubmit>
   extends UseFormScreenOptions<TData, TSubmit> {
@@ -60,9 +54,7 @@ export const FormScreen = <TData, TSubmit>({
     : submitLabel;
 
   if (isLoading) {
-    return (
-      <PageLoader message="Carregando formulário..." />
-    );
+    return <PageLoader message="Carregando formulário..." />;
   }
 
   return (
@@ -126,11 +118,7 @@ export const FormScreen = <TData, TSubmit>({
       </div>
 
       <div className="w-full px-6 py-4 mt-4 border-t border-border flex justify-end gap-4">
-        <Button
-          onClick={handleCancel}
-          variant="outline"
-          disabled={isSaving}
-        >
+        <Button onClick={handleCancel} variant="outline" disabled={isSaving}>
           Cancelar
         </Button>
         <Button
@@ -178,4 +166,4 @@ export const FormScreen = <TData, TSubmit>({
       </Dialog>
     </div>
   );
-}; 
+};

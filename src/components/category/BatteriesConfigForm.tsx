@@ -1,32 +1,42 @@
-import { useState, useEffect, forwardRef } from "react";
-import { Button } from "brk-design-system";
-import { Input } from "brk-design-system";
-import { Label } from "brk-design-system";
-import { Textarea } from "brk-design-system";
-import { Badge } from "brk-design-system";
-import { Card, CardContent, CardHeader, CardTitle } from "brk-design-system";
-import { 
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Checkbox,
+  Input,
+  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Textarea,
 } from "brk-design-system";
-import { Checkbox } from "brk-design-system";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
+import { GripVertical, Settings2, Trash2 } from "lucide-react";
+import { forwardRef, useEffect, useState } from "react";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { Alert, AlertDescription } from "brk-design-system";
-import { Plus, Trash2, GripVertical, Settings2 } from "lucide-react";
-import { BatteryConfig, BatteriesConfig, BATTERY_TEMPLATES, validateBatteriesConfig } from "@/lib/types/battery.types";
-import { GridType } from "@/lib/types/grid-type";
-import { ScoringSystem } from "@/lib/services/scoring-system.service";
 import { GridTypeIcon } from "@/lib/icons/grid-type-icons";
+import { ScoringSystem } from "@/lib/services/scoring-system.service";
+import {
+  BatteriesConfig,
+  BATTERY_TEMPLATES,
+  BatteryConfig,
+  validateBatteriesConfig,
+} from "@/lib/types/battery.types";
+import { GridType } from "@/lib/types/grid-type";
 
 interface BatteriesConfigFormProps {
   value: BatteriesConfig;
@@ -39,215 +49,336 @@ interface BatteriesConfigFormProps {
 /**
  * Componente para configurar baterias de uma categoria
  */
-export const BatteriesConfigForm = forwardRef<HTMLDivElement, BatteriesConfigFormProps>(({
-  value: batteries = [],
-  onChange,
-  gridTypes,
-  scoringSystems,
-  disabled = false
-}, ref) => {
-  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
-  const [editingBattery, setEditingBattery] = useState<BatteryConfig | null>(null);
-  const [showBatteryForm, setShowBatteryForm] = useState(false);
-  const [errors, setErrors] = useState<string[]>([]);
+export const BatteriesConfigForm = forwardRef<
+  HTMLDivElement,
+  BatteriesConfigFormProps
+>(
+  (
+    {
+      value: batteries = [],
+      onChange,
+      gridTypes,
+      scoringSystems,
+      disabled = false,
+    },
+    ref,
+  ) => {
+    const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+    const [editingBattery, setEditingBattery] = useState<BatteryConfig | null>(
+      null,
+    );
+    const [showBatteryForm, setShowBatteryForm] = useState(false);
+    const [errors, setErrors] = useState<string[]>([]);
 
-  // Validate whenever the value from the parent form changes
-  useEffect(() => {
-    const validationErrors = validateBatteriesConfig(batteries);
-    setErrors(validationErrors);
-  }, [batteries]);
+    // Validate whenever the value from the parent form changes
+    useEffect(() => {
+      const validationErrors = validateBatteriesConfig(batteries);
+      setErrors(validationErrors);
+    }, [batteries]);
 
-  const addBattery = (template?: BatteryConfig) => {
-    const newOrder = Math.max(0, ...batteries.map(b => b.order)) + 1;
-    const newBattery: BatteryConfig = template || {
-      name: `Bateria ${newOrder}`,
-      gridType: gridTypes.find(gt => gt.isDefault)?.id || gridTypes[0]?.id || "",
-      scoringSystemId: scoringSystems.find(ss => ss.isDefault)?.id || scoringSystems[0]?.id || "",
-      order: newOrder,
-      isRequired: true,
-      description: ""
+    const addBattery = (template?: BatteryConfig) => {
+      const newOrder = Math.max(0, ...batteries.map((b) => b.order)) + 1;
+      const newBattery: BatteryConfig = template || {
+        name: `Bateria ${newOrder}`,
+        gridType:
+          gridTypes.find((gt) => gt.isDefault)?.id || gridTypes[0]?.id || "",
+        scoringSystemId:
+          scoringSystems.find((ss) => ss.isDefault)?.id ||
+          scoringSystems[0]?.id ||
+          "",
+        order: newOrder,
+        isRequired: true,
+        description: "",
+      };
+      onChange([...batteries, { ...newBattery, order: newOrder }]);
     };
-    onChange([...batteries, { ...newBattery, order: newOrder }]);
-  };
 
-  const updateBattery = (index: number, updatedBattery: BatteryConfig) => {
-    const newBatteries = [...batteries];
-    newBatteries[index] = updatedBattery;
-    onChange(newBatteries);
-  };
+    const updateBattery = (index: number, updatedBattery: BatteryConfig) => {
+      const newBatteries = [...batteries];
+      newBatteries[index] = updatedBattery;
+      onChange(newBatteries);
+    };
 
-  const removeBattery = (index: number) => {
-    const newBatteries = batteries.filter((_, i) => i !== index);
-    const reorderedBatteries = newBatteries.map((battery, i) => ({
-      ...battery,
-      order: i + 1
-    }));
-    onChange(reorderedBatteries);
-  };
+    const removeBattery = (index: number) => {
+      const newBatteries = batteries.filter((_, i) => i !== index);
+      const reorderedBatteries = newBatteries.map((battery, i) => ({
+        ...battery,
+        order: i + 1,
+      }));
+      onChange(reorderedBatteries);
+    };
 
-  const applyTemplate = (templateKey: keyof typeof BATTERY_TEMPLATES) => {
-    const template = BATTERY_TEMPLATES[templateKey];
-    
-    // Encontrar grid padrão e grid invertido
-    const defaultGrid = gridTypes.find(gt => gt.isDefault)?.id || gridTypes[0]?.id || "";
-    const invertedGrid = gridTypes.find(gt => gt.name === 'Invertido')?.id || defaultGrid;
-    
-    const templatedBatteries = template.map((battery, index) => ({
-      ...battery,
-      gridType: templateKey === 'TWO_BATTERIES' && battery.name === 'Bateria 2' 
-        ? invertedGrid 
-        : defaultGrid,
-      scoringSystemId: scoringSystems.find(ss => ss.isDefault)?.id || scoringSystems[0]?.id || "",
-      order: index + 1
-    }));
-    onChange(templatedBatteries);
-    setShowTemplateDialog(false);
-  };
+    const applyTemplate = (templateKey: keyof typeof BATTERY_TEMPLATES) => {
+      const template = BATTERY_TEMPLATES[templateKey];
 
-  const handleEditBattery = (battery: BatteryConfig, index: number) => {
-    setEditingBattery({ ...battery, order: index });
-    setShowBatteryForm(true);
-  };
+      // Encontrar grid padrão e grid invertido
+      const defaultGrid =
+        gridTypes.find((gt) => gt.isDefault)?.id || gridTypes[0]?.id || "";
+      const invertedGrid =
+        gridTypes.find((gt) => gt.name === "Invertido")?.id || defaultGrid;
 
-  const handleSaveBattery = (battery: BatteryConfig) => {
-    if (editingBattery) {
-      updateBattery(editingBattery.order, battery);
-    } else {
-      addBattery(battery);
-    }
-    setEditingBattery(null);
-    setShowBatteryForm(false);
-  };
+      const templatedBatteries = template.map((battery, index) => ({
+        ...battery,
+        gridType:
+          templateKey === "TWO_BATTERIES" && battery.name === "Bateria 2"
+            ? invertedGrid
+            : defaultGrid,
+        scoringSystemId:
+          scoringSystems.find((ss) => ss.isDefault)?.id ||
+          scoringSystems[0]?.id ||
+          "",
+        order: index + 1,
+      }));
+      onChange(templatedBatteries);
+      setShowTemplateDialog(false);
+    };
 
-  const getGridTypeName = (gridTypeId: string) => {
-    const gridType = gridTypes.find(gt => gt.id === gridTypeId);
-    return gridType ? gridType.name : "Tipo não encontrado";
-  };
+    const handleEditBattery = (battery: BatteryConfig, index: number) => {
+      setEditingBattery({ ...battery, order: index });
+      setShowBatteryForm(true);
+    };
 
-  const getGridTypeIcon = (gridTypeId: string) => {
-    const gridType = gridTypes.find(gt => gt.id === gridTypeId);
-    if (!gridType) return <span className="text-lg">❓</span>;
-    
-    return <GridTypeIcon type={gridType.type} size={20} withColor={true} />;
-  };
+    const handleSaveBattery = (battery: BatteryConfig) => {
+      if (editingBattery) {
+        updateBattery(editingBattery.order, battery);
+      } else {
+        addBattery(battery);
+      }
+      setEditingBattery(null);
+      setShowBatteryForm(false);
+    };
 
-  const getScoringSystemName = (scoringSystemId: string) => {
-    const scoringSystem = scoringSystems.find(ss => ss.id === scoringSystemId);
-    return scoringSystem ? scoringSystem.name : "Sistema não encontrado";
-  };
+    const getGridTypeName = (gridTypeId: string) => {
+      const gridType = gridTypes.find((gt) => gt.id === gridTypeId);
+      return gridType ? gridType.name : "Tipo não encontrado";
+    };
 
-  return (
-    <div className="space-y-4" ref={ref}>
-      {/* Header com templates */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <Label className="text-base font-medium">Configuração de Baterias</Label>
-          <p className="text-sm text-muted-foreground">
-            Configure as baterias, seus tipos de grid e sistemas de pontuação
-          </p>
+    const getGridTypeIcon = (gridTypeId: string) => {
+      const gridType = gridTypes.find((gt) => gt.id === gridTypeId);
+      if (!gridType) return <span className="text-lg">❓</span>;
+
+      return <GridTypeIcon type={gridType.type} size={20} withColor={true} />;
+    };
+
+    const getScoringSystemName = (scoringSystemId: string) => {
+      const scoringSystem = scoringSystems.find(
+        (ss) => ss.id === scoringSystemId,
+      );
+      return scoringSystem ? scoringSystem.name : "Sistema não encontrado";
+    };
+
+    return (
+      <div className="space-y-4" ref={ref}>
+        {/* Header com templates */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <Label className="text-base font-medium">
+              Configuração de Baterias
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              Configure as baterias, seus tipos de grid e sistemas de pontuação
+            </p>
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTemplateDialog(true)}
+              disabled={disabled}
+              className="flex-1 sm:flex-none text-xs sm:text-sm min-w-[80px]"
+            >
+              <Settings2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+              Templates
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setEditingBattery(null);
+                setShowBatteryForm(true);
+              }}
+              disabled={disabled}
+              className="flex-1 sm:flex-none text-xs sm:text-sm min-w-[80px]"
+            >
+              Adicionar
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setShowTemplateDialog(true)}
-            disabled={disabled}
-            className="flex-1 sm:flex-none text-xs sm:text-sm min-w-[80px]"
-          >
-            <Settings2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-            Templates
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setEditingBattery(null);
-              setShowBatteryForm(true);
-            }}
-            disabled={disabled}
-            className="flex-1 sm:flex-none text-xs sm:text-sm min-w-[80px]"
-          >
-            Adicionar
-          </Button>
-        </div>
-      </div>
 
-      {/* Erros de validação - só mostra se há baterias ou se não está carregando */}
-      {errors.length > 0 && batteries.length > 0 && !disabled && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            <ul className="list-disc list-inside space-y-1">
-              {errors.map((error, index) => (
-                <li key={index}>{error}</li>
-              ))}
-            </ul>
-          </AlertDescription>
-        </Alert>
-      )}
+        {/* Erros de validação - só mostra se há baterias ou se não está carregando */}
+        {errors.length > 0 && batteries.length > 0 && !disabled && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              <ul className="list-disc list-inside space-y-1">
+                {errors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
 
-      {/* Lista de baterias */}
-      <div className="space-y-3">
-        {batteries.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-8">
-              <div className="text-center">
-                <h3 className="text-lg font-medium">Nenhuma bateria configurada</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Adicione baterias para definir a estrutura da categoria
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowTemplateDialog(true)}
-                  disabled={disabled}
+        {/* Lista de baterias */}
+        <div className="space-y-3">
+          {batteries.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-8">
+                <div className="text-center">
+                  <h3 className="text-lg font-medium">
+                    Nenhuma bateria configurada
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Adicione baterias para definir a estrutura da categoria
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowTemplateDialog(true)}
+                    disabled={disabled}
+                  >
+                    <Settings2 className="mr-2 h-4 w-4" />
+                    Usar Template
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            batteries
+              .sort((a, b) => a.order - b.order)
+              .map((battery, index) => (
+                <Card
+                  key={index}
+                  className={
+                    !battery.isRequired ? "border-dashed opacity-75" : ""
+                  }
                 >
-                  <Settings2 className="mr-2 h-4 w-4" />
-                  Usar Template
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          batteries
-            .sort((a, b) => a.order - b.order)
-            .map((battery, index) => (
-              <Card key={index} className={!battery.isRequired ? "border-dashed opacity-75" : ""}>
-                <CardHeader className="pb-3">
-                  {/* Layout Desktop */}
-                  <div className="hidden sm:flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className="flex items-center gap-2">
-                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                  <CardHeader className="pb-3">
+                    {/* Layout Desktop */}
+                    <div className="hidden sm:flex items-start justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className="flex items-center gap-2">
+                          <GripVertical className="h-4 w-4 text-muted-foreground" />
+                          <div>{getGridTypeIcon(battery.gridType)}</div>
+                        </div>
                         <div>
-                          {getGridTypeIcon(battery.gridType)}
+                          <div className="flex items-center gap-2">
+                            <CardTitle className="text-base">
+                              {battery.name}
+                            </CardTitle>
+                            <Badge variant="outline" className="text-xs">
+                              #{battery.order}
+                            </Badge>
+                            {!battery.isRequired && (
+                              <Badge variant="secondary" className="text-xs">
+                                Opcional
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="mt-1 space-y-1">
+                            <p className="text-sm text-muted-foreground">
+                              Grid: {getGridTypeName(battery.gridType)}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Pontuação:{" "}
+                              {getScoringSystemName(battery.scoringSystemId)}
+                            </p>
+                            {battery.description && (
+                              <p className="text-xs text-muted-foreground">
+                                {battery.description}
+                              </p>
+                            )}
+                            {battery.duration && (
+                              <Badge variant="outline" className="text-xs">
+                                {battery.duration} min
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditBattery(battery, index)}
+                          disabled={disabled}
+                        >
+                          <Settings2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeBattery(index)}
+                          disabled={disabled || batteries.length <= 1}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Layout Mobile */}
+                    <div className="sm:hidden space-y-3">
+                      {/* Linha 1: Título e badges */}
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <CardTitle className="text-base">{battery.name}</CardTitle>
+                          <div className="flex items-center gap-1">
+                            <GripVertical className="h-3 w-3 text-muted-foreground" />
+                            {getGridTypeIcon(battery.gridType)}
+                          </div>
+                          <CardTitle className="text-sm">
+                            {battery.name}
+                          </CardTitle>
                           <Badge variant="outline" className="text-xs">
                             #{battery.order}
                           </Badge>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditBattery(battery, index)}
+                            disabled={disabled}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Settings2 className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeBattery(index)}
+                            disabled={disabled || batteries.length <= 1}
+                            className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Linha 2: Informações e badges */}
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">
+                          Grid: {getGridTypeName(battery.gridType)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Pontuação:{" "}
+                          {getScoringSystemName(battery.scoringSystemId)}
+                        </p>
+                        {battery.description && (
+                          <p className="text-xs text-muted-foreground">
+                            {battery.description}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap gap-1">
                           {!battery.isRequired && (
                             <Badge variant="secondary" className="text-xs">
                               Opcional
                             </Badge>
-                          )}
-
-                        </div>
-                        <div className="mt-1 space-y-1">
-                          <p className="text-sm text-muted-foreground">
-                            Grid: {getGridTypeName(battery.gridType)}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Pontuação: {getScoringSystemName(battery.scoringSystemId)}
-                          </p>
-                          {battery.description && (
-                            <p className="text-xs text-muted-foreground">
-                              {battery.description}
-                            </p>
                           )}
                           {battery.duration && (
                             <Badge variant="outline" className="text-xs">
@@ -257,153 +388,65 @@ export const BatteriesConfigForm = forwardRef<HTMLDivElement, BatteriesConfigFor
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditBattery(battery, index)}
-                        disabled={disabled}
-                      >
-                        <Settings2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeBattery(index)}
-                        disabled={disabled || batteries.length <= 1}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                  </CardHeader>
+                </Card>
+              ))
+          )}
+        </div>
+
+        {/* Dialog de templates */}
+        <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+          <DialogContent className="w-[95vw] max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="text-lg">Escolher Template</DialogTitle>
+              <DialogDescription className="text-sm">
+                Selecione um template pré-configurado para as baterias
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full justify-start h-auto p-4"
+                onClick={() => applyTemplate("SINGLE_25MIN")}
+              >
+                <div className="text-left">
+                  <div className="font-medium">Bateria Única (25 min)</div>
+                  <div className="text-sm text-muted-foreground">
+                    Uma única bateria de 25 minutos com grid e pontuação padrão
                   </div>
-
-                  {/* Layout Mobile */}
-                  <div className="sm:hidden space-y-3">
-                    {/* Linha 1: Título e badges */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1">
-                          <GripVertical className="h-3 w-3 text-muted-foreground" />
-                          {getGridTypeIcon(battery.gridType)}
-                        </div>
-                        <CardTitle className="text-sm">{battery.name}</CardTitle>
-                        <Badge variant="outline" className="text-xs">
-                          #{battery.order}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditBattery(battery, index)}
-                          disabled={disabled}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Settings2 className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeBattery(index)}
-                          disabled={disabled || batteries.length <= 1}
-                          className="text-destructive hover:text-destructive h-8 w-8 p-0"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Linha 2: Informações e badges */}
-                    <div className="space-y-2">
-                      <p className="text-xs text-muted-foreground">
-                        Grid: {getGridTypeName(battery.gridType)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Pontuação: {getScoringSystemName(battery.scoringSystemId)}
-                      </p>
-                      {battery.description && (
-                        <p className="text-xs text-muted-foreground">
-                          {battery.description}
-                        </p>
-                      )}
-                      <div className="flex flex-wrap gap-1">
-                        {!battery.isRequired && (
-                          <Badge variant="secondary" className="text-xs">
-                            Opcional
-                          </Badge>
-                        )}
-                        {battery.duration && (
-                          <Badge variant="outline" className="text-xs">
-                            {battery.duration} min
-                          </Badge>
-                        )}
-
-                      </div>
-                    </div>
+                </div>
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full justify-start h-auto p-4"
+                onClick={() => applyTemplate("TWO_BATTERIES")}
+              >
+                <div className="text-left">
+                  <div className="font-medium">Duas Baterias (15 min cada)</div>
+                  <div className="text-sm text-muted-foreground">
+                    Bateria 1 com grid padrão + Bateria 2 com grid invertido
                   </div>
-                </CardHeader>
-              </Card>
-            ))
-        )}
+                </div>
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de edição de bateria */}
+        <BatteryFormDialog
+          open={showBatteryForm}
+          onOpenChange={setShowBatteryForm}
+          battery={editingBattery}
+          gridTypes={gridTypes}
+          scoringSystems={scoringSystems}
+          onSave={handleSaveBattery}
+        />
       </div>
-
-      {/* Dialog de templates */}
-      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
-        <DialogContent className="w-[95vw] max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-lg">Escolher Template</DialogTitle>
-            <DialogDescription className="text-sm">
-              Selecione um template pré-configurado para as baterias
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full justify-start h-auto p-4"
-              onClick={() => applyTemplate('SINGLE_25MIN')}
-            >
-              <div className="text-left">
-                <div className="font-medium">Bateria Única (25 min)</div>
-                <div className="text-sm text-muted-foreground">
-                  Uma única bateria de 25 minutos com grid e pontuação padrão
-                </div>
-              </div>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full justify-start h-auto p-4"
-              onClick={() => applyTemplate('TWO_BATTERIES')}
-            >
-              <div className="text-left">
-                <div className="font-medium">Duas Baterias (15 min cada)</div>
-                <div className="text-sm text-muted-foreground">
-                  Bateria 1 com grid padrão + Bateria 2 com grid invertido
-                </div>
-              </div>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog de edição de bateria */}
-      <BatteryFormDialog
-        open={showBatteryForm}
-        onOpenChange={setShowBatteryForm}
-        battery={editingBattery}
-        gridTypes={gridTypes}
-        scoringSystems={scoringSystems}
-        onSave={handleSaveBattery}
-      />
-    </div>
-  );
-});
+    );
+  },
+);
 
 // Componente auxiliar para o formulário de bateria
 interface BatteryFormDialogProps {
@@ -421,7 +464,7 @@ const BatteryFormDialog = ({
   battery,
   gridTypes,
   scoringSystems,
-  onSave
+  onSave,
 }: BatteryFormDialogProps) => {
   const [formData, setFormData] = useState<BatteryConfig>({
     name: "",
@@ -429,7 +472,7 @@ const BatteryFormDialog = ({
     scoringSystemId: "",
     order: 1,
     isRequired: true,
-    description: ""
+    description: "",
   });
 
   useEffect(() => {
@@ -438,11 +481,15 @@ const BatteryFormDialog = ({
     } else {
       setFormData({
         name: "",
-        gridType: gridTypes.find(gt => gt.isDefault)?.id || gridTypes[0]?.id || "",
-        scoringSystemId: scoringSystems.find(ss => ss.isDefault)?.id || scoringSystems[0]?.id || "",
+        gridType:
+          gridTypes.find((gt) => gt.isDefault)?.id || gridTypes[0]?.id || "",
+        scoringSystemId:
+          scoringSystems.find((ss) => ss.isDefault)?.id ||
+          scoringSystems[0]?.id ||
+          "",
         order: 1,
         isRequired: true,
-        description: ""
+        description: "",
       });
     }
   }, [battery, gridTypes, scoringSystems, open]);
@@ -469,7 +516,9 @@ const BatteryFormDialog = ({
             <Input
               id="name"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               placeholder="Ex: Classificação"
               required
             />
@@ -479,7 +528,9 @@ const BatteryFormDialog = ({
             <Label htmlFor="gridType">Tipo de Grid *</Label>
             <Select
               value={formData.gridType}
-              onValueChange={(value) => setFormData({ ...formData, gridType: value })}
+              onValueChange={(value) =>
+                setFormData({ ...formData, gridType: value })
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o tipo de grid" />
@@ -506,7 +557,9 @@ const BatteryFormDialog = ({
             <Label htmlFor="scoringSystemId">Sistema de Pontuação *</Label>
             <Select
               value={formData.scoringSystemId}
-              onValueChange={(value) => setFormData({ ...formData, scoringSystemId: value })}
+              onValueChange={(value) =>
+                setFormData({ ...formData, scoringSystemId: value })
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o sistema de pontuação" />
@@ -533,7 +586,9 @@ const BatteryFormDialog = ({
             <Textarea
               id="description"
               value={formData.description || ""}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               placeholder="Descrição opcional da bateria"
               rows={2}
             />
@@ -546,10 +601,14 @@ const BatteryFormDialog = ({
               type="number"
               min="1"
               value={formData.duration || ""}
-              onChange={(e) => setFormData({ 
-                ...formData, 
-                duration: e.target.value ? parseInt(e.target.value) : undefined 
-              })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  duration: e.target.value
+                    ? parseInt(e.target.value)
+                    : undefined,
+                })
+              }
               placeholder="Ex: 15"
             />
           </div>
@@ -558,18 +617,22 @@ const BatteryFormDialog = ({
             <Checkbox
               id="isRequired"
               checked={formData.isRequired}
-              onCheckedChange={(checked) => setFormData({ ...formData, isRequired: checked === true })}
+              onCheckedChange={(checked) =>
+                setFormData({ ...formData, isRequired: checked === true })
+              }
             />
             <Label htmlFor="isRequired" className="text-sm font-normal">
               Bateria obrigatória
             </Label>
           </div>
-
-
         </form>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+          >
             Cancelar
           </Button>
           <Button type="submit" onClick={handleSubmit}>
@@ -579,4 +642,4 @@ const BatteryFormDialog = ({
       </DialogContent>
     </Dialog>
   );
-}; 
+};

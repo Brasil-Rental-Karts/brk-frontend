@@ -1,11 +1,31 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
-import { Button, Badge } from 'brk-design-system';
-import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, Eye, AlertCircle, CheckCircle, XCircle, Clock, Calendar, MapPin, Users, Trophy, Flag, Settings, ChevronDown, ChevronRight, ChevronUp, ChevronLeft, RefreshCw, RotateCcw, Play, Pause, SkipBack, SkipForward, FastForward, Rewind, Volume2, VolumeX, Mic, MicOff, Camera, CameraOff, Video, VideoOff, Image, FileText, File, Folder, FolderOpen, FolderPlus, FolderMinus, FolderX, FilePlus, FileMinus, FileX, FileCheck, FileEdit, FileSearch, FileImage, FileVideo, FileAudio, FileArchive, FileCode, FileSpreadsheet, FileJson, UserX, Ban, AlertTriangle } from 'lucide-react';
-import { PenaltyService, PenaltyType, Penalty, PenaltyStatus } from '@/lib/services/penalty.service';
-import { Loading } from '@/components/ui/loading';
-import { toast } from 'sonner';
-import { formatName } from '@/utils/name';
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "brk-design-system";
+import {
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Edit,
+  MapPin,
+  RotateCcw,
+  Trash2,
+  UserX,
+  XCircle,
+} from "lucide-react";
+import React from "react";
+
+import {
+  Penalty,
+  PenaltyService,
+  PenaltyStatus,
+  PenaltyType,
+} from "@/lib/services/penalty.service";
+import { formatName } from "@/utils/name";
 
 interface PenaltyListProps {
   penalties: Penalty[];
@@ -44,26 +64,26 @@ export const PenaltyList: React.FC<PenaltyListProps> = ({
     }
   };
 
-      const getStatusIcon = (status: PenaltyStatus) => {
-      switch (status) {
-        case PenaltyStatus.APPLIED:
-          return <CheckCircle className="h-4 w-4" />;
-        case PenaltyStatus.NOT_APPLIED:
-          return <XCircle className="h-4 w-4" />;
-        case PenaltyStatus.APPEALED:
-          return <RotateCcw className="h-4 w-4" />;
-        default:
-          return <Clock className="h-4 w-4" />;
-      }
-    };
+  const getStatusIcon = (status: PenaltyStatus) => {
+    switch (status) {
+      case PenaltyStatus.APPLIED:
+        return <CheckCircle className="h-4 w-4" />;
+      case PenaltyStatus.NOT_APPLIED:
+        return <XCircle className="h-4 w-4" />;
+      case PenaltyStatus.APPEALED:
+        return <RotateCcw className="h-4 w-4" />;
+      default:
+        return <Clock className="h-4 w-4" />;
+    }
+  };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return new Date(dateString).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -90,7 +110,9 @@ export const PenaltyList: React.FC<PenaltyListProps> = ({
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-8">
           <AlertTriangle className="h-12 w-12 text-gray-400 mb-4" />
-          <p className="text-gray-500 text-center">Nenhuma punição encontrada</p>
+          <p className="text-gray-500 text-center">
+            Nenhuma punição encontrada
+          </p>
         </CardContent>
       </Card>
     );
@@ -109,12 +131,20 @@ export const PenaltyList: React.FC<PenaltyListProps> = ({
                 </CardTitle>
               </div>
               <div className="flex items-center space-x-2">
-                <Badge className={PenaltyService.getPenaltyTypeColor(penalty.type)}>
+                <Badge
+                  className={PenaltyService.getPenaltyTypeColor(penalty.type)}
+                >
                   {PenaltyService.getPenaltyTypeLabel(penalty.type)}
                 </Badge>
-                <Badge className={PenaltyService.getPenaltyStatusColor(penalty.status)}>
+                <Badge
+                  className={PenaltyService.getPenaltyStatusColor(
+                    penalty.status,
+                  )}
+                >
                   {getStatusIcon(penalty.status)}
-                  <span className="ml-1">{PenaltyService.getPenaltyStatusLabel(penalty.status)}</span>
+                  <span className="ml-1">
+                    {PenaltyService.getPenaltyStatusLabel(penalty.status)}
+                  </span>
                 </Badge>
               </div>
             </div>
@@ -125,10 +155,12 @@ export const PenaltyList: React.FC<PenaltyListProps> = ({
                 <h4 className="font-semibold text-sm text-gray-600">Motivo</h4>
                 <p className="text-sm">{penalty.reason}</p>
               </div>
-              
+
               {penalty.description && (
                 <div>
-                  <h4 className="font-semibold text-sm text-gray-600">Descrição</h4>
+                  <h4 className="font-semibold text-sm text-gray-600">
+                    Descrição
+                  </h4>
                   <p className="text-sm">{penalty.description}</p>
                 </div>
               )}
@@ -136,79 +168,94 @@ export const PenaltyList: React.FC<PenaltyListProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {penalty.timePenaltySeconds && (
                   <div>
-                    <h4 className="font-semibold text-sm text-gray-600">Penalidade de Tempo</h4>
-                    <p className="text-sm">{penalty.timePenaltySeconds} segundos</p>
+                    <h4 className="font-semibold text-sm text-gray-600">
+                      Penalidade de Tempo
+                    </h4>
+                    <p className="text-sm">
+                      {penalty.timePenaltySeconds} segundos
+                    </p>
                   </div>
                 )}
 
                 {penalty.positionPenalty && (
                   <div>
-                    <h4 className="font-semibold text-sm text-gray-600">Penalidade de Posição</h4>
-                    <p className="text-sm">{penalty.positionPenalty} posições</p>
+                    <h4 className="font-semibold text-sm text-gray-600">
+                      Penalidade de Posição
+                    </h4>
+                    <p className="text-sm">
+                      {penalty.positionPenalty} posições
+                    </p>
                   </div>
                 )}
-
-
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                 <div>
-                  <span className="font-semibold">Piloto:</span> {penalty.user?.name || 'N/A'}
+                  <span className="font-semibold">Piloto:</span>{" "}
+                  {penalty.user?.name || "N/A"}
                 </div>
                 <div>
-                  <span className="font-semibold">Aplicada por:</span> {penalty.appliedByUser?.name || 'N/A'}
+                  <span className="font-semibold">Aplicada por:</span>{" "}
+                  {penalty.appliedByUser?.name || "N/A"}
                 </div>
                 {penalty.appealedByUser && (
                   <div>
-                    <span className="font-semibold">Recorrida por:</span> {formatName(penalty.appealedByUser.name)}
+                    <span className="font-semibold">Recorrida por:</span>{" "}
+                    {formatName(penalty.appealedByUser.name)}
                   </div>
                 )}
                 <div>
-                  <span className="font-semibold">Data:</span> {formatDate(penalty.createdAt)}
+                  <span className="font-semibold">Data:</span>{" "}
+                  {formatDate(penalty.createdAt)}
                 </div>
               </div>
 
               {penalty.appealReason && (
                 <div>
-                  <h4 className="font-semibold text-sm text-gray-600">Motivo do Recurso</h4>
+                  <h4 className="font-semibold text-sm text-gray-600">
+                    Motivo do Recurso
+                  </h4>
                   <p className="text-sm">{penalty.appealReason}</p>
                 </div>
               )}
 
               {showActions && (
                 <div className="flex items-center justify-end space-x-2 pt-4 border-t">
-                  {penalty.status === PenaltyStatus.NOT_APPLIED && onApplyPenalty && (
-                    <Button
-                      size="sm"
-                      onClick={() => onApplyPenalty(penalty.id)}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      Aplicar
-                    </Button>
-                  )}
+                  {penalty.status === PenaltyStatus.NOT_APPLIED &&
+                    onApplyPenalty && (
+                      <Button
+                        size="sm"
+                        onClick={() => onApplyPenalty(penalty.id)}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Aplicar
+                      </Button>
+                    )}
 
-                  {penalty.status === PenaltyStatus.APPLIED && onAppealPenalty && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onAppealPenalty(penalty.id)}
-                    >
-                      <RotateCcw className="h-4 w-4 mr-1" />
-                      Recorrer
-                    </Button>
-                  )}
+                  {penalty.status === PenaltyStatus.APPLIED &&
+                    onAppealPenalty && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onAppealPenalty(penalty.id)}
+                      >
+                        <RotateCcw className="h-4 w-4 mr-1" />
+                        Recorrer
+                      </Button>
+                    )}
 
-                  {penalty.status !== PenaltyStatus.NOT_APPLIED && onCancelPenalty && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onCancelPenalty(penalty.id)}
-                    >
-                      <XCircle className="h-4 w-4 mr-1" />
-                      Cancelar
-                    </Button>
-                  )}
+                  {penalty.status !== PenaltyStatus.NOT_APPLIED &&
+                    onCancelPenalty && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onCancelPenalty(penalty.id)}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" />
+                        Cancelar
+                      </Button>
+                    )}
 
                   {onEditPenalty && (
                     <Button
@@ -240,4 +287,4 @@ export const PenaltyList: React.FC<PenaltyListProps> = ({
       ))}
     </div>
   );
-}; 
+};

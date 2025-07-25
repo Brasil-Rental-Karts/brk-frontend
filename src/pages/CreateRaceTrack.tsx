@@ -1,19 +1,22 @@
-import { useState, useEffect, useCallback } from "react";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+  Textarea,
+} from "brk-design-system";
+import { Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
+
 import { DynamicForm } from "@/components/ui/dynamic-form";
 import { FormSectionConfig } from "@/components/ui/dynamic-form";
-import { 
-  fetchCitiesByState, 
-  states,
-  City 
-} from "@/utils/ibge";
 import { RaceTrackService } from "@/lib/services/race-track.service";
-import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle, Button } from "brk-design-system";
-import { Input } from "brk-design-system";
-import { Label } from "brk-design-system";
-import { Textarea } from "brk-design-system";
-import { Plus, Trash2 } from "lucide-react";
+import { City, fetchCitiesByState, states } from "@/utils/ibge";
 
 interface TrackLayout {
   name: string;
@@ -32,10 +35,10 @@ export const CreateRaceTrack = () => {
   const [cities, setCities] = useState<City[]>([]);
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const [trackLayouts, setTrackLayouts] = useState<TrackLayout[]>([
-    { name: "Traçado Principal", length: 1000, description: "" }
+    { name: "Traçado Principal", length: 1000, description: "" },
   ]);
   const [defaultFleets, setDefaultFleets] = useState<DefaultFleet[]>([
-    { name: "Frota 1", kartQuantity: 10 }
+    { name: "Frota 1", kartQuantity: 10 },
   ]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -47,16 +50,19 @@ export const CreateRaceTrack = () => {
       const citiesData = await fetchCitiesByState(uf);
       setCities(citiesData);
     } catch (error) {
-      console.error('Erro ao carregar cidades:', error);
+      console.error("Erro ao carregar cidades:", error);
       setCities([]);
     }
   }, []);
 
-  const handleFieldChange = useCallback(async (fieldId: string, value: any, formData: any) => {
-    if (fieldId === "state" && value) {
-      await loadCities(value);
-    }
-  }, [loadCities]);
+  const handleFieldChange = useCallback(
+    async (fieldId: string, value: any, formData: any) => {
+      if (fieldId === "state" && value) {
+        await loadCities(value);
+      }
+    },
+    [loadCities],
+  );
 
   const fetchData = useCallback(async () => {
     if (isEditing && id) {
@@ -64,66 +70,77 @@ export const CreateRaceTrack = () => {
         const data = await RaceTrackService.getById(id);
         return data;
       } catch (error) {
-        console.error('Erro ao carregar dados:', error);
+        console.error("Erro ao carregar dados:", error);
         throw error;
       }
     }
     return null;
   }, [isEditing, id]);
 
-  const updateData = useCallback(async (id: string, data: any) => {
-    const processedData = {
-      ...data,
-      trackLayouts,
-      defaultFleets,
-      isActive: data.isActive === "true" || data.isActive === true
-    };
+  const updateData = useCallback(
+    async (id: string, data: any) => {
+      const processedData = {
+        ...data,
+        trackLayouts,
+        defaultFleets,
+        isActive: data.isActive === "true" || data.isActive === true,
+      };
 
-    if (isEditing) {
-      return await RaceTrackService.update(id, processedData);
-    } else {
-      return await RaceTrackService.create(processedData);
-    }
-  }, [isEditing, trackLayouts, defaultFleets]);
+      if (isEditing) {
+        return await RaceTrackService.update(id, processedData);
+      } else {
+        return await RaceTrackService.create(processedData);
+      }
+    },
+    [isEditing, trackLayouts, defaultFleets],
+  );
 
-  const transformInitialData = useCallback((data: any) => {
-    if (data?.state) {
-      loadCities(data.state);
-    }
-    
-    if (data?.trackLayouts && data.trackLayouts.length > 0) {
-      setTrackLayouts(data.trackLayouts);
-    }
-    
-    if (data?.defaultFleets && data.defaultFleets.length > 0) {
-      setDefaultFleets(data.defaultFleets);
-    }
+  const transformInitialData = useCallback(
+    (data: any) => {
+      if (data?.state) {
+        loadCities(data.state);
+      }
 
-    return {
-      ...data,
-      name: data?.name || "",
-      city: data?.city || "",
-      state: data?.state || "",
-      address: data?.address || "",
-      generalInfo: data?.generalInfo || "",
-      isActive: data?.isActive !== undefined ? data.isActive.toString() : "true"
-    };
-  }, [loadCities]);
+      if (data?.trackLayouts && data.trackLayouts.length > 0) {
+        setTrackLayouts(data.trackLayouts);
+      }
+
+      if (data?.defaultFleets && data.defaultFleets.length > 0) {
+        setDefaultFleets(data.defaultFleets);
+      }
+
+      return {
+        ...data,
+        name: data?.name || "",
+        city: data?.city || "",
+        state: data?.state || "",
+        address: data?.address || "",
+        generalInfo: data?.generalInfo || "",
+        isActive:
+          data?.isActive !== undefined ? data.isActive.toString() : "true",
+      };
+    },
+    [loadCities],
+  );
 
   const transformSubmitData = (data: any) => {
     return {
       ...data,
-      isActive: data.isActive === "true"
+      isActive: data.isActive === "true",
     };
   };
 
   const onSuccess = () => {
-    toast.success(isEditing ? 'Kartódromo atualizado com sucesso!' : 'Kartódromo criado com sucesso!');
-    navigate('/admin?tab=race-tracks', { replace: true });
+    toast.success(
+      isEditing
+        ? "Kartódromo atualizado com sucesso!"
+        : "Kartódromo criado com sucesso!",
+    );
+    navigate("/admin?tab=race-tracks", { replace: true });
   };
 
   const onCancel = () => {
-    navigate('/admin?tab=race-tracks');
+    navigate("/admin?tab=race-tracks");
   };
 
   // Carregar dados iniciais
@@ -142,12 +159,12 @@ export const CreateRaceTrack = () => {
             state: "",
             address: "",
             generalInfo: "",
-            isActive: "true"
+            isActive: "true",
           });
         }
       } catch (error) {
-        toast.error('Erro ao carregar dados do kartódromo');
-        navigate('/admin?tab=race-tracks');
+        toast.error("Erro ao carregar dados do kartódromo");
+        navigate("/admin?tab=race-tracks");
       } finally {
         setLoading(false);
       }
@@ -158,48 +175,60 @@ export const CreateRaceTrack = () => {
 
   // Funções para gerenciar traçados
   const addTrackLayout = () => {
-    setTrackLayouts(prev => [
+    setTrackLayouts((prev) => [
       ...prev,
-      { name: `Traçado ${prev.length + 1}`, length: 1000, description: "" }
+      { name: `Traçado ${prev.length + 1}`, length: 1000, description: "" },
     ]);
   };
 
   const removeTrackLayout = (index: number) => {
-    setTrackLayouts(prev => prev.filter((_, i) => i !== index));
+    setTrackLayouts((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const updateTrackLayout = (index: number, field: keyof TrackLayout, value: any) => {
-    setTrackLayouts(prev => prev.map((track, i) => 
-      i === index ? { ...track, [field]: value } : track
-    ));
+  const updateTrackLayout = (
+    index: number,
+    field: keyof TrackLayout,
+    value: any,
+  ) => {
+    setTrackLayouts((prev) =>
+      prev.map((track, i) =>
+        i === index ? { ...track, [field]: value } : track,
+      ),
+    );
   };
 
   // Funções para gerenciar frotas
   const addDefaultFleet = () => {
-    setDefaultFleets(prev => [
+    setDefaultFleets((prev) => [
       ...prev,
-      { name: `Frota ${prev.length + 1}`, kartQuantity: 10 }
+      { name: `Frota ${prev.length + 1}`, kartQuantity: 10 },
     ]);
   };
 
   const removeDefaultFleet = (index: number) => {
-    setDefaultFleets(prev => prev.filter((_, i) => i !== index));
+    setDefaultFleets((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const updateDefaultFleet = (index: number, field: keyof DefaultFleet, value: any) => {
-    setDefaultFleets(prev => prev.map((fleet, i) => 
-      i === index ? { ...fleet, [field]: value } : fleet
-    ));
+  const updateDefaultFleet = (
+    index: number,
+    field: keyof DefaultFleet,
+    value: any,
+  ) => {
+    setDefaultFleets((prev) =>
+      prev.map((fleet, i) =>
+        i === index ? { ...fleet, [field]: value } : fleet,
+      ),
+    );
   };
 
   const handleSubmit = async (formData: any) => {
     // Validar se há pelo menos um traçado e uma frota
     if (trackLayouts.length === 0) {
-      toast.error('Pelo menos um traçado deve ser configurado');
+      toast.error("Pelo menos um traçado deve ser configurado");
       return;
     }
     if (defaultFleets.length === 0) {
-      toast.error('Pelo menos uma frota deve ser configurada');
+      toast.error("Pelo menos uma frota deve ser configurada");
       return;
     }
 
@@ -209,7 +238,7 @@ export const CreateRaceTrack = () => {
       await updateData(id || "new", transformedData);
       onSuccess();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Erro ao salvar kartódromo');
+      toast.error(error.response?.data?.message || "Erro ao salvar kartódromo");
     } finally {
       setSaving(false);
     }
@@ -227,25 +256,31 @@ export const CreateRaceTrack = () => {
             type: "input",
             mandatory: true,
             max_char: 100,
-            placeholder: "Digite o nome do kartódromo"
+            placeholder: "Digite o nome do kartódromo",
           },
           {
             id: "state",
             name: "Estado",
             type: "select",
             mandatory: true,
-            options: states.map(state => ({ value: state, description: state })),
+            options: states.map((state) => ({
+              value: state,
+              description: state,
+            })),
             inline: true,
-            inlineGroup: "location"
+            inlineGroup: "location",
           },
           {
             id: "city",
             name: "Cidade",
             type: "select",
             mandatory: true,
-            options: cities.map(city => ({ value: city.nome, description: city.nome })),
+            options: cities.map((city) => ({
+              value: city.nome,
+              description: city.nome,
+            })),
             inline: true,
-            inlineGroup: "location"
+            inlineGroup: "location",
           },
           {
             id: "address",
@@ -253,7 +288,7 @@ export const CreateRaceTrack = () => {
             type: "textarea",
             mandatory: true,
             max_char: 500,
-            placeholder: "Digite o endereço completo do kartódromo"
+            placeholder: "Digite o endereço completo do kartódromo",
           },
           {
             id: "generalInfo",
@@ -261,7 +296,7 @@ export const CreateRaceTrack = () => {
             type: "textarea",
             mandatory: false,
             max_char: 1000,
-            placeholder: "Informações adicionais sobre o kartódromo..."
+            placeholder: "Informações adicionais sobre o kartódromo...",
           },
           {
             id: "isActive",
@@ -270,11 +305,11 @@ export const CreateRaceTrack = () => {
             mandatory: false,
             options: [
               { value: "true", description: "Sim" },
-              { value: "false", description: "Não" }
-            ]
-          }
-        ]
-      }
+              { value: "false", description: "Não" },
+            ],
+          },
+        ],
+      },
     ];
 
     setFormConfig(config);
@@ -297,27 +332,39 @@ export const CreateRaceTrack = () => {
               {isEditing ? "Editar Kartódromo" : "Novo Kartódromo"}
             </h1>
             <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-              {isEditing 
-                ? "Atualize as informações do kartódromo." 
-                : "Cadastre um novo kartódromo no sistema."
-              }
+              {isEditing
+                ? "Atualize as informações do kartódromo."
+                : "Cadastre um novo kartódromo no sistema."}
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2 w-full sm:w-auto">
-            <Button variant="outline" onClick={onCancel} disabled={saving} className="w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={onCancel}
+              disabled={saving}
+              className="w-full sm:w-auto"
+            >
               Cancelar
             </Button>
-            <Button 
+            <Button
               onClick={() => {
-                const formElement = document.getElementById('race-track-form') as HTMLFormElement;
+                const formElement = document.getElementById(
+                  "race-track-form",
+                ) as HTMLFormElement;
                 if (formElement) {
-                  formElement.dispatchEvent(new Event('submit', { bubbles: true }));
+                  formElement.dispatchEvent(
+                    new Event("submit", { bubbles: true }),
+                  );
                 }
               }}
               disabled={saving}
               className="w-full sm:w-auto"
             >
-              {saving ? "Salvando..." : (isEditing ? "Atualizar kartódromo" : "Criar kartódromo")}
+              {saving
+                ? "Salvando..."
+                : isEditing
+                  ? "Atualizar kartódromo"
+                  : "Criar kartódromo"}
             </Button>
           </div>
         </div>
@@ -347,7 +394,12 @@ export const CreateRaceTrack = () => {
                   Configure os traçados disponíveis no kartódromo
                 </p>
               </div>
-              <Button onClick={addTrackLayout} variant="outline" size="sm" className="w-full sm:w-auto">
+              <Button
+                onClick={addTrackLayout}
+                variant="outline"
+                size="sm"
+                className="w-full sm:w-auto"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Traçado
               </Button>
@@ -359,7 +411,9 @@ export const CreateRaceTrack = () => {
                 <Card key={index} className="border">
                   <CardContent className="pt-4">
                     <div className="flex items-center justify-between mb-4">
-                      <h4 className="font-medium text-sm sm:text-base">Traçado {index + 1}</h4>
+                      <h4 className="font-medium text-sm sm:text-base">
+                        Traçado {index + 1}
+                      </h4>
                       {trackLayouts.length > 1 && (
                         <Button
                           variant="outline"
@@ -372,35 +426,51 @@ export const CreateRaceTrack = () => {
                         </Button>
                       )}
                     </div>
-                    
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="text-sm">Nome *</Label>
                         <Input
                           value={track.name}
-                          onChange={(e) => updateTrackLayout(index, 'name', e.target.value)}
+                          onChange={(e) =>
+                            updateTrackLayout(index, "name", e.target.value)
+                          }
                           placeholder="Ex: Traçado Principal"
                           className="text-sm"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-sm">Comprimento (metros) *</Label>
+                        <Label className="text-sm">
+                          Comprimento (metros) *
+                        </Label>
                         <Input
                           type="number"
                           value={track.length}
-                          onChange={(e) => updateTrackLayout(index, 'length', parseInt(e.target.value) || 0)}
+                          onChange={(e) =>
+                            updateTrackLayout(
+                              index,
+                              "length",
+                              parseInt(e.target.value) || 0,
+                            )
+                          }
                           min="1"
                           placeholder="1000"
                           className="text-sm"
                         />
                       </div>
                     </div>
-                    
+
                     <div className="mt-4 space-y-2">
                       <Label className="text-sm">Descrição</Label>
                       <Textarea
                         value={track.description}
-                        onChange={(e) => updateTrackLayout(index, 'description', e.target.value)}
+                        onChange={(e) =>
+                          updateTrackLayout(
+                            index,
+                            "description",
+                            e.target.value,
+                          )
+                        }
                         placeholder="Descrição do traçado..."
                         className="text-sm"
                       />
@@ -417,12 +487,19 @@ export const CreateRaceTrack = () => {
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <CardTitle className="text-lg sm:text-xl">Frotas Padrão</CardTitle>
+                <CardTitle className="text-lg sm:text-xl">
+                  Frotas Padrão
+                </CardTitle>
                 <p className="text-sm text-muted-foreground">
                   Configure as frotas disponíveis no kartódromo
                 </p>
               </div>
-              <Button onClick={addDefaultFleet} variant="outline" size="sm" className="w-full sm:w-auto">
+              <Button
+                onClick={addDefaultFleet}
+                variant="outline"
+                size="sm"
+                className="w-full sm:w-auto"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Frota
               </Button>
@@ -434,7 +511,9 @@ export const CreateRaceTrack = () => {
                 <Card key={index} className="border">
                   <CardContent className="pt-4">
                     <div className="flex items-center justify-between mb-4">
-                      <h4 className="font-medium text-sm sm:text-base">Frota {index + 1}</h4>
+                      <h4 className="font-medium text-sm sm:text-base">
+                        Frota {index + 1}
+                      </h4>
                       {defaultFleets.length > 1 && (
                         <Button
                           variant="outline"
@@ -447,13 +526,15 @@ export const CreateRaceTrack = () => {
                         </Button>
                       )}
                     </div>
-                    
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="text-sm">Nome *</Label>
                         <Input
                           value={fleet.name}
-                          onChange={(e) => updateDefaultFleet(index, 'name', e.target.value)}
+                          onChange={(e) =>
+                            updateDefaultFleet(index, "name", e.target.value)
+                          }
                           placeholder="Ex: Frota 1"
                           className="text-sm"
                         />
@@ -463,7 +544,13 @@ export const CreateRaceTrack = () => {
                         <Input
                           type="number"
                           value={fleet.kartQuantity}
-                          onChange={(e) => updateDefaultFleet(index, 'kartQuantity', parseInt(e.target.value) || 0)}
+                          onChange={(e) =>
+                            updateDefaultFleet(
+                              index,
+                              "kartQuantity",
+                              parseInt(e.target.value) || 0,
+                            )
+                          }
                           min="1"
                           placeholder="10"
                           className="text-sm"
@@ -479,20 +566,33 @@ export const CreateRaceTrack = () => {
 
         {/* Botões de ação no final */}
         <div className="flex flex-col sm:flex-row justify-end gap-2 sm:space-x-2 pt-4 border-t">
-          <Button variant="outline" onClick={onCancel} disabled={saving} className="w-full sm:w-auto">
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            disabled={saving}
+            className="w-full sm:w-auto"
+          >
             Cancelar
           </Button>
-          <Button 
+          <Button
             onClick={() => {
-              const formElement = document.getElementById('race-track-form') as HTMLFormElement;
+              const formElement = document.getElementById(
+                "race-track-form",
+              ) as HTMLFormElement;
               if (formElement) {
-                formElement.dispatchEvent(new Event('submit', { bubbles: true }));
+                formElement.dispatchEvent(
+                  new Event("submit", { bubbles: true }),
+                );
               }
             }}
             disabled={saving}
             className="w-full sm:w-auto"
           >
-            {saving ? "Salvando..." : (isEditing ? "Atualizar kartódromo" : "Criar kartódromo")}
+            {saving
+              ? "Salvando..."
+              : isEditing
+                ? "Atualizar kartódromo"
+                : "Criar kartódromo"}
           </Button>
         </div>
       </div>
@@ -500,4 +600,4 @@ export const CreateRaceTrack = () => {
   );
 };
 
-export default CreateRaceTrack; 
+export default CreateRaceTrack;

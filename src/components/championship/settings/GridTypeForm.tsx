@@ -1,29 +1,34 @@
-import { useState, useEffect } from "react";
-import { Button } from "brk-design-system";
-import { Input } from "brk-design-system";
-import { Label } from "brk-design-system";
-import { Textarea } from "brk-design-system";
-import { Badge } from "brk-design-system";
-import { 
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Checkbox,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Textarea,
 } from "brk-design-system";
-import { Checkbox } from "brk-design-system";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
-} from "brk-design-system";
-import { Alert, AlertDescription } from "brk-design-system";
-import { GridType, GridTypeEnum, GridTypeFormData, PREDEFINED_GRID_TYPES } from "@/lib/types/grid-type";
-import { GridTypeService } from "@/lib/services/grid-type.service";
+import { useEffect, useState } from "react";
+
 import { GridTypeIcon } from "@/lib/icons/grid-type-icons";
+import { GridTypeService } from "@/lib/services/grid-type.service";
+import {
+  GridType,
+  GridTypeEnum,
+  GridTypeFormData,
+  PREDEFINED_GRID_TYPES,
+} from "@/lib/types/grid-type";
 
 interface GridTypeFormProps {
   championshipId: string;
@@ -41,7 +46,7 @@ export const GridTypeForm = ({
   gridType,
   open,
   onOpenChange,
-  onSuccess
+  onSuccess,
 }: GridTypeFormProps) => {
   const [formData, setFormData] = useState<GridTypeFormData>({
     name: "",
@@ -50,9 +55,9 @@ export const GridTypeForm = ({
     isActive: true,
     isDefault: false,
     invertedPositions: 10,
-    qualifyingDuration: 5
+    qualifyingDuration: 5,
   });
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -69,7 +74,7 @@ export const GridTypeForm = ({
         isActive: gridType.isActive,
         isDefault: gridType.isDefault,
         invertedPositions: gridType.invertedPositions || 10,
-        qualifyingDuration: gridType.qualifyingDuration || 5
+        qualifyingDuration: gridType.qualifyingDuration || 5,
       });
     } else {
       setFormData({
@@ -79,20 +84,20 @@ export const GridTypeForm = ({
         isActive: true,
         isDefault: false,
         invertedPositions: 10,
-        qualifyingDuration: 5
+        qualifyingDuration: 5,
       });
     }
     setError(null);
   }, [gridType, open]);
 
   const handleInputChange = (field: keyof GridTypeFormData, value: any) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
-  const applyTemplate = (template: typeof PREDEFINED_GRID_TYPES[0]) => {
+  const applyTemplate = (template: (typeof PREDEFINED_GRID_TYPES)[0]) => {
     setFormData({
       name: template.name,
       description: template.description,
@@ -100,7 +105,7 @@ export const GridTypeForm = ({
       isActive: true,
       isDefault: false,
       invertedPositions: template.invertedPositions || 10,
-      qualifyingDuration: template.qualifyingDuration || 5
+      qualifyingDuration: template.qualifyingDuration || 5,
     });
     setShowTemplates(false);
   };
@@ -118,10 +123,16 @@ export const GridTypeForm = ({
       if (!formData.description.trim()) {
         throw new Error("Descrição é obrigatória");
       }
-      if (formData.type === GridTypeEnum.INVERTED_PARTIAL && (!formData.invertedPositions || formData.invertedPositions < 1)) {
+      if (
+        formData.type === GridTypeEnum.INVERTED_PARTIAL &&
+        (!formData.invertedPositions || formData.invertedPositions < 1)
+      ) {
         throw new Error("Número de posições invertidas deve ser maior que 0");
       }
-      if (formData.type === GridTypeEnum.QUALIFYING_SESSION && (!formData.qualifyingDuration || formData.qualifyingDuration < 1)) {
+      if (
+        formData.type === GridTypeEnum.QUALIFYING_SESSION &&
+        (!formData.qualifyingDuration || formData.qualifyingDuration < 1)
+      ) {
         throw new Error("Duração da classificação deve ser maior que 0");
       }
 
@@ -195,7 +206,7 @@ export const GridTypeForm = ({
                 {showTemplates ? "Ocultar" : "Mostrar"} Templates
               </Button>
             </div>
-            
+
             {showTemplates && (
               <div className="grid gap-2">
                 {PREDEFINED_GRID_TYPES.map((template, index) => (
@@ -208,9 +219,9 @@ export const GridTypeForm = ({
                   >
                     <div>
                       <div className="flex items-center gap-2 font-medium">
-                        <GridTypeIcon 
-                          type={template.type} 
-                          size={18} 
+                        <GridTypeIcon
+                          type={template.type}
+                          size={18}
                           withColor={true}
                         />
                         {template.name}
@@ -260,7 +271,9 @@ export const GridTypeForm = ({
             <Label>Tipo *</Label>
             <Select
               value={formData.type}
-              onValueChange={(value) => handleInputChange("type", value as GridTypeEnum)}
+              onValueChange={(value) =>
+                handleInputChange("type", value as GridTypeEnum)
+              }
               disabled={loading}
             >
               <SelectTrigger>
@@ -281,13 +294,19 @@ export const GridTypeForm = ({
                 </SelectItem>
                 <SelectItem value={GridTypeEnum.INVERTED_PARTIAL}>
                   <div className="flex items-center gap-2">
-                    <GridTypeIcon type={GridTypeEnum.INVERTED_PARTIAL} size={16} />
+                    <GridTypeIcon
+                      type={GridTypeEnum.INVERTED_PARTIAL}
+                      size={16}
+                    />
                     Invertido Parcial
                   </div>
                 </SelectItem>
                 <SelectItem value={GridTypeEnum.QUALIFYING_SESSION}>
                   <div className="flex items-center gap-2">
-                    <GridTypeIcon type={GridTypeEnum.QUALIFYING_SESSION} size={16} />
+                    <GridTypeIcon
+                      type={GridTypeEnum.QUALIFYING_SESSION}
+                      size={16}
+                    />
                     Classificação por Tempo
                   </div>
                 </SelectItem>
@@ -301,7 +320,9 @@ export const GridTypeForm = ({
           {/* Posições invertidas (apenas para tipo parcial) */}
           {formData.type === GridTypeEnum.INVERTED_PARTIAL && (
             <div className="space-y-2">
-              <Label htmlFor="invertedPositions">Número de posições invertidas *</Label>
+              <Label htmlFor="invertedPositions">
+                Número de posições invertidas *
+              </Label>
               <div className="space-y-2">
                 <Input
                   id="invertedPositions"
@@ -309,7 +330,12 @@ export const GridTypeForm = ({
                   min="1"
                   max="50"
                   value={formData.invertedPositions || ""}
-                  onChange={(e) => handleInputChange("invertedPositions", parseInt(e.target.value) || 1)}
+                  onChange={(e) =>
+                    handleInputChange(
+                      "invertedPositions",
+                      parseInt(e.target.value) || 1,
+                    )
+                  }
                   placeholder="10"
                   disabled={loading}
                   className="w-full"
@@ -321,7 +347,9 @@ export const GridTypeForm = ({
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => handleInputChange("invertedPositions", num)}
+                      onClick={() =>
+                        handleInputChange("invertedPositions", num)
+                      }
                       disabled={loading}
                       className="px-2 py-1 text-xs flex-1"
                     >
@@ -331,7 +359,8 @@ export const GridTypeForm = ({
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Quantas posições a partir do primeiro colocado serão invertidas (ex: 10 = inverte do 1º ao 10º lugar)
+                Quantas posições a partir do primeiro colocado serão invertidas
+                (ex: 10 = inverte do 1º ao 10º lugar)
               </p>
             </div>
           )}
@@ -339,7 +368,9 @@ export const GridTypeForm = ({
           {/* Duração da classificação (apenas para tipo qualifying_session) */}
           {formData.type === GridTypeEnum.QUALIFYING_SESSION && (
             <div className="space-y-2">
-              <Label htmlFor="qualifyingDuration">Duração da classificação (minutos) *</Label>
+              <Label htmlFor="qualifyingDuration">
+                Duração da classificação (minutos) *
+              </Label>
               <div className="space-y-2">
                 <Input
                   id="qualifyingDuration"
@@ -347,7 +378,12 @@ export const GridTypeForm = ({
                   min="1"
                   max="60"
                   value={formData.qualifyingDuration || ""}
-                  onChange={(e) => handleInputChange("qualifyingDuration", parseInt(e.target.value) || 1)}
+                  onChange={(e) =>
+                    handleInputChange(
+                      "qualifyingDuration",
+                      parseInt(e.target.value) || 1,
+                    )
+                  }
                   placeholder="5"
                   disabled={loading}
                   className="w-full"
@@ -359,7 +395,9 @@ export const GridTypeForm = ({
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => handleInputChange("qualifyingDuration", num)}
+                      onClick={() =>
+                        handleInputChange("qualifyingDuration", num)
+                      }
                       disabled={loading}
                       className="px-2 py-1 text-xs flex-1"
                     >
@@ -369,7 +407,8 @@ export const GridTypeForm = ({
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Tempo total da sessão de classificação. Posições definidas pela volta mais rápida durante este período
+                Tempo total da sessão de classificação. Posições definidas pela
+                volta mais rápida durante este período
               </p>
             </div>
           )}
@@ -393,7 +432,9 @@ export const GridTypeForm = ({
               <Checkbox
                 id="isActive"
                 checked={formData.isActive}
-                onCheckedChange={(checked) => handleInputChange("isActive", checked)}
+                onCheckedChange={(checked) =>
+                  handleInputChange("isActive", checked)
+                }
                 disabled={loading}
               />
               <Label htmlFor="isActive" className="text-sm font-normal">
@@ -405,7 +446,9 @@ export const GridTypeForm = ({
               <Checkbox
                 id="isDefault"
                 checked={formData.isDefault}
-                onCheckedChange={(checked) => handleInputChange("isDefault", checked)}
+                onCheckedChange={(checked) =>
+                  handleInputChange("isDefault", checked)
+                }
                 disabled={loading}
               />
               <Label htmlFor="isDefault" className="text-sm font-normal">
@@ -424,15 +467,11 @@ export const GridTypeForm = ({
           >
             Cancelar
           </Button>
-          <Button
-            type="submit"
-            onClick={handleSubmit}
-            disabled={loading}
-          >
+          <Button type="submit" onClick={handleSubmit} disabled={loading}>
             {loading ? "Salvando..." : isEditing ? "Atualizar" : "Criar"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-}; 
+};

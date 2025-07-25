@@ -1,9 +1,8 @@
-import React, { useState, useRef } from 'react';
-import { Button } from 'brk-design-system';
-import { Input } from 'brk-design-system';
-import { Card, CardContent } from 'brk-design-system';
-import { Upload, File, X, ExternalLink, Loader2 } from 'lucide-react';
-import { Loading } from '@/components/ui/loading';
+import { Button, Card, CardContent } from "brk-design-system";
+import { File, Upload, X } from "lucide-react";
+import React, { useRef, useState } from "react";
+
+import { Loading } from "@/components/ui/loading";
 
 interface FileUploadProps {
   value?: string;
@@ -17,14 +16,14 @@ interface FileUploadProps {
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({
-  value = '',
+  value = "",
   onChange,
   disabled = false,
   placeholder = "Clique para fazer upload ou insira uma URL",
   accept = "image/*",
   maxSize = 5, // 5MB default
   label = "Arquivo",
-  showPreview = true
+  showPreview = true,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -36,25 +35,29 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
   const uploadToCloudinary = async (file: File): Promise<string> => {
     if (!cloudinaryCloudName || !cloudinaryUploadPreset) {
-      throw new Error('Configuração do Cloudinary não encontrada. Verifique as variáveis de ambiente.');
+      throw new Error(
+        "Configuração do Cloudinary não encontrada. Verifique as variáveis de ambiente.",
+      );
     }
 
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', cloudinaryUploadPreset);
-    formData.append('folder', 'brk-images'); // Organizar em pasta
+    formData.append("file", file);
+    formData.append("upload_preset", cloudinaryUploadPreset);
+    formData.append("folder", "brk-images"); // Organizar em pasta
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`,
       {
-        method: 'POST',
+        method: "POST",
         body: formData,
-      }
+      },
     );
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error?.message || 'Erro ao fazer upload do arquivo');
+      throw new Error(
+        error.error?.message || "Erro ao fazer upload do arquivo",
+      );
     }
 
     const data = await response.json();
@@ -71,15 +74,16 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     }
 
     // Validate file type
-    const acceptedTypes = accept.split(',').map(type => type.trim());
-    const isValidType = acceptedTypes.some(type => {
-      if (type === 'image/*') return file.type.startsWith('image/');
-      if (type.startsWith('.')) return file.name.toLowerCase().endsWith(type.toLowerCase());
+    const acceptedTypes = accept.split(",").map((type) => type.trim());
+    const isValidType = acceptedTypes.some((type) => {
+      if (type === "image/*") return file.type.startsWith("image/");
+      if (type.startsWith("."))
+        return file.name.toLowerCase().endsWith(type.toLowerCase());
       return file.type === type;
     });
 
     if (!isValidType) {
-      setUploadError('Tipo de arquivo não permitido');
+      setUploadError("Tipo de arquivo não permitido");
       return;
     }
 
@@ -90,13 +94,17 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       const uploadedUrl = await uploadToCloudinary(file);
       onChange(uploadedUrl);
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : 'Erro ao fazer upload');
+      setUploadError(
+        error instanceof Error ? error.message : "Erro ao fazer upload",
+      );
     } finally {
       setIsUploading(false);
     }
   };
 
-  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInputChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (file) {
       handleFileSelect(file);
@@ -106,7 +114,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault();
     setIsDragOver(false);
-    
+
     const file = event.dataTransfer.files[0];
     if (file) {
       handleFileSelect(file);
@@ -128,10 +136,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   };
 
   const handleRemoveFile = () => {
-    onChange('');
+    onChange("");
     setUploadError(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
@@ -151,13 +159,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       <Card
         className={`border-2 border-dashed transition-colors relative group ${
           isDragOver
-            ? 'border-primary bg-primary/5'
-            : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+            ? "border-primary bg-primary/5"
+            : "border-muted-foreground/25 hover:border-muted-foreground/50"
         }`}
       >
-        <CardContent
-          className="p-4 flex items-center justify-center h-[150px]"
-        >
+        <CardContent className="p-4 flex items-center justify-center h-[150px]">
           {value && isImage(value) ? (
             // Preview
             <>
@@ -190,14 +196,16 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               {isUploading ? (
                 <div className="flex flex-col items-center space-y-2">
                   <Loading type="spinner" size="md" />
-                  <p className="text-sm text-muted-foreground">Fazendo upload...</p>
+                  <p className="text-sm text-muted-foreground">
+                    Fazendo upload...
+                  </p>
                 </div>
               ) : (
                 <>
                   <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
                   <div className="space-y-1">
                     <p className="text-sm font-medium">
-                      Arraste uma imagem ou{' '}
+                      Arraste uma imagem ou{" "}
                       <span className="text-primary hover:underline">
                         clique aqui
                       </span>
@@ -231,4 +239,4 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       )}
     </div>
   );
-}; 
+};

@@ -1,16 +1,16 @@
-import api from '../axios';
+import api from "../axios";
 
 export enum PenaltyType {
-  DISQUALIFICATION = 'disqualification',
-  TIME_PENALTY = 'time_penalty',
-  POSITION_PENALTY = 'position_penalty',
-  WARNING = 'warning'
+  DISQUALIFICATION = "disqualification",
+  TIME_PENALTY = "time_penalty",
+  POSITION_PENALTY = "position_penalty",
+  WARNING = "warning",
 }
 
 export enum PenaltyStatus {
-  APPLIED = 'applied',
-  NOT_APPLIED = 'not_applied',
-  APPEALED = 'appealed'
+  APPLIED = "applied",
+  NOT_APPLIED = "not_applied",
+  APPEALED = "appealed",
 }
 
 export interface CreatePenaltyData {
@@ -97,11 +97,14 @@ export interface Penalty {
 
 export class PenaltyService {
   static async createPenalty(data: CreatePenaltyData): Promise<Penalty> {
-    const response = await api.post('/penalties', data);
+    const response = await api.post("/penalties", data);
     return response.data;
   }
 
-  static async updatePenalty(id: string, data: UpdatePenaltyData): Promise<Penalty> {
+  static async updatePenalty(
+    id: string,
+    data: UpdatePenaltyData,
+  ): Promise<Penalty> {
     const response = await api.put(`/penalties/${id}`, data);
     return response.data;
   }
@@ -116,7 +119,10 @@ export class PenaltyService {
     return response.data;
   }
 
-  static async appealPenalty(id: string, data: AppealPenaltyData): Promise<Penalty> {
+  static async appealPenalty(
+    id: string,
+    data: AppealPenaltyData,
+  ): Promise<Penalty> {
     const response = await api.post(`/penalties/${id}/appeal`, data);
     return response.data;
   }
@@ -131,7 +137,9 @@ export class PenaltyService {
     return response.data;
   }
 
-  static async getPenaltiesByChampionshipId(championshipId: string): Promise<Penalty[]> {
+  static async getPenaltiesByChampionshipId(
+    championshipId: string,
+  ): Promise<Penalty[]> {
     const response = await api.get(`/penalties/championship/${championshipId}`);
     return response.data;
   }
@@ -146,18 +154,25 @@ export class PenaltyService {
     return response.data;
   }
 
-  static async getPenaltiesByCategoryId(categoryId: string): Promise<Penalty[]> {
+  static async getPenaltiesByCategoryId(
+    categoryId: string,
+  ): Promise<Penalty[]> {
     const response = await api.get(`/penalties/category/${categoryId}`);
     return response.data;
   }
 
-  static async getActivePenalties(userId: string, championshipId: string): Promise<Penalty[]> {
-    const response = await api.get(`/penalties/active/${userId}/${championshipId}`);
+  static async getActivePenalties(
+    userId: string,
+    championshipId: string,
+  ): Promise<Penalty[]> {
+    const response = await api.get(
+      `/penalties/active/${userId}/${championshipId}`,
+    );
     return response.data;
   }
 
   static async getPendingPenalties(): Promise<Penalty[]> {
-    const response = await api.get('/penalties/pending');
+    const response = await api.get("/penalties/pending");
     return response.data;
   }
 
@@ -180,13 +195,13 @@ export class PenaltyService {
   static getPenaltyTypeLabel(type: PenaltyType): string {
     switch (type) {
       case PenaltyType.DISQUALIFICATION:
-        return 'Desqualificação';
+        return "Desqualificação";
       case PenaltyType.TIME_PENALTY:
-        return 'Penalidade de Tempo';
+        return "Penalidade de Tempo";
       case PenaltyType.POSITION_PENALTY:
-        return 'Penalidade de Posição';
+        return "Penalidade de Posição";
       case PenaltyType.WARNING:
-        return 'Advertência';
+        return "Advertência";
       default:
         return type;
     }
@@ -195,11 +210,11 @@ export class PenaltyService {
   static getPenaltyStatusLabel(status: PenaltyStatus): string {
     switch (status) {
       case PenaltyStatus.APPLIED:
-        return 'Aplicada';
+        return "Aplicada";
       case PenaltyStatus.NOT_APPLIED:
-        return 'Não Aplicada';
+        return "Não Aplicada";
       case PenaltyStatus.APPEALED:
-        return 'Recorrida';
+        return "Recorrida";
       default:
         return status;
     }
@@ -208,28 +223,28 @@ export class PenaltyService {
   static getPenaltyStatusColor(status: PenaltyStatus): string {
     switch (status) {
       case PenaltyStatus.APPLIED:
-        return 'bg-green-100 text-green-800';
+        return "bg-green-100 text-green-800";
       case PenaltyStatus.NOT_APPLIED:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
       case PenaltyStatus.APPEALED:
-        return 'bg-blue-100 text-blue-800';
+        return "bg-blue-100 text-blue-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   }
 
   static getPenaltyTypeColor(type: PenaltyType): string {
     switch (type) {
       case PenaltyType.DISQUALIFICATION:
-        return 'bg-red-100 text-red-800';
+        return "bg-red-100 text-red-800";
       case PenaltyType.TIME_PENALTY:
-        return 'bg-orange-100 text-orange-800';
+        return "bg-orange-100 text-orange-800";
       case PenaltyType.POSITION_PENALTY:
-        return 'bg-yellow-100 text-yellow-800';
+        return "bg-yellow-100 text-yellow-800";
       case PenaltyType.WARNING:
-        return 'bg-blue-100 text-blue-800';
+        return "bg-blue-100 text-blue-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   }
-} 
+}

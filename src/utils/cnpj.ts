@@ -70,25 +70,27 @@ export interface CNPJData {
 }
 
 // Função para buscar dados da empresa por CNPJ
-export const fetchCompanyByCNPJ = async (cnpj: string): Promise<CNPJData | null> => {
+export const fetchCompanyByCNPJ = async (
+  cnpj: string,
+): Promise<CNPJData | null> => {
   try {
     // Remove caracteres não numéricos
-    const cleanCNPJ = cnpj.replace(/\D/g, '');
-    
+    const cleanCNPJ = cnpj.replace(/\D/g, "");
+
     // Verifica se o CNPJ tem 14 dígitos
     if (cleanCNPJ.length !== 14) {
       return null;
     }
-    
+
     // Busca na API do CNPJA
     const response = await fetch(`https://open.cnpja.com/office/${cleanCNPJ}`);
-    
+
     if (!response.ok) {
       return null;
     }
-    
+
     const data: CNPJData = await response.json();
-    
+
     return data;
   } catch (error) {
     console.error("Erro ao buscar CNPJ:", error);
@@ -98,47 +100,49 @@ export const fetchCompanyByCNPJ = async (cnpj: string): Promise<CNPJData | null>
 
 // Função para validar formato de CNPJ
 export const isValidCNPJFormat = (cnpj: string): boolean => {
-  const cleanCNPJ = cnpj.replace(/\D/g, '');
+  const cleanCNPJ = cnpj.replace(/\D/g, "");
   return cleanCNPJ.length === 14;
 };
 
 // Função para extrair o telefone principal
-export const extractMainPhone = (phones: CNPJData['phones']): string => {
-  if (!phones || phones.length === 0) return '';
-  
+export const extractMainPhone = (phones: CNPJData["phones"]): string => {
+  if (!phones || phones.length === 0) return "";
+
   // Prioriza telefone mobile, senão pega o primeiro disponível
-  const mobilePhone = phones.find(phone => phone.type === 'MOBILE');
+  const mobilePhone = phones.find((phone) => phone.type === "MOBILE");
   const phone = mobilePhone || phones[0];
-  
+
   if (phone && phone.area && phone.number) {
     return `(${phone.area}) ${phone.number}`;
   }
-  
-  return '';
+
+  return "";
 };
 
 // Função para extrair o email principal
-export const extractMainEmail = (emails: CNPJData['emails']): string => {
-  if (!emails || emails.length === 0) return '';
-  
+export const extractMainEmail = (emails: CNPJData["emails"]): string => {
+  if (!emails || emails.length === 0) return "";
+
   // Prioriza email corporativo, senão pega o primeiro disponível
-  const corporateEmail = emails.find(email => email.ownership === 'CORPORATE');
+  const corporateEmail = emails.find(
+    (email) => email.ownership === "CORPORATE",
+  );
   const email = corporateEmail || emails[0];
-  
-  return email ? email.address : '';
+
+  return email ? email.address : "";
 };
 
 // Função para formatar endereço completo
-export const formatFullAddress = (address: CNPJData['address']): string => {
+export const formatFullAddress = (address: CNPJData["address"]): string => {
   const parts = [address.street];
-  
+
   if (address.details) {
     parts.push(address.details);
   }
-  
+
   if (address.district) {
     parts.push(address.district);
   }
-  
-  return parts.join(', ');
-}; 
+
+  return parts.join(", ");
+};

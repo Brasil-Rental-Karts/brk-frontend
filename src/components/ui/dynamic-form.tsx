@@ -1,36 +1,33 @@
-import React, { useEffect } from "react";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Checkbox,
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
-} from "brk-design-system";
-import { Input } from "brk-design-system";
-import { Button } from "brk-design-system";
-import { Checkbox } from "brk-design-system";
-import {
+  Input,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "brk-design-system";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "brk-design-system";
-import { InputMask } from "@/components/ui/input-mask";
-import { MaskType } from "@/utils/masks";
-import { SponsorListField } from "@/components/ui/sponsor-list-field";
+import React, { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+
 import { FileUpload } from "@/components/ui/file-upload";
+import { InputMask } from "@/components/ui/input-mask";
+import { SponsorListField } from "@/components/ui/sponsor-list-field";
+import { MaskType } from "@/utils/masks";
 
 // Types for form configuration
 export interface FormFieldOption {
@@ -41,7 +38,16 @@ export interface FormFieldOption {
 export interface FormFieldConfig {
   name: string;
   id: string;
-  type: "input" | "textarea" | "select" | "checkbox" | "inputMask" | "checkbox-group" | "sponsor-list" | "file" | "custom";
+  type:
+    | "input"
+    | "textarea"
+    | "select"
+    | "checkbox"
+    | "inputMask"
+    | "checkbox-group"
+    | "sponsor-list"
+    | "file"
+    | "custom";
   max_char?: number;
   min_value?: number;
   max_value?: number;
@@ -102,39 +108,61 @@ const createZodSchema = (config: FormSectionConfig[]) => {
         case "input":
         case "textarea":
         case "inputMask":
-          if (field.mask === 'number') {
-            const stringToNumber = z.string()
-              .refine((val) => val === '' || /^\d+$/.test(val), "Deve conter apenas números")
+          if (field.mask === "number") {
+            const stringToNumber = z
+              .string()
+              .refine(
+                (val) => val === "" || /^\d+$/.test(val),
+                "Deve conter apenas números",
+              )
               .transform((val) => (val === "" ? null : Number(val)));
-            
+
             let numberSchema = z.number();
             if (field.min_value !== undefined) {
-              numberSchema = numberSchema.min(field.min_value, `O valor mínimo é ${field.min_value}`);
+              numberSchema = numberSchema.min(
+                field.min_value,
+                `O valor mínimo é ${field.min_value}`,
+              );
             }
             if (field.max_value !== undefined) {
-              numberSchema = numberSchema.max(field.max_value, `O valor máximo é ${field.max_value}`);
+              numberSchema = numberSchema.max(
+                field.max_value,
+                `O valor máximo é ${field.max_value}`,
+              );
             }
 
             if (field.mandatory) {
-              schemaFields[field.id] = stringToNumber.pipe(numberSchema.nullable().refine(val => val !== null, { message: `${field.name} é obrigatório` }));
+              schemaFields[field.id] = stringToNumber.pipe(
+                numberSchema.nullable().refine((val) => val !== null, {
+                  message: `${field.name} é obrigatório`,
+                }),
+              );
             } else {
-              schemaFields[field.id] = stringToNumber.pipe(numberSchema).nullable().optional();
+              schemaFields[field.id] = stringToNumber
+                .pipe(numberSchema)
+                .nullable()
+                .optional();
             }
             return; // Skip remaining logic for this field
           }
 
           fieldSchema = z.string();
           if (field.max_char) {
-            fieldSchema = (fieldSchema as z.ZodString).max(field.max_char, `Máximo ${field.max_char} caracteres`);
+            fieldSchema = (fieldSchema as z.ZodString).max(
+              field.max_char,
+              `Máximo ${field.max_char} caracteres`,
+            );
           }
           break;
         case "select":
           if (field.options) {
-            const values = field.options.map(opt => opt.value);
-            fieldSchema = z.union([z.string(), z.number()]).refine(
-              (val) => values.includes(val),
-              "Selecione uma opção válida"
-            );
+            const values = field.options.map((opt) => opt.value);
+            fieldSchema = z
+              .union([z.string(), z.number()])
+              .refine(
+                (val) => values.includes(val),
+                "Selecione uma opção válida",
+              );
           } else {
             fieldSchema = z.string();
           }
@@ -146,12 +174,14 @@ const createZodSchema = (config: FormSectionConfig[]) => {
           fieldSchema = z.array(z.union([z.string(), z.number()]));
           break;
         case "sponsor-list":
-          fieldSchema = z.array(z.object({
-            id: z.string().optional(),
-            name: z.string(),
-            logoImage: z.string(),
-            website: z.string().optional()
-          }));
+          fieldSchema = z.array(
+            z.object({
+              id: z.string().optional(),
+              name: z.string(),
+              logoImage: z.string(),
+              website: z.string().optional(),
+            }),
+          );
           break;
         case "file":
           fieldSchema = z.string();
@@ -163,7 +193,11 @@ const createZodSchema = (config: FormSectionConfig[]) => {
           fieldSchema = z.string();
       }
 
-      if (field.mandatory && field.type !== "checkbox" && field.type !== "checkbox-group") {
+      if (
+        field.mandatory &&
+        field.type !== "checkbox" &&
+        field.type !== "checkbox-group"
+      ) {
         if (fieldSchema instanceof z.ZodString) {
           fieldSchema = fieldSchema.min(1, `${field.name} é obrigatório`);
         } else {
@@ -175,14 +209,20 @@ const createZodSchema = (config: FormSectionConfig[]) => {
       if (field.type === "checkbox") {
         schemaFields[field.id] = z.boolean().optional();
       } else if (field.type === "checkbox-group") {
-        schemaFields[field.id] = z.array(z.union([z.string(), z.number()])).optional();
+        schemaFields[field.id] = z
+          .array(z.union([z.string(), z.number()]))
+          .optional();
       } else if (field.type === "sponsor-list") {
-        schemaFields[field.id] = z.array(z.object({
-          id: z.string().optional(),
-          name: z.string(),
-          logoImage: z.string(),
-          website: z.string().optional()
-        })).optional();
+        schemaFields[field.id] = z
+          .array(
+            z.object({
+              id: z.string().optional(),
+              name: z.string(),
+              logoImage: z.string(),
+              website: z.string().optional(),
+            }),
+          )
+          .optional();
       } else if (field.type === "custom") {
         schemaFields[field.id] = z.any().optional();
       } else {
@@ -205,7 +245,7 @@ const validateVisibleFields = (data: any, config: FormSectionConfig[]) => {
       if (field.conditionalField) {
         const { dependsOn, showWhen } = field.conditionalField;
         const dependentValue = data[dependsOn];
-        if (typeof showWhen === 'function') {
+        if (typeof showWhen === "function") {
           shouldShow = showWhen(dependentValue);
         } else {
           shouldShow = dependentValue === showWhen;
@@ -214,7 +254,7 @@ const validateVisibleFields = (data: any, config: FormSectionConfig[]) => {
 
       if (shouldShow && field.mandatory) {
         const value = data[field.id];
-        
+
         if (field.type === "checkbox-group") {
           // For checkbox-group, check if array is empty
           if (!value || !Array.isArray(value) || value.length === 0) {
@@ -305,18 +345,18 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
   // Create a wrapper form that always validates on setValue
   const formWithValidation = React.useMemo(() => {
     const originalSetValue = form.setValue;
-    
+
     return {
       ...form,
       setValue: (name: string, value: any, options?: any) => {
         // Always call the original setValue
         originalSetValue(name, value, options);
-        
+
         // Always trigger validation for the field that was set
         setTimeout(() => {
           form.trigger(name);
         }, 0);
-      }
+      },
     };
   }, [form]);
 
@@ -339,7 +379,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
 
     // Call onFieldChange for specific field changes
     if (onFieldChange) {
-      Object.keys(watchedValues).forEach(fieldId => {
+      Object.keys(watchedValues).forEach((fieldId) => {
         if (watchedValues[fieldId] !== previousValuesRef.current[fieldId]) {
           onFieldChange(fieldId, watchedValues[fieldId], watchedValues);
         }
@@ -352,10 +392,10 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
   // Helper function to check if field should be shown
   const shouldShowField = (field: FormFieldConfig): boolean => {
     if (!field.conditionalField) return true;
-    
+
     const { dependsOn, showWhen } = field.conditionalField;
     const dependentValue = watchedValues[dependsOn];
-    
+
     if (typeof showWhen === "function") {
       return showWhen(dependentValue);
     }
@@ -366,24 +406,26 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
   const handleSubmit = (data: any) => {
     // Validate only visible fields
     const validationErrors = validateVisibleFields(data, config);
-    
+
     if (Object.keys(validationErrors).length > 0) {
       // Set errors in the form
       Object.entries(validationErrors).forEach(([fieldId, message]) => {
         form.setError(fieldId as any, { message });
       });
-      
+
       // Scroll to first error after a short delay to ensure DOM is updated
       setTimeout(() => {
-        const firstErrorElement = document.querySelector('[data-invalid="true"], .text-destructive, [aria-invalid="true"]');
+        const firstErrorElement = document.querySelector(
+          '[data-invalid="true"], .text-destructive, [aria-invalid="true"]',
+        );
         if (firstErrorElement) {
-          firstErrorElement.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center' 
+          firstErrorElement.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
           });
         }
       }, 100);
-      
+
       return;
     }
 
@@ -427,8 +469,8 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
               {(() => {
                 const hasError = !!fieldState.error;
                 const commonProps = {
-                  'aria-invalid': hasError,
-                  'data-invalid': hasError,
+                  "aria-invalid": hasError,
+                  "data-invalid": hasError,
                   readOnly: field.readonly,
                   disabled: field.disabled,
                 };
@@ -444,7 +486,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                         maxLength={field.max_char}
                       />
                     );
-                  
+
                   case "inputMask":
                     return (
                       <InputMask
@@ -455,7 +497,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                         placeholder={dynamicPlaceholder}
                       />
                     );
-                  
+
                   case "textarea":
                     return (
                       <textarea
@@ -467,7 +509,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                         className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       />
                     );
-                  
+
                   case "select":
                     return (
                       <Select
@@ -490,7 +532,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                         </SelectContent>
                       </Select>
                     );
-                  
+
                   case "checkbox":
                     return (
                       <div className="flex items-center space-x-2">
@@ -504,7 +546,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                         <span className="text-sm">{field.name}</span>
                       </div>
                     );
-                  
+
                   case "checkbox-group":
                     return (
                       <div className="space-y-3">
@@ -515,12 +557,21 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                               className="flex items-center space-x-2"
                             >
                               <Checkbox
-                                checked={Array.isArray(formField.value) && formField.value.includes(option.value)}
+                                checked={
+                                  Array.isArray(formField.value) &&
+                                  formField.value.includes(option.value)
+                                }
                                 onCheckedChange={(checked) => {
-                                  const currentValue = Array.isArray(formField.value) ? formField.value : [];
+                                  const currentValue = Array.isArray(
+                                    formField.value,
+                                  )
+                                    ? formField.value
+                                    : [];
                                   const newValue = checked
                                     ? [...currentValue, option.value]
-                                    : currentValue.filter((val) => val !== option.value);
+                                    : currentValue.filter(
+                                        (val) => val !== option.value,
+                                      );
                                   formField.onChange(newValue);
                                 }}
                                 disabled={field.disabled}
@@ -535,7 +586,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                         </div>
                       </div>
                     );
-                  
+
                   case "sponsor-list":
                     return (
                       <SponsorListField
@@ -544,7 +595,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                         onChange={formField.onChange}
                       />
                     );
-                  
+
                   case "file":
                     return (
                       <FileUpload
@@ -556,25 +607,38 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
                         showPreview={field.showPreview}
                       />
                     );
-                  
+
                   case "custom":
                     if (field.customComponent) {
                       const CustomComponent = field.customComponent;
                       const additionalProps = field.customComponentProps || {};
-                      return <CustomComponent {...formField} {...commonProps} {...additionalProps} />;
+                      return (
+                        <CustomComponent
+                          {...formField}
+                          {...commonProps}
+                          {...additionalProps}
+                        />
+                      );
                     }
                     return null;
-                  
+
                   default:
-                    return <Input {...formField} {...commonProps} value={formField.value || ""} />;
+                    return (
+                      <Input
+                        {...formField}
+                        {...commonProps}
+                        value={formField.value || ""}
+                      />
+                    );
                 }
               })()}
             </FormControl>
-            {field.max_char && (field.type === "input" || field.type === "textarea") && (
-              <div className="text-xs text-muted-foreground text-right">
-                {(formField.value?.length || 0)}/{field.max_char}
-              </div>
-            )}
+            {field.max_char &&
+              (field.type === "input" || field.type === "textarea") && (
+                <div className="text-xs text-muted-foreground text-right">
+                  {formField.value?.length || 0}/{field.max_char}
+                </div>
+              )}
             <FormMessage />
           </FormItem>
         )}
@@ -587,7 +651,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
     const groups: { [key: string]: FormFieldConfig[] } = {};
     const standalone: FormFieldConfig[] = [];
 
-    fields.forEach(field => {
+    fields.forEach((field) => {
       if (field.inline && field.inlineGroup) {
         if (!groups[field.inlineGroup]) {
           groups[field.inlineGroup] = [];
@@ -611,12 +675,12 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
         // Check if this is the first field of an inline group
         const groupFields = groups[field.inlineGroup];
         const isFirstInGroup = groupFields[0].id === field.id;
-        
+
         if (isFirstInGroup) {
           result.push(
             <div key={`group-${field.inlineGroup}`} className="flex gap-4">
               {groupFields.map(renderField)}
-            </div>
+            </div>,
           );
         }
       } else {
@@ -630,9 +694,9 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
   return (
     <div className={className}>
       <Form {...form}>
-        <form 
+        <form
           id={formId}
-          onSubmit={form.handleSubmit(handleSubmit)} 
+          onSubmit={form.handleSubmit(handleSubmit)}
           className="space-y-6"
         >
           {config.map((section, sectionIndex) => (
@@ -646,7 +710,7 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
               </CardContent>
             </Card>
           ))}
-          
+
           {showButtons && (
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-4 pt-6">
               {onCancel && (
@@ -661,4 +725,4 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({
       </Form>
     </div>
   );
-}; 
+};

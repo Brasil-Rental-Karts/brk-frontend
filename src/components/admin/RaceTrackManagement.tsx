@@ -1,15 +1,22 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Badge } from "brk-design-system";
-import { Plus, MoreVertical, Eye, EyeOff } from "lucide-react";
 import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "brk-design-system";
-import { RaceTrackService, RaceTrack } from "@/lib/services/race-track.service";
+import { MoreVertical } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+
+import { RaceTrack, RaceTrackService } from "@/lib/services/race-track.service";
 
 export const RaceTrackManagement = () => {
   const navigate = useNavigate();
@@ -28,7 +35,7 @@ export const RaceTrackManagement = () => {
       const raceTracks = await RaceTrackService.getAll();
       setRaceTracks(raceTracks);
     } catch (error) {
-      toast.error('Erro ao carregar kartódromos');
+      toast.error("Erro ao carregar kartódromos");
     } finally {
       setLoading(false);
     }
@@ -43,10 +50,12 @@ export const RaceTrackManagement = () => {
 
     try {
       await RaceTrackService.delete(deletingId);
-      toast.success('Kartódromo excluído com sucesso');
+      toast.success("Kartódromo excluído com sucesso");
       loadRaceTracks();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Erro ao excluir kartódromo');
+      toast.error(
+        error.response?.data?.message || "Erro ao excluir kartódromo",
+      );
     } finally {
       setShowDeleteDialog(false);
       setDeletingId(null);
@@ -56,10 +65,10 @@ export const RaceTrackManagement = () => {
   const handleToggleActive = async (id: string) => {
     try {
       await RaceTrackService.toggleActive(id);
-      toast.success('Status alterado com sucesso');
+      toast.success("Status alterado com sucesso");
       loadRaceTracks();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Erro ao alterar status');
+      toast.error(error.response?.data?.message || "Erro ao alterar status");
     }
   };
 
@@ -98,12 +107,17 @@ export const RaceTrackManagement = () => {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 gap-2">
                   <div className="flex-1">
-                    <CardTitle className="text-base sm:text-lg">{raceTrack.name}</CardTitle>
+                    <CardTitle className="text-base sm:text-lg">
+                      {raceTrack.name}
+                    </CardTitle>
                     <CardDescription className="text-sm">
                       {raceTrack.city} - {raceTrack.state}
                     </CardDescription>
                   </div>
-                  <Badge variant={raceTrack.isActive ? "default" : "secondary"} className="w-fit">
+                  <Badge
+                    variant={raceTrack.isActive ? "default" : "secondary"}
+                    className="w-fit"
+                  >
                     {raceTrack.isActive ? "Ativo" : "Inativo"}
                   </Badge>
                 </div>
@@ -115,14 +129,22 @@ export const RaceTrackManagement = () => {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleRaceTrackAction("edit", raceTrack)}>
+                      <DropdownMenuItem
+                        onClick={() => handleRaceTrackAction("edit", raceTrack)}
+                      >
                         Editar
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleRaceTrackAction("toggle", raceTrack)}>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          handleRaceTrackAction("toggle", raceTrack)
+                        }
+                      >
                         {raceTrack.isActive ? "Desativar" : "Ativar"}
                       </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => handleRaceTrackAction("delete", raceTrack)}
+                      <DropdownMenuItem
+                        onClick={() =>
+                          handleRaceTrackAction("delete", raceTrack)
+                        }
                         className="text-destructive"
                       >
                         Excluir
@@ -136,7 +158,9 @@ export const RaceTrackManagement = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-xs sm:text-sm">
                 <div>
                   <strong className="text-xs sm:text-sm">Endereço:</strong>
-                  <p className="text-muted-foreground text-xs sm:text-sm mt-1">{raceTrack.address}</p>
+                  <p className="text-muted-foreground text-xs sm:text-sm mt-1">
+                    {raceTrack.address}
+                  </p>
                 </div>
                 <div>
                   <strong className="text-xs sm:text-sm">Traçados:</strong>
@@ -159,11 +183,13 @@ export const RaceTrackManagement = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="text-center text-muted-foreground">
-                <p className="text-sm sm:text-base">Nenhum kartódromo cadastrado</p>
-                <Button 
-                  variant="outline" 
+                <p className="text-sm sm:text-base">
+                  Nenhum kartódromo cadastrado
+                </p>
+                <Button
+                  variant="outline"
                   className="mt-2 w-full sm:w-auto"
-                  onClick={() => navigate('/admin/race-tracks/create')}
+                  onClick={() => navigate("/admin/race-tracks/create")}
                 >
                   Cadastrar primeiro kartódromo
                 </Button>
@@ -177,9 +203,12 @@ export const RaceTrackManagement = () => {
       {showDeleteDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-background p-4 sm:p-6 rounded-lg max-w-md w-full mx-4">
-            <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Confirmar Exclusão</h3>
+            <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">
+              Confirmar Exclusão
+            </h3>
             <p className="text-muted-foreground mb-4 sm:mb-6 text-sm sm:text-base">
-              Tem certeza que deseja excluir este kartódromo? Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir este kartódromo? Esta ação não pode
+              ser desfeita.
             </p>
             <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
               <Button
@@ -205,4 +234,4 @@ export const RaceTrackManagement = () => {
       )}
     </div>
   );
-}; 
+};

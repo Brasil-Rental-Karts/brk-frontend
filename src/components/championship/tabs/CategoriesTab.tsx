@@ -1,49 +1,58 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "brk-design-system";
-import { Card, CardHeader, CardContent } from "brk-design-system";
-import { Badge } from "brk-design-system";
-import { PlusCircle, Tag, Users, MoreVertical, Calendar, Hash, Loader2 } from "lucide-react";
-import { EmptyState } from "brk-design-system";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "brk-design-system";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "brk-design-system";
-import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "brk-design-system";
-import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
-import { Pagination } from "brk-design-system";
-import { usePagination } from "@/hooks/usePagination";
-import { CategoryService, Category } from "@/lib/services/category.service";
-import { Season as BaseSeason } from "@/lib/services/season.service";
-import { useChampionshipData } from "@/contexts/ChampionshipContext";
-
-import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
-import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  EmptyState,
+  Pagination,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "brk-design-system";
+import {
+  Calendar,
+  Hash,
+  MoreVertical,
+  PlusCircle,
+  Tag,
+  Users,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import {
+  DynamicFilter,
+  FilterField,
+  FilterValues,
+} from "@/components/ui/dynamic-filter";
+import { InlineLoader } from "@/components/ui/loading";
+import { Loading } from "@/components/ui/loading";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { InlineLoader } from '@/components/ui/loading';
-import { Loading } from '@/components/ui/loading';
+import { usePagination } from "@/hooks/usePagination";
+import { Category, CategoryService } from "@/lib/services/category.service";
+import { Season as BaseSeason } from "@/lib/services/season.service";
 
 // Estende a interface base da temporada para incluir as categorias
 type Season = BaseSeason & { categories?: Category[] };
@@ -57,20 +66,26 @@ interface CategoriesTabProps {
 }
 
 // Configuração inicial dos filtros
-const createFilterFields = (seasonOptions: { value: string; label: string }[] = []): FilterField[] => [
+const createFilterFields = (
+  seasonOptions: { value: string; label: string }[] = [],
+): FilterField[] => [
   {
-    key: 'seasonId',
-    label: 'Temporada',
-    type: 'combobox',
-    placeholder: 'Todas as temporadas',
-    options: seasonOptions
-  }
+    key: "seasonId",
+    label: "Temporada",
+    type: "combobox",
+    placeholder: "Todas as temporadas",
+    options: seasonOptions,
+  },
 ];
 
 // Tipo local para incluir o nome da temporada
 type CategoryWithSeasonName = Category & { seasonName: string };
 
-const CategoryCard = ({ category, onAction, registrationCount }: { 
+const CategoryCard = ({
+  category,
+  onAction,
+  registrationCount,
+}: {
   category: CategoryWithSeasonName;
   onAction: (action: string, categoryId: string) => void;
   registrationCount: number;
@@ -78,8 +93,13 @@ const CategoryCard = ({ category, onAction, registrationCount }: {
   return (
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <div className="flex-1 cursor-pointer pr-2" onClick={() => onAction("edit", category.id)}>
-          <h3 className="text-lg font-semibold tracking-tight">{category.name}</h3>
+        <div
+          className="flex-1 cursor-pointer pr-2"
+          onClick={() => onAction("edit", category.id)}
+        >
+          <h3 className="text-lg font-semibold tracking-tight">
+            {category.name}
+          </h3>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
           <DropdownMenu>
@@ -92,10 +112,12 @@ const CategoryCard = ({ category, onAction, registrationCount }: {
               <DropdownMenuItem onClick={() => onAction("edit", category.id)}>
                 Editar
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onAction("duplicate", category.id)}>
+              <DropdownMenuItem
+                onClick={() => onAction("duplicate", category.id)}
+              >
                 Duplicar
               </DropdownMenuItem>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={() => onAction("delete", category.id)}
                 className="text-destructive"
               >
@@ -105,26 +127,37 @@ const CategoryCard = ({ category, onAction, registrationCount }: {
           </DropdownMenu>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 cursor-pointer" onClick={() => onAction("edit", category.id)}>
+      <CardContent
+        className="space-y-4 cursor-pointer"
+        onClick={() => onAction("edit", category.id)}
+      >
         <div className="text-sm text-muted-foreground">
           Idade mínima: {category.minimumAge} anos
         </div>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex flex-col">
             <span className="text-muted-foreground">Lastro</span>
-            <span className="font-medium capitalize">Lastro: {category.ballast}</span>
+            <span className="font-medium capitalize">
+              Lastro: {category.ballast}
+            </span>
           </div>
           <div className="flex flex-col">
             <span className="text-muted-foreground">Máx. Pilotos</span>
-            <span className="font-medium">{registrationCount} / {category.maxPilots}</span>
+            <span className="font-medium">
+              {registrationCount} / {category.maxPilots}
+            </span>
           </div>
           <div className="flex flex-col">
             <span className="text-muted-foreground">Baterias</span>
-            <span className="font-medium">{category.batteriesConfig?.length || 0}</span>
+            <span className="font-medium">
+              {category.batteriesConfig?.length || 0}
+            </span>
           </div>
           <div className="flex flex-col">
             <span className="text-muted-foreground">Temporada</span>
-            <Badge variant="outline" className="w-fit mt-1 text-xs">{category.seasonName}</Badge>
+            <Badge variant="outline" className="w-fit mt-1 text-xs">
+              {category.seasonName}
+            </Badge>
           </div>
         </div>
       </CardContent>
@@ -132,12 +165,17 @@ const CategoryCard = ({ category, onAction, registrationCount }: {
   );
 };
 
-
 /**
  * Tab de categorias do campeonato
  * Exibe e gerencia as categorias de um campeonato específico
  */
-export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initialError, onRefresh }: CategoriesTabProps) => {
+export const CategoriesTab = ({
+  championshipId,
+  seasons,
+  isLoading,
+  error: initialError,
+  onRefresh,
+}: CategoriesTabProps) => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [filters, setFilters] = useState<FilterValues>({});
@@ -146,18 +184,20 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
 
   // Estados para o modal de exclusão
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(
+    null,
+  );
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Usar o contexto de dados do campeonato
-  const { 
-    getSeasons, 
-    getCategories, 
-    loading: contextLoading, 
+  const {
+    getSeasons,
+    getCategories,
+    loading: contextLoading,
     error: contextError,
     refreshCategories,
-    removeCategory: removeCategoryFromContext
+    removeCategory: removeCategoryFromContext,
   } = useChampionshipData();
 
   // Obter dados do contexto
@@ -168,30 +208,46 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
   const effectiveSeasons = contextSeasons.length > 0 ? contextSeasons : seasons;
   const effectiveCategories = contextCategories;
 
-  const seasonOptions = useMemo(() => [
-    { value: 'all', label: 'Todas as temporadas' },
-    ...effectiveSeasons.map((season) => ({ value: season.id, label: season.name }))
-  ], [effectiveSeasons]);
+  const seasonOptions = useMemo(
+    () => [
+      { value: "all", label: "Todas as temporadas" },
+      ...effectiveSeasons.map((season) => ({
+        value: season.id,
+        label: season.name,
+      })),
+    ],
+    [effectiveSeasons],
+  );
 
-  const filterFields = useMemo(() => createFilterFields(seasonOptions), [seasonOptions]);
-  
-  const canCreateCategory = useMemo(() => effectiveSeasons.some((s) => s.status !== 'cancelado'), [effectiveSeasons]);
+  const filterFields = useMemo(
+    () => createFilterFields(seasonOptions),
+    [seasonOptions],
+  );
+
+  const canCreateCategory = useMemo(
+    () => effectiveSeasons.some((s) => s.status !== "cancelado"),
+    [effectiveSeasons],
+  );
 
   // Aplicar filtros e ordenação aos dados
   const filteredCategories = useMemo(() => {
-    const allCategories: CategoryWithSeasonName[] = effectiveCategories.map((category: Category) => {
-      const season = effectiveSeasons.find(s => s.id === category.seasonId);
-      return {
-        ...category,
-        seasonName: season?.name || 'Temporada não encontrada'
-      };
-    });
-    
+    const allCategories: CategoryWithSeasonName[] = effectiveCategories.map(
+      (category: Category) => {
+        const season = effectiveSeasons.find((s) => s.id === category.seasonId);
+        return {
+          ...category,
+          seasonName: season?.name || "Temporada não encontrada",
+        };
+      },
+    );
+
     let result = [...allCategories];
 
     // Aplicar filtros
-    if (filters.seasonId && filters.seasonId !== 'all') {
-      result = result.filter(category => category.seasonId === filters.seasonId);
+    if (filters.seasonId && filters.seasonId !== "all") {
+      result = result.filter(
+        (category) => category.seasonId === filters.seasonId,
+      );
     }
 
     // Aplicar ordenação
@@ -199,13 +255,13 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
       let aValue: any = a[sortBy];
       let bValue: any = b[sortBy];
 
-      if (typeof aValue === 'string') {
+      if (typeof aValue === "string") {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
 
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
       return 0;
     });
 
@@ -216,11 +272,21 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
   const pagination = usePagination(filteredCategories.length, 5, 1);
   const paginatedDesktopCategories = useMemo(() => {
     if (isMobile) return [];
-    return filteredCategories.slice(pagination.info.startIndex, pagination.info.endIndex);
-  }, [isMobile, filteredCategories, pagination.info.startIndex, pagination.info.endIndex]);
+    return filteredCategories.slice(
+      pagination.info.startIndex,
+      pagination.info.endIndex,
+    );
+  }, [
+    isMobile,
+    filteredCategories,
+    pagination.info.startIndex,
+    pagination.info.endIndex,
+  ]);
 
   // --- Lógica para Mobile (Scroll Infinito) ---
-  const [visibleMobileCategories, setVisibleMobileCategories] = useState<CategoryWithSeasonName[]>([]);
+  const [visibleMobileCategories, setVisibleMobileCategories] = useState<
+    CategoryWithSeasonName[]
+  >([]);
   const [mobilePage, setMobilePage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -235,34 +301,42 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
     }
   }, [isMobile, filteredCategories]);
 
-  const lastCategoryElementRef = useCallback((node: HTMLElement | null) => {
-    if (loadingMore) return;
-    if (observer.current) observer.current.disconnect();
-    
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
-        setLoadingMore(true);
-        setTimeout(() => {
-          const newCategories = filteredCategories.slice(0, mobilePage * itemsPerPage);
-          setVisibleMobileCategories(newCategories);
-          setHasMore(newCategories.length < filteredCategories.length);
-          setMobilePage(prev => prev + 1);
-          setLoadingMore(false);
-        }, 300);
-      }
-    });
+  const lastCategoryElementRef = useCallback(
+    (node: HTMLElement | null) => {
+      if (loadingMore) return;
+      if (observer.current) observer.current.disconnect();
 
-    if (node) observer.current.observe(node);
-  }, [loadingMore, hasMore, mobilePage, filteredCategories]);
-  
-  const processedCategories = isMobile ? visibleMobileCategories : paginatedDesktopCategories;
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          setLoadingMore(true);
+          setTimeout(() => {
+            const newCategories = filteredCategories.slice(
+              0,
+              mobilePage * itemsPerPage,
+            );
+            setVisibleMobileCategories(newCategories);
+            setHasMore(newCategories.length < filteredCategories.length);
+            setMobilePage((prev) => prev + 1);
+            setLoadingMore(false);
+          }, 300);
+        }
+      });
+
+      if (node) observer.current.observe(node);
+    },
+    [loadingMore, hasMore, mobilePage, filteredCategories],
+  );
+
+  const processedCategories = isMobile
+    ? visibleMobileCategories
+    : paginatedDesktopCategories;
 
   const handleSort = (column: keyof Category) => {
-    setSortBy(prevSortBy => {
+    setSortBy((prevSortBy) => {
       if (prevSortBy === column) {
-        setSortOrder(prevOrder => (prevOrder === 'asc' ? 'desc' : 'asc'));
+        setSortOrder((prevOrder) => (prevOrder === "asc" ? "desc" : "asc"));
       } else {
-        setSortOrder('asc');
+        setSortOrder("asc");
       }
       return column;
     });
@@ -280,7 +354,9 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
   };
 
   const handleDuplicateCategory = (categoryId: string) => {
-    const categoryToDuplicate = filteredCategories.find((c) => c.id === categoryId);
+    const categoryToDuplicate = filteredCategories.find(
+      (c) => c.id === categoryId,
+    );
     if (!categoryToDuplicate) return;
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -308,17 +384,17 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
 
     try {
       await CategoryService.delete(categoryToDelete.id);
-      
+
       // Remover do contexto
       removeCategoryFromContext(categoryToDelete.id);
-      
+
       // Atualizar dados do contexto
       await refreshCategories();
-      
+
       setShowDeleteDialog(false);
       setCategoryToDelete(null);
     } catch (err: any) {
-      setDeleteError(err.message || 'Erro ao excluir categoria');
+      setDeleteError(err.message || "Erro ao excluir categoria");
     } finally {
       setIsDeleting(false);
     }
@@ -331,7 +407,7 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
   };
 
   const handleCategoryAction = (action: string, categoryId: string) => {
-    const category = filteredCategories.find(c => c.id === categoryId);
+    const category = filteredCategories.find((c) => c.id === categoryId);
     if (!category) return;
 
     switch (action) {
@@ -351,15 +427,20 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
     }
   };
 
-  const handleFiltersChange = useCallback((newFilters: FilterValues) => {
-    setFilters(newFilters);
-    if (!isMobile) {
-      pagination.actions.goToFirstPage();
-    }
-  }, [isMobile, pagination.actions]);
+  const handleFiltersChange = useCallback(
+    (newFilters: FilterValues) => {
+      setFilters(newFilters);
+      if (!isMobile) {
+        pagination.actions.goToFirstPage();
+      }
+    },
+    [isMobile, pagination.actions],
+  );
 
-  const handlePageChange = (page: number) => pagination.actions.setCurrentPage(page);
-  const handleItemsPerPageChange = (items: number) => pagination.actions.setItemsPerPage(items);
+  const handlePageChange = (page: number) =>
+    pagination.actions.setCurrentPage(page);
+  const handleItemsPerPageChange = (items: number) =>
+    pagination.actions.setItemsPerPage(items);
 
   // Determinar loading e error
   const isDataLoading = contextLoading.seasons || contextLoading.categories;
@@ -438,7 +519,11 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="w-full sm:w-auto">
-                <Button onClick={handleAddCategory} disabled={!canCreateCategory} className="w-full">
+                <Button
+                  onClick={handleAddCategory}
+                  disabled={!canCreateCategory}
+                  className="w-full"
+                >
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Nova Categoria
                 </Button>
@@ -446,19 +531,33 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
             </TooltipTrigger>
             {!canCreateCategory && (
               <TooltipContent>
-                <p>É necessário ter pelo menos uma temporada que não esteja cancelada para criar uma categoria.</p>
+                <p>
+                  É necessário ter pelo menos uma temporada que não esteja
+                  cancelada para criar uma categoria.
+                </p>
               </TooltipContent>
             )}
           </Tooltip>
         </TooltipProvider>
       </div>
-      
+
       {isMobile ? (
         <>
           <div className="space-y-4">
             {processedCategories.map((category, index) => (
-              <div key={category.id} ref={processedCategories.length === index + 1 ? lastCategoryElementRef : null}>
-                 <CategoryCard category={category as CategoryWithSeasonName} onAction={handleCategoryAction} registrationCount={category.registrationCount || 0} />
+              <div
+                key={category.id}
+                ref={
+                  processedCategories.length === index + 1
+                    ? lastCategoryElementRef
+                    : null
+                }
+              >
+                <CategoryCard
+                  category={category as CategoryWithSeasonName}
+                  onAction={handleCategoryAction}
+                  registrationCount={category.registrationCount || 0}
+                />
               </div>
             ))}
           </div>
@@ -479,7 +578,7 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead 
+                  <TableHead
                     className="cursor-pointer hover:bg-muted/50 min-w-[200px]"
                     onClick={() => handleSort("name")}
                   >
@@ -503,7 +602,7 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
                       Lastro
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className="cursor-pointer hover:bg-muted/50 text-center"
                     onClick={() => handleSort("maxPilots")}
                   >
@@ -529,77 +628,97 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
               <TableBody>
                 {processedCategories.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell
+                      colSpan={6}
+                      className="text-center py-8 text-muted-foreground"
+                    >
                       Nenhuma categoria encontrada com os filtros aplicados
                     </TableCell>
                   </TableRow>
                 ) : (
-                  (processedCategories as CategoryWithSeasonName[]).map((category) => (
-                    <TableRow key={category.id} className="hover:bg-muted/50">
-                      <TableCell className="py-4">
-                        <div>
-                          <div className="font-medium">{category.name}</div>
-                          <div className="text-sm text-muted-foreground mt-1">
-                            Idade mín: {category.minimumAge} anos
+                  (processedCategories as CategoryWithSeasonName[]).map(
+                    (category) => (
+                      <TableRow key={category.id} className="hover:bg-muted/50">
+                        <TableCell className="py-4">
+                          <div>
+                            <div className="font-medium">{category.name}</div>
+                            <div className="text-sm text-muted-foreground mt-1">
+                              Idade mín: {category.minimumAge} anos
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <Badge variant="outline">
-                          {category.seasonName}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <div className="text-sm font-medium">
-                          Lastro: {category.ballast}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <div className="text-sm font-medium">
-                          {category.registrationCount || 0} / {category.maxPilots}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          pilotos
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <div className="text-sm font-medium">
-                          {category.batteriesConfig?.length || 0}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {category.batteriesConfig?.length === 1 ? 'bateria' : 'baterias'}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center py-4">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleCategoryAction("edit", category.id)}>
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleCategoryAction("duplicate", category.id)}>
-                              Duplicar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleCategoryAction("delete", category.id)}
-                              className="text-destructive"
-                            >
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                        <TableCell className="text-center py-4">
+                          <Badge variant="outline">{category.seasonName}</Badge>
+                        </TableCell>
+                        <TableCell className="text-center py-4">
+                          <div className="text-sm font-medium">
+                            Lastro: {category.ballast}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center py-4">
+                          <div className="text-sm font-medium">
+                            {category.registrationCount || 0} /{" "}
+                            {category.maxPilots}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            pilotos
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center py-4">
+                          <div className="text-sm font-medium">
+                            {category.batteriesConfig?.length || 0}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {category.batteriesConfig?.length === 1
+                              ? "bateria"
+                              : "baterias"}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center py-4">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleCategoryAction("edit", category.id)
+                                }
+                              >
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleCategoryAction("duplicate", category.id)
+                                }
+                              >
+                                Duplicar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleCategoryAction("delete", category.id)
+                                }
+                                className="text-destructive"
+                              >
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ),
+                  )
                 )}
               </TableBody>
             </Table>
           </div>
-          
+
           <div className="flex-shrink-0">
             <Pagination
               currentPage={pagination.state.currentPage}
@@ -623,12 +742,13 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
           <DialogHeader>
             <DialogTitle>Confirmar exclusão</DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja excluir a categoria <strong>"{categoryToDelete?.name}"</strong>?
+              Tem certeza que deseja excluir a categoria{" "}
+              <strong>"{categoryToDelete?.name}"</strong>?
               <br />
               Esta ação não pode ser desfeita.
             </DialogDescription>
           </DialogHeader>
-          
+
           {deleteError && (
             <Alert variant="destructive">
               <AlertTitle>Erro ao excluir</AlertTitle>
@@ -637,15 +757,15 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
           )}
 
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={cancelDeleteCategory}
               disabled={isDeleting}
             >
               Cancelar
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={confirmDeleteCategory}
               disabled={isDeleting}
             >
@@ -656,4 +776,4 @@ export const CategoriesTab = ({ championshipId, seasons, isLoading, error: initi
       </Dialog>
     </div>
   );
-}; 
+};

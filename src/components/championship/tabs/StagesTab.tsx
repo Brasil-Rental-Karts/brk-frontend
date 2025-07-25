@@ -1,54 +1,65 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "brk-design-system";
-import { Card, CardHeader, CardContent } from "brk-design-system";
-import { Badge } from "brk-design-system";
-import { PlusCircle, MapPin, Clock, Users, MoreVertical, Calendar, Flag, Link as LinkIcon, Eye } from "lucide-react";
-import { InlineLoader } from "@/components/ui/loading";
-import { EmptyState } from "brk-design-system";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "brk-design-system";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "brk-design-system";
-import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "brk-design-system";
-import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
-import { Pagination } from "brk-design-system";
-import { usePagination } from "@/hooks/usePagination";
-import { StageService } from "@/lib/services/stage.service";
-import { Season as BaseSeason } from "@/lib/services/season.service";
-import { Category } from "@/lib/services/category.service";
-import { Stage } from "@/lib/types/stage";
-import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
-import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  EmptyState,
+  Pagination,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "brk-design-system";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { RaceTrackService } from '@/lib/services/race-track.service';
-import { StageDetailsModal } from '@/components/championship/modals/StageDetailsModal';
+import {
+  Calendar,
+  Clock,
+  Eye,
+  Flag,
+  Link as LinkIcon,
+  MapPin,
+  MoreVertical,
+  PlusCircle,
+  Users,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { StageDetailsModal } from "@/components/championship/modals/StageDetailsModal";
+import {
+  DynamicFilter,
+  FilterField,
+  FilterValues,
+} from "@/components/ui/dynamic-filter";
+import { InlineLoader } from "@/components/ui/loading";
 import { useChampionshipData } from "@/contexts/ChampionshipContext";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { usePagination } from "@/hooks/usePagination";
+import { Category } from "@/lib/services/category.service";
+import { Season as BaseSeason } from "@/lib/services/season.service";
+import { StageService } from "@/lib/services/stage.service";
+import { Stage } from "@/lib/types/stage";
 
-
-type Season = BaseSeason & { categories?: Category[], stages?: Stage[] };
+type Season = BaseSeason & { categories?: Category[]; stages?: Stage[] };
 type StageWithSeasonName = Stage & { seasonName: string };
 
 interface StagesTabProps {
@@ -59,36 +70,42 @@ interface StagesTabProps {
   onRefresh: () => void;
 }
 
-
 // Configuração inicial dos filtros
-const createFilterFields = (seasonOptions: { value: string; label: string }[] = []): FilterField[] => [
+const createFilterFields = (
+  seasonOptions: { value: string; label: string }[] = [],
+): FilterField[] => [
   {
-    key: 'seasonId',
-    label: 'Temporada',
-    type: 'combobox',
-    placeholder: 'Todas as temporadas',
-    options: seasonOptions
+    key: "seasonId",
+    label: "Temporada",
+    type: "combobox",
+    placeholder: "Todas as temporadas",
+    options: seasonOptions,
   },
   {
-    key: 'status',
-    label: 'Status',
-    type: 'combobox',
-    placeholder: 'Todos os status',
+    key: "status",
+    label: "Status",
+    type: "combobox",
+    placeholder: "Todos os status",
     options: [
-      { value: 'all', label: 'Todos' },
-      { value: 'past', label: 'Realizadas' },
-      { value: 'today', label: 'Hoje' },
-      { value: 'soon', label: 'Em breve' },
-      { value: 'future', label: 'Futuras' }
-    ]
-  }
+      { value: "all", label: "Todos" },
+      { value: "past", label: "Realizadas" },
+      { value: "today", label: "Hoje" },
+      { value: "soon", label: "Em breve" },
+      { value: "future", label: "Futuras" },
+    ],
+  },
 ];
 
-const StageCard = ({ stage, onAction, getStageStatusBadge, raceTrack }: { 
-  stage: StageWithSeasonName, 
-  onAction: (action: string, stageId: string) => void, 
-  getStageStatusBadge: (stage: Stage) => JSX.Element,
-  raceTrack?: any
+const StageCard = ({
+  stage,
+  onAction,
+  getStageStatusBadge,
+  raceTrack,
+}: {
+  stage: StageWithSeasonName;
+  onAction: (action: string, stageId: string) => void;
+  getStageStatusBadge: (stage: Stage) => JSX.Element;
+  raceTrack?: any;
 }) => {
   return (
     <Card className="w-full">
@@ -97,40 +114,40 @@ const StageCard = ({ stage, onAction, getStageStatusBadge, raceTrack }: {
           <h3 className="text-lg font-semibold tracking-tight">{stage.name}</h3>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
-            {getStageStatusBadge(stage)}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8"
-              onClick={() => onAction("details", stage.id)}
-              title="Ver detalhes"
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onAction("edit", stage.id)}>
-                  Editar
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onAction("duplicate", stage.id)}>
-                  Duplicar
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onAction("details", stage.id)}>
-                  Ver Detalhes
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => onAction("delete", stage.id)}
-                  className="text-destructive"
-                >
-                  Excluir
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          {getStageStatusBadge(stage)}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => onAction("details", stage.id)}
+            title="Ver detalhes"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onAction("edit", stage.id)}>
+                Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAction("duplicate", stage.id)}>
+                Duplicar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAction("details", stage.id)}>
+                Ver Detalhes
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onAction("delete", stage.id)}
+                className="text-destructive"
+              >
+                Excluir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -142,7 +159,9 @@ const StageCard = ({ stage, onAction, getStageStatusBadge, raceTrack }: {
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex flex-col">
             <span className="text-muted-foreground">Data</span>
-            <span className="font-medium">{StageService.formatDate(stage.date)}</span>
+            <span className="font-medium">
+              {StageService.formatDate(stage.date)}
+            </span>
           </div>
           <div className="flex flex-col">
             <span className="text-muted-foreground">Hora</span>
@@ -154,9 +173,7 @@ const StageCard = ({ stage, onAction, getStageStatusBadge, raceTrack }: {
           <div className="flex flex-col col-span-2">
             <span className="text-muted-foreground">Kartódromo</span>
             <span className="font-medium">
-              {raceTrack 
-                ? raceTrack.name 
-                : 'Carregando...'}
+              {raceTrack ? raceTrack.name : "Carregando..."}
             </span>
             {stage.trackLayoutId && (
               <span className="text-xs text-muted-foreground mt-1">
@@ -166,7 +183,9 @@ const StageCard = ({ stage, onAction, getStageStatusBadge, raceTrack }: {
           </div>
           <div className="flex flex-col">
             <span className="text-muted-foreground">Temporada</span>
-            <Badge variant="outline" className="w-fit mt-1">{stage.seasonName}</Badge>
+            <Badge variant="outline" className="w-fit mt-1">
+              {stage.seasonName}
+            </Badge>
           </div>
           <div className="flex flex-col">
             <span className="text-muted-foreground">Categorias</span>
@@ -178,24 +197,29 @@ const StageCard = ({ stage, onAction, getStageStatusBadge, raceTrack }: {
   );
 };
 
-
 /**
  * Tab de etapas do campeonato
  * Exibe e gerencia as etapas de um campeonato específico
  */
-export const StagesTab = ({ championshipId, seasons, isLoading, error: initialError, onRefresh }: StagesTabProps) => {
+export const StagesTab = ({
+  championshipId,
+  seasons,
+  isLoading,
+  error: initialError,
+  onRefresh,
+}: StagesTabProps) => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   // Usar o contexto de dados do campeonato
-  const { 
-    getSeasons, 
-    getCategories, 
+  const {
+    getSeasons,
+    getCategories,
     getStages,
     getRaceTracks,
-    loading: contextLoading, 
+    loading: contextLoading,
     error: contextError,
     refreshStages,
-    removeStage: removeStageFromContext
+    removeStage: removeStageFromContext,
   } = useChampionshipData();
 
   // Obter dados do contexto
@@ -221,33 +245,45 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
   const effectiveStages = contextStages;
   const effectiveRaceTracks = contextRaceTracks;
 
-  const seasonOptions = useMemo(() => [
-    { value: 'all', label: 'Todas as temporadas' },
-    ...effectiveSeasons.map((season) => ({ value: season.id, label: season.name }))
-  ], [effectiveSeasons]);
+  const seasonOptions = useMemo(
+    () => [
+      { value: "all", label: "Todas as temporadas" },
+      ...effectiveSeasons.map((season) => ({
+        value: season.id,
+        label: season.name,
+      })),
+    ],
+    [effectiveSeasons],
+  );
 
-  const filterFields = useMemo(() => createFilterFields(seasonOptions), [seasonOptions]);
-  
-  const canCreateStage = useMemo(() => effectiveSeasons.some((s) => s.status !== 'cancelado'), [effectiveSeasons]);
+  const filterFields = useMemo(
+    () => createFilterFields(seasonOptions),
+    [seasonOptions],
+  );
+
+  const canCreateStage = useMemo(
+    () => effectiveSeasons.some((s) => s.status !== "cancelado"),
+    [effectiveSeasons],
+  );
 
   // Aplicar filtros e ordenação aos dados
   const filteredStages = useMemo(() => {
-    const allStages: StageWithSeasonName[] = effectiveStages.map(stage => {
-      const season = effectiveSeasons.find(s => s.id === stage.seasonId);
+    const allStages: StageWithSeasonName[] = effectiveStages.map((stage) => {
+      const season = effectiveSeasons.find((s) => s.id === stage.seasonId);
       return {
         ...stage,
-        seasonName: season?.name || 'Temporada não encontrada'
+        seasonName: season?.name || "Temporada não encontrada",
       };
     });
 
     let result = [...allStages];
 
     // Aplicar filtros
-    if (filters.seasonId && filters.seasonId !== 'all') {
-      result = result.filter(stage => stage.seasonId === filters.seasonId);
+    if (filters.seasonId && filters.seasonId !== "all") {
+      result = result.filter((stage) => stage.seasonId === filters.seasonId);
     }
-    if (filters.status && filters.status !== 'all') {
-      result = result.filter(stage => {
+    if (filters.status && filters.status !== "all") {
+      result = result.filter((stage) => {
         const status = StageService.getStageStatus(stage.date, stage.time);
         return status === filters.status;
       });
@@ -258,33 +294,41 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
       let aValue: any = a[sortBy];
       let bValue: any = b[sortBy];
 
-      if (sortBy === 'date') {
+      if (sortBy === "date") {
         aValue = new Date(aValue);
         bValue = new Date(bValue);
-      } else if (typeof aValue === 'string') {
+      } else if (typeof aValue === "string") {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
 
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
       return 0;
     });
 
     return result;
   }, [effectiveStages, effectiveSeasons, filters, sortBy, sortOrder]);
 
-
   // --- Lógica para Desktop (Paginação) ---
   const pagination = usePagination(filteredStages.length, 5, 1);
   const paginatedDesktopStages = useMemo(() => {
     if (isMobile) return [];
-    return filteredStages.slice(pagination.info.startIndex, pagination.info.endIndex);
-  }, [isMobile, filteredStages, pagination.info.startIndex, pagination.info.endIndex]);
-
+    return filteredStages.slice(
+      pagination.info.startIndex,
+      pagination.info.endIndex,
+    );
+  }, [
+    isMobile,
+    filteredStages,
+    pagination.info.startIndex,
+    pagination.info.endIndex,
+  ]);
 
   // --- Lógica para Mobile (Scroll Infinito) ---
-  const [visibleMobileStages, setVisibleMobileStages] = useState<StageWithSeasonName[]>([]);
+  const [visibleMobileStages, setVisibleMobileStages] = useState<
+    StageWithSeasonName[]
+  >([]);
   const [mobilePage, setMobilePage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -299,34 +343,42 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
     }
   }, [isMobile, filteredStages]);
 
-  const lastStageElementRef = useCallback((node: HTMLElement | null) => {
-    if (loadingMore) return;
-    if (observer.current) observer.current.disconnect();
-    
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
-        setLoadingMore(true);
-        setTimeout(() => {
-          const newStages = filteredStages.slice(0, mobilePage * itemsPerPage);
-          setVisibleMobileStages(newStages);
-          setHasMore(newStages.length < filteredStages.length);
-          setMobilePage(prev => prev + 1);
-          setLoadingMore(false);
-        }, 300);
-      }
-    });
+  const lastStageElementRef = useCallback(
+    (node: HTMLElement | null) => {
+      if (loadingMore) return;
+      if (observer.current) observer.current.disconnect();
 
-    if (node) observer.current.observe(node);
-  }, [loadingMore, hasMore, mobilePage, filteredStages]);
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          setLoadingMore(true);
+          setTimeout(() => {
+            const newStages = filteredStages.slice(
+              0,
+              mobilePage * itemsPerPage,
+            );
+            setVisibleMobileStages(newStages);
+            setHasMore(newStages.length < filteredStages.length);
+            setMobilePage((prev) => prev + 1);
+            setLoadingMore(false);
+          }, 300);
+        }
+      });
 
-  const processedStages = isMobile ? visibleMobileStages : paginatedDesktopStages;
+      if (node) observer.current.observe(node);
+    },
+    [loadingMore, hasMore, mobilePage, filteredStages],
+  );
+
+  const processedStages = isMobile
+    ? visibleMobileStages
+    : paginatedDesktopStages;
 
   const handleSort = (column: keyof Stage) => {
-    setSortBy(prevSortBy => {
+    setSortBy((prevSortBy) => {
       if (prevSortBy === column) {
-        setSortOrder(prevOrder => (prevOrder === 'asc' ? 'desc' : 'asc'));
+        setSortOrder((prevOrder) => (prevOrder === "asc" ? "desc" : "asc"));
       } else {
-        setSortOrder('asc');
+        setSortOrder("asc");
       }
       return column;
     });
@@ -357,40 +409,42 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
         // já está correto
       } else if (/^\d{4}-\d{2}-\d{2}/.test(date)) {
         // ISO ou YYYY-MM-DD
-        const [year, month, day] = date.split('T')[0].split('-');
+        const [year, month, day] = date.split("T")[0].split("-");
         date = `${day}/${month}/${year}`;
       } else {
         // fallback para Date
         const d = new Date(date);
         if (!isNaN(d.getTime())) {
-          const day = String(d.getDate()).padStart(2, '0');
-          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, "0");
+          const month = String(d.getMonth() + 1).padStart(2, "0");
           const year = d.getFullYear();
           date = `${day}/${month}/${year}`;
         } else {
-          date = '';
+          date = "";
         }
       }
     } else {
-      date = '';
+      date = "";
     }
 
     // Garantir que categoryIds seja array de strings
-    let categoryIds = Array.isArray(stageData.categoryIds)
-      ? stageData.categoryIds.map((c: any) => typeof c === 'string' ? c : c.id)
+    const categoryIds = Array.isArray(stageData.categoryIds)
+      ? stageData.categoryIds.map((c: any) =>
+          typeof c === "string" ? c : c.id,
+        )
       : [];
 
     const duplicatedStageData = {
       name: `${stageData.name} (Cópia)`,
       date,
       time: stageData.time,
-      raceTrackId: stageData.raceTrackId || '',
-      streamLink: stageData.streamLink || '',
+      raceTrackId: stageData.raceTrackId || "",
+      streamLink: stageData.streamLink || "",
       seasonId: stageData.seasonId,
       categoryIds,
       doublePoints: stageData.doublePoints || false,
-      briefing: stageData.briefing || '',
-      briefingTime: stageData.briefingTime || '',
+      briefing: stageData.briefing || "",
+      briefingTime: stageData.briefingTime || "",
     };
     navigate(`/championship/${championshipId}/stage/new`, {
       state: { initialData: duplicatedStageData },
@@ -411,17 +465,17 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
 
     try {
       await StageService.delete(stageToDelete.id);
-      
+
       // Remover do contexto
       removeStageFromContext(stageToDelete.id);
-      
+
       // Atualizar dados do contexto
       await refreshStages();
-      
+
       setShowDeleteDialog(false);
       setStageToDelete(null);
     } catch (err: any) {
-      setDeleteError(err.message || 'Erro ao deletar etapa');
+      setDeleteError(err.message || "Erro ao deletar etapa");
     } finally {
       setDeletingStage(false);
     }
@@ -434,7 +488,7 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
   };
 
   const handleStageAction = (action: string, stageId: string) => {
-    const stage = filteredStages.find(s => s.id === stageId);
+    const stage = filteredStages.find((s) => s.id === stageId);
     if (!stage) return;
 
     switch (action) {
@@ -456,27 +510,43 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
     }
   };
 
-  const handleFiltersChange = useCallback((newFilters: FilterValues) => {
-    setFilters(newFilters);
-    if (!isMobile) {
-      pagination.actions.goToFirstPage();
-    }
-  }, [isMobile, pagination.actions]);
+  const handleFiltersChange = useCallback(
+    (newFilters: FilterValues) => {
+      setFilters(newFilters);
+      if (!isMobile) {
+        pagination.actions.goToFirstPage();
+      }
+    },
+    [isMobile, pagination.actions],
+  );
 
-  const handlePageChange = (page: number) => pagination.actions.setCurrentPage(page);
-  const handleItemsPerPageChange = (items: number) => pagination.actions.setItemsPerPage(items);
+  const handlePageChange = (page: number) =>
+    pagination.actions.setCurrentPage(page);
+  const handleItemsPerPageChange = (items: number) =>
+    pagination.actions.setItemsPerPage(items);
 
   const getStageStatusBadge = (stage: Stage) => {
     const status = StageService.getStageStatus(stage.date, stage.time);
-    
+
     switch (status) {
-      case 'past':
+      case "past":
         return <Badge variant="secondary">Realizada</Badge>;
-      case 'today':
-        return <Badge variant="default" className="bg-green-500">Hoje</Badge>;
-      case 'soon':
-        return <Badge variant="outline" className="border-orange-500 text-orange-600">Em breve</Badge>;
-      case 'future':
+      case "today":
+        return (
+          <Badge variant="default" className="bg-green-500">
+            Hoje
+          </Badge>
+        );
+      case "soon":
+        return (
+          <Badge
+            variant="outline"
+            className="border-orange-500 text-orange-600"
+          >
+            Em breve
+          </Badge>
+        );
+      case "future":
         return <Badge variant="outline">Futura</Badge>;
       default:
         return <Badge variant="outline">Não definido</Badge>;
@@ -484,7 +554,8 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
   };
 
   // Determinar loading e error
-  const isDataLoading = isLoading || contextLoading.seasons || contextLoading.stages;
+  const isDataLoading =
+    isLoading || contextLoading.seasons || contextLoading.stages;
   const dataError = initialError || contextError.seasons || contextError.stages;
 
   if (filteredStages.length === 0 && Object.keys(filters).length === 0) {
@@ -532,7 +603,11 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="w-full sm:w-auto">
-                <Button onClick={handleAddStage} disabled={!canCreateStage} className="w-full">
+                <Button
+                  onClick={handleAddStage}
+                  disabled={!canCreateStage}
+                  className="w-full"
+                >
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Nova Etapa
                 </Button>
@@ -540,7 +615,10 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
             </TooltipTrigger>
             {!canCreateStage && (
               <TooltipContent>
-                <p>É necessário ter pelo menos uma temporada que não esteja cancelada para criar uma etapa.</p>
+                <p>
+                  É necessário ter pelo menos uma temporada que não esteja
+                  cancelada para criar uma etapa.
+                </p>
               </TooltipContent>
             )}
           </Tooltip>
@@ -548,16 +626,23 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
       </div>
 
       {isMobile ? (
-         <>
+        <>
           <div className="space-y-4">
             {processedStages.map((stage, index) => (
-              <div key={stage.id} ref={processedStages.length === index + 1 ? lastStageElementRef : null}>
-                 <StageCard 
-                  stage={stage as StageWithSeasonName} 
+              <div
+                key={stage.id}
+                ref={
+                  processedStages.length === index + 1
+                    ? lastStageElementRef
+                    : null
+                }
+              >
+                <StageCard
+                  stage={stage as StageWithSeasonName}
                   onAction={handleStageAction}
                   getStageStatusBadge={getStageStatusBadge}
                   raceTrack={effectiveRaceTracks[stage.raceTrackId]}
-                 />
+                />
               </div>
             ))}
           </div>
@@ -578,7 +663,7 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead 
+                  <TableHead
                     className="cursor-pointer hover:bg-muted/50 min-w-[200px]"
                     onClick={() => handleSort("name")}
                   >
@@ -592,7 +677,7 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
                       )}
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className="cursor-pointer hover:bg-muted/50 text-center"
                     onClick={() => handleSort("date")}
                   >
@@ -631,7 +716,10 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
               <TableBody>
                 {processedStages.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell
+                      colSpan={7}
+                      className="text-center py-8 text-muted-foreground"
+                    >
                       Nenhuma etapa encontrada com os filtros aplicados
                     </TableCell>
                   </TableRow>
@@ -642,7 +730,10 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
                         <div>
                           <div className="font-medium">{stage.name}</div>
                           {stage.doublePoints && (
-                            <Badge variant="outline" className="w-fit text-xs mt-1">
+                            <Badge
+                              variant="outline"
+                              className="w-fit text-xs mt-1"
+                            >
                               Pontos em dobro
                             </Badge>
                           )}
@@ -662,9 +753,10 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
                       <TableCell className="text-center py-4">
                         <div>
                           <div className="font-medium">
-                            {stage.raceTrackId && effectiveRaceTracks[stage.raceTrackId] 
-                              ? effectiveRaceTracks[stage.raceTrackId].name 
-                              : 'Carregando...'}
+                            {stage.raceTrackId &&
+                            effectiveRaceTracks[stage.raceTrackId]
+                              ? effectiveRaceTracks[stage.raceTrackId].name
+                              : "Carregando..."}
                           </div>
                           {stage.trackLayoutId && (
                             <div className="text-xs text-muted-foreground mt-1">
@@ -674,18 +766,20 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
                         </div>
                       </TableCell>
                       <TableCell className="text-center py-4">
-                        <Badge variant="outline">
-                          {stage.seasonName}
-                        </Badge>
+                        <Badge variant="outline">{stage.seasonName}</Badge>
                       </TableCell>
                       <TableCell className="text-center py-4">
                         {getStageStatusBadge(stage)}
                       </TableCell>
                       <TableCell className="text-center py-4">
                         <div className="flex items-center justify-center gap-1">
-                          <span className="text-sm font-medium">{stage.categoryIds.length}</span>
+                          <span className="text-sm font-medium">
+                            {stage.categoryIds.length}
+                          </span>
                           <span className="text-xs text-muted-foreground">
-                            {stage.categoryIds.length === 1 ? 'categoria' : 'categorias'}
+                            {stage.categoryIds.length === 1
+                              ? "categoria"
+                              : "categorias"}
                           </span>
                           {stage.streamLink && (
                             <LinkIcon className="h-3 w-3 ml-2 text-muted-foreground" />
@@ -695,22 +789,40 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
                       <TableCell className="text-center py-4">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                            >
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleStageAction("edit", stage.id)}>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleStageAction("edit", stage.id)
+                              }
+                            >
                               Editar
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleStageAction("duplicate", stage.id)}>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleStageAction("duplicate", stage.id)
+                              }
+                            >
                               Duplicar
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleStageAction("details", stage.id)}>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleStageAction("details", stage.id)
+                              }
+                            >
                               Ver Detalhes
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleStageAction("delete", stage.id)}
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleStageAction("delete", stage.id)
+                              }
                               className="text-destructive"
                             >
                               Excluir
@@ -724,7 +836,7 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
               </TableBody>
             </Table>
           </div>
-          
+
           <div className="flex-shrink-0">
             <Pagination
               currentPage={pagination.state.currentPage}
@@ -758,12 +870,13 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
           <DialogHeader>
             <DialogTitle>Confirmar exclusão</DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja excluir a etapa <strong>"{stageToDelete?.name}"</strong>?
+              Tem certeza que deseja excluir a etapa{" "}
+              <strong>"{stageToDelete?.name}"</strong>?
               <br />
               Esta ação não pode ser desfeita.
             </DialogDescription>
           </DialogHeader>
-          
+
           {deleteError && (
             <Alert variant="destructive">
               <AlertTitle>Erro ao excluir</AlertTitle>
@@ -772,15 +885,15 @@ export const StagesTab = ({ championshipId, seasons, isLoading, error: initialEr
           )}
 
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={cancelDeleteStage}
               disabled={deletingStage}
             >
               Cancelar
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={confirmDeleteStage}
               disabled={deletingStage}
             >

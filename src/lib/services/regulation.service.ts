@@ -1,4 +1,4 @@
-import api from '../axios';
+import api from "../axios";
 
 export interface Regulation {
   id: string;
@@ -45,11 +45,14 @@ export class RegulationService {
   }
 
   static async create(data: CreateRegulationData): Promise<Regulation> {
-    const response = await api.post('/regulations', data);
+    const response = await api.post("/regulations", data);
     return response.data.data;
   }
 
-  static async update(id: string, data: UpdateRegulationData): Promise<Regulation> {
+  static async update(
+    id: string,
+    data: UpdateRegulationData,
+  ): Promise<Regulation> {
     const response = await api.put(`/regulations/${id}`, data);
     return response.data.data;
   }
@@ -59,6 +62,6 @@ export class RegulationService {
   }
 
   static async reorder(data: ReorderRegulationsData): Promise<void> {
-    await api.post('/regulations/reorder', data);
+    await api.post("/regulations/reorder", data);
   }
-} 
+}

@@ -1,27 +1,27 @@
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { motion } from "framer-motion";
-import { Button } from "brk-design-system";
-import { Input } from "brk-design-system";
 import {
-  FormControl,
-  FormField,
-  FormLabel,
-  FormMessage,
-} from "brk-design-system";
-import {
+  Button,
   Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  Input,
 } from "brk-design-system";
-import { ModeToggle } from "@/components/mode-toggle";
-import { Form, FormItem } from "brk-design-system";
+import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { z } from "zod";
+
+import { ModeToggle } from "@/components/mode-toggle";
 import { AuthService } from "@/lib/services";
 
 const formSchema = z
@@ -34,7 +34,7 @@ const formSchema = z
       .regex(/[0-9]/, "A senha deve conter pelo menos um número")
       .regex(
         /[^A-Za-z0-9]/,
-        "A senha deve conter pelo menos um caractere especial"
+        "A senha deve conter pelo menos um caractere especial",
       ),
     confirmPassword: z.string(),
   })
@@ -53,7 +53,9 @@ function ChangePassword() {
 
   useEffect(() => {
     if (!token) {
-      setError("Token inválido ou expirado. Por favor, solicite um novo link de recuperação de senha.");
+      setError(
+        "Token inválido ou expirado. Por favor, solicite um novo link de recuperação de senha.",
+      );
     }
   }, [token]);
 
@@ -67,7 +69,9 @@ function ChangePassword() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!token) {
-      setError("Token inválido ou expirado. Por favor, solicite um novo link de recuperação de senha.");
+      setError(
+        "Token inválido ou expirado. Por favor, solicite um novo link de recuperação de senha.",
+      );
       return;
     }
 
@@ -78,20 +82,23 @@ function ChangePassword() {
     try {
       await AuthService.resetPassword({
         token,
-        password: values.password
+        password: values.password,
       });
-      
-      setSuccess("Senha alterada com sucesso! Você será redirecionado para a página de login.");
-      
+
+      setSuccess(
+        "Senha alterada com sucesso! Você será redirecionado para a página de login.",
+      );
+
       setTimeout(() => {
         navigate("/");
       }, 3000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Falha na alteração de senha:", error);
-      setError(
-        error.response?.data?.message || 
-        "Não foi possível alterar sua senha. Por favor, tente novamente mais tarde."
-      );
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível alterar sua senha. Por favor, tente novamente mais tarde.";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -119,12 +126,18 @@ function ChangePassword() {
         </CardHeader>
         <CardContent>
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <div
+              className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+              role="alert"
+            >
               <span className="block sm:inline">{error}</span>
             </div>
           )}
           {success && (
-            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <div
+              className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4"
+              role="alert"
+            >
               <span className="block sm:inline">{success}</span>
             </div>
           )}
@@ -164,7 +177,11 @@ function ChangePassword() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoading || !token}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading || !token}
+              >
                 {isLoading ? "Alterando senha..." : "Confirmar alteração"}
               </Button>
             </form>
@@ -183,4 +200,4 @@ function ChangePassword() {
   );
 }
 
-export default ChangePassword; 
+export default ChangePassword;

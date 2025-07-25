@@ -1,58 +1,67 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "brk-design-system";
+import { AlertCircle, CheckCircle, Clock } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
-import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
-import { Alert, AlertDescription } from 'brk-design-system';
-import { Badge } from 'brk-design-system';
+import { CreditCardPayment } from "@/components/payment/CreditCardPayment";
+import { PixPayment } from "@/components/payment/PixPayment";
+import { PageLoader } from "@/components/ui/loading";
+import { PageHeader } from "@/components/ui/page-header";
+import { useUser } from "@/contexts/UserContext";
+import {
+  RegistrationPaymentData,
+  SeasonRegistration,
+  SeasonRegistrationService,
+} from "@/lib/services/season-registration.service";
+import { formatCurrency } from "@/utils/currency";
+import { formatName } from "@/utils/name";
 
-import { PageHeader } from '@/components/ui/page-header';
-import { SeasonRegistrationService, SeasonRegistration, RegistrationPaymentData } from '@/lib/services/season-registration.service';
-import { PixPayment } from '@/components/payment/PixPayment';
-
-import { CreditCardPayment } from '@/components/payment/CreditCardPayment';
-import { formatCurrency } from '@/utils/currency';
-import { Loading } from '@/components/ui/loading';
-import { PageLoader } from '@/components/ui/loading';
-import { formatName } from '@/utils/name';
-import { useUser } from '@/contexts/UserContext';
-
-const InstallmentList: React.FC<{ payments: RegistrationPaymentData[] }> = ({ payments }) => {
+const InstallmentList: React.FC<{ payments: RegistrationPaymentData[] }> = ({
+  payments,
+}) => {
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'RECEIVED':
-      case 'CONFIRMED':
-      case 'RECEIVED_IN_CASH':
+      case "RECEIVED":
+      case "CONFIRMED":
+      case "RECEIVED_IN_CASH":
         return (
           <Badge className="bg-green-100 text-green-800 border-green-200">
             <CheckCircle className="w-3 h-3 mr-1" />
             Pago
           </Badge>
         );
-      case 'PENDING':
-      case 'AWAITING_PAYMENT':
-      case 'AWAITING_RISK_ANALYSIS':
+      case "PENDING":
+      case "AWAITING_PAYMENT":
+      case "AWAITING_RISK_ANALYSIS":
         return (
           <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
             <Clock className="w-3 h-3 mr-1" />
             Pendente
           </Badge>
         );
-      case 'OVERDUE':
+      case "OVERDUE":
         return (
           <Badge className="bg-red-100 text-red-800 border-red-200">
             <AlertCircle className="w-3 h-3 mr-1" />
             Vencido
           </Badge>
         );
-      case 'EXEMPT':
+      case "EXEMPT":
         return (
           <Badge className="bg-green-100 text-green-800 border-green-200">
             <CheckCircle className="w-3 h-3 mr-1" />
             Isento
           </Badge>
         );
-      case 'DIRECT_PAYMENT':
+      case "DIRECT_PAYMENT":
         return (
           <Badge className="bg-green-100 text-green-800 border-green-200">
             <CheckCircle className="w-3 h-3 mr-1" />
@@ -60,11 +69,7 @@ const InstallmentList: React.FC<{ payments: RegistrationPaymentData[] }> = ({ pa
           </Badge>
         );
       default:
-        return (
-          <Badge variant="outline">
-            {status}
-          </Badge>
-        );
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -76,17 +81,27 @@ const InstallmentList: React.FC<{ payments: RegistrationPaymentData[] }> = ({ pa
       <CardContent>
         <ul className="space-y-3">
           {payments
-            .sort((a, b) => (a.installmentNumber || 1) - (b.installmentNumber || 1))
+            .sort(
+              (a, b) => (a.installmentNumber || 1) - (b.installmentNumber || 1),
+            )
             .map((payment, index) => {
               const installmentNumber = payment.installmentNumber || index + 1;
               return (
-                <li key={payment.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <li
+                  key={payment.id}
+                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                >
                   <div className="flex items-center gap-4">
-                    <div className="text-lg font-bold text-primary">{installmentNumber}ª</div>
+                    <div className="text-lg font-bold text-primary">
+                      {installmentNumber}ª
+                    </div>
                     <div>
-                      <div className="font-semibold">{formatCurrency(payment.value)}</div>
+                      <div className="font-semibold">
+                        {formatCurrency(payment.value)}
+                      </div>
                       <div className="text-sm text-muted-foreground">
-                        Vencimento: {new Date(payment.dueDate).toLocaleDateString('pt-BR')}
+                        Vencimento:{" "}
+                        {new Date(payment.dueDate).toLocaleDateString("pt-BR")}
                       </div>
                     </div>
                   </div>
@@ -106,7 +121,9 @@ export const RegistrationPayment: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { refreshFinancial } = useUser();
 
-  const [registration, setRegistration] = useState<SeasonRegistration | null>(null);
+  const [registration, setRegistration] = useState<SeasonRegistration | null>(
+    null,
+  );
   const [payments, setPayments] = useState<RegistrationPaymentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -125,16 +142,21 @@ export const RegistrationPayment: React.FC = () => {
       setError(null);
 
       // Carregar dados da inscrição
-      const registrationData = await SeasonRegistrationService.getById(registrationId);
+      const registrationData =
+        await SeasonRegistrationService.getById(registrationId);
       setRegistration(registrationData);
 
       // Tentar carregar dados de pagamento
       try {
-        const paymentResponse = await SeasonRegistrationService.getPaymentData(registrationId);
+        const paymentResponse =
+          await SeasonRegistrationService.getPaymentData(registrationId);
         setPayments(paymentResponse || []);
-      } catch (paymentError: any) {
+      } catch (paymentError: unknown) {
         // Se não há dados de pagamento, criar um objeto padrão
-        if (paymentError.message?.includes('não encontrados')) {
+        if (
+          paymentError instanceof Error &&
+          paymentError.message?.includes("não encontrados")
+        ) {
           setPayments([]);
         } else {
           throw paymentError;
@@ -142,12 +164,20 @@ export const RegistrationPayment: React.FC = () => {
       }
 
       // Se o pagamento foi confirmado, atualizar dados financeiros
-      if (registrationData && (registrationData.paymentStatus === 'paid' || registrationData.paymentStatus === 'exempt' || registrationData.paymentStatus === 'direct_payment')) {
+      if (
+        registrationData &&
+        (registrationData.paymentStatus === "paid" ||
+          registrationData.paymentStatus === "exempt" ||
+          registrationData.paymentStatus === "direct_payment")
+      ) {
         refreshFinancial();
       }
-
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar dados do pagamento');
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Erro ao carregar dados do pagamento";
+      setError(errorMessage);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -156,15 +186,15 @@ export const RegistrationPayment: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    
+
     // Verificar se há parâmetro success=true na URL
-    const successParam = searchParams.get('success');
-    if (successParam === 'true') {
+    const successParam = searchParams.get("success");
+    if (successParam === "true") {
       // Mostrar toast de sucesso e limpar o parâmetro da URL
       setTimeout(() => {
         // Remove o parâmetro success da URL
         const newUrl = window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
+        window.history.replaceState({}, "", newUrl);
       }, 100);
     }
   }, [registrationId, searchParams]);
@@ -172,8 +202,10 @@ export const RegistrationPayment: React.FC = () => {
   // Auto-refresh para pagamentos PIX (verifica status a cada 30 segundos)
   useEffect(() => {
     if (!registration || !payments.length) return;
-    
-    const pendingPixPayment = payments.find(p => p.billingType === 'PIX' && p.status === 'PENDING');
+
+    const pendingPixPayment = payments.find(
+      (p) => p.billingType === "PIX" && p.status === "PENDING",
+    );
 
     if (pendingPixPayment) {
       const interval = setInterval(() => {
@@ -195,20 +227,22 @@ export const RegistrationPayment: React.FC = () => {
   const getStatusBadge = (status: string) => {
     // Para pagamentos parcelados, calcular status real baseado nas parcelas
     if (payments.length > 1) {
-      const paidPayments = payments.filter(p => 
-        p.status === 'RECEIVED' || 
-        p.status === 'CONFIRMED' || 
-        p.status === 'RECEIVED_IN_CASH'
+      const paidPayments = payments.filter(
+        (p) =>
+          p.status === "RECEIVED" ||
+          p.status === "CONFIRMED" ||
+          p.status === "RECEIVED_IN_CASH",
       );
-      
-      const pendingPayments = payments.filter(p => 
-        p.status === 'PENDING' || 
-        p.status === 'AWAITING_PAYMENT' || 
-        p.status === 'AWAITING_RISK_ANALYSIS'
+
+      const pendingPayments = payments.filter(
+        (p) =>
+          p.status === "PENDING" ||
+          p.status === "AWAITING_PAYMENT" ||
+          p.status === "AWAITING_RISK_ANALYSIS",
       );
-      
-      const overduePayments = payments.filter(p => p.status === 'OVERDUE');
-      
+
+      const overduePayments = payments.filter((p) => p.status === "OVERDUE");
+
       // Todas as parcelas pagas
       if (paidPayments.length === payments.length) {
         return (
@@ -218,17 +252,19 @@ export const RegistrationPayment: React.FC = () => {
           </Badge>
         );
       }
-      
+
       // Há parcelas vencidas
       if (overduePayments.length > 0) {
         return (
           <Badge className="bg-red-100 text-red-800 border-red-200">
             <AlertCircle className="w-3 h-3 mr-1" />
-            {overduePayments.length} Vencida{overduePayments.length > 1 ? 's' : ''} • {paidPayments.length}/{payments.length} Pagas
+            {overduePayments.length} Vencida
+            {overduePayments.length > 1 ? "s" : ""} • {paidPayments.length}/
+            {payments.length} Pagas
           </Badge>
         );
       }
-      
+
       // Parcialmente pago
       if (paidPayments.length > 0) {
         return (
@@ -238,63 +274,72 @@ export const RegistrationPayment: React.FC = () => {
           </Badge>
         );
       }
-      
+
       // Nenhuma parcela paga ainda
       return (
-        <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
+        <Badge
+          variant="outline"
+          className="bg-yellow-50 text-yellow-800 border-yellow-200"
+        >
           <Clock className="w-3 h-3 mr-1" />
           Pendente ({payments.length} parcelas)
         </Badge>
       );
     }
-    
+
     // Para pagamento único, usar status original
     switch (status) {
-      case 'paid':
+      case "paid":
         return (
           <Badge className="bg-green-100 text-green-800 border-green-200">
             <CheckCircle className="w-3 h-3 mr-1" />
             Pago
           </Badge>
         );
-      case 'pending':
-      case 'processing':
+      case "pending":
+      case "processing":
         return (
-          <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
+          <Badge
+            variant="outline"
+            className="bg-yellow-50 text-yellow-800 border-yellow-200"
+          >
             <Clock className="w-3 h-3 mr-1" />
             Pendente
           </Badge>
         );
-      case 'failed':
-      case 'overdue':
+      case "failed":
+      case "overdue":
         return (
           <Badge variant="destructive">
             <AlertCircle className="w-3 h-3 mr-1" />
             Falhou
           </Badge>
         );
-      case 'cancelled':
+      case "cancelled":
         return (
           <Badge variant="outline" className="text-gray-600">
             <AlertCircle className="w-3 h-3 mr-1" />
             Cancelado
           </Badge>
         );
-      case 'refunded':
+      case "refunded":
         return (
-          <Badge variant="outline" className="bg-orange-50 text-orange-800 border-orange-200">
+          <Badge
+            variant="outline"
+            className="bg-orange-50 text-orange-800 border-orange-200"
+          >
             <AlertCircle className="w-3 h-3 mr-1" />
             Estornado
           </Badge>
         );
-      case 'exempt':
+      case "exempt":
         return (
           <Badge className="bg-green-100 text-green-800 border-green-200">
             <CheckCircle className="w-3 h-3 mr-1" />
             Isento
           </Badge>
         );
-      case 'direct_payment':
+      case "direct_payment":
         return (
           <Badge className="bg-green-100 text-green-800 border-green-200">
             <CheckCircle className="w-3 h-3 mr-1" />
@@ -302,11 +347,7 @@ export const RegistrationPayment: React.FC = () => {
           </Badge>
         );
       default:
-        return (
-          <Badge variant="outline">
-            {status}
-          </Badge>
-        );
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -319,20 +360,21 @@ export const RegistrationPayment: React.FC = () => {
     // 1. Primeiro, procura por parcelas vencidas (OVERDUE) - prioridade máxima
     // 2. Depois, procura por parcelas pendentes (PENDING, AWAITING_PAYMENT, AWAITING_RISK_ANALYSIS)
     // 3. Ordena por número da parcela (installmentNumber) ou data de vencimento
-    
-    const overduePayments = payments.filter(p => p.status === 'OVERDUE');
-    const pendingPayments = payments.filter(p => 
-      p.status === 'PENDING' || 
-      p.status === 'AWAITING_PAYMENT' || 
-      p.status === 'AWAITING_RISK_ANALYSIS'
+
+    const overduePayments = payments.filter((p) => p.status === "OVERDUE");
+    const pendingPayments = payments.filter(
+      (p) =>
+        p.status === "PENDING" ||
+        p.status === "AWAITING_PAYMENT" ||
+        p.status === "AWAITING_RISK_ANALYSIS",
     );
-    
+
     if (overduePayments.length > 0) {
     }
-    
+
     if (pendingPayments.length > 0) {
     }
-    
+
     // Função para ordenar por número da parcela ou data de vencimento
     const sortPayments = (paymentsToSort: RegistrationPaymentData[]) => {
       return paymentsToSort.sort((a, b) => {
@@ -346,30 +388,30 @@ export const RegistrationPayment: React.FC = () => {
     };
 
     let paymentToRender: RegistrationPaymentData | null = null;
-    let selectionReason = '';
+    let selectionReason = "";
 
     // Prioridade 1: Parcelas vencidas (ordenadas por número/data)
     if (overduePayments.length > 0) {
       const sortedOverdue = sortPayments(overduePayments);
       paymentToRender = sortedOverdue[0];
-      selectionReason = 'OVERDUE_PRIORITY';
+      selectionReason = "OVERDUE_PRIORITY";
     }
     // Prioridade 2: Parcelas pendentes (ordenadas por número/data)
     else if (pendingPayments.length > 0) {
       const sortedPending = sortPayments(pendingPayments);
       paymentToRender = sortedPending[0];
-      selectionReason = 'PENDING_PRIORITY';
+      selectionReason = "PENDING_PRIORITY";
     }
     // Fallback: Primeira parcela da lista
     else {
       paymentToRender = payments[0];
-      selectionReason = 'FALLBACK_FIRST';
+      selectionReason = "FALLBACK_FIRST";
     }
 
     if (!paymentToRender) return null;
 
     switch (paymentToRender.billingType) {
-      case 'PIX':
+      case "PIX":
         return (
           <PixPayment
             paymentData={paymentToRender}
@@ -377,16 +419,16 @@ export const RegistrationPayment: React.FC = () => {
             onPaymentComplete={() => loadData(true)}
             onPaymentUpdate={(updatedPayment) => {
               // Atualizar o estado local dos pagamentos
-              setPayments(prevPayments => 
-                prevPayments.map(p => 
-                  p.id === updatedPayment.id ? updatedPayment : p
-                )
+              setPayments((prevPayments) =>
+                prevPayments.map((p) =>
+                  p.id === updatedPayment.id ? updatedPayment : p,
+                ),
               );
             }}
           />
         );
 
-      case 'CREDIT_CARD':
+      case "CREDIT_CARD":
         return (
           <CreditCardPayment
             paymentData={paymentToRender}
@@ -395,8 +437,8 @@ export const RegistrationPayment: React.FC = () => {
           />
         );
 
-      case 'ADMIN_EXEMPT':
-      case 'ADMIN_DIRECT':
+      case "ADMIN_EXEMPT":
+      case "ADMIN_DIRECT":
         return (
           <PixPayment
             paymentData={paymentToRender}
@@ -404,10 +446,10 @@ export const RegistrationPayment: React.FC = () => {
             onPaymentComplete={() => loadData(true)}
             onPaymentUpdate={(updatedPayment) => {
               // Atualizar o estado local dos pagamentos
-              setPayments(prevPayments => 
-                prevPayments.map(p => 
-                  p.id === updatedPayment.id ? updatedPayment : p
-                )
+              setPayments((prevPayments) =>
+                prevPayments.map((p) =>
+                  p.id === updatedPayment.id ? updatedPayment : p,
+                ),
               );
             }}
           />
@@ -429,7 +471,9 @@ export const RegistrationPayment: React.FC = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-destructive">Erro</h1>
-          <p className="text-muted-foreground">ID da inscrição não encontrado</p>
+          <p className="text-muted-foreground">
+            ID da inscrição não encontrado
+          </p>
         </div>
       </div>
     );
@@ -448,11 +492,11 @@ export const RegistrationPayment: React.FC = () => {
             {
               label: "Voltar",
               onClick: handleBack,
-              variant: "outline"
-            }
+              variant: "outline",
+            },
           ]}
         />
-        
+
         <div className="w-full max-w-4xl mx-auto px-6 py-6">
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
@@ -467,7 +511,9 @@ export const RegistrationPayment: React.FC = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-destructive">Erro</h1>
-          <p className="text-muted-foreground">Dados da inscrição não encontrados</p>
+          <p className="text-muted-foreground">
+            Dados da inscrição não encontrados
+          </p>
         </div>
       </div>
     );
@@ -481,22 +527,23 @@ export const RegistrationPayment: React.FC = () => {
           {
             label: "Voltar",
             onClick: handleBack,
-            variant: "outline"
-          }
+            variant: "outline",
+          },
         ]}
       />
-      
+
       <div className="w-full max-w-4xl mx-auto px-6 py-6 space-y-6">
         {/* Mensagem de Sucesso do Callback */}
-        {searchParams.get('success') === 'true' && (
+        {searchParams.get("success") === "true" && (
           <Alert className="bg-green-50 border-green-200">
             <CheckCircle className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-800">
-              Pagamento processado com sucesso! Aguarde a confirmação automática.
+              Pagamento processado com sucesso! Aguarde a confirmação
+              automática.
             </AlertDescription>
           </Alert>
         )}
-        
+
         {/* Resumo da Inscrição */}
         <Card>
           <CardHeader>
@@ -508,50 +555,68 @@ export const RegistrationPayment: React.FC = () => {
           <CardContent className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <h4 className="font-semibold text-sm text-muted-foreground mb-2">Temporada</h4>
+                <h4 className="font-semibold text-sm text-muted-foreground mb-2">
+                  Temporada
+                </h4>
                 <p className="font-medium">{registration.season.name}</p>
               </div>
-              
+
               <div>
-                <h4 className="font-semibold text-sm text-muted-foreground mb-2">Piloto</h4>
-                <p className="font-medium">{formatName(registration.user.name)}</p>
+                <h4 className="font-semibold text-sm text-muted-foreground mb-2">
+                  Piloto
+                </h4>
+                <p className="font-medium">
+                  {formatName(registration.user.name)}
+                </p>
               </div>
             </div>
 
             {/* Categorias Selecionadas */}
             <div>
-              <h4 className="font-semibold text-sm text-muted-foreground mb-2">Categorias</h4>
+              <h4 className="font-semibold text-sm text-muted-foreground mb-2">
+                Categorias
+              </h4>
               <div className="flex flex-wrap gap-2">
-                {registration.categories && registration.categories.length > 0 ? (
+                {registration.categories &&
+                registration.categories.length > 0 ? (
                   registration.categories.map((regCategory) => (
                     <Badge key={regCategory.id} variant="outline">
                       {regCategory.category.name}
                     </Badge>
                   ))
                 ) : (
-                  <span className="text-sm text-muted-foreground">Nenhuma categoria</span>
+                  <span className="text-sm text-muted-foreground">
+                    Nenhuma categoria
+                  </span>
                 )}
               </div>
             </div>
 
             {/* Etapas Selecionadas (se for inscrição por etapa) */}
-            {registration.season.inscriptionType === 'por_etapa' && (
+            {registration.season.inscriptionType === "por_etapa" && (
               <div>
-                <h4 className="font-semibold text-sm text-muted-foreground mb-2">Etapas</h4>
+                <h4 className="font-semibold text-sm text-muted-foreground mb-2">
+                  Etapas
+                </h4>
                 {registration.stages && registration.stages.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {registration.stages.map((regStage) => (
                       <Badge key={regStage.id} variant="outline">
-                        {regStage.stage.name} - {new Date(regStage.stage.date).toLocaleDateString('pt-BR')}
+                        {regStage.stage.name} -{" "}
+                        {new Date(regStage.stage.date).toLocaleDateString(
+                          "pt-BR",
+                        )}
                       </Badge>
                     ))}
                   </div>
                 ) : (
-                  <span className="text-sm text-muted-foreground">Nenhuma etapa selecionada</span>
+                  <span className="text-sm text-muted-foreground">
+                    Nenhuma etapa selecionada
+                  </span>
                 )}
               </div>
             )}
-            
+
             {/* Valor Total */}
             <div className="pt-4 border-t">
               <div className="flex justify-between items-center">
@@ -568,23 +633,25 @@ export const RegistrationPayment: React.FC = () => {
         {(() => {
           // Para pagamentos parcelados, verificar se há parcelas pendentes
           if (payments.length > 1) {
-            const pendingPayments = payments.filter(p => 
-              p.status === 'PENDING' || 
-              p.status === 'AWAITING_PAYMENT' || 
-              p.status === 'AWAITING_RISK_ANALYSIS' ||
-              p.status === 'OVERDUE'
+            const pendingPayments = payments.filter(
+              (p) =>
+                p.status === "PENDING" ||
+                p.status === "AWAITING_PAYMENT" ||
+                p.status === "AWAITING_RISK_ANALYSIS" ||
+                p.status === "OVERDUE",
             );
-            
+
             // Se há parcelas pendentes, mostrar interface de pagamento
             if (pendingPayments.length > 0) {
               return false; // Não está totalmente pago
             }
           }
-          
+
           // Para pagamento único ou todas as parcelas pagas
-          const isPaid = registration.paymentStatus === 'paid' || 
-                        registration.paymentStatus === 'exempt' || 
-                        registration.paymentStatus === 'direct_payment';
+          const isPaid =
+            registration.paymentStatus === "paid" ||
+            registration.paymentStatus === "exempt" ||
+            registration.paymentStatus === "direct_payment";
           return isPaid;
         })() ? (
           <Card>
@@ -592,18 +659,25 @@ export const RegistrationPayment: React.FC = () => {
               <div className="text-center py-8">
                 <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-green-700 mb-2">
-                  {registration.paymentStatus === 'exempt' ? 'Inscrição Isenta!' : 
-                   registration.paymentStatus === 'direct_payment' ? 'Pagamento Direto Confirmado!' : 
-                   'Pagamento Confirmado!'}
+                  {registration.paymentStatus === "exempt"
+                    ? "Inscrição Isenta!"
+                    : registration.paymentStatus === "direct_payment"
+                      ? "Pagamento Direto Confirmado!"
+                      : "Pagamento Confirmado!"}
                 </h3>
                 <p className="text-muted-foreground">
-                  {registration.paymentStatus === 'exempt' ? 'Sua inscrição foi marcada como isenta pelo administrador.' :
-                   registration.paymentStatus === 'direct_payment' ? 'Sua inscrição foi confirmada para pagamento direto.' :
-                   'Sua inscrição foi confirmada com sucesso.'}
+                  {registration.paymentStatus === "exempt"
+                    ? "Sua inscrição foi marcada como isenta pelo administrador."
+                    : registration.paymentStatus === "direct_payment"
+                      ? "Sua inscrição foi confirmada para pagamento direto."
+                      : "Sua inscrição foi confirmada com sucesso."}
                 </p>
                 {registration.paymentDate && (
                   <p className="text-sm text-muted-foreground mt-2">
-                    Pago em: {new Date(registration.paymentDate).toLocaleDateString('pt-BR')}
+                    Pago em:{" "}
+                    {new Date(registration.paymentDate).toLocaleDateString(
+                      "pt-BR",
+                    )}
                   </p>
                 )}
               </div>
@@ -611,8 +685,6 @@ export const RegistrationPayment: React.FC = () => {
           </Card>
         ) : (
           <>
-
-
             {payments.length > 1 && <InstallmentList payments={payments} />}
             {renderPaymentMethod()}
           </>
@@ -625,13 +697,16 @@ export const RegistrationPayment: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              • Após o pagamento, aguarde alguns minutos para a confirmação automática
+              • Após o pagamento, aguarde alguns minutos para a confirmação
+              automática
             </p>
             <p className="text-sm text-muted-foreground">
-              • Em caso de dúvidas, entre em contato com a organização do campeonato
+              • Em caso de dúvidas, entre em contato com a organização do
+              campeonato
             </p>
             <p className="text-sm text-muted-foreground">
-              • Mantenha o comprovante de pagamento até a confirmação da inscrição
+              • Mantenha o comprovante de pagamento até a confirmação da
+              inscrição
             </p>
           </CardContent>
         </Card>
@@ -640,4 +715,4 @@ export const RegistrationPayment: React.FC = () => {
   );
 };
 
-export default RegistrationPayment; 
+export default RegistrationPayment;

@@ -1,36 +1,36 @@
-import { useState, useEffect } from "react";
-import { Button } from "brk-design-system";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "brk-design-system";
-import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
-import { Badge } from "brk-design-system";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+} from "brk-design-system";
+import { CreditCard, ExternalLink, Save, Wallet } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import { Input } from "brk-design-system";
-import { Label } from "brk-design-system";
-import { 
-  CreditCard, 
-  CheckCircle, 
-  XCircle, 
-  ExternalLink,
-  Save,
-  Wallet
-} from "lucide-react";
-import { Championship, ChampionshipService, AsaasStatus } from "@/lib/services/championship.service";
-import { Loading } from '@/components/ui/loading';
-import { useChampionshipData } from '@/contexts/ChampionshipContext';
+import { Loading } from "@/components/ui/loading";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
+import { ChampionshipService } from "@/lib/services/championship.service";
 
 interface AsaasAccountTabProps {
   championshipId: string;
 }
 
 export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
-  const { 
-    getAsaasStatus, 
-    getChampionshipInfo, 
-    loading, 
-    error, 
-    refreshAsaasStatus 
+  const {
+    getAsaasStatus,
+    getChampionshipInfo,
+    loading,
+    error,
+    refreshAsaasStatus,
   } = useChampionshipData();
-  
+
   const [saving, setSaving] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [walletId, setWalletId] = useState<string>("");
@@ -50,17 +50,19 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
     try {
       setSaving(true);
       setLocalError(null);
-      
+
       // Atualizar o campeonato com o novo Wallet ID
-      await ChampionshipService.updateAsaasWalletId(championshipId, walletId.trim());
-      
+      await ChampionshipService.updateAsaasWalletId(
+        championshipId,
+        walletId.trim(),
+      );
+
       // Recarregar status após salvar
       await refreshAsaasStatus();
-      
+
       // TODO: Adicionar toast de sucesso
-      
     } catch (err: any) {
-      setLocalError(err.message || 'Erro ao salvar Wallet ID');
+      setLocalError(err.message || "Erro ao salvar Wallet ID");
     } finally {
       setSaving(false);
     }
@@ -105,14 +107,16 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
             <Alert variant="success">
               <AlertTitle>Conta Configurada</AlertTitle>
               <AlertDescription>
-                Conta Asaas configurada com sucesso! Agora você pode receber pagamentos com split automático.
+                Conta Asaas configurada com sucesso! Agora você pode receber
+                pagamentos com split automático.
               </AlertDescription>
             </Alert>
           ) : (
             <Alert variant="warning">
               <AlertTitle>Conta Não Configurada</AlertTitle>
               <AlertDescription>
-                Para receber pagamentos com split automático, você precisa configurar o Wallet ID da sua conta Asaas.
+                Para receber pagamentos com split automático, você precisa
+                configurar o Wallet ID da sua conta Asaas.
               </AlertDescription>
             </Alert>
           )}
@@ -121,8 +125,9 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
             <Alert variant="warning">
               <AlertTitle>Split Payment Desabilitado</AlertTitle>
               <AlertDescription>
-                O Split Payment não está habilitado para este campeonato. 
-                Habilite o Split Payment nas configurações básicas do campeonato para poder configurar o Wallet ID.
+                O Split Payment não está habilitado para este campeonato.
+                Habilite o Split Payment nas configurações básicas do campeonato
+                para poder configurar o Wallet ID.
               </AlertDescription>
             </Alert>
           )}
@@ -137,7 +142,8 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
             Configuração do Wallet ID
           </CardTitle>
           <CardDescription>
-            Adicione o Wallet ID da sua conta Asaas para habilitar o split de pagamentos
+            Adicione o Wallet ID da sua conta Asaas para habilitar o split de
+            pagamentos
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -161,12 +167,12 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
                   disabled={saving}
                 />
                 <p className="text-sm text-muted-foreground">
-                  O Wallet ID pode ser encontrado no painel administrativo do Asaas, 
-                  na seção de configurações da sua conta.
+                  O Wallet ID pode ser encontrado no painel administrativo do
+                  Asaas, na seção de configurações da sua conta.
                 </p>
               </div>
 
-              <Button 
+              <Button
                 onClick={handleSaveWalletId}
                 disabled={saving || !walletId.trim()}
                 className="flex items-center gap-2 w-full sm:w-auto"
@@ -178,8 +184,8 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
           )}
 
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => window.open("https://www.asaas.com", "_blank")}
               className="flex items-center gap-2 w-full sm:w-auto"
             >
@@ -211,4 +217,4 @@ export const AsaasAccountTab = ({ championshipId }: AsaasAccountTabProps) => {
       </Card>
     </div>
   );
-}; 
+};

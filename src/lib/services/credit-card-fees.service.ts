@@ -1,4 +1,4 @@
-import api from '../axios';
+import api from "../axios";
 
 export interface CreditCardFees {
   id: string;
@@ -41,7 +41,7 @@ export interface CreditCardFeesRate {
 
 export class CreditCardFeesService {
   async findAll(): Promise<CreditCardFees[]> {
-    const response = await api.get('/credit-card-fees');
+    const response = await api.get("/credit-card-fees");
     return response.data;
   }
 
@@ -50,17 +50,24 @@ export class CreditCardFeesService {
     return response.data;
   }
 
-  async findByChampionshipId(championshipId: string): Promise<CreditCardFees[]> {
-    const response = await api.get(`/credit-card-fees/championship/${championshipId}`);
+  async findByChampionshipId(
+    championshipId: string,
+  ): Promise<CreditCardFees[]> {
+    const response = await api.get(
+      `/credit-card-fees/championship/${championshipId}`,
+    );
     return response.data;
   }
 
   async create(data: CreateCreditCardFeesData): Promise<CreditCardFees> {
-    const response = await api.post('/credit-card-fees', data);
+    const response = await api.post("/credit-card-fees", data);
     return response.data;
   }
 
-  async update(id: string, data: UpdateCreditCardFeesData): Promise<CreditCardFees> {
+  async update(
+    id: string,
+    data: UpdateCreditCardFeesData,
+  ): Promise<CreditCardFees> {
     const response = await api.put(`/credit-card-fees/${id}`, data);
     return response.data;
   }
@@ -69,8 +76,13 @@ export class CreditCardFeesService {
     await api.delete(`/credit-card-fees/${id}`);
   }
 
-  async getRateForInstallments(championshipId: string, installments: number): Promise<CreditCardFeesRate> {
-    const response = await api.get(`/credit-card-fees/championship/${championshipId}/installments/${installments}`);
+  async getRateForInstallments(
+    championshipId: string,
+    installments: number,
+  ): Promise<CreditCardFeesRate> {
+    const response = await api.get(
+      `/credit-card-fees/championship/${championshipId}/installments/${installments}`,
+    );
     return response.data;
   }
-} 
+}

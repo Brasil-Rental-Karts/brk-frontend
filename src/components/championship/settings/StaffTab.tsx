@@ -1,25 +1,44 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
-import { Button } from "brk-design-system";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "brk-design-system";
-import { Badge } from "brk-design-system";
-import { Input } from "brk-design-system";
-import { Checkbox } from "brk-design-system";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Checkbox,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
 } from "brk-design-system";
-import { AlertTriangle, Mail, Plus, Trash2, Users, Calendar, Crown, Settings } from "lucide-react";
-import { ChampionshipStaffService, StaffMember, StaffPermissions } from "@/lib/services/championship-staff.service";
+import {
+  AlertTriangle,
+  Calendar,
+  Crown,
+  Mail,
+  Settings,
+  Trash2,
+  Users,
+} from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+
+import { Loading } from "@/components/ui/loading";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Loading } from '@/components/ui/loading';
-import { formatName } from '@/utils/name';
-import { useChampionshipData } from '@/contexts/ChampionshipContext';
+import {
+  ChampionshipStaffService,
+  StaffMember,
+  StaffPermissions,
+} from "@/lib/services/championship-staff.service";
+import { formatName } from "@/utils/name";
 
 interface StaffTabProps {
   championshipId: string;
@@ -27,23 +46,34 @@ interface StaffTabProps {
 
 export const StaffTab = ({ championshipId }: StaffTabProps) => {
   const isMobile = useIsMobile();
-  
+
   // Usar o contexto de dados do campeonato
-  const { getStaff, addStaff, updateStaff, removeStaff, loading: contextLoading, error: contextError } = useChampionshipData();
-  
+  const {
+    getStaff,
+    addStaff,
+    updateStaff,
+    removeStaff,
+    loading: contextLoading,
+    error: contextError,
+  } = useChampionshipData();
+
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAddingMember, setIsAddingMember] = useState(false);
-  const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [newMemberEmail, setNewMemberEmail] = useState("");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [memberToDelete, setMemberToDelete] = useState<StaffMember | null>(null);
+  const [memberToDelete, setMemberToDelete] = useState<StaffMember | null>(
+    null,
+  );
   const [isDeleting, setIsDeleting] = useState(false);
   const [showPermissionsDialog, setShowPermissionsDialog] = useState(false);
   const [memberToEdit, setMemberToEdit] = useState<StaffMember | null>(null);
   const [isUpdatingPermissions, setIsUpdatingPermissions] = useState(false);
   type StaffPermissionsWithAnalise = StaffPermissions & { analise?: boolean };
-  const [permissions, setPermissions] = useState<StaffPermissionsWithAnalise>({});
+  const [permissions, setPermissions] = useState<StaffPermissionsWithAnalise>(
+    {},
+  );
 
   // Definir permissões padrão (todas false)
   const defaultPermissions = {
@@ -71,8 +101,12 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
       const members = getStaff();
       setStaffMembers(members);
     } catch (err) {
-      console.error('Erro ao carregar staff:', err);
-      setError(err instanceof Error ? err.message : 'Erro ao carregar membros da equipe');
+      console.error("Erro ao carregar staff:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Erro ao carregar membros da equipe",
+      );
     } finally {
       setLoading(false);
     }
@@ -91,9 +125,9 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!newMemberEmail.trim()) {
-      toast.error('Por favor, informe o email do usuário');
+      toast.error("Por favor, informe o email do usuário");
       return;
     }
 
@@ -101,23 +135,29 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
       setIsAddingMember(true);
       setError(null);
 
-      const newMember = await ChampionshipStaffService.addStaffMember(championshipId, { 
-        email: newMemberEmail.trim(),
-        permissions: { ...defaultPermissions }
-      });
-      
+      const newMember = await ChampionshipStaffService.addStaffMember(
+        championshipId,
+        {
+          email: newMemberEmail.trim(),
+          permissions: { ...defaultPermissions },
+        },
+      );
+
       // Atualizar o contexto com o novo membro
       addStaff(newMember);
-      
-      toast.success('Membro adicionado à equipe com sucesso!');
-      setNewMemberEmail('');
+
+      toast.success("Membro adicionado à equipe com sucesso!");
+      setNewMemberEmail("");
       // Abrir modal de permissões para o novo membro
       setMemberToEdit(newMember);
       setPermissions(newMember.permissions || { ...defaultPermissions });
       setShowPermissionsDialog(true);
     } catch (err) {
-      console.error('Erro ao adicionar membro:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao adicionar membro à equipe';
+      console.error("Erro ao adicionar membro:", err);
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Erro ao adicionar membro à equipe";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -137,15 +177,19 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
       setIsDeleting(true);
       setError(null);
 
-      await ChampionshipStaffService.removeStaffMember(championshipId, memberToDelete.id);
-      
+      await ChampionshipStaffService.removeStaffMember(
+        championshipId,
+        memberToDelete.id,
+      );
+
       // Atualizar o contexto removendo o membro
       removeStaff(memberToDelete.id);
-      
-      toast.success('Membro removido da equipe com sucesso!');
+
+      toast.success("Membro removido da equipe com sucesso!");
     } catch (err) {
-      console.error('Erro ao remover membro:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao remover membro da equipe';
+      console.error("Erro ao remover membro:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Erro ao remover membro da equipe";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -173,21 +217,23 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
       setIsUpdatingPermissions(true);
       setError(null);
 
-      const updatedMember = await ChampionshipStaffService.updateStaffMemberPermissions(
-        championshipId,
-        memberToEdit.id,
-        { permissions }
-      );
-      
+      const updatedMember =
+        await ChampionshipStaffService.updateStaffMemberPermissions(
+          championshipId,
+          memberToEdit.id,
+          { permissions },
+        );
+
       // Atualizar o contexto com as novas permissões
       updateStaff(memberToEdit.id, { permissions: updatedMember.permissions });
-      
-      toast.success('Permissões atualizadas com sucesso!');
+
+      toast.success("Permissões atualizadas com sucesso!");
       setShowPermissionsDialog(false);
       setMemberToEdit(null);
     } catch (err) {
-      console.error('Erro ao atualizar permissões:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar permissões';
+      console.error("Erro ao atualizar permissões:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Erro ao atualizar permissões";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -201,25 +247,28 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
     setPermissions({});
   };
 
-  const handlePermissionChange = (permission: keyof StaffPermissionsWithAnalise, checked: boolean) => {
-    setPermissions(prev => ({
+  const handlePermissionChange = (
+    permission: keyof StaffPermissionsWithAnalise,
+    checked: boolean,
+  ) => {
+    setPermissions((prev) => ({
       ...prev,
-      [permission]: checked
+      [permission]: checked,
     }));
   };
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(date).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   // Calcular membros da equipe (sem contar o owner)
-  const teamMembers = staffMembers.filter(member => !member.isOwner);
+  const teamMembers = staffMembers.filter((member) => !member.isOwner);
   const hasTeamMembers = teamMembers.length > 0;
 
   // Usar loading do contexto se disponível
@@ -235,38 +284,38 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
 
   // Permissões em ordem alfabética para o card explicativo
   const permissionOrder = [
-    'analise',
-    'categories',
-    'classification',
-    'asaasAccount',
-    'editChampionship',
-    'stages',
-    'staff',
-    'sponsors',
-    'pilots',
-    'penalties',
-    'raceDay',
-    'regulations',
-    'scoringSystems',
-    'seasons',
-    'gridTypes',
+    "analise",
+    "categories",
+    "classification",
+    "asaasAccount",
+    "editChampionship",
+    "stages",
+    "staff",
+    "sponsors",
+    "pilots",
+    "penalties",
+    "raceDay",
+    "regulations",
+    "scoringSystems",
+    "seasons",
+    "gridTypes",
   ];
   const permissionLabels: Record<string, string> = {
-    analise: 'Análises',
-    categories: 'Categorias',
-    classification: 'Classificação',
-    asaasAccount: 'Conta Asaas',
-    editChampionship: 'Editar Campeonato',
-    stages: 'Etapas',
-    staff: 'Gerenciar Equipe',
-    sponsors: 'Patrocinadores',
-    pilots: 'Pilotos',
-    penalties: 'Punições',
-    raceDay: 'Race Day',
-    regulations: 'Regulamentos',
-    scoringSystems: 'Sistemas de Pontuação',
-    seasons: 'Temporadas',
-    gridTypes: 'Tipos de Grid',
+    analise: "Análises",
+    categories: "Categorias",
+    classification: "Classificação",
+    asaasAccount: "Conta Asaas",
+    editChampionship: "Editar Campeonato",
+    stages: "Etapas",
+    staff: "Gerenciar Equipe",
+    sponsors: "Patrocinadores",
+    pilots: "Pilotos",
+    penalties: "Punições",
+    raceDay: "Race Day",
+    regulations: "Regulamentos",
+    scoringSystems: "Sistemas de Pontuação",
+    seasons: "Temporadas",
+    gridTypes: "Tipos de Grid",
   };
 
   return (
@@ -296,7 +345,8 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
         <CardHeader>
           <CardTitle className="text-lg">Adicionar Membro à Equipe</CardTitle>
           <CardDescription>
-            Informe o email do usuário que deve ter acesso para editar dados do campeonato
+            Informe o email do usuário que deve ter acesso para editar dados do
+            campeonato
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -319,9 +369,9 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
               <Button
                 type="submit"
                 disabled={isAddingMember}
-                className={isMobile ? 'w-full' : ''}
+                className={isMobile ? "w-full" : ""}
               >
-                {isAddingMember ? 'Adicionando...' : 'Adicionar Membro'}
+                {isAddingMember ? "Adicionando..." : "Adicionar Membro"}
               </Button>
             </div>
           </form>
@@ -330,14 +380,16 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
 
       {/* Staff Members List */}
       <div className="space-y-4">
-
         {!hasTeamMembers ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-8">
               <Users className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Nenhum membro na equipe</h3>
+              <h3 className="text-lg font-semibold mb-2">
+                Nenhum membro na equipe
+              </h3>
               <p className="text-muted-foreground text-center mb-4">
-                Adicione usuários à equipe para que possam editar dados do campeonato
+                Adicione usuários à equipe para que possam editar dados do
+                campeonato
               </p>
             </CardContent>
           </Card>
@@ -353,9 +405,14 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                     <div className="flex items-center gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-semibold">{formatName(member.user.name)}</h4>
+                          <h4 className="font-semibold">
+                            {formatName(member.user.name)}
+                          </h4>
                           {member.isOwner ? (
-                            <Badge variant="default" className="bg-yellow-500 hover:bg-yellow-600">
+                            <Badge
+                              variant="default"
+                              className="bg-yellow-500 hover:bg-yellow-600"
+                            >
                               <Crown className="h-3 w-3 mr-1" />
                               Proprietário
                             </Badge>
@@ -369,44 +426,58 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Calendar className="h-3 w-3" />
-                          {member.isOwner 
+                          {member.isOwner
                             ? `Proprietário desde ${formatDate(member.addedAt)}`
-                            : `Adicionado em ${formatDate(member.addedAt)} por ${member.addedBy.name}`
-                          }
+                            : `Adicionado em ${formatDate(member.addedAt)} por ${member.addedBy.name}`}
                         </div>
                         {!member.isOwner && member.permissions && (
                           <div className="mt-2">
-                            <div className="text-xs text-muted-foreground mb-1">Permissões:</div>
+                            <div className="text-xs text-muted-foreground mb-1">
+                              Permissões:
+                            </div>
                             <div className="flex flex-wrap gap-1">
-                              {Object.entries(member.permissions).map(([key, value]) => {
-                                if (value) {
-                                  const permissionLabels: Record<string, string> = {
-                                    seasons: 'Temporadas',
-                                    categories: 'Categorias',
-                                    stages: 'Etapas',
-                                    pilots: 'Pilotos',
-                                    classification: 'Classificação',
-                                    regulations: 'Regulamentos',
-                                    penalties: 'Punições',
-                                    raceDay: 'Race Day',
-                                    editChampionship: 'Editar Campeonato',
-                                    gridTypes: 'Tipos de Grid',
-                                    scoringSystems: 'Sistemas de Pontuação',
-                                    sponsors: 'Patrocinadores',
-                                    staff: 'Equipe',
-                                    asaasAccount: 'Conta Asaas',
-                                    analise: 'Análises',
-                                  };
-                                  return (
-                                    <Badge key={key} variant="outline" className="text-xs">
-                                      {permissionLabels[key] || key}
-                                    </Badge>
-                                  );
-                                }
-                                return null;
-                              })}
-                              {Object.values(member.permissions).every(v => !v) && (
-                                <span className="text-xs text-muted-foreground">Nenhuma permissão específica</span>
+                              {Object.entries(member.permissions).map(
+                                ([key, value]) => {
+                                  if (value) {
+                                    const permissionLabels: Record<
+                                      string,
+                                      string
+                                    > = {
+                                      seasons: "Temporadas",
+                                      categories: "Categorias",
+                                      stages: "Etapas",
+                                      pilots: "Pilotos",
+                                      classification: "Classificação",
+                                      regulations: "Regulamentos",
+                                      penalties: "Punições",
+                                      raceDay: "Race Day",
+                                      editChampionship: "Editar Campeonato",
+                                      gridTypes: "Tipos de Grid",
+                                      scoringSystems: "Sistemas de Pontuação",
+                                      sponsors: "Patrocinadores",
+                                      staff: "Equipe",
+                                      asaasAccount: "Conta Asaas",
+                                      analise: "Análises",
+                                    };
+                                    return (
+                                      <Badge
+                                        key={key}
+                                        variant="outline"
+                                        className="text-xs"
+                                      >
+                                        {permissionLabels[key] || key}
+                                      </Badge>
+                                    );
+                                  }
+                                  return null;
+                                },
+                              )}
+                              {Object.values(member.permissions).every(
+                                (v) => !v,
+                              ) && (
+                                <span className="text-xs text-muted-foreground">
+                                  Nenhuma permissão específica
+                                </span>
                               )}
                             </div>
                           </div>
@@ -449,12 +520,20 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
           <DialogHeader>
             <DialogTitle>Confirmar remoção</DialogTitle>
             <DialogDescription>
-                              Tem certeza que deseja remover <strong>"{memberToDelete?.user.name ? formatName(memberToDelete.user.name) : 'Usuário'}"</strong> da equipe?
+              Tem certeza que deseja remover{" "}
+              <strong>
+                "
+                {memberToDelete?.user.name
+                  ? formatName(memberToDelete.user.name)
+                  : "Usuário"}
+                "
+              </strong>{" "}
+              da equipe?
               <br />
               Esta ação não pode ser desfeita.
             </DialogDescription>
           </DialogHeader>
-          
+
           {error && (
             <Alert variant="destructive">
               <AlertTitle>Erro ao remover</AlertTitle>
@@ -463,15 +542,15 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
           )}
 
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={cancelRemoveMember}
               disabled={isDeleting}
             >
               Cancelar
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={confirmRemoveMember}
               disabled={isDeleting}
             >
@@ -482,15 +561,25 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
       </Dialog>
 
       {/* Modal de edição de permissões */}
-      <Dialog open={showPermissionsDialog} onOpenChange={setShowPermissionsDialog}>
+      <Dialog
+        open={showPermissionsDialog}
+        onOpenChange={setShowPermissionsDialog}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Editar Permissões</DialogTitle>
             <DialogDescription>
-                              Configure as permissões de acesso para <strong>"{memberToEdit?.user.name ? formatName(memberToEdit.user.name) : 'Usuário'}"</strong>
+              Configure as permissões de acesso para{" "}
+              <strong>
+                "
+                {memberToEdit?.user.name
+                  ? formatName(memberToEdit.user.name)
+                  : "Usuário"}
+                "
+              </strong>
             </DialogDescription>
           </DialogHeader>
-          
+
           {error && (
             <Alert variant="destructive">
               <AlertTitle>Erro ao atualizar</AlertTitle>
@@ -504,10 +593,21 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                 <div className="flex items-center space-x-2" key={key}>
                   <Checkbox
                     id={key}
-                    checked={permissions[key as keyof StaffPermissionsWithAnalise] || false}
-                    onCheckedChange={(checked) => handlePermissionChange(key as keyof StaffPermissionsWithAnalise, checked as boolean)}
+                    checked={
+                      permissions[key as keyof StaffPermissionsWithAnalise] ||
+                      false
+                    }
+                    onCheckedChange={(checked) =>
+                      handlePermissionChange(
+                        key as keyof StaffPermissionsWithAnalise,
+                        checked as boolean,
+                      )
+                    }
                   />
-                  <label htmlFor={key} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  <label
+                    htmlFor={key}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
                     {permissionLabels[key]}
                   </label>
                 </div>
@@ -516,14 +616,14 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
           </div>
 
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={cancelEditPermissions}
               disabled={isUpdatingPermissions}
             >
               Cancelar
             </Button>
-            <Button 
+            <Button
               onClick={handleUpdatePermissions}
               disabled={isUpdatingPermissions}
             >
@@ -534,4 +634,4 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
       </Dialog>
     </div>
   );
-}; 
+};

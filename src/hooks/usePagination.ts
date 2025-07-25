@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useCallback, useMemo, useState } from "react";
 
 export interface PaginationState {
   currentPage: number;
@@ -33,7 +33,7 @@ export interface UsePaginationReturn {
 export function usePagination(
   totalItems: number,
   initialItemsPerPage: number = 10,
-  initialPage: number = 1
+  initialPage: number = 1,
 ): UsePaginationReturn {
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [itemsPerPage, setItemsPerPage] = useState(initialItemsPerPage);
@@ -56,11 +56,14 @@ export function usePagination(
     };
   }, [totalItems, itemsPerPage, currentPage]);
 
-  const handleSetCurrentPage = useCallback((page: number) => {
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const clampedPage = Math.max(1, Math.min(page, totalPages));
-    setCurrentPage(clampedPage);
-  }, [totalItems, itemsPerPage]);
+  const handleSetCurrentPage = useCallback(
+    (page: number) => {
+      const totalPages = Math.ceil(totalItems / itemsPerPage);
+      const clampedPage = Math.max(1, Math.min(page, totalPages));
+      setCurrentPage(clampedPage);
+    },
+    [totalItems, itemsPerPage],
+  );
 
   const handleSetItemsPerPage = useCallback((newItemsPerPage: number) => {
     setItemsPerPage(newItemsPerPage);
@@ -89,14 +92,24 @@ export function usePagination(
     setCurrentPage(totalPages);
   }, [totalItems, itemsPerPage]);
 
-  const actions = useMemo((): PaginationActions => ({
-    setCurrentPage: handleSetCurrentPage,
-    setItemsPerPage: handleSetItemsPerPage,
-    nextPage,
-    previousPage,
-    goToFirstPage,
-    goToLastPage,
-  }), [handleSetCurrentPage, handleSetItemsPerPage, nextPage, previousPage, goToFirstPage, goToLastPage]);
+  const actions = useMemo(
+    (): PaginationActions => ({
+      setCurrentPage: handleSetCurrentPage,
+      setItemsPerPage: handleSetItemsPerPage,
+      nextPage,
+      previousPage,
+      goToFirstPage,
+      goToLastPage,
+    }),
+    [
+      handleSetCurrentPage,
+      handleSetItemsPerPage,
+      nextPage,
+      previousPage,
+      goToFirstPage,
+      goToLastPage,
+    ],
+  );
 
   return {
     state: {
@@ -107,4 +120,4 @@ export function usePagination(
     actions,
     info,
   };
-} 
+}

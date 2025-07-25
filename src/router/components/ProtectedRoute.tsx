@@ -1,7 +1,9 @@
-import { useAuth } from '@/contexts/AuthContext';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { ReactNode } from 'react';
-import { FullPageLoader } from './RouteLoader';
+import { ReactNode } from "react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+
+import { useAuth } from "@/contexts/AuthContext";
+
+import { FullPageLoader } from "./RouteLoader";
 
 interface ProtectedRouteProps {
   children?: ReactNode;
@@ -12,9 +14,9 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute = ({
   children,
-  redirectPath = '/auth/login',
+  redirectPath = "/auth/login",
   requiredRoles = [],
-  fallback
+  fallback,
 }: ProtectedRouteProps) => {
   const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
@@ -27,22 +29,22 @@ export const ProtectedRoute = ({
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
     // Check if this is a logout action - if so, don't save redirectUrl
-    const isLogoutAction = localStorage.getItem('isLogoutAction') === 'true';
-    
+    const isLogoutAction = localStorage.getItem("isLogoutAction") === "true";
+
     if (!isLogoutAction) {
-      localStorage.setItem('redirectUrl', location.pathname);
+      localStorage.setItem("redirectUrl", location.pathname);
     } else {
       // Clear the logout flag
-      localStorage.removeItem('isLogoutAction');
+      localStorage.removeItem("isLogoutAction");
     }
-    
+
     return (
       <Navigate
         to={redirectPath}
         replace
-        state={{ 
+        state={{
           from: location.pathname,
-          message: 'Você precisa estar logado para acessar esta página.'
+          message: "Você precisa estar logado para acessar esta página.",
         }}
       />
     );
@@ -51,14 +53,14 @@ export const ProtectedRoute = ({
   // Check role-based access if roles are specified
   if (requiredRoles.length > 0 && user?.role) {
     const hasRequiredRole = requiredRoles.includes(user.role);
-    
+
     if (!hasRequiredRole) {
       return (
         <Navigate
           to="/dashboard"
           replace
           state={{
-            error: 'Você não tem permissão para acessar esta página.'
+            error: "Você não tem permissão para acessar esta página.",
           }}
         />
       );
@@ -70,4 +72,4 @@ export const ProtectedRoute = ({
 
   // Render children or outlet
   return children ? <>{children}</> : <Outlet />;
-}; 
+};

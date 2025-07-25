@@ -1,5 +1,10 @@
-import { useState } from 'react';
-import { SeasonService, SeasonData, Season } from '@/lib/services/season.service';
+import { useState } from "react";
+
+import {
+  Season,
+  SeasonData,
+  SeasonService,
+} from "@/lib/services/season.service";
 
 export interface UseCreateSeasonReturn {
   isLoading: boolean;
@@ -20,7 +25,8 @@ export const useCreateSeason = (): UseCreateSeasonReturn => {
       const season = await SeasonService.create(data);
       return season;
     } catch (err: any) {
-      const errorMessage = err.message || 'Erro ao criar temporada. Tente novamente.';
+      const errorMessage =
+        err.message || "Erro ao criar temporada. Tente novamente.";
       setError(errorMessage);
       return null;
     } finally {
@@ -38,4 +44,4 @@ export const useCreateSeason = (): UseCreateSeasonReturn => {
     createSeason,
     clearError,
   };
-}; 
+};

@@ -1,22 +1,49 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { Championship, Sponsor, AsaasStatus } from '@/lib/services/championship.service';
-import { Season } from '@/lib/services/season.service';
-import { Category } from '@/lib/services/category.service';
-import { Stage } from '@/lib/types/stage';
-import { SeasonService } from '@/lib/services/season.service';
-import { CategoryService } from '@/lib/services/category.service';
-import { StageService } from '@/lib/services/stage.service';
-import { RaceTrackService } from '@/lib/services/race-track.service';
-import { ChampionshipStaffService, StaffMember } from '@/lib/services/championship-staff.service';
-import { SeasonRegistrationService, SeasonRegistration } from '@/lib/services/season-registration.service';
-import { PenaltyService, Penalty } from '@/lib/services/penalty.service';
-import { ChampionshipClassificationService } from '@/lib/services/championship-classification.service';
-import { RegulationService, Regulation } from '@/lib/services/regulation.service';
-import { ChampionshipService } from '@/lib/services/championship.service';
-import { StageParticipationService, StageParticipation } from '@/lib/services/stage-participation.service';
-import { GridTypeService } from '@/lib/services/grid-type.service';
-import { GridType } from '@/lib/types/grid-type';
-import { ScoringSystemService, ScoringSystem } from '@/lib/services/scoring-system.service';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import { Category } from "@/lib/services/category.service";
+import { CategoryService } from "@/lib/services/category.service";
+import {
+  AsaasStatus,
+  Championship,
+  Sponsor,
+} from "@/lib/services/championship.service";
+import { ChampionshipService } from "@/lib/services/championship.service";
+import { ChampionshipClassificationService } from "@/lib/services/championship-classification.service";
+import {
+  ChampionshipStaffService,
+  StaffMember,
+} from "@/lib/services/championship-staff.service";
+import { GridTypeService } from "@/lib/services/grid-type.service";
+import { Penalty, PenaltyService } from "@/lib/services/penalty.service";
+import { RaceTrackService } from "@/lib/services/race-track.service";
+import {
+  Regulation,
+  RegulationService,
+} from "@/lib/services/regulation.service";
+import {
+  ScoringSystem,
+  ScoringSystemService,
+} from "@/lib/services/scoring-system.service";
+import { Season } from "@/lib/services/season.service";
+import { SeasonService } from "@/lib/services/season.service";
+import {
+  SeasonRegistration,
+  SeasonRegistrationService,
+} from "@/lib/services/season-registration.service";
+import { StageService } from "@/lib/services/stage.service";
+import {
+  StageParticipation,
+  StageParticipationService,
+} from "@/lib/services/stage-participation.service";
+import { GridType } from "@/lib/types/grid-type";
+import { Stage } from "@/lib/types/stage";
 
 // Interface para dados de classificação do Redis
 interface ClassificationUser {
@@ -118,7 +145,7 @@ interface ChampionshipContextType {
     scoringSystems: string | null;
     asaasStatus: string | null;
   };
-  
+
   // Funções de busca
   fetchSeasons: () => Promise<void>;
   fetchCategories: () => Promise<void>;
@@ -134,7 +161,7 @@ interface ChampionshipContextType {
   fetchScoringSystems: () => Promise<void>;
   fetchChampionshipInfo: () => Promise<void>;
   fetchAsaasStatus: () => Promise<void>;
-  
+
   // Funções de atualização
   refreshSeasons: () => Promise<void>;
   refreshCategories: () => Promise<void>;
@@ -149,7 +176,7 @@ interface ChampionshipContextType {
   refreshGridTypes: () => Promise<void>;
   refreshScoringSystems: () => Promise<void>;
   refreshAsaasStatus: () => Promise<void>;
-  
+
   // Funções de cache
   getSeasons: () => Season[];
   getCategories: () => Category[];
@@ -165,73 +192,99 @@ interface ChampionshipContextType {
   getScoringSystems: () => ScoringSystem[];
   getChampionshipInfo: () => Championship | null;
   getAsaasStatus: () => AsaasStatus | null;
-  
+
   // Funções de atualização específicas para campeonato
-  updateChampionship: (championshipId: string, updatedChampionship: Championship) => void;
+  updateChampionship: (
+    championshipId: string,
+    updatedChampionship: Championship,
+  ) => void;
   updateAsaasStatus: (asaasStatus: AsaasStatus) => void;
-  
+
   // Funções de atualização específicas
   addSeason: (season: Season) => void;
   updateSeason: (seasonId: string, updatedSeason: Partial<Season>) => void;
   removeSeason: (seasonId: string) => void;
-  
+
   addCategory: (category: Category) => void;
-  updateCategory: (categoryId: string, updatedCategory: Partial<Category>) => void;
+  updateCategory: (
+    categoryId: string,
+    updatedCategory: Partial<Category>,
+  ) => void;
   removeCategory: (categoryId: string) => void;
-  
+
   addStage: (stage: Stage) => void;
   updateStage: (stageId: string, updatedStage: Partial<Stage>) => void;
   removeStage: (stageId: string) => void;
-  
+
   addStaff: (staff: StaffMember) => void;
   updateStaff: (staffId: string, updatedStaff: Partial<StaffMember>) => void;
   removeStaff: (staffId: string) => void;
-  
+
   addRegistration: (registration: SeasonRegistration) => void;
-  updateRegistration: (registrationId: string, updatedRegistration: Partial<SeasonRegistration>) => void;
+  updateRegistration: (
+    registrationId: string,
+    updatedRegistration: Partial<SeasonRegistration>,
+  ) => void;
   removeRegistration: (registrationId: string) => void;
-  
+
   addPenalty: (penalty: Penalty) => void;
   updatePenalty: (penaltyId: string, updatedPenalty: Partial<Penalty>) => void;
   removePenalty: (penaltyId: string) => void;
-  
-  updateClassification: (seasonId: string, classification: RedisClassificationData) => void;
+
+  updateClassification: (
+    seasonId: string,
+    classification: RedisClassificationData,
+  ) => void;
   removeClassification: (seasonId: string) => void;
-  
+
   addRegulation: (seasonId: string, regulation: Regulation) => void;
-  updateRegulation: (seasonId: string, regulationId: string, updatedRegulation: Partial<Regulation>) => void;
+  updateRegulation: (
+    seasonId: string,
+    regulationId: string,
+    updatedRegulation: Partial<Regulation>,
+  ) => void;
   removeRegulation: (seasonId: string, regulationId: string) => void;
   updateRegulationsOrder: (seasonId: string, regulations: Regulation[]) => void;
-  
+
   // Funções de atualização específicas para patrocinadores
   addSponsor: (sponsor: Sponsor) => void;
   updateSponsor: (sponsorId: string, updatedSponsor: Partial<Sponsor>) => void;
   removeSponsor: (sponsorId: string) => void;
   updateSponsors: (sponsors: Sponsor[]) => void;
-  
+
   // Funções de atualização específicas para grid types
   addGridType: (gridType: GridType) => void;
-  updateGridType: (gridTypeId: string, updatedGridType: Partial<GridType>) => void;
+  updateGridType: (
+    gridTypeId: string,
+    updatedGridType: Partial<GridType>,
+  ) => void;
   removeGridType: (gridTypeId: string) => void;
   updateAllGridTypes: (gridTypes: GridType[]) => void;
-  
+
   // Funções de atualização específicas para scoring systems
   addScoringSystem: (scoringSystem: ScoringSystem) => void;
-  updateScoringSystem: (scoringSystemId: string, updatedScoringSystem: Partial<ScoringSystem>) => void;
+  updateScoringSystem: (
+    scoringSystemId: string,
+    updatedScoringSystem: Partial<ScoringSystem>,
+  ) => void;
   removeScoringSystem: (scoringSystemId: string) => void;
-  
+
   // Funções de limpeza
   clearCache: () => void;
   setChampionshipId: (id: string | null) => void;
 }
 
-const ChampionshipContext = createContext<ChampionshipContextType | undefined>(undefined);
+const ChampionshipContext = createContext<ChampionshipContextType | undefined>(
+  undefined,
+);
 
 interface ChampionshipProviderProps {
   children: React.ReactNode;
 }
 
-export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ children }) => {
+export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({
+  children,
+}) => {
   const [championshipId, setChampionshipId] = useState<string | null>(null);
   const [championshipData, setChampionshipData] = useState<ChampionshipData>({
     championshipInfo: null,
@@ -265,7 +318,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       asaasStatus: null,
     },
   });
-  
+
   const [loading, setLoading] = useState({
     championshipInfo: false,
     seasons: false,
@@ -282,7 +335,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     scoringSystems: false,
     asaasStatus: false,
   });
-  
+
   const [error, setError] = useState({
     championshipInfo: null,
     seasons: null,
@@ -329,16 +382,19 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   // Função para buscar temporadas
   const fetchSeasons = useCallback(async () => {
     if (!championshipId || loadingRef.current.seasons) return;
-    
 
     loadingRef.current.seasons = true;
-    setLoading(prev => ({ ...prev, seasons: true }));
-    setError(prev => ({ ...prev, seasons: null }));
-    
+    setLoading((prev) => ({ ...prev, seasons: true }));
+    setError((prev) => ({ ...prev, seasons: null }));
+
     try {
-      const seasonsData = await SeasonService.getByChampionshipId(championshipId, 1, 100);
-      
-      setChampionshipData(prev => ({
+      const seasonsData = await SeasonService.getByChampionshipId(
+        championshipId,
+        1,
+        100,
+      );
+
+      setChampionshipData((prev) => ({
         ...prev,
         seasons: seasonsData.data,
         lastUpdated: {
@@ -347,44 +403,52 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         },
       }));
       hasFetchedSeasons.current = true;
-
     } catch (err: any) {
-      console.error('❌ ChampionshipContext: Erro ao carregar temporadas:', err);
-      setError(prev => ({ ...prev, seasons: err.message || 'Erro ao carregar temporadas' }));
+      console.error(
+        "❌ ChampionshipContext: Erro ao carregar temporadas:",
+        err,
+      );
+      setError((prev) => ({
+        ...prev,
+        seasons: err.message || "Erro ao carregar temporadas",
+      }));
     } finally {
       loadingRef.current.seasons = false;
-      setLoading(prev => ({ ...prev, seasons: false }));
+      setLoading((prev) => ({ ...prev, seasons: false }));
     }
   }, [championshipId]);
 
   // Função para buscar categorias
   const fetchCategories = useCallback(async () => {
     if (!championshipId || loadingRef.current.categories) return;
-    
 
     loadingRef.current.categories = true;
-    setLoading(prev => ({ ...prev, categories: true }));
-    setError(prev => ({ ...prev, categories: null }));
-    
+    setLoading((prev) => ({ ...prev, categories: true }));
+    setError((prev) => ({ ...prev, categories: null }));
+
     try {
       const allCategories: Category[] = [];
-      
+
       // Buscar categorias de todas as temporadas com contagem de inscritos
       for (const season of championshipData.seasons) {
         try {
           const categories = await CategoryService.getBySeasonId(season.id);
           allCategories.push(...categories);
         } catch (err) {
-          console.error(`Erro ao buscar categorias da temporada ${season.id}:`, err);
+          console.error(
+            `Erro ao buscar categorias da temporada ${season.id}:`,
+            err,
+          );
         }
       }
-      
+
       // Remover duplicatas baseado no ID
-      const uniqueCategories = allCategories.filter((category, index, self) => 
-        index === self.findIndex(c => c.id === category.id)
+      const uniqueCategories = allCategories.filter(
+        (category, index, self) =>
+          index === self.findIndex((c) => c.id === category.id),
       );
-      
-      setChampionshipData(prev => ({
+
+      setChampionshipData((prev) => ({
         ...prev,
         categories: uniqueCategories,
         lastUpdated: {
@@ -393,46 +457,48 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         },
       }));
       hasFetchedCategories.current = true;
-
     } catch (err: any) {
-      console.error('❌ ChampionshipContext: Erro ao carregar categorias:', err);
-      setError(prev => ({ ...prev, categories: err.message || 'Erro ao carregar categorias' }));
+      console.error(
+        "❌ ChampionshipContext: Erro ao carregar categorias:",
+        err,
+      );
+      setError((prev) => ({
+        ...prev,
+        categories: err.message || "Erro ao carregar categorias",
+      }));
     } finally {
       loadingRef.current.categories = false;
-      setLoading(prev => ({ ...prev, categories: false }));
+      setLoading((prev) => ({ ...prev, categories: false }));
     }
   }, [championshipId, championshipData.seasons]);
 
   // Função para buscar etapas
   const fetchStages = useCallback(async () => {
     if (!championshipId || loadingRef.current.stages) {
-      
       return;
     }
-    
 
     loadingRef.current.stages = true;
-    setLoading(prev => ({ ...prev, stages: true }));
-    setError(prev => ({ ...prev, stages: null }));
-    
+    setLoading((prev) => ({ ...prev, stages: true }));
+    setError((prev) => ({ ...prev, stages: null }));
+
     try {
       const allStages: Stage[] = [];
-      
+
       // Buscar etapas de todas as temporadas
       for (const season of championshipData.seasons) {
         try {
-  
           const stages = await StageService.getBySeasonId(season.id);
           allStages.push(...stages);
-          
         } catch (err) {
-          console.error(`Erro ao buscar etapas da temporada ${season.id}:`, err);
+          console.error(
+            `Erro ao buscar etapas da temporada ${season.id}:`,
+            err,
+          );
         }
       }
-      
 
-      
-      setChampionshipData(prev => ({
+      setChampionshipData((prev) => ({
         ...prev,
         stages: allStages,
         lastUpdated: {
@@ -442,34 +508,36 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       }));
       hasFetchedStages.current = true;
     } catch (err: any) {
-      console.error('❌ ChampionshipContext: Erro ao carregar etapas:', err);
-      setError(prev => ({ ...prev, stages: err.message || 'Erro ao carregar etapas' }));
+      console.error("❌ ChampionshipContext: Erro ao carregar etapas:", err);
+      setError((prev) => ({
+        ...prev,
+        stages: err.message || "Erro ao carregar etapas",
+      }));
     } finally {
       loadingRef.current.stages = false;
-      setLoading(prev => ({ ...prev, stages: false }));
+      setLoading((prev) => ({ ...prev, stages: false }));
     }
   }, [championshipId, championshipData.seasons]);
 
   // Função para buscar kartódromos
   const fetchRaceTracks = useCallback(async () => {
     if (!championshipId || loadingRef.current.raceTracks) return;
-    
 
     loadingRef.current.raceTracks = true;
-    setLoading(prev => ({ ...prev, raceTracks: true }));
-    setError(prev => ({ ...prev, raceTracks: null }));
-    
+    setLoading((prev) => ({ ...prev, raceTracks: true }));
+    setError((prev) => ({ ...prev, raceTracks: null }));
+
     try {
       // Buscar todos os kartódromos ativos em vez de apenas os associados às etapas
       const allRaceTracks = await RaceTrackService.getActive();
       const raceTracksData: Record<string, any> = {};
-      
+
       // Converter array para objeto com ID como chave
-      allRaceTracks.forEach(raceTrack => {
+      allRaceTracks.forEach((raceTrack) => {
         raceTracksData[raceTrack.id] = raceTrack;
       });
-      
-      setChampionshipData(prev => ({
+
+      setChampionshipData((prev) => ({
         ...prev,
         raceTracks: raceTracksData,
         lastUpdated: {
@@ -478,28 +546,33 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         },
       }));
       hasFetchedRaceTracks.current = true;
-
     } catch (err: any) {
-      console.error('❌ ChampionshipContext: Erro ao carregar kartódromos:', err);
-      setError(prev => ({ ...prev, raceTracks: err.message || 'Erro ao carregar kartódromos' }));
+      console.error(
+        "❌ ChampionshipContext: Erro ao carregar kartódromos:",
+        err,
+      );
+      setError((prev) => ({
+        ...prev,
+        raceTracks: err.message || "Erro ao carregar kartódromos",
+      }));
     } finally {
       loadingRef.current.raceTracks = false;
-      setLoading(prev => ({ ...prev, raceTracks: false }));
+      setLoading((prev) => ({ ...prev, raceTracks: false }));
     }
   }, [championshipId]);
 
   // Função para buscar staff
   const fetchStaff = useCallback(async () => {
     if (!championshipId || loadingRef.current.staff) return;
-    
 
     loadingRef.current.staff = true;
-    setLoading(prev => ({ ...prev, staff: true }));
-    setError(prev => ({ ...prev, staff: null }));
-    
+    setLoading((prev) => ({ ...prev, staff: true }));
+    setError((prev) => ({ ...prev, staff: null }));
+
     try {
-      const staffData = await ChampionshipStaffService.getStaffMembers(championshipId);
-      setChampionshipData(prev => ({
+      const staffData =
+        await ChampionshipStaffService.getStaffMembers(championshipId);
+      setChampionshipData((prev) => ({
         ...prev,
         staff: staffData,
         lastUpdated: {
@@ -508,29 +581,31 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         },
       }));
       hasFetchedStaff.current = true;
-
     } catch (err: any) {
-      console.error('❌ ChampionshipContext: Erro ao carregar staff:', err);
-      setError(prev => ({ ...prev, staff: err.message || 'Erro ao carregar staff' }));
+      console.error("❌ ChampionshipContext: Erro ao carregar staff:", err);
+      setError((prev) => ({
+        ...prev,
+        staff: err.message || "Erro ao carregar staff",
+      }));
     } finally {
       loadingRef.current.staff = false;
-      setLoading(prev => ({ ...prev, staff: false }));
+      setLoading((prev) => ({ ...prev, staff: false }));
     }
   }, [championshipId]);
 
   // Função para buscar inscrições
   const fetchRegistrations = useCallback(async () => {
     if (!championshipId || loadingRef.current.registrations) return;
-    
 
     loadingRef.current.registrations = true;
-    setLoading(prev => ({ ...prev, registrations: true }));
-    setError(prev => ({ ...prev, registrations: null }));
-    
+    setLoading((prev) => ({ ...prev, registrations: true }));
+    setError((prev) => ({ ...prev, registrations: null }));
+
     try {
-      const registrationsData = await SeasonRegistrationService.getByChampionshipId(championshipId);
-      
-      setChampionshipData(prev => ({
+      const registrationsData =
+        await SeasonRegistrationService.getByChampionshipId(championshipId);
+
+      setChampionshipData((prev) => ({
         ...prev,
         registrations: registrationsData,
         lastUpdated: {
@@ -539,28 +614,33 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         },
       }));
       hasFetchedRegistrations.current = true;
-
     } catch (err: any) {
-      console.error('❌ ChampionshipContext: Erro ao carregar inscrições:', err);
-      setError(prev => ({ ...prev, registrations: err.message || 'Erro ao carregar inscrições' }));
+      console.error(
+        "❌ ChampionshipContext: Erro ao carregar inscrições:",
+        err,
+      );
+      setError((prev) => ({
+        ...prev,
+        registrations: err.message || "Erro ao carregar inscrições",
+      }));
     } finally {
       loadingRef.current.registrations = false;
-      setLoading(prev => ({ ...prev, registrations: false }));
+      setLoading((prev) => ({ ...prev, registrations: false }));
     }
   }, [championshipId]);
 
   // Função para buscar penalidades
   const fetchPenalties = useCallback(async () => {
     if (!championshipId || loadingRef.current.penalties) return;
-    
 
     loadingRef.current.penalties = true;
-    setLoading(prev => ({ ...prev, penalties: true }));
-    setError(prev => ({ ...prev, penalties: null }));
-    
+    setLoading((prev) => ({ ...prev, penalties: true }));
+    setError((prev) => ({ ...prev, penalties: null }));
+
     try {
-      const penaltiesData = await PenaltyService.getPenaltiesByChampionshipId(championshipId);
-      setChampionshipData(prev => ({
+      const penaltiesData =
+        await PenaltyService.getPenaltiesByChampionshipId(championshipId);
+      setChampionshipData((prev) => ({
         ...prev,
         penalties: penaltiesData,
         lastUpdated: {
@@ -569,130 +649,165 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         },
       }));
       hasFetchedPenalties.current = true;
-
     } catch (err: any) {
-      console.error('❌ ChampionshipContext: Erro ao carregar penalidades:', err);
-      setError(prev => ({ ...prev, penalties: err.message || 'Erro ao carregar penalidades' }));
+      console.error(
+        "❌ ChampionshipContext: Erro ao carregar penalidades:",
+        err,
+      );
+      setError((prev) => ({
+        ...prev,
+        penalties: err.message || "Erro ao carregar penalidades",
+      }));
     } finally {
       loadingRef.current.penalties = false;
-      setLoading(prev => ({ ...prev, penalties: false }));
+      setLoading((prev) => ({ ...prev, penalties: false }));
     }
   }, [championshipId]);
 
   // Função para buscar participações de etapas
-  const fetchStageParticipations = useCallback(async (stageId?: string) => {
-    if (!championshipId || loadingRef.current.stageParticipations) return;
-    
-    loadingRef.current.stageParticipations = true;
-    setLoading(prev => ({ ...prev, stageParticipations: true }));
-    setError(prev => ({ ...prev, stageParticipations: null }));
-    
-    try {
-      let allParticipations: Record<string, StageParticipation[]> = {};
-      
-      if (stageId) {
-        // Buscar participações de uma etapa específica
-        const participationsData = await StageParticipationService.getStageParticipations(stageId);
-        allParticipations[stageId] = participationsData;
-      } else {
-        // Buscar participações de todas as etapas
-        for (const stage of championshipData.stages) {
-          try {
-            const participationsData = await StageParticipationService.getStageParticipations(stage.id);
-            allParticipations[stage.id] = participationsData;
-          } catch (err) {
-            console.error(`Erro ao buscar participações da etapa ${stage.id}:`, err);
+  const fetchStageParticipations = useCallback(
+    async (stageId?: string) => {
+      if (!championshipId || loadingRef.current.stageParticipations) return;
+
+      loadingRef.current.stageParticipations = true;
+      setLoading((prev) => ({ ...prev, stageParticipations: true }));
+      setError((prev) => ({ ...prev, stageParticipations: null }));
+
+      try {
+        const allParticipations: Record<string, StageParticipation[]> = {};
+
+        if (stageId) {
+          // Buscar participações de uma etapa específica
+          const participationsData =
+            await StageParticipationService.getStageParticipations(stageId);
+          allParticipations[stageId] = participationsData;
+        } else {
+          // Buscar participações de todas as etapas
+          for (const stage of championshipData.stages) {
+            try {
+              const participationsData =
+                await StageParticipationService.getStageParticipations(
+                  stage.id,
+                );
+              allParticipations[stage.id] = participationsData;
+            } catch (err) {
+              console.error(
+                `Erro ao buscar participações da etapa ${stage.id}:`,
+                err,
+              );
+            }
           }
         }
+
+        setChampionshipData((prev) => ({
+          ...prev,
+          stageParticipations: {
+            ...prev.stageParticipations,
+            ...allParticipations,
+          },
+          lastUpdated: {
+            ...prev.lastUpdated,
+            stageParticipations: new Date(),
+          },
+        }));
+      } catch (err: any) {
+        setError((prev) => ({
+          ...prev,
+          stageParticipations:
+            err.message || "Erro ao carregar participações das etapas",
+        }));
+      } finally {
+        loadingRef.current.stageParticipations = false;
+        setLoading((prev) => ({ ...prev, stageParticipations: false }));
       }
-      
-      setChampionshipData(prev => ({
-        ...prev,
-        stageParticipations: {
-          ...prev.stageParticipations,
-          ...allParticipations,
-        },
-        lastUpdated: {
-          ...prev.lastUpdated,
-          stageParticipations: new Date(),
-        },
-      }));
-    } catch (err: any) {
-      setError(prev => ({ ...prev, stageParticipations: err.message || 'Erro ao carregar participações das etapas' }));
-    } finally {
-      loadingRef.current.stageParticipations = false;
-      setLoading(prev => ({ ...prev, stageParticipations: false }));
-    }
-  }, [championshipId, championshipData.stages]);
+    },
+    [championshipId, championshipData.stages],
+  );
 
   // Função para buscar classificações
-  const fetchClassification = useCallback(async (seasonId: string) => {
-    if (!championshipId || loadingRef.current.classifications) return;
-    
-    loadingRef.current.classifications = true;
-    setLoading(prev => ({ ...prev, classifications: true }));
-    setError(prev => ({ ...prev, classifications: null }));
-    
-    try {
-      const classificationData = await ChampionshipClassificationService.getSeasonClassificationFromRedis(seasonId);
-      setChampionshipData(prev => ({
-        ...prev,
-        classifications: {
-          ...prev.classifications,
-          [seasonId]: classificationData || { _empty: true },
-        },
-        lastUpdated: {
-          ...prev.lastUpdated,
-          classifications: new Date(),
-        },
-      }));
-    } catch (err: any) {
-      setError(prev => ({ ...prev, classifications: err.message || 'Erro ao carregar classificação' }));
-    } finally {
-      loadingRef.current.classifications = false;
-      setLoading(prev => ({ ...prev, classifications: false }));
-    }
-  }, [championshipId]);
+  const fetchClassification = useCallback(
+    async (seasonId: string) => {
+      if (!championshipId || loadingRef.current.classifications) return;
+
+      loadingRef.current.classifications = true;
+      setLoading((prev) => ({ ...prev, classifications: true }));
+      setError((prev) => ({ ...prev, classifications: null }));
+
+      try {
+        const classificationData =
+          await ChampionshipClassificationService.getSeasonClassificationFromRedis(
+            seasonId,
+          );
+        setChampionshipData((prev) => ({
+          ...prev,
+          classifications: {
+            ...prev.classifications,
+            [seasonId]: classificationData || { _empty: true },
+          },
+          lastUpdated: {
+            ...prev.lastUpdated,
+            classifications: new Date(),
+          },
+        }));
+      } catch (err: any) {
+        setError((prev) => ({
+          ...prev,
+          classifications: err.message || "Erro ao carregar classificação",
+        }));
+      } finally {
+        loadingRef.current.classifications = false;
+        setLoading((prev) => ({ ...prev, classifications: false }));
+      }
+    },
+    [championshipId],
+  );
 
   // Função para buscar regulamentos
-  const fetchRegulations = useCallback(async (seasonId: string) => {
-    if (!championshipId || loadingRef.current.regulations) return;
+  const fetchRegulations = useCallback(
+    async (seasonId: string) => {
+      if (!championshipId || loadingRef.current.regulations) return;
 
-    loadingRef.current.regulations = true;
-    setLoading(prev => ({ ...prev, regulations: true }));
-    setError(prev => ({ ...prev, regulations: null }));
+      loadingRef.current.regulations = true;
+      setLoading((prev) => ({ ...prev, regulations: true }));
+      setError((prev) => ({ ...prev, regulations: null }));
 
-    try {
-      const regulationsData = await RegulationService.getBySeasonId(seasonId);
-      setChampionshipData(prev => ({
-        ...prev,
-        regulations: {
-          ...prev.regulations,
-          [seasonId]: regulationsData,
-        },
-        lastUpdated: {
-          ...prev.lastUpdated,
-          regulations: new Date(),
-        },
-      }));
-    } catch (err: any) {
-      setError(prev => ({ ...prev, regulations: err.message || 'Erro ao carregar regulamentos' }));
-    } finally {
-      loadingRef.current.regulations = false;
-      setLoading(prev => ({ ...prev, regulations: false }));
-    }
-  }, [championshipId]);
+      try {
+        const regulationsData = await RegulationService.getBySeasonId(seasonId);
+        setChampionshipData((prev) => ({
+          ...prev,
+          regulations: {
+            ...prev.regulations,
+            [seasonId]: regulationsData,
+          },
+          lastUpdated: {
+            ...prev.lastUpdated,
+            regulations: new Date(),
+          },
+        }));
+      } catch (err: any) {
+        setError((prev) => ({
+          ...prev,
+          regulations: err.message || "Erro ao carregar regulamentos",
+        }));
+      } finally {
+        loadingRef.current.regulations = false;
+        setLoading((prev) => ({ ...prev, regulations: false }));
+      }
+    },
+    [championshipId],
+  );
 
   // Função para buscar tipos de grid
   const fetchGridTypes = useCallback(async () => {
     if (!championshipId) return;
-    
-    setLoading(prev => ({ ...prev, gridTypes: true }));
-    setError(prev => ({ ...prev, gridTypes: null }));
-    
+
+    setLoading((prev) => ({ ...prev, gridTypes: true }));
+    setError((prev) => ({ ...prev, gridTypes: null }));
+
     try {
-      const gridTypesData = await GridTypeService.getByChampionship(championshipId);
-      setChampionshipData(prev => ({
+      const gridTypesData =
+        await GridTypeService.getByChampionship(championshipId);
+      setChampionshipData((prev) => ({
         ...prev,
         gridTypes: gridTypesData,
         lastUpdated: {
@@ -701,22 +816,26 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         },
       }));
     } catch (err: any) {
-      setError(prev => ({ ...prev, gridTypes: err.message || 'Erro ao carregar tipos de grid' }));
+      setError((prev) => ({
+        ...prev,
+        gridTypes: err.message || "Erro ao carregar tipos de grid",
+      }));
     } finally {
-      setLoading(prev => ({ ...prev, gridTypes: false }));
+      setLoading((prev) => ({ ...prev, gridTypes: false }));
     }
   }, [championshipId]);
 
   // Função para buscar sistemas de pontuação
   const fetchScoringSystems = useCallback(async () => {
     if (!championshipId) return;
-    
-    setLoading(prev => ({ ...prev, scoringSystems: true }));
-    setError(prev => ({ ...prev, scoringSystems: null }));
-    
+
+    setLoading((prev) => ({ ...prev, scoringSystems: true }));
+    setError((prev) => ({ ...prev, scoringSystems: null }));
+
     try {
-      const scoringSystemsData = await ScoringSystemService.getByChampionshipId(championshipId);
-      setChampionshipData(prev => ({
+      const scoringSystemsData =
+        await ScoringSystemService.getByChampionshipId(championshipId);
+      setChampionshipData((prev) => ({
         ...prev,
         scoringSystems: scoringSystemsData,
         lastUpdated: {
@@ -725,9 +844,12 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         },
       }));
     } catch (err: any) {
-      setError(prev => ({ ...prev, scoringSystems: err.message || 'Erro ao carregar sistemas de pontuação' }));
+      setError((prev) => ({
+        ...prev,
+        scoringSystems: err.message || "Erro ao carregar sistemas de pontuação",
+      }));
     } finally {
-      setLoading(prev => ({ ...prev, scoringSystems: false }));
+      setLoading((prev) => ({ ...prev, scoringSystems: false }));
     }
   }, [championshipId]);
 
@@ -735,12 +857,16 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   const fetchChampionshipInfo = useCallback(async () => {
     if (!championshipId) return;
     // Só busca se ainda não carregou
-    if (championshipData.championshipInfo && championshipData.championshipInfo.id === championshipId) return;
-    setLoading(prev => ({ ...prev, championshipInfo: true }));
-    setError(prev => ({ ...prev, championshipInfo: null }));
+    if (
+      championshipData.championshipInfo &&
+      championshipData.championshipInfo.id === championshipId
+    )
+      return;
+    setLoading((prev) => ({ ...prev, championshipInfo: true }));
+    setError((prev) => ({ ...prev, championshipInfo: null }));
     try {
       const info = await ChampionshipService.getById(championshipId);
-      setChampionshipData(prev => ({
+      setChampionshipData((prev) => ({
         ...prev,
         championshipInfo: info,
         lastUpdated: {
@@ -749,20 +875,23 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         },
       }));
     } catch (err: any) {
-      setError(prev => ({ ...prev, championshipInfo: err.message || 'Erro ao carregar campeonato' }));
+      setError((prev) => ({
+        ...prev,
+        championshipInfo: err.message || "Erro ao carregar campeonato",
+      }));
     } finally {
-      setLoading(prev => ({ ...prev, championshipInfo: false }));
+      setLoading((prev) => ({ ...prev, championshipInfo: false }));
     }
   }, [championshipId, championshipData.championshipInfo]);
 
   // Função para buscar status do Asaas
   const fetchAsaasStatus = useCallback(async () => {
     if (!championshipId) return;
-    setLoading(prev => ({ ...prev, asaasStatus: true }));
-    setError(prev => ({ ...prev, asaasStatus: null }));
+    setLoading((prev) => ({ ...prev, asaasStatus: true }));
+    setError((prev) => ({ ...prev, asaasStatus: null }));
     try {
       const status = await ChampionshipService.getAsaasStatus(championshipId);
-      setChampionshipData(prev => ({
+      setChampionshipData((prev) => ({
         ...prev,
         asaasStatus: status,
         lastUpdated: {
@@ -771,9 +900,12 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         },
       }));
     } catch (err: any) {
-      setError(prev => ({ ...prev, asaasStatus: err.message || 'Erro ao carregar status do Asaas' }));
+      setError((prev) => ({
+        ...prev,
+        asaasStatus: err.message || "Erro ao carregar status do Asaas",
+      }));
     } finally {
-      setLoading(prev => ({ ...prev, asaasStatus: false }));
+      setLoading((prev) => ({ ...prev, asaasStatus: false }));
     }
   }, [championshipId]);
 
@@ -786,20 +918,23 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   }, [championshipData.asaasStatus]);
 
   // Função para atualizar dados do campeonato
-  const updateChampionship = useCallback((championshipId: string, updatedChampionship: Championship) => {
-    setChampionshipData(prev => ({
-      ...prev,
-      championshipInfo: updatedChampionship,
-      lastUpdated: {
-        ...prev.lastUpdated,
-        championshipInfo: new Date(),
-      },
-    }));
-  }, []);
+  const updateChampionship = useCallback(
+    (championshipId: string, updatedChampionship: Championship) => {
+      setChampionshipData((prev) => ({
+        ...prev,
+        championshipInfo: updatedChampionship,
+        lastUpdated: {
+          ...prev.lastUpdated,
+          championshipInfo: new Date(),
+        },
+      }));
+    },
+    [],
+  );
 
   // Função para atualizar status do Asaas
   const updateAsaasStatus = useCallback((asaasStatus: AsaasStatus) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
       asaasStatus: asaasStatus,
       lastUpdated: {
@@ -838,17 +973,26 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     await fetchPenalties();
   }, [fetchPenalties]);
 
-  const refreshStageParticipations = useCallback(async (stageId?: string) => {
-    await fetchStageParticipations(stageId);
-  }, [fetchStageParticipations]);
+  const refreshStageParticipations = useCallback(
+    async (stageId?: string) => {
+      await fetchStageParticipations(stageId);
+    },
+    [fetchStageParticipations],
+  );
 
-  const refreshClassification = useCallback(async (seasonId: string) => {
-    await fetchClassification(seasonId);
-  }, [fetchClassification]);
+  const refreshClassification = useCallback(
+    async (seasonId: string) => {
+      await fetchClassification(seasonId);
+    },
+    [fetchClassification],
+  );
 
-  const refreshRegulations = useCallback(async (seasonId: string) => {
-    await fetchRegulations(seasonId);
-  }, [fetchRegulations]);
+  const refreshRegulations = useCallback(
+    async (seasonId: string) => {
+      await fetchRegulations(seasonId);
+    },
+    [fetchRegulations],
+  );
 
   const refreshGridTypes = useCallback(async () => {
     await fetchGridTypes();
@@ -891,17 +1035,26 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     return championshipData.penalties;
   }, [championshipData.penalties]);
 
-  const getStageParticipations = useCallback((stageId: string) => {
-    return championshipData.stageParticipations[stageId] || [];
-  }, [championshipData.stageParticipations]);
+  const getStageParticipations = useCallback(
+    (stageId: string) => {
+      return championshipData.stageParticipations[stageId] || [];
+    },
+    [championshipData.stageParticipations],
+  );
 
-  const getClassification = useCallback((seasonId: string) => {
-    return championshipData.classifications[seasonId] || null;
-  }, [championshipData.classifications]);
+  const getClassification = useCallback(
+    (seasonId: string) => {
+      return championshipData.classifications[seasonId] || null;
+    },
+    [championshipData.classifications],
+  );
 
-  const getRegulations = useCallback((seasonId: string) => {
-    return championshipData.regulations[seasonId] || [];
-  }, [championshipData.regulations]);
+  const getRegulations = useCallback(
+    (seasonId: string) => {
+      return championshipData.regulations[seasonId] || [];
+    },
+    [championshipData.regulations],
+  );
 
   const getGridTypes = useCallback(() => {
     return championshipData.gridTypes;
@@ -913,8 +1066,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
 
   // Funções de atualização específicas para temporadas
   const addSeason = useCallback((season: Season) => {
-
-    setChampionshipData(prev => {
+    setChampionshipData((prev) => {
       const newData = {
         ...prev,
         seasons: [...prev.seasons, season],
@@ -923,33 +1075,35 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
           seasons: new Date(),
         },
       };
-      
+
       return newData;
     });
   }, []);
 
-  const updateSeason = useCallback((seasonId: string, updatedSeason: Partial<Season>) => {
+  const updateSeason = useCallback(
+    (seasonId: string, updatedSeason: Partial<Season>) => {
+      setChampionshipData((prev) => {
+        const newData = {
+          ...prev,
+          seasons: prev.seasons.map((season) =>
+            season.id === seasonId ? { ...season, ...updatedSeason } : season,
+          ),
+          lastUpdated: {
+            ...prev.lastUpdated,
+            seasons: new Date(),
+          },
+        };
 
-    setChampionshipData(prev => {
-      const newData = {
-        ...prev,
-        seasons: prev.seasons.map(season => 
-          season.id === seasonId ? { ...season, ...updatedSeason } : season
-        ),
-        lastUpdated: {
-          ...prev.lastUpdated,
-          seasons: new Date(),
-        },
-      };
-      
-      return newData;
-    });
-  }, []);
+        return newData;
+      });
+    },
+    [],
+  );
 
   const removeSeason = useCallback((seasonId: string) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
-      seasons: prev.seasons.filter(season => season.id !== seasonId),
+      seasons: prev.seasons.filter((season) => season.id !== seasonId),
       lastUpdated: {
         ...prev.lastUpdated,
         seasons: new Date(),
@@ -959,7 +1113,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
 
   // Funções de atualização específicas para categorias
   const addCategory = useCallback((category: Category) => {
-    setChampionshipData(prev => {
+    setChampionshipData((prev) => {
       const newData = {
         ...prev,
         categories: [...prev.categories, category],
@@ -972,23 +1126,30 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     });
   }, []);
 
-  const updateCategory = useCallback((categoryId: string, updatedCategory: Partial<Category>) => {
-    setChampionshipData(prev => ({
-      ...prev,
-      categories: prev.categories.map(category => 
-        category.id === categoryId ? { ...category, ...updatedCategory } : category
-      ),
-      lastUpdated: {
-        ...prev.lastUpdated,
-        categories: new Date(),
-      },
-    }));
-  }, []);
+  const updateCategory = useCallback(
+    (categoryId: string, updatedCategory: Partial<Category>) => {
+      setChampionshipData((prev) => ({
+        ...prev,
+        categories: prev.categories.map((category) =>
+          category.id === categoryId
+            ? { ...category, ...updatedCategory }
+            : category,
+        ),
+        lastUpdated: {
+          ...prev.lastUpdated,
+          categories: new Date(),
+        },
+      }));
+    },
+    [],
+  );
 
   const removeCategory = useCallback((categoryId: string) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
-      categories: prev.categories.filter(category => category.id !== categoryId),
+      categories: prev.categories.filter(
+        (category) => category.id !== categoryId,
+      ),
       lastUpdated: {
         ...prev.lastUpdated,
         categories: new Date(),
@@ -998,7 +1159,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
 
   // Funções de atualização específicas para etapas
   const addStage = useCallback((stage: Stage) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
       stages: [...prev.stages, stage],
       lastUpdated: {
@@ -1008,23 +1169,26 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }));
   }, []);
 
-  const updateStage = useCallback((stageId: string, updatedStage: Partial<Stage>) => {
-    setChampionshipData(prev => ({
-      ...prev,
-      stages: prev.stages.map(stage => 
-        stage.id === stageId ? { ...stage, ...updatedStage } : stage
-      ),
-      lastUpdated: {
-        ...prev.lastUpdated,
-        stages: new Date(),
-      },
-    }));
-  }, []);
+  const updateStage = useCallback(
+    (stageId: string, updatedStage: Partial<Stage>) => {
+      setChampionshipData((prev) => ({
+        ...prev,
+        stages: prev.stages.map((stage) =>
+          stage.id === stageId ? { ...stage, ...updatedStage } : stage,
+        ),
+        lastUpdated: {
+          ...prev.lastUpdated,
+          stages: new Date(),
+        },
+      }));
+    },
+    [],
+  );
 
   const removeStage = useCallback((stageId: string) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
-      stages: prev.stages.filter(stage => stage.id !== stageId),
+      stages: prev.stages.filter((stage) => stage.id !== stageId),
       lastUpdated: {
         ...prev.lastUpdated,
         stages: new Date(),
@@ -1034,7 +1198,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
 
   // Funções de atualização específicas para staff
   const addStaff = useCallback((staff: StaffMember) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
       staff: [...prev.staff, staff],
       lastUpdated: {
@@ -1044,23 +1208,26 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }));
   }, []);
 
-  const updateStaff = useCallback((staffId: string, updatedStaff: Partial<StaffMember>) => {
-    setChampionshipData(prev => ({
-      ...prev,
-      staff: prev.staff.map(staff => 
-        staff.id === staffId ? { ...staff, ...updatedStaff } : staff
-      ),
-      lastUpdated: {
-        ...prev.lastUpdated,
-        staff: new Date(),
-      },
-    }));
-  }, []);
+  const updateStaff = useCallback(
+    (staffId: string, updatedStaff: Partial<StaffMember>) => {
+      setChampionshipData((prev) => ({
+        ...prev,
+        staff: prev.staff.map((staff) =>
+          staff.id === staffId ? { ...staff, ...updatedStaff } : staff,
+        ),
+        lastUpdated: {
+          ...prev.lastUpdated,
+          staff: new Date(),
+        },
+      }));
+    },
+    [],
+  );
 
   const removeStaff = useCallback((staffId: string) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
-      staff: prev.staff.filter(staff => staff.id !== staffId),
+      staff: prev.staff.filter((staff) => staff.id !== staffId),
       lastUpdated: {
         ...prev.lastUpdated,
         staff: new Date(),
@@ -1070,7 +1237,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
 
   // Funções de atualização específicas para inscrições
   const addRegistration = useCallback((registration: SeasonRegistration) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
       registrations: [...prev.registrations, registration],
       lastUpdated: {
@@ -1080,23 +1247,33 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }));
   }, []);
 
-  const updateRegistration = useCallback((registrationId: string, updatedRegistration: Partial<SeasonRegistration>) => {
-    setChampionshipData(prev => ({
-      ...prev,
-      registrations: prev.registrations.map(registration => 
-        registration.id === registrationId ? { ...registration, ...updatedRegistration } : registration
-      ),
-      lastUpdated: {
-        ...prev.lastUpdated,
-        registrations: new Date(),
-      },
-    }));
-  }, []);
+  const updateRegistration = useCallback(
+    (
+      registrationId: string,
+      updatedRegistration: Partial<SeasonRegistration>,
+    ) => {
+      setChampionshipData((prev) => ({
+        ...prev,
+        registrations: prev.registrations.map((registration) =>
+          registration.id === registrationId
+            ? { ...registration, ...updatedRegistration }
+            : registration,
+        ),
+        lastUpdated: {
+          ...prev.lastUpdated,
+          registrations: new Date(),
+        },
+      }));
+    },
+    [],
+  );
 
   const removeRegistration = useCallback((registrationId: string) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
-      registrations: prev.registrations.filter(registration => registration.id !== registrationId),
+      registrations: prev.registrations.filter(
+        (registration) => registration.id !== registrationId,
+      ),
       lastUpdated: {
         ...prev.lastUpdated,
         registrations: new Date(),
@@ -1106,7 +1283,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
 
   // Funções de atualização específicas para penalidades
   const addPenalty = useCallback((penalty: Penalty) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
       penalties: [...prev.penalties, penalty],
       lastUpdated: {
@@ -1116,23 +1293,28 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }));
   }, []);
 
-  const updatePenalty = useCallback((penaltyId: string, updatedPenalty: Partial<Penalty>) => {
-    setChampionshipData(prev => ({
-      ...prev,
-      penalties: prev.penalties.map(penalty => 
-        penalty.id === penaltyId ? { ...penalty, ...updatedPenalty } : penalty
-      ),
-      lastUpdated: {
-        ...prev.lastUpdated,
-        penalties: new Date(),
-      },
-    }));
-  }, []);
+  const updatePenalty = useCallback(
+    (penaltyId: string, updatedPenalty: Partial<Penalty>) => {
+      setChampionshipData((prev) => ({
+        ...prev,
+        penalties: prev.penalties.map((penalty) =>
+          penalty.id === penaltyId
+            ? { ...penalty, ...updatedPenalty }
+            : penalty,
+        ),
+        lastUpdated: {
+          ...prev.lastUpdated,
+          penalties: new Date(),
+        },
+      }));
+    },
+    [],
+  );
 
   const removePenalty = useCallback((penaltyId: string) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
-      penalties: prev.penalties.filter(penalty => penalty.id !== penaltyId),
+      penalties: prev.penalties.filter((penalty) => penalty.id !== penaltyId),
       lastUpdated: {
         ...prev.lastUpdated,
         penalties: new Date(),
@@ -1141,29 +1323,35 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   }, []);
 
   // Funções de atualização específicas para classificações
-  const updateClassification = useCallback((seasonId: string, classification: RedisClassificationData) => {
-    setChampionshipData(prev => ({
-      ...prev,
-      classifications: {
-        ...prev.classifications,
-        [seasonId]: classification,
-      },
-      lastUpdated: {
-        ...prev.lastUpdated,
-        classifications: new Date(),
-      },
-    }));
-  }, []);
+  const updateClassification = useCallback(
+    (seasonId: string, classification: RedisClassificationData) => {
+      setChampionshipData((prev) => ({
+        ...prev,
+        classifications: {
+          ...prev.classifications,
+          [seasonId]: classification,
+        },
+        lastUpdated: {
+          ...prev.lastUpdated,
+          classifications: new Date(),
+        },
+      }));
+    },
+    [],
+  );
 
   const removeClassification = useCallback((seasonId: string) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
-      classifications: Object.keys(prev.classifications).reduce((acc, key) => {
-        if (key !== seasonId) {
-          acc[key] = prev.classifications[key];
-        }
-        return acc;
-      }, {} as Record<string, RedisClassificationData>),
+      classifications: Object.keys(prev.classifications).reduce(
+        (acc, key) => {
+          if (key !== seasonId) {
+            acc[key] = prev.classifications[key];
+          }
+          return acc;
+        },
+        {} as Record<string, RedisClassificationData>,
+      ),
       lastUpdated: {
         ...prev.lastUpdated,
         classifications: new Date(),
@@ -1172,72 +1360,94 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   }, []);
 
   // Funções de atualização específicas para regulamentos
-  const addRegulation = useCallback((seasonId: string, regulation: Regulation) => {
-    setChampionshipData(prev => ({
-      ...prev,
-      regulations: {
-        ...prev.regulations,
-        [seasonId]: [...(prev.regulations[seasonId] || []), regulation],
-      },
-      lastUpdated: {
-        ...prev.lastUpdated,
-        regulations: new Date(),
-      },
-    }));
-  }, []);
+  const addRegulation = useCallback(
+    (seasonId: string, regulation: Regulation) => {
+      setChampionshipData((prev) => ({
+        ...prev,
+        regulations: {
+          ...prev.regulations,
+          [seasonId]: [...(prev.regulations[seasonId] || []), regulation],
+        },
+        lastUpdated: {
+          ...prev.lastUpdated,
+          regulations: new Date(),
+        },
+      }));
+    },
+    [],
+  );
 
-  const updateRegulation = useCallback((seasonId: string, regulationId: string, updatedRegulation: Partial<Regulation>) => {
-    setChampionshipData(prev => ({
-      ...prev,
-      regulations: {
-        ...prev.regulations,
-        [seasonId]: prev.regulations[seasonId]?.map(reg =>
-          reg.id === regulationId ? { ...reg, ...updatedRegulation } : reg
-        ) || [],
-      },
-      lastUpdated: {
-        ...prev.lastUpdated,
-        regulations: new Date(),
-      },
-    }));
-  }, []);
+  const updateRegulation = useCallback(
+    (
+      seasonId: string,
+      regulationId: string,
+      updatedRegulation: Partial<Regulation>,
+    ) => {
+      setChampionshipData((prev) => ({
+        ...prev,
+        regulations: {
+          ...prev.regulations,
+          [seasonId]:
+            prev.regulations[seasonId]?.map((reg) =>
+              reg.id === regulationId ? { ...reg, ...updatedRegulation } : reg,
+            ) || [],
+        },
+        lastUpdated: {
+          ...prev.lastUpdated,
+          regulations: new Date(),
+        },
+      }));
+    },
+    [],
+  );
 
-  const removeRegulation = useCallback((seasonId: string, regulationId: string) => {
-    setChampionshipData(prev => ({
-      ...prev,
-      regulations: {
-        ...prev.regulations,
-        [seasonId]: prev.regulations[seasonId]?.filter(reg => reg.id !== regulationId) || [],
-      },
-      lastUpdated: {
-        ...prev.lastUpdated,
-        regulations: new Date(),
-      },
-    }));
-  }, []);
+  const removeRegulation = useCallback(
+    (seasonId: string, regulationId: string) => {
+      setChampionshipData((prev) => ({
+        ...prev,
+        regulations: {
+          ...prev.regulations,
+          [seasonId]:
+            prev.regulations[seasonId]?.filter(
+              (reg) => reg.id !== regulationId,
+            ) || [],
+        },
+        lastUpdated: {
+          ...prev.lastUpdated,
+          regulations: new Date(),
+        },
+      }));
+    },
+    [],
+  );
 
-  const updateRegulationsOrder = useCallback((seasonId: string, regulations: Regulation[]) => {
-    setChampionshipData(prev => ({
-      ...prev,
-      regulations: {
-        ...prev.regulations,
-        [seasonId]: regulations,
-      },
-      lastUpdated: {
-        ...prev.lastUpdated,
-        regulations: new Date(),
-      },
-    }));
-  }, []);
+  const updateRegulationsOrder = useCallback(
+    (seasonId: string, regulations: Regulation[]) => {
+      setChampionshipData((prev) => ({
+        ...prev,
+        regulations: {
+          ...prev.regulations,
+          [seasonId]: regulations,
+        },
+        lastUpdated: {
+          ...prev.lastUpdated,
+          regulations: new Date(),
+        },
+      }));
+    },
+    [],
+  );
 
   // Funções de atualização específicas para patrocinadores
   const addSponsor = useCallback((sponsor: Sponsor) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
-      championshipInfo: prev.championshipInfo ? {
-        ...prev.championshipInfo,
-        sponsors: [...(prev.championshipInfo.sponsors || []), sponsor],
-      } : null,
+      championshipInfo: prev.championshipInfo
+        ? {
+            ...prev.championshipInfo,
+            sponsors: [...(prev.championshipInfo.sponsors || []), sponsor],
+          }
+        : null,
       lastUpdated: {
         ...prev.lastUpdated,
         championshipInfo: new Date(),
@@ -1245,29 +1455,40 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }));
   }, []);
 
-  const updateSponsor = useCallback((sponsorId: string, updatedSponsor: Partial<Sponsor>) => {
-    setChampionshipData(prev => ({
-      ...prev,
-      championshipInfo: prev.championshipInfo ? {
-        ...prev.championshipInfo,
-        sponsors: prev.championshipInfo.sponsors?.map(sp =>
-          sp.id === sponsorId ? { ...sp, ...updatedSponsor } : sp
-        ) || [],
-      } : null,
-      lastUpdated: {
-        ...prev.lastUpdated,
-        championshipInfo: new Date(),
-      },
-    }));
-  }, []);
+  const updateSponsor = useCallback(
+    (sponsorId: string, updatedSponsor: Partial<Sponsor>) => {
+      setChampionshipData((prev) => ({
+        ...prev,
+        championshipInfo: prev.championshipInfo
+          ? {
+              ...prev.championshipInfo,
+              sponsors:
+                prev.championshipInfo.sponsors?.map((sp) =>
+                  sp.id === sponsorId ? { ...sp, ...updatedSponsor } : sp,
+                ) || [],
+            }
+          : null,
+        lastUpdated: {
+          ...prev.lastUpdated,
+          championshipInfo: new Date(),
+        },
+      }));
+    },
+    [],
+  );
 
   const removeSponsor = useCallback((sponsorId: string) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
-      championshipInfo: prev.championshipInfo ? {
-        ...prev.championshipInfo,
-        sponsors: prev.championshipInfo.sponsors?.filter(sp => sp.id !== sponsorId) || [],
-      } : null,
+      championshipInfo: prev.championshipInfo
+        ? {
+            ...prev.championshipInfo,
+            sponsors:
+              prev.championshipInfo.sponsors?.filter(
+                (sp) => sp.id !== sponsorId,
+              ) || [],
+          }
+        : null,
       lastUpdated: {
         ...prev.lastUpdated,
         championshipInfo: new Date(),
@@ -1276,12 +1497,14 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   }, []);
 
   const updateSponsors = useCallback((sponsors: Sponsor[]) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
-      championshipInfo: prev.championshipInfo ? {
-        ...prev.championshipInfo,
-        sponsors: sponsors,
-      } : null,
+      championshipInfo: prev.championshipInfo
+        ? {
+            ...prev.championshipInfo,
+            sponsors: sponsors,
+          }
+        : null,
       lastUpdated: {
         ...prev.lastUpdated,
         championshipInfo: new Date(),
@@ -1291,7 +1514,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
 
   // Funções de atualização específicas para grid types
   const addGridType = useCallback((gridType: GridType) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
       gridTypes: [...prev.gridTypes, gridType],
       lastUpdated: {
@@ -1301,11 +1524,29 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }));
   }, []);
 
-  const updateGridType = useCallback((gridTypeId: string, updatedGridType: Partial<GridType>) => {
-    setChampionshipData(prev => ({
+  const updateGridType = useCallback(
+    (gridTypeId: string, updatedGridType: Partial<GridType>) => {
+      setChampionshipData((prev) => ({
+        ...prev,
+        gridTypes: prev.gridTypes.map((gridType) =>
+          gridType.id === gridTypeId
+            ? { ...gridType, ...updatedGridType }
+            : gridType,
+        ),
+        lastUpdated: {
+          ...prev.lastUpdated,
+          gridTypes: new Date(),
+        },
+      }));
+    },
+    [],
+  );
+
+  const removeGridType = useCallback((gridTypeId: string) => {
+    setChampionshipData((prev) => ({
       ...prev,
-      gridTypes: prev.gridTypes.map(gridType => 
-        gridType.id === gridTypeId ? { ...gridType, ...updatedGridType } : gridType
+      gridTypes: prev.gridTypes.filter(
+        (gridType) => gridType.id !== gridTypeId,
       ),
       lastUpdated: {
         ...prev.lastUpdated,
@@ -1314,19 +1555,8 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }));
   }, []);
 
-  const removeGridType = useCallback((gridTypeId: string) => {
-    setChampionshipData(prev => ({
-      ...prev,
-      gridTypes: prev.gridTypes.filter(gridType => gridType.id !== gridTypeId),
-      lastUpdated: {
-        ...prev.lastUpdated,
-        gridTypes: new Date(),
-      },
-    }));
-  }, []);
-
   const updateAllGridTypes = useCallback((gridTypes: GridType[]) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
       gridTypes: gridTypes,
       lastUpdated: {
@@ -1338,7 +1568,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
 
   // Funções de atualização específicas para scoring systems
   const addScoringSystem = useCallback((scoringSystem: ScoringSystem) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
       scoringSystems: [...prev.scoringSystems, scoringSystem],
       lastUpdated: {
@@ -1348,23 +1578,30 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     }));
   }, []);
 
-  const updateScoringSystem = useCallback((scoringSystemId: string, updatedScoringSystem: Partial<ScoringSystem>) => {
-    setChampionshipData(prev => ({
-      ...prev,
-      scoringSystems: prev.scoringSystems.map(system => 
-        system.id === scoringSystemId ? { ...system, ...updatedScoringSystem } : system
-      ),
-      lastUpdated: {
-        ...prev.lastUpdated,
-        scoringSystems: new Date(),
-      },
-    }));
-  }, []);
+  const updateScoringSystem = useCallback(
+    (scoringSystemId: string, updatedScoringSystem: Partial<ScoringSystem>) => {
+      setChampionshipData((prev) => ({
+        ...prev,
+        scoringSystems: prev.scoringSystems.map((system) =>
+          system.id === scoringSystemId
+            ? { ...system, ...updatedScoringSystem }
+            : system,
+        ),
+        lastUpdated: {
+          ...prev.lastUpdated,
+          scoringSystems: new Date(),
+        },
+      }));
+    },
+    [],
+  );
 
   const removeScoringSystem = useCallback((scoringSystemId: string) => {
-    setChampionshipData(prev => ({
+    setChampionshipData((prev) => ({
       ...prev,
-      scoringSystems: prev.scoringSystems.filter(system => system.id !== scoringSystemId),
+      scoringSystems: prev.scoringSystems.filter(
+        (system) => system.id !== scoringSystemId,
+      ),
       lastUpdated: {
         ...prev.lastUpdated,
         scoringSystems: new Date(),
@@ -1374,8 +1611,6 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
 
   // Função para limpar cache
   const clearCache = useCallback(() => {
-
-    
     setChampionshipData({
       championshipInfo: null,
       seasons: [],
@@ -1408,7 +1643,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         asaasStatus: null,
       },
     });
-    
+
     setError({
       championshipInfo: null,
       seasons: null,
@@ -1425,7 +1660,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       scoringSystems: null,
       asaasStatus: null,
     });
-    
+
     // Resetar loading states
     setLoading({
       championshipInfo: false,
@@ -1443,7 +1678,7 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       scoringSystems: false,
       asaasStatus: false,
     });
-    
+
     // Resetar os refs de controle
     hasFetchedSeasons.current = false;
     hasFetchedCategories.current = false;
@@ -1453,25 +1688,21 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
     hasFetchedRegistrations.current = false;
     hasFetchedPenalties.current = false;
     fetchedClassificationSeasons.current.clear(); // Limpar temporadas já buscadas
-    
-    
   }, []);
 
   // Função para definir o championshipId
-  const setChampionshipIdHandler = useCallback((id: string | null) => {
-
-    if (id !== championshipId) {
-      
-      setChampionshipId(id);
-    } else {
-      
-    }
-  }, [championshipId]);
+  const setChampionshipIdHandler = useCallback(
+    (id: string | null) => {
+      if (id !== championshipId) {
+        setChampionshipId(id);
+      } else {
+      }
+    },
+    [championshipId],
+  );
 
   // Carregar dados quando o championshipId mudar
   useEffect(() => {
-
-    
     if (championshipId) {
       // Limpar cache antes de buscar novos dados
       clearCache();
@@ -1489,14 +1720,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
       const shouldFetchCategories = championshipData.categories.length === 0;
       const shouldFetchStages = championshipData.stages.length === 0;
 
-
-
       if (shouldFetchCategories) {
-
         fetchCategories();
       }
       if (shouldFetchStages) {
-
         fetchStages();
       }
     }
@@ -1505,7 +1732,9 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   // Carregar kartódromos quando o championshipId mudar
   useEffect(() => {
     if (championshipId) {
-      const shouldFetchRaceTracks = Object.keys(championshipData.raceTracks).length === 0 && !hasFetchedRaceTracks.current;
+      const shouldFetchRaceTracks =
+        Object.keys(championshipData.raceTracks).length === 0 &&
+        !hasFetchedRaceTracks.current;
       if (shouldFetchRaceTracks) {
         fetchRaceTracks();
       }
@@ -1515,7 +1744,8 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   // Carregar staff quando o championshipId mudar
   useEffect(() => {
     if (championshipId) {
-      const shouldFetchStaff = championshipData.staff.length === 0 && !hasFetchedStaff.current;
+      const shouldFetchStaff =
+        championshipData.staff.length === 0 && !hasFetchedStaff.current;
       if (shouldFetchStaff) {
         fetchStaff();
       }
@@ -1525,7 +1755,9 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   // Carregar inscrições quando o championshipId mudar
   useEffect(() => {
     if (championshipId) {
-      const shouldFetchRegistrations = championshipData.registrations.length === 0 && !hasFetchedRegistrations.current;
+      const shouldFetchRegistrations =
+        championshipData.registrations.length === 0 &&
+        !hasFetchedRegistrations.current;
       if (shouldFetchRegistrations) {
         fetchRegistrations();
       }
@@ -1535,7 +1767,8 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   // Carregar penalidades quando o championshipId mudar
   useEffect(() => {
     if (championshipId) {
-      const shouldFetchPenalties = championshipData.penalties.length === 0 && !hasFetchedPenalties.current;
+      const shouldFetchPenalties =
+        championshipData.penalties.length === 0 && !hasFetchedPenalties.current;
       if (shouldFetchPenalties) {
         fetchPenalties();
       }
@@ -1545,8 +1778,11 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   // Carregar classificações quando o championshipId mudar ou seasons mudar
   useEffect(() => {
     if (championshipId && championshipData.seasons.length > 0) {
-      championshipData.seasons.forEach(season => {
-        if (!championshipData.classifications[season.id] && !fetchedClassificationSeasons.current.has(season.id)) {
+      championshipData.seasons.forEach((season) => {
+        if (
+          !championshipData.classifications[season.id] &&
+          !fetchedClassificationSeasons.current.has(season.id)
+        ) {
           fetchedClassificationSeasons.current.add(season.id);
           fetchClassification(season.id);
         }
@@ -1557,9 +1793,11 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   // Carregar regulamentos quando o championshipId mudar
   useEffect(() => {
     if (championshipId && championshipData.seasons.length > 0) {
-      championshipData.seasons.forEach(season => {
+      championshipData.seasons.forEach((season) => {
         // Só buscar regulamentos se a temporada ainda existe e não tem dados carregados
-        const shouldFetchRegulations = !championshipData.regulations[season.id] || championshipData.regulations[season.id].length === 0;
+        const shouldFetchRegulations =
+          !championshipData.regulations[season.id] ||
+          championshipData.regulations[season.id].length === 0;
         if (shouldFetchRegulations) {
           fetchRegulations(season.id);
         }
@@ -1571,10 +1809,12 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   useEffect(() => {
     if (championshipId && championshipData.stages.length > 0) {
       // Verificar se já temos participações carregadas para todas as etapas
-      const hasAllParticipations = championshipData.stages.every(stage => 
-        championshipData.stageParticipations[stage.id] && championshipData.stageParticipations[stage.id].length >= 0
+      const hasAllParticipations = championshipData.stages.every(
+        (stage) =>
+          championshipData.stageParticipations[stage.id] &&
+          championshipData.stageParticipations[stage.id].length >= 0,
       );
-      
+
       if (!hasAllParticipations) {
         // Carregar todas as participações de uma vez
         fetchStageParticipations();
@@ -1593,8 +1833,9 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
   useEffect(() => {
     if (championshipId) {
       const shouldFetchGridTypes = championshipData.gridTypes.length === 0;
-      const shouldFetchScoringSystems = championshipData.scoringSystems.length === 0;
-      
+      const shouldFetchScoringSystems =
+        championshipData.scoringSystems.length === 0;
+
       if (shouldFetchGridTypes) {
         fetchGridTypes();
       }
@@ -1602,7 +1843,11 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
         fetchScoringSystems();
       }
     }
-  }, [championshipId, championshipData.gridTypes.length, championshipData.scoringSystems.length]);
+  }, [
+    championshipId,
+    championshipData.gridTypes.length,
+    championshipData.scoringSystems.length,
+  ]);
 
   // Carregar status do Asaas quando o championshipId mudar
   useEffect(() => {
@@ -1711,7 +1956,9 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({ chil
 export const useChampionshipData = () => {
   const context = useContext(ChampionshipContext);
   if (context === undefined) {
-    throw new Error('useChampionshipData must be used within a ChampionshipProvider');
+    throw new Error(
+      "useChampionshipData must be used within a ChampionshipProvider",
+    );
   }
   return context;
-}; 
+};

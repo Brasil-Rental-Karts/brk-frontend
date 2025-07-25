@@ -1,18 +1,20 @@
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { toast } from "sonner";
-import { Button } from "brk-design-system";
-import { Input } from "brk-design-system";
 import {
+  Button,
+  Form,
   FormControl,
   FormField,
+  FormItem,
   FormLabel,
   FormMessage,
+  Input,
 } from "brk-design-system";
-import { Form, FormItem } from "brk-design-system";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { z } from "zod";
+
 import { useAuth } from "@/contexts/AuthContext";
 
 const formSchema = {
@@ -40,7 +42,7 @@ export function Login() {
   // Redirect if already authenticated
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      navigate('/dashboard', { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   }, [isAuthenticated, isLoading, navigate]);
 
@@ -49,7 +51,7 @@ export function Login() {
     if (location.state?.error) {
       toast.error(location.state.error);
       // Clear the error from location state to avoid showing it again on refresh
-      window.history.replaceState({}, '', location.pathname);
+      window.history.replaceState({}, "", location.pathname);
     }
   }, [location.state, location.pathname]);
 
@@ -58,7 +60,7 @@ export function Login() {
       z.object({
         email: z.string().email(formSchema.email.pattern.message),
         password: z.string().min(8, formSchema.password.minLength.message),
-      })
+      }),
     ),
     defaultValues: {
       email: "",
@@ -69,46 +71,62 @@ export function Login() {
   const onSubmit = async (values: { email: string; password: string }) => {
     try {
       await login(values);
-      
+
       // Show success message
       toast.success("Login realizado com sucesso!");
-      
+
       // Redirect based on firstLogin status
       navigate("/dashboard");
-    } catch (error: any) {
-      if (error.response) {
-        const status = error.response.status;
-        const message = error.response.data?.message;
-        
+    } catch (error: unknown) {
+      if (error && typeof error === "object" && "response" in error) {
+        const response = (
+          error as { response: { status: number; data?: { message?: string } } }
+        ).response;
+        const status = response.status;
+        const message = response.data?.message;
+
         if (status === 401) {
           // Use the specific message from backend
-          const errorMessage = message || "Email ou senha incorretos. Por favor, verifique suas credenciais.";
+          const errorMessage =
+            message ||
+            "Email ou senha incorretos. Por favor, verifique suas credenciais.";
           toast.error(errorMessage);
         } else if (status === 403) {
-          const errorMessage = message || "Sua conta não tem permissão para acessar o sistema.";
+          const errorMessage =
+            message || "Sua conta não tem permissão para acessar o sistema.";
           toast.error(errorMessage);
         } else if (status === 429) {
-          const errorMessage = message || "Muitas tentativas de login. Por favor, tente novamente mais tarde.";
+          const errorMessage =
+            message ||
+            "Muitas tentativas de login. Por favor, tente novamente mais tarde.";
           toast.error(errorMessage);
         } else if (status >= 400 && status < 500) {
           // Client errors
-          const errorMessage = message || "Erro na solicitação. Por favor, verifique os dados informados.";
+          const errorMessage =
+            message ||
+            "Erro na solicitação. Por favor, verifique os dados informados.";
           toast.error(errorMessage);
         } else if (status >= 500) {
           // Server errors
-          const errorMessage = message || "Erro interno do servidor. Por favor, tente novamente mais tarde.";
+          const errorMessage =
+            message ||
+            "Erro interno do servidor. Por favor, tente novamente mais tarde.";
           toast.error(errorMessage);
         } else if (message) {
           toast.error(message);
         } else {
           toast.error("Erro ao fazer login. Por favor, tente novamente.");
         }
-      } else if (error.request) {
-        toast.error("Não foi possível conectar ao servidor. Verifique sua conexão de internet.");
-      } else if (error.message) {
+      } else if (error && typeof error === "object" && "request" in error) {
+        toast.error(
+          "Não foi possível conectar ao servidor. Verifique sua conexão de internet.",
+        );
+      } else if (error instanceof Error && error.message) {
         toast.error(error.message);
       } else {
-        toast.error("Falha na autenticação. Por favor, verifique seu email e senha.");
+        toast.error(
+          "Falha na autenticação. Por favor, verifique seu email e senha.",
+        );
       }
     }
   };
@@ -117,8 +135,10 @@ export function Login() {
     try {
       await loginWithGoogle();
       // No navigation needed here as the page will redirect to Google
-    } catch (error: any) {
-      toast.error("Erro ao iniciar login com Google. Por favor, tente novamente.");
+    } catch (error: unknown) {
+      toast.error(
+        "Erro ao iniciar login com Google. Por favor, tente novamente.",
+      );
     }
   };
 
@@ -132,10 +152,7 @@ export function Login() {
       </div>
 
       <Form {...formLogin}>
-        <form
-          onSubmit={formLogin.handleSubmit(onSubmit)}
-          className="space-y-6"
-        >
+        <form onSubmit={formLogin.handleSubmit(onSubmit)} className="space-y-6">
           <FormField
             control={formLogin.control}
             name="email"
@@ -156,11 +173,7 @@ export function Login() {
               <FormItem>
                 <FormLabel>Senha</FormLabel>
                 <FormControl>
-                  <Input
-                    type="password"
-                    placeholder="********"
-                    {...field}
-                  />
+                  <Input type="password" placeholder="********" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -183,14 +196,18 @@ export function Login() {
         </div>
       </div>
 
-      <Button 
-        type="button" 
-        variant="outline" 
-        className="w-full" 
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
         onClick={handleGoogleLogin}
         disabled={isLoading}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5 mr-2">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          className="h-5 w-5 mr-2"
+        >
           <path
             fill="#4285F4"
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -214,7 +231,10 @@ export function Login() {
       <div className="flex flex-col space-y-4 mt-6">
         <div className="text-sm text-center text-muted-foreground">
           Esqueceu sua senha?{" "}
-          <a href="/auth/reset-password" className="text-primary hover:underline">
+          <a
+            href="/auth/reset-password"
+            className="text-primary hover:underline"
+          >
             Recuperar senha
           </a>
         </div>

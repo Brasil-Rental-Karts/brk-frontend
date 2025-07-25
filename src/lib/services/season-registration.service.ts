@@ -1,5 +1,4 @@
-import api from '../axios';
-import { AxiosResponse } from 'axios';
+import api from "../axios";
 
 export interface SeasonRegistration {
   id: string;
@@ -27,7 +26,7 @@ export interface CreateRegistrationData {
   seasonId: string;
   categoryIds: string[];
   stageIds?: string[]; // Array de IDs das etapas selecionadas (opcional)
-  paymentMethod: 'pix' | 'cartao_credito';
+  paymentMethod: "pix" | "cartao_credito";
   userDocument: string;
   installments?: number;
   totalAmount?: number; // Valor total calculado incluindo taxas
@@ -38,7 +37,7 @@ export interface CreateAdminRegistrationData {
   seasonId: string;
   categoryIds: string[];
   stageIds?: string[];
-  paymentStatus: 'exempt' | 'direct_payment';
+  paymentStatus: "exempt" | "direct_payment";
   amount: number;
   notes?: string;
 }
@@ -73,7 +72,7 @@ export interface PilotDetails {
 }
 
 export class SeasonRegistrationService {
-  private static readonly BASE_URL = '/season-registrations';
+  private static readonly BASE_URL = "/season-registrations";
 
   /**
    * Criar uma nova inscrição em temporada
@@ -89,14 +88,14 @@ export class SeasonRegistrationService {
           registration: SeasonRegistration;
           paymentData: RegistrationPaymentData;
         };
-      }>('/season-registrations', data);
+      }>("/season-registrations", data);
 
       return response.data.data;
     } catch (error: any) {
-      console.error('Error creating registration:', error);
+      console.error("Error creating registration:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao criar inscrição. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao criar inscrição. Tente novamente.",
       );
     }
   }
@@ -112,10 +111,9 @@ export class SeasonRegistrationService {
       }>(`${SeasonRegistrationService.BASE_URL}/my`);
       return response.data.data;
     } catch (error: any) {
-      console.error('Error fetching my registrations:', error);
+      console.error("Error fetching my registrations:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar inscrições.'
+        error.response?.data?.message || "Erro ao buscar inscrições.",
       );
     }
   }
@@ -131,10 +129,9 @@ export class SeasonRegistrationService {
       }>(`${SeasonRegistrationService.BASE_URL}/${id}`);
       return response.data.data;
     } catch (error: any) {
-      console.error('Error fetching registration:', error);
+      console.error("Error fetching registration:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar inscrição.'
+        error.response?.data?.message || "Erro ao buscar inscrição.",
       );
     }
   }
@@ -142,7 +139,9 @@ export class SeasonRegistrationService {
   /**
    * Buscar dados de pagamento de uma inscrição (pode retornar várias parcelas)
    */
-  static async getPaymentData(registrationId: string): Promise<RegistrationPaymentData[]> {
+  static async getPaymentData(
+    registrationId: string,
+  ): Promise<RegistrationPaymentData[]> {
     try {
       const response = await api.get<{
         message: string;
@@ -150,10 +149,9 @@ export class SeasonRegistrationService {
       }>(`/season-registrations/${registrationId}/payment`);
       return response.data.data;
     } catch (error: any) {
-      console.error('Error fetching payment data:', error);
+      console.error("Error fetching payment data:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar dados de pagamento.'
+        error.response?.data?.message || "Erro ao buscar dados de pagamento.",
       );
     }
   }
@@ -161,7 +159,10 @@ export class SeasonRegistrationService {
   /**
    * Buscar inscrições de um usuário em uma temporada específica
    */
-  static async getUserRegistrationsBySeason(userId: string, seasonId: string): Promise<SeasonRegistration[]> {
+  static async getUserRegistrationsBySeason(
+    userId: string,
+    seasonId: string,
+  ): Promise<SeasonRegistration[]> {
     try {
       const response = await api.get<{
         message: string;
@@ -169,10 +170,10 @@ export class SeasonRegistrationService {
       }>(`/season-registrations/user/${userId}/season/${seasonId}`);
       return response.data.data;
     } catch (error: any) {
-      console.error('Error fetching user registrations by season:', error);
+      console.error("Error fetching user registrations by season:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar inscrições do usuário na temporada.'
+        error.response?.data?.message ||
+          "Erro ao buscar inscrições do usuário na temporada.",
       );
     }
   }
@@ -180,7 +181,9 @@ export class SeasonRegistrationService {
   /**
    * Sincronizar status de pagamento com o Asaas
    */
-  static async syncPaymentStatus(registrationId: string): Promise<RegistrationPaymentData[]> {
+  static async syncPaymentStatus(
+    registrationId: string,
+  ): Promise<RegistrationPaymentData[]> {
     try {
       const response = await api.post<{
         message: string;
@@ -188,10 +191,10 @@ export class SeasonRegistrationService {
       }>(`/season-registrations/${registrationId}/sync-payment`);
       return response.data.data;
     } catch (error: any) {
-      console.error('Error syncing payment status:', error);
+      console.error("Error syncing payment status:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao sincronizar status de pagamento.'
+        error.response?.data?.message ||
+          "Erro ao sincronizar status de pagamento.",
       );
     }
   }
@@ -207,10 +210,9 @@ export class SeasonRegistrationService {
       }>(`${SeasonRegistrationService.BASE_URL}/${id}/cancel`, { reason });
       return response.data.data;
     } catch (error: any) {
-      console.error('Error cancelling registration:', error);
+      console.error("Error cancelling registration:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao cancelar inscrição.'
+        error.response?.data?.message || "Erro ao cancelar inscrição.",
       );
     }
   }
@@ -226,10 +228,10 @@ export class SeasonRegistrationService {
       }>(`${SeasonRegistrationService.BASE_URL}/season/${seasonId}`);
       return response.data.data;
     } catch (error: any) {
-      console.error('Error fetching season registrations:', error);
+      console.error("Error fetching season registrations:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar inscrições da temporada.'
+        error.response?.data?.message ||
+          "Erro ao buscar inscrições da temporada.",
       );
     }
   }
@@ -237,18 +239,22 @@ export class SeasonRegistrationService {
   /**
    * Listar todas as inscrições de um campeonato (apenas para admins/managers)
    */
-  static async getByChampionshipId(championshipId: string): Promise<SeasonRegistration[]> {
+  static async getByChampionshipId(
+    championshipId: string,
+  ): Promise<SeasonRegistration[]> {
     try {
       const response = await api.get<{
         message: string;
         data: SeasonRegistration[];
-      }>(`${SeasonRegistrationService.BASE_URL}/championship/${championshipId}`);
+      }>(
+        `${SeasonRegistrationService.BASE_URL}/championship/${championshipId}`,
+      );
       return response.data.data;
     } catch (error: any) {
-      console.error('Error fetching championship registrations:', error);
+      console.error("Error fetching championship registrations:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar inscrições do campeonato.'
+        error.response?.data?.message ||
+          "Erro ao buscar inscrições do campeonato.",
       );
     }
   }
@@ -269,13 +275,15 @@ export class SeasonRegistrationService {
           errors: string[];
           championship: any;
         };
-      }>(`${SeasonRegistrationService.BASE_URL}/championship/${championshipId}/split-status`);
+      }>(
+        `${SeasonRegistrationService.BASE_URL}/championship/${championshipId}/split-status`,
+      );
       return response.data.data;
     } catch (error: any) {
-      console.error('Error checking championship split status:', error);
+      console.error("Error checking championship split status:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao verificar status de configuração do campeonato.'
+        error.response?.data?.message ||
+          "Erro ao verificar status de configuração do campeonato.",
       );
     }
   }
@@ -283,7 +291,9 @@ export class SeasonRegistrationService {
   /**
    * Contar inscrições confirmadas de uma categoria
    */
-  static async getCategoryRegistrationCount(categoryId: string): Promise<number> {
+  static async getCategoryRegistrationCount(
+    categoryId: string,
+  ): Promise<number> {
     try {
       const response = await api.get<{
         message: string;
@@ -291,10 +301,10 @@ export class SeasonRegistrationService {
       }>(`${SeasonRegistrationService.BASE_URL}/category/${categoryId}/count`);
       return response.data.data.count;
     } catch (error: any) {
-      console.error('Error getting category registration count:', error);
+      console.error("Error getting category registration count:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao contar inscrições da categoria.'
+        error.response?.data?.message ||
+          "Erro ao contar inscrições da categoria.",
       );
     }
   }
@@ -302,18 +312,24 @@ export class SeasonRegistrationService {
   /**
    * Atualizar categorias de uma inscrição
    */
-  static async updateCategories(registrationId: string, data: UpdateCategoriesData): Promise<SeasonRegistration> {
+  static async updateCategories(
+    registrationId: string,
+    data: UpdateCategoriesData,
+  ): Promise<SeasonRegistration> {
     try {
       const response = await api.put<{
         message: string;
         data: SeasonRegistration;
-      }>(`${SeasonRegistrationService.BASE_URL}/${registrationId}/categories`, data);
+      }>(
+        `${SeasonRegistrationService.BASE_URL}/${registrationId}/categories`,
+        data,
+      );
       return response.data.data;
     } catch (error: any) {
-      console.error('Error updating registration categories:', error);
+      console.error("Error updating registration categories:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao atualizar categorias da inscrição.'
+        error.response?.data?.message ||
+          "Erro ao atualizar categorias da inscrição.",
       );
     }
   }
@@ -326,13 +342,14 @@ export class SeasonRegistrationService {
       const response = await api.get<{
         message: string;
         data: PilotDetails;
-      }>(`${SeasonRegistrationService.BASE_URL}/${registrationId}/pilot-details`);
+      }>(
+        `${SeasonRegistrationService.BASE_URL}/${registrationId}/pilot-details`,
+      );
       return response.data.data;
     } catch (error: any) {
-      console.error('Error fetching pilot details:', error);
+      console.error("Error fetching pilot details:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar detalhes do piloto.'
+        error.response?.data?.message || "Erro ao buscar detalhes do piloto.",
       );
     }
   }
@@ -340,7 +357,9 @@ export class SeasonRegistrationService {
   /**
    * Criar ou atualizar inscrição administrativa
    */
-  static async createAdminRegistration(data: CreateAdminRegistrationData): Promise<{
+  static async createAdminRegistration(
+    data: CreateAdminRegistrationData,
+  ): Promise<{
     registration: SeasonRegistration;
     isUpdate: boolean;
   }> {
@@ -350,19 +369,17 @@ export class SeasonRegistrationService {
         data: SeasonRegistration;
         isUpdate?: boolean;
       }>(`${SeasonRegistrationService.BASE_URL}/admin`, data);
-      
+
       return {
         registration: response.data.data,
-        isUpdate: response.data.isUpdate || false
+        isUpdate: response.data.isUpdate || false,
       };
     } catch (error: any) {
-      console.error('Error creating/updating admin registration:', error);
+      console.error("Error creating/updating admin registration:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao criar/atualizar inscrição administrativa.'
+        error.response?.data?.message ||
+          "Erro ao criar/atualizar inscrição administrativa.",
       );
     }
   }
-
-
-} 
+}

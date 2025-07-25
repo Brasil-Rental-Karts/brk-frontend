@@ -9,21 +9,21 @@
  */
 export const formatDateToBrazilian = (dateStr: string): string => {
   if (!dateStr) return "";
-  
+
   // Handle ISO date string (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss.sssZ)
   const isoDateMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  
+
   if (isoDateMatch) {
     const [, year, month, day] = isoDateMatch;
     // Create date as local date to avoid timezone conversion issues
     return `${day}/${month}/${year}`;
   }
-  
+
   // Fallback: try to parse as Date and format
   try {
-    const date = new Date(dateStr + 'T12:00:00'); // Add time to avoid timezone issues
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const date = new Date(dateStr + "T12:00:00"); // Add time to avoid timezone issues
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
   } catch {
@@ -37,24 +37,24 @@ export const formatDateToBrazilian = (dateStr: string): string => {
  */
 export const formatDateToBrazilianIntl = (dateStr: string): string => {
   if (!dateStr) return "";
-  
+
   try {
     // Parse as ISO date and add 12:00 to avoid timezone issues
     const isoDateMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    
+
     if (isoDateMatch) {
       const [, year, month, day] = isoDateMatch;
       // Create date in local timezone
       const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      
-      return new Intl.DateTimeFormat('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        timeZone: 'America/Sao_Paulo'
+
+      return new Intl.DateTimeFormat("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: "America/Sao_Paulo",
       }).format(date);
     }
-    
+
     return "";
   } catch {
     return "";
@@ -67,23 +67,25 @@ export const formatDateToBrazilianIntl = (dateStr: string): string => {
  */
 export const formatDateToISO = (dateStr: string): string | null => {
   if (!dateStr || dateStr.trim() === "") return null;
-  
+
   // Check if it's in DD/MM/YYYY format
   const ddmmyyyyPattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
   const match = dateStr.match(ddmmyyyyPattern);
-  
+
   if (match) {
     const [, day, month, year] = match;
     const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    
+
     // Validate if the date is valid
-    if (date.getDate() == parseInt(day) && 
-        date.getMonth() == parseInt(month) - 1 && 
-        date.getFullYear() == parseInt(year)) {
-      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    if (
+      date.getDate() == parseInt(day) &&
+      date.getMonth() == parseInt(month) - 1 &&
+      date.getFullYear() == parseInt(year)
+    ) {
+      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
     }
   }
-  
+
   return null; // Invalid date
 };
 
@@ -93,18 +95,18 @@ export const formatDateToISO = (dateStr: string): string | null => {
  */
 export const formatDateForDisplay = (dateStr: string | Date): string => {
   if (!dateStr) return "";
-  
+
   let dateToFormat: string;
   if (dateStr instanceof Date) {
     // Convert Date object to ISO string
     const year = dateStr.getFullYear();
-    const month = (dateStr.getMonth() + 1).toString().padStart(2, '0');
-    const day = dateStr.getDate().toString().padStart(2, '0');
+    const month = (dateStr.getMonth() + 1).toString().padStart(2, "0");
+    const day = dateStr.getDate().toString().padStart(2, "0");
     dateToFormat = `${year}-${month}-${day}`;
   } else {
     dateToFormat = dateStr;
   }
-  
+
   return formatDateToBrazilian(dateToFormat);
 };
 
@@ -113,15 +115,15 @@ export const formatDateForDisplay = (dateStr: string | Date): string => {
  */
 export const getYearFromDate = (dateStr: string): number => {
   if (!dateStr) return new Date().getFullYear();
-  
+
   const isoDateMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (isoDateMatch) {
     return parseInt(isoDateMatch[1]);
   }
-  
+
   // Fallback
   try {
-    const date = new Date(dateStr + 'T12:00:00');
+    const date = new Date(dateStr + "T12:00:00");
     return date.getFullYear();
   } catch {
     return new Date().getFullYear();
@@ -133,17 +135,19 @@ export const getYearFromDate = (dateStr: string): number => {
  */
 export const compareDates = (dateA: string, dateB: string): number => {
   if (!dateA || !dateB) return 0;
-  
+
   const getTimeFromDateStr = (dateStr: string): number => {
     const isoDateMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (isoDateMatch) {
       const [, year, month, day] = isoDateMatch;
-      return new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).getTime();
+      return new Date(
+        parseInt(year),
+        parseInt(month) - 1,
+        parseInt(day),
+      ).getTime();
     }
-    return new Date(dateStr + 'T12:00:00').getTime();
+    return new Date(dateStr + "T12:00:00").getTime();
   };
-  
+
   return getTimeFromDateStr(dateA) - getTimeFromDateStr(dateB);
 };
-
- 

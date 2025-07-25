@@ -1,21 +1,28 @@
-import { useState, useEffect } from "react";
-import { Button } from "brk-design-system";
-import { Input } from "brk-design-system";
-import { Label } from "brk-design-system";
-import { Textarea } from "brk-design-system";
-import { Badge } from "brk-design-system";
-import { 
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Checkbox,
+  Input,
+  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Textarea,
 } from "brk-design-system";
-import { Checkbox } from "brk-design-system";
-import { Alert, AlertDescription } from "brk-design-system";
-import { GridType, GridTypeEnum, GridTypeFormData, PREDEFINED_GRID_TYPES } from "@/lib/types/grid-type";
-import { GridTypeIcon } from "@/lib/icons/grid-type-icons";
+import { useEffect, useState } from "react";
+
 import { useIsMobile } from "@/hooks/use-mobile";
+import { GridTypeIcon } from "@/lib/icons/grid-type-icons";
+import {
+  GridType,
+  GridTypeEnum,
+  GridTypeFormData,
+  PREDEFINED_GRID_TYPES,
+} from "@/lib/types/grid-type";
 
 interface GridTypeFormStandaloneProps {
   championshipId: string;
@@ -33,7 +40,7 @@ export const GridTypeFormStandalone = ({
   initialData,
   onSubmit,
   onCancel,
-  loading = false
+  loading = false,
 }: GridTypeFormStandaloneProps) => {
   const isMobile = useIsMobile();
   const [formData, setFormData] = useState<GridTypeFormData>({
@@ -43,9 +50,9 @@ export const GridTypeFormStandalone = ({
     isActive: true,
     isDefault: false,
     invertedPositions: 10,
-    qualifyingDuration: 5
+    qualifyingDuration: 5,
   });
-  
+
   const [error, setError] = useState<string | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
 
@@ -61,7 +68,7 @@ export const GridTypeFormStandalone = ({
         isActive: initialData.isActive,
         isDefault: initialData.isDefault,
         invertedPositions: initialData.invertedPositions || 10,
-        qualifyingDuration: initialData.qualifyingDuration || 5
+        qualifyingDuration: initialData.qualifyingDuration || 5,
       });
     } else {
       setFormData({
@@ -71,20 +78,20 @@ export const GridTypeFormStandalone = ({
         isActive: true,
         isDefault: false,
         invertedPositions: 10,
-        qualifyingDuration: 5
+        qualifyingDuration: 5,
       });
     }
     setError(null);
   }, [initialData]);
 
   const handleInputChange = (field: keyof GridTypeFormData, value: any) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
-  const applyTemplate = (template: typeof PREDEFINED_GRID_TYPES[0]) => {
+  const applyTemplate = (template: (typeof PREDEFINED_GRID_TYPES)[0]) => {
     setFormData({
       name: template.name,
       description: template.description,
@@ -92,7 +99,7 @@ export const GridTypeFormStandalone = ({
       isActive: true,
       isDefault: false,
       invertedPositions: template.invertedPositions || 10,
-      qualifyingDuration: template.qualifyingDuration || 5
+      qualifyingDuration: template.qualifyingDuration || 5,
     });
     setShowTemplates(false);
   };
@@ -109,10 +116,16 @@ export const GridTypeFormStandalone = ({
       if (!formData.description.trim()) {
         throw new Error("Descrição é obrigatória");
       }
-      if (formData.type === GridTypeEnum.INVERTED_PARTIAL && (!formData.invertedPositions || formData.invertedPositions < 1)) {
+      if (
+        formData.type === GridTypeEnum.INVERTED_PARTIAL &&
+        (!formData.invertedPositions || formData.invertedPositions < 1)
+      ) {
         throw new Error("Número de posições invertidas deve ser maior que 0");
       }
-      if (formData.type === GridTypeEnum.QUALIFYING_SESSION && (!formData.qualifyingDuration || formData.qualifyingDuration < 1)) {
+      if (
+        formData.type === GridTypeEnum.QUALIFYING_SESSION &&
+        (!formData.qualifyingDuration || formData.qualifyingDuration < 1)
+      ) {
         throw new Error("Duração da classificação deve ser maior que 0");
       }
 
@@ -175,7 +188,7 @@ export const GridTypeFormStandalone = ({
               {showTemplates ? "Ocultar" : "Mostrar"} Templates
             </Button>
           </div>
-          
+
           {showTemplates && (
             <div className="grid gap-2">
               {PREDEFINED_GRID_TYPES.map((template, index) => (
@@ -188,19 +201,25 @@ export const GridTypeFormStandalone = ({
                 >
                   <div className="w-full min-w-0">
                     <div className="flex items-center gap-2 font-medium flex-wrap">
-                      <GridTypeIcon 
-                        type={template.type} 
-                        size={18} 
+                      <GridTypeIcon
+                        type={template.type}
+                        size={18}
                         withColor={true}
                       />
                       <span className="flex-shrink-0">{template.name}</span>
                       {template.invertedPositions && (
-                        <Badge variant="outline" className="text-xs flex-shrink-0">
+                        <Badge
+                          variant="outline"
+                          className="text-xs flex-shrink-0"
+                        >
                           {template.invertedPositions} posições
                         </Badge>
                       )}
                       {template.qualifyingDuration && (
-                        <Badge variant="outline" className="text-xs flex-shrink-0">
+                        <Badge
+                          variant="outline"
+                          className="text-xs flex-shrink-0"
+                        >
                           {template.qualifyingDuration} min
                         </Badge>
                       )}
@@ -265,25 +284,41 @@ export const GridTypeFormStandalone = ({
             <SelectContent>
               <SelectItem value={GridTypeEnum.SUPER_POLE}>
                 <div className="flex items-center gap-2">
-                  <GridTypeIcon type={GridTypeEnum.SUPER_POLE} size={16} withColor={true} />
+                  <GridTypeIcon
+                    type={GridTypeEnum.SUPER_POLE}
+                    size={16}
+                    withColor={true}
+                  />
                   Super Pole
                 </div>
               </SelectItem>
               <SelectItem value={GridTypeEnum.INVERTED}>
                 <div className="flex items-center gap-2">
-                  <GridTypeIcon type={GridTypeEnum.INVERTED} size={16} withColor={true} />
+                  <GridTypeIcon
+                    type={GridTypeEnum.INVERTED}
+                    size={16}
+                    withColor={true}
+                  />
                   Invertido
                 </div>
               </SelectItem>
               <SelectItem value={GridTypeEnum.INVERTED_PARTIAL}>
                 <div className="flex items-center gap-2">
-                  <GridTypeIcon type={GridTypeEnum.INVERTED_PARTIAL} size={16} withColor={true} />
+                  <GridTypeIcon
+                    type={GridTypeEnum.INVERTED_PARTIAL}
+                    size={16}
+                    withColor={true}
+                  />
                   Invertido Parcial
                 </div>
               </SelectItem>
               <SelectItem value={GridTypeEnum.QUALIFYING_SESSION}>
                 <div className="flex items-center gap-2">
-                  <GridTypeIcon type={GridTypeEnum.QUALIFYING_SESSION} size={16} withColor={true} />
+                  <GridTypeIcon
+                    type={GridTypeEnum.QUALIFYING_SESSION}
+                    size={16}
+                    withColor={true}
+                  />
                   Sessão de Classificação
                 </div>
               </SelectItem>
@@ -298,14 +333,20 @@ export const GridTypeFormStandalone = ({
         {formData.type === GridTypeEnum.INVERTED_PARTIAL && (
           <div>
             <Label htmlFor="invertedPositions" className="text-sm font-medium">
-              Número de Posições Invertidas <span className="text-red-500">*</span>
+              Número de Posições Invertidas{" "}
+              <span className="text-red-500">*</span>
             </Label>
             <Input
               id="invertedPositions"
               type="number"
               min="1"
               value={formData.invertedPositions}
-              onChange={(e) => handleInputChange("invertedPositions", parseInt(e.target.value) || 0)}
+              onChange={(e) =>
+                handleInputChange(
+                  "invertedPositions",
+                  parseInt(e.target.value) || 0,
+                )
+              }
               disabled={loading}
               className="mt-1"
             />
@@ -318,14 +359,20 @@ export const GridTypeFormStandalone = ({
         {formData.type === GridTypeEnum.QUALIFYING_SESSION && (
           <div>
             <Label htmlFor="qualifyingDuration" className="text-sm font-medium">
-              Duração da Sessão (minutos) <span className="text-red-500">*</span>
+              Duração da Sessão (minutos){" "}
+              <span className="text-red-500">*</span>
             </Label>
             <Input
               id="qualifyingDuration"
               type="number"
               min="1"
               value={formData.qualifyingDuration}
-              onChange={(e) => handleInputChange("qualifyingDuration", parseInt(e.target.value) || 0)}
+              onChange={(e) =>
+                handleInputChange(
+                  "qualifyingDuration",
+                  parseInt(e.target.value) || 0,
+                )
+              }
               disabled={loading}
               className="mt-1"
             />
@@ -341,19 +388,23 @@ export const GridTypeFormStandalone = ({
             <Checkbox
               id="isActive"
               checked={formData.isActive}
-              onCheckedChange={(checked) => handleInputChange("isActive", checked)}
+              onCheckedChange={(checked) =>
+                handleInputChange("isActive", checked)
+              }
               disabled={loading}
             />
             <Label htmlFor="isActive" className="text-sm">
               Ativo
             </Label>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Checkbox
               id="isDefault"
               checked={formData.isDefault}
-              onCheckedChange={(checked) => handleInputChange("isDefault", checked)}
+              onCheckedChange={(checked) =>
+                handleInputChange("isDefault", checked)
+              }
               disabled={loading}
             />
             <Label htmlFor="isDefault" className="text-sm">
@@ -364,24 +415,30 @@ export const GridTypeFormStandalone = ({
       </div>
 
       {/* Botões */}
-      <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'justify-end space-x-2'}`}>
+      <div
+        className={`flex ${isMobile ? "flex-col space-y-2" : "justify-end space-x-2"}`}
+      >
         <Button
           type="button"
           variant="outline"
           onClick={onCancel}
           disabled={loading}
-          className={isMobile ? 'w-full' : ''}
+          className={isMobile ? "w-full" : ""}
         >
           Cancelar
         </Button>
         <Button
           type="submit"
           disabled={loading}
-          className={isMobile ? 'w-full' : ''}
+          className={isMobile ? "w-full" : ""}
         >
-          {loading ? 'Salvando...' : (isEditing ? 'Salvar Alterações' : 'Criar Tipo de Grid')}
+          {loading
+            ? "Salvando..."
+            : isEditing
+              ? "Salvar Alterações"
+              : "Criar Tipo de Grid"}
         </Button>
       </div>
     </form>
   );
-}; 
+};

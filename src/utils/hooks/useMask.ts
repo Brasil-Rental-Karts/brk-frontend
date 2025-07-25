@@ -1,5 +1,6 @@
 import { ChangeEvent } from "react";
-import { MaskType, masks, maxLengths } from "../masks";
+
+import { masks, MaskType, maxLengths } from "../masks";
 
 interface UseMaskProps {
   mask: MaskType;

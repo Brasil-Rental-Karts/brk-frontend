@@ -1,10 +1,5 @@
-import { 
-  Zap, 
-  RotateCcw, 
-  ArrowUpDown, 
-  Clock,
-  LucideIcon 
-} from "lucide-react";
+import { ArrowUpDown, Clock, LucideIcon, RotateCcw, Zap } from "lucide-react";
+
 import { GridTypeEnum } from "@/lib/types/grid-type";
 
 /**
@@ -61,19 +56,19 @@ interface GridTypeIconProps {
   withColor?: boolean;
 }
 
-export const GridTypeIcon = ({ 
-  type, 
-  size = 16, 
-  className = "", 
-  withColor = true 
+export const GridTypeIcon = ({
+  type,
+  size = 16,
+  className = "",
+  withColor = true,
 }: GridTypeIconProps) => {
   const config = GRID_TYPE_CONFIGS[type];
   const Icon = config.icon;
-  
+
   return (
-    <Icon 
-      size={size} 
-      className={`${withColor ? config.color : ''} ${className}`} 
+    <Icon
+      size={size}
+      className={`${withColor ? config.color : ""} ${className}`}
     />
   );
 };
@@ -83,4 +78,4 @@ export const GridTypeIcon = ({
  */
 export const useGridTypeConfig = (type: GridTypeEnum) => {
   return GRID_TYPE_CONFIGS[type];
-}; 
+};

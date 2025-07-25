@@ -1,55 +1,54 @@
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Button } from "brk-design-system";
-import { Card, CardContent, CardHeader, CardTitle } from "brk-design-system";
-import { Badge } from "brk-design-system";
 import {
-  ArrowLeft,
-  X,
-  Loader2,
-  BarChart3,
-  Users,
-  Check,
-  X as XIcon,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Maximize,
-  Minimize,
-  RotateCcw,
-  Smartphone,
-  RefreshCcw,
-} from "lucide-react";
-import {
-  LapTimesService,
-  LapTimes as LapTimesType,
-} from "@/lib/services/lap-times.service";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
-import { formatName } from "@/utils/name";
-import { SeasonService } from "@/lib/services/season.service";
-import { StageService } from "@/lib/services/stage.service";
-import { CategoryService } from "@/lib/services/category.service";
-import type { TooltipProps } from "recharts";
-import { LegendProps } from "recharts";
-import { useRef } from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
-import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "brk-design-system";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "brk-design-system";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  Maximize,
+  Minimize,
+  X as XIcon,
+} from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useRef } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import type { TooltipProps } from "recharts";
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+import { useIsMobile } from "@/hooks/use-mobile";
+import { CategoryService } from "@/lib/services/category.service";
+import {
+  LapTimes as LapTimesType,
+  LapTimesService,
+} from "@/lib/services/lap-times.service";
+import { SeasonService } from "@/lib/services/season.service";
+import { StageService } from "@/lib/services/stage.service";
+import { formatName } from "@/utils/name";
 
 interface LapTimesChartProps {
   championshipId?: string;
@@ -71,8 +70,8 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
     propBatteryIndex !== undefined
       ? propBatteryIndex
       : params.batteryIndex
-      ? parseInt(params.batteryIndex)
-      : 0;
+        ? parseInt(params.batteryIndex)
+        : 0;
 
   const [lapTimes, setLapTimes] = useState<{
     [categoryId: string]: LapTimesType[];
@@ -83,7 +82,7 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
   >([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>(
-    categoryId || ""
+    categoryId || "",
   );
   const [selectedBatteryIndex, setSelectedBatteryIndex] =
     useState<number>(batteryIndex);
@@ -144,7 +143,7 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
     try {
       const times = await LapTimesService.getLapTimesByStageAndCategory(
         selectedStageId,
-        categoryId
+        categoryId,
       );
       setLapTimes((prev) => ({
         ...prev,
@@ -162,9 +161,8 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
 
     try {
       // Buscar categorias da temporada selecionada
-      const categoriesData = await CategoryService.getBySeasonId(
-        selectedSeasonId
-      );
+      const categoriesData =
+        await CategoryService.getBySeasonId(selectedSeasonId);
       setCategories(categoriesData);
 
       if (categoriesData.length > 0 && !selectedCategory) {
@@ -206,10 +204,10 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
       const seasonsData = await SeasonService.getByChampionshipId(
         championshipId,
         1,
-        100
+        100,
       );
       const filteredSeasons = seasonsData.data.filter(
-        (season: any) => season.championshipId === championshipId
+        (season: any) => season.championshipId === championshipId,
       );
       setSeasons(filteredSeasons);
       if (filteredSeasons.length > 0) {
@@ -237,7 +235,7 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
         const todayStr = now.toISOString().slice(0, 10);
         const futureStages = stagesData
           .filter(
-            (stage: any) => stage.date && stage.date.slice(0, 10) >= todayStr
+            (stage: any) => stage.date && stage.date.slice(0, 10) >= todayStr,
           )
           .sort((a: any, b: any) => (a.date || "").localeCompare(b.date || ""));
         const selectedStage = futureStages[0] || stagesData[0];
@@ -311,7 +309,7 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
     selectedBatteryIndex !== undefined;
 
   const currentSeason = seasons.find(
-    (season) => season.id === selectedSeasonId
+    (season) => season.id === selectedSeasonId,
   );
   const currentStage = stages.find((stage) => stage.id === selectedStageId);
   const currentCategory = categories.find((cat) => cat.id === selectedCategory);
@@ -327,13 +325,13 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
   useEffect(() => {
     const checkPWA = () => {
       const isStandalone = window.matchMedia(
-        "(display-mode: standalone)"
+        "(display-mode: standalone)",
       ).matches;
       const isFullscreen = window.matchMedia(
-        "(display-mode: fullscreen)"
+        "(display-mode: fullscreen)",
       ).matches;
       const isMinimalUI = window.matchMedia(
-        "(display-mode: minimal-ui)"
+        "(display-mode: minimal-ui)",
       ).matches;
       setIsPWA(isStandalone || isFullscreen || isMinimalUI);
     };
@@ -468,7 +466,7 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
       document.removeEventListener("fullscreenchange", onFullscreenChange);
       document.removeEventListener(
         "webkitfullscreenchange",
-        onFullscreenChange
+        onFullscreenChange,
       );
       document.removeEventListener("mozfullscreenchange", onFullscreenChange);
       document.removeEventListener("MSFullscreenChange", onFullscreenChange);
@@ -644,7 +642,7 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
       if ("visualViewport" in window) {
         (window as any).visualViewport?.removeEventListener(
           "resize",
-          handleResize
+          handleResize,
         );
       }
       if (orientationCheckInterval) {
@@ -673,7 +671,8 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
           <DialogTitle>Limite de pilotos atingido</DialogTitle>
         </DialogHeader>
         <div className="py-2 text-sm text-gray-700">
-          A visualização gráfica é limitada a no máximo <b>4 pilotos</b> por vez.
+          A visualização gráfica é limitada a no máximo <b>4 pilotos</b> por
+          vez.
         </div>
         <DialogFooter>
           <Button onClick={() => setShowMaxPilotsDialog(false)} autoFocus>
@@ -719,7 +718,12 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
               }`}
               style={
                 isMobile
-                  ? { maxWidth: "100vw", minWidth: 0, height: "100dvh", zIndex: 50 }
+                  ? {
+                      maxWidth: "100vw",
+                      minWidth: 0,
+                      height: "100dvh",
+                      zIndex: 50,
+                    }
                   : {}
               }
             >
@@ -943,8 +947,13 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
 
                       {/* Pilots List */}
                       <div
-                        className={['space-y-2', 'flex-1', 'min-h-0', 'overflow-y-auto'].join(' ')}
-                        style={{ maxHeight: isMobile ? '60vh' : '600px' }}
+                        className={[
+                          "space-y-2",
+                          "flex-1",
+                          "min-h-0",
+                          "overflow-y-auto",
+                        ].join(" ")}
+                        style={{ maxHeight: isMobile ? "60vh" : "600px" }}
                       >
                         <div className="text-xs text-gray-500 mb-2">
                           Selecione até{" "}
@@ -963,19 +972,19 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                         ) : selectedCategory &&
                           lapTimes[selectedCategory]?.filter(
                             (lapTime) =>
-                              lapTime.batteryIndex === selectedBatteryIndex
+                              lapTime.batteryIndex === selectedBatteryIndex,
                           ).length > 0 ? (
                           lapTimes[selectedCategory]
                             .filter(
                               (lapTime) =>
-                                lapTime.batteryIndex === selectedBatteryIndex
+                                lapTime.batteryIndex === selectedBatteryIndex,
                             )
                             .sort((a, b) => a.kartNumber - b.kartNumber)
                             .map((lapTime) => {
                               const isSelected =
                                 selectedPilotsForChart.includes(lapTime.userId);
                               const pilotIdx = selectedPilotsForChart.indexOf(
-                                lapTime.userId
+                                lapTime.userId,
                               );
                               const pilotColor = isSelected
                                 ? getPilotColor(lapTime.userId, pilotIdx)
@@ -991,8 +1000,15 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                                   }`}
                                   onClick={(e) => {
                                     // Evitar duplo clique no checkbox
-                                    if (e.target instanceof HTMLElement && e.target.tagName === 'INPUT') return;
-                                    if (!isSelected && selectedPilotsForChart.length >= 4) {
+                                    if (
+                                      e.target instanceof HTMLElement &&
+                                      e.target.tagName === "INPUT"
+                                    )
+                                      return;
+                                    if (
+                                      !isSelected &&
+                                      selectedPilotsForChart.length >= 4
+                                    ) {
                                       setShowMaxPilotsDialog(true);
                                       return;
                                     }
@@ -1003,7 +1019,9 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                                       ]);
                                     } else {
                                       setSelectedPilotsForChart((prev) =>
-                                        prev.filter((id) => id !== lapTime.userId)
+                                        prev.filter(
+                                          (id) => id !== lapTime.userId,
+                                        ),
                                       );
                                     }
                                   }}
@@ -1041,7 +1059,7 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                                             <span className="font-mono">
                                               {
                                                 LapTimesService.getBestLapTime(
-                                                  lapTime.lapTimes
+                                                  lapTime.lapTimes,
                                                 )?.time
                                               }
                                             </span>
@@ -1127,14 +1145,15 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                 >
                   <div
                     className="max-w-xs w-full mx-auto flex flex-col items-center justify-start lg:justify-center text-center pt-12 lg:pt-0"
-                    style={{ minHeight: '40vh' }}
+                    style={{ minHeight: "40vh" }}
                   >
                     <div className="text-4xl mb-4">📊</div>
                     <div className="text-lg font-medium mb-2">
                       Configure os filtros
                     </div>
                     <div className="text-sm text-gray-500 mb-4">
-                      Abra o painel lateral para selecionar temporada, etapa, categoria e pilotos
+                      Abra o painel lateral para selecionar temporada, etapa,
+                      categoria e pilotos
                     </div>
                     <Button
                       variant="default"
@@ -1202,7 +1221,7 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                     }
                     title={(() => {
                       const isIOS = /iPad|iPhone|iPod/.test(
-                        navigator.userAgent
+                        navigator.userAgent,
                       );
                       const isSafari =
                         /Safari/.test(navigator.userAgent) &&
@@ -1212,12 +1231,12 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                           ? "Sair do modo maximizado"
                           : "Maximizar gráfico"
                         : fullscreenSupported
-                        ? isFullscreen
-                          ? "Sair do modo tela cheia"
-                          : "Tela cheia"
-                        : isFullscreen
-                        ? "Sair do modo maximizado"
-                        : "Maximizar gráfico";
+                          ? isFullscreen
+                            ? "Sair do modo tela cheia"
+                            : "Tela cheia"
+                          : isFullscreen
+                            ? "Sair do modo maximizado"
+                            : "Maximizar gráfico";
                     })()}
                   >
                     {isFullscreen ? (
@@ -1276,7 +1295,7 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                               const lapTime = lapTimes[selectedCategory]?.find(
                                 (lt) =>
                                   lt.userId === pilotId &&
-                                  lt.batteryIndex === selectedBatteryIndex
+                                  lt.batteryIndex === selectedBatteryIndex,
                               );
                               if (!lapTime) return null;
 

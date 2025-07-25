@@ -1,5 +1,11 @@
-import { useState, useEffect } from 'react';
-import { AdminStatsService, AdminStats, PreloadUsersResult, PreloadCategoriesResult } from '@/lib/services/admin-stats.service';
+import { useEffect, useState } from "react";
+
+import {
+  AdminStats,
+  AdminStatsService,
+  PreloadCategoriesResult,
+  PreloadUsersResult,
+} from "@/lib/services/admin-stats.service";
 
 export const useAdminStats = () => {
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -13,7 +19,7 @@ export const useAdminStats = () => {
       const data = await AdminStatsService.getAdminStats();
       setStats(data);
     } catch (err: any) {
-      setError(err.message || 'Erro ao carregar estatísticas');
+      setError(err.message || "Erro ao carregar estatísticas");
     } finally {
       setLoading(false);
     }
@@ -42,7 +48,7 @@ export const usePreloadUsersCache = () => {
       const data = await AdminStatsService.preloadUsersCache();
       setResult(data);
     } catch (err: any) {
-      setError(err.message || 'Erro ao fazer preload dos usuários');
+      setError(err.message || "Erro ao fazer preload dos usuários");
     } finally {
       setLoading(false);
     }
@@ -63,11 +69,11 @@ export const useUpdateCategoriesCache = () => {
       const data = await AdminStatsService.updateCategoriesCache();
       setResult(data);
     } catch (err: any) {
-      setError(err.message || 'Erro ao atualizar cache das categorias');
+      setError(err.message || "Erro ao atualizar cache das categorias");
     } finally {
       setLoading(false);
     }
   };
 
   return { updateCategories, loading, error, result };
-}; 
+};

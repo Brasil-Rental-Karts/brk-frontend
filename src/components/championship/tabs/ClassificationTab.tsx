@@ -1,16 +1,17 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { Button } from "brk-design-system";
-import { Card, CardHeader, CardContent } from "brk-design-system";
-import { Badge } from "brk-design-system";
-import { Trophy, Medal, Target, Star, Users, MoreVertical, RefreshCw } from "lucide-react";
-import { EmptyState } from "brk-design-system";
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "brk-design-system";
-import {
+  EmptyState,
+  Pagination,
   Table,
   TableBody,
   TableCell,
@@ -18,20 +19,31 @@ import {
   TableHeader,
   TableRow,
 } from "brk-design-system";
-import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
-import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
-import { Pagination } from "brk-design-system";
-import { usePagination } from "@/hooks/usePagination";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useChampionshipData } from "@/contexts/ChampionshipContext";
-
-import { SeasonService, Season } from "@/lib/services/season.service";
-import { ChampionshipClassificationService } from "@/lib/services/championship-classification.service";
-import { CategoryService } from "@/lib/services/category.service";
-import { Loading } from '@/components/ui/loading';
-import { InlineLoader } from '@/components/ui/loading';
-import { formatName } from '@/utils/name';
+import {
+  Medal,
+  MoreVertical,
+  RefreshCw,
+  Star,
+  Target,
+  Trophy,
+  Users,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+
+import {
+  DynamicFilter,
+  FilterField,
+  FilterValues,
+} from "@/components/ui/dynamic-filter";
+import { Loading } from "@/components/ui/loading";
+import { InlineLoader } from "@/components/ui/loading";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { usePagination } from "@/hooks/usePagination";
+import { ChampionshipClassificationService } from "@/lib/services/championship-classification.service";
+import { Season } from "@/lib/services/season.service";
+import { formatName } from "@/utils/name";
 
 // Interfaces para a nova estrutura de dados do Redis
 interface ClassificationUser {
@@ -70,28 +82,35 @@ interface ClassificationTabProps {
 }
 
 // Configuração inicial dos filtros
-const createFilterFields = (seasonOptions: { value: string; label: string }[] = [], categoryOptions: { value: string; label: string }[] = []): FilterField[] => [
+const createFilterFields = (
+  seasonOptions: { value: string; label: string }[] = [],
+  categoryOptions: { value: string; label: string }[] = [],
+): FilterField[] => [
   {
-    key: 'seasonId',
-    label: 'Temporada',
-    type: 'combobox',
-    placeholder: 'Temporada',
-    options: seasonOptions
+    key: "seasonId",
+    label: "Temporada",
+    type: "combobox",
+    placeholder: "Temporada",
+    options: seasonOptions,
   },
   {
-    key: 'categoryId',
-    label: 'Categoria',
-    type: 'combobox',
-    placeholder: 'Todas as categorias',
-    options: categoryOptions
-  }
+    key: "categoryId",
+    label: "Categoria",
+    type: "combobox",
+    placeholder: "Todas as categorias",
+    options: categoryOptions,
+  },
 ];
 
 // Componente Card para Mobile
-const ClassificationCard = ({ entry, position, onAction }: { 
-  entry: ClassificationPilot, 
-  position: number, 
-  onAction: (action: string, entry: ClassificationPilot) => void 
+const ClassificationCard = ({
+  entry,
+  position,
+  onAction,
+}: {
+  entry: ClassificationPilot;
+  position: number;
+  onAction: (action: string, entry: ClassificationPilot) => void;
 }) => {
   const renderPositionBadge = (position: number) => {
     if (position === 1) {
@@ -118,11 +137,7 @@ const ClassificationCard = ({ entry, position, onAction }: {
         </div>
       );
     }
-    return (
-      <span className="font-semibold">
-        {position}º
-      </span>
-    );
+    return <span className="font-semibold">{position}º</span>;
   };
 
   return (
@@ -133,9 +148,13 @@ const ClassificationCard = ({ entry, position, onAction }: {
             {renderPositionBadge(position)}
           </div>
           <div>
-                            <h3 className="text-lg font-semibold tracking-tight">{formatName(entry.user.name)}</h3>
+            <h3 className="text-lg font-semibold tracking-tight">
+              {formatName(entry.user.name)}
+            </h3>
             {entry.user.nickname && (
-              <p className="text-sm text-muted-foreground">@{entry.user.nickname}</p>
+              <p className="text-sm text-muted-foreground">
+                @{entry.user.nickname}
+              </p>
             )}
           </div>
         </div>
@@ -153,7 +172,6 @@ const ClassificationCard = ({ entry, position, onAction }: {
         </DropdownMenu>
       </CardHeader>
       <CardContent className="space-y-4">
-        
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex flex-col">
             <span className="text-muted-foreground">Pontos</span>
@@ -180,24 +198,30 @@ const ClassificationCard = ({ entry, position, onAction }: {
           <div className="flex flex-col">
             <span className="text-muted-foreground">Poles</span>
             <div className="flex items-center gap-1">
-              {entry.polePositions > 0 && <Target className="h-3 w-3 text-blue-500" />}
+              {entry.polePositions > 0 && (
+                <Target className="h-3 w-3 text-blue-500" />
+              )}
               <span className="font-medium">{entry.polePositions}</span>
             </div>
           </div>
           <div className="flex flex-col">
             <span className="text-muted-foreground">V. Rápidas</span>
             <div className="flex items-center gap-1">
-              {entry.fastestLaps > 0 && <Star className="h-3 w-3 text-purple-500" />}
+              {entry.fastestLaps > 0 && (
+                <Star className="h-3 w-3 text-purple-500" />
+              )}
               <span className="font-medium">{entry.fastestLaps}</span>
             </div>
           </div>
         </div>
-        
+
         <div className="flex justify-between items-center pt-2 border-t">
           <div className="flex flex-col">
-            <span className="text-muted-foreground text-xs">Melhor Posição</span>
+            <span className="text-muted-foreground text-xs">
+              Melhor Posição
+            </span>
             <span className="font-medium">
-              {entry.bestPosition === null ? '-' : `${entry.bestPosition}º`}
+              {entry.bestPosition === null ? "-" : `${entry.bestPosition}º`}
             </span>
           </div>
         </div>
@@ -211,32 +235,35 @@ const ClassificationCard = ({ entry, position, onAction }: {
  * Exibe classificação geral e por categorias, usando dados otimizados do Redis
  * Segue padrões dos maiores campeonatos de automobilismo mundial
  */
-export const ClassificationTab = ({ championshipId }: ClassificationTabProps) => {
+export const ClassificationTab = ({
+  championshipId,
+}: ClassificationTabProps) => {
   const isMobile = useIsMobile();
   const [filters, setFilters] = useState<FilterValues>({});
   const [updatingCache, setUpdatingCache] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
-  
+
   // Usar o contexto de dados do campeonato
-  const { 
-    getSeasons, 
-    getCategories, 
+  const {
+    getSeasons,
+    getCategories,
     getClassification,
     fetchClassification,
     refreshClassification,
-    loading: contextLoading, 
-    error: contextError
+    loading: contextLoading,
+    error: contextError,
   } = useChampionshipData();
 
   // Obter dados do contexto
   const contextSeasons = getSeasons();
   const contextCategories = getCategories();
-  
+
   // Dados básicos
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>("");
-  
+
   // Dados de classificação do Redis
-  const [seasonClassification, setSeasonClassification] = useState<RedisClassificationData | null>(null);
+  const [seasonClassification, setSeasonClassification] =
+    useState<RedisClassificationData | null>(null);
 
   // Carregar dados iniciais
   const fetchSeasons = useCallback(async () => {
@@ -244,38 +271,41 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
       // Usar temporadas do contexto
       if (contextSeasons.length > 0) {
         // Selecionar temporada ativa por padrão
-        const activeSeason = contextSeasons.find((s: Season) => s.status === 'em_andamento') || contextSeasons[0];
+        const activeSeason =
+          contextSeasons.find((s: Season) => s.status === "em_andamento") ||
+          contextSeasons[0];
         if (activeSeason) {
           setSelectedSeasonId(activeSeason.id);
         }
       }
-
     } catch (err: any) {
-      console.error('Erro ao carregar temporadas:', err);
+      console.error("Erro ao carregar temporadas:", err);
     }
   }, [contextSeasons]);
 
   // Carregar classificação da temporada
-  const loadClassification = useCallback(async (seasonId: string) => {
-    if (!seasonId) return;
-    
-    try {
-      // Buscar classificação do contexto
-      let classification = getClassification(seasonId);
-      
-      // Se não existe no contexto, buscar do backend
-      if (!classification) {
-        await fetchClassification(seasonId);
-        classification = getClassification(seasonId);
-      }
-      
-      setSeasonClassification(classification);
+  const loadClassification = useCallback(
+    async (seasonId: string) => {
+      if (!seasonId) return;
 
-    } catch (err: any) {
-      console.error('❌ [FRONTEND] Erro ao carregar classificação:', err);
-      setSeasonClassification(null);
-    }
-  }, [getClassification, fetchClassification]);
+      try {
+        // Buscar classificação do contexto
+        let classification = getClassification(seasonId);
+
+        // Se não existe no contexto, buscar do backend
+        if (!classification) {
+          await fetchClassification(seasonId);
+          classification = getClassification(seasonId);
+        }
+
+        setSeasonClassification(classification);
+      } catch (err: any) {
+        console.error("❌ [FRONTEND] Erro ao carregar classificação:", err);
+        setSeasonClassification(null);
+      }
+    },
+    [getClassification, fetchClassification],
+  );
 
   // Efeitos
   useEffect(() => {
@@ -293,39 +323,45 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
 
   // Opções dos filtros
   const { seasonOptions, categoryOptions } = useMemo(() => {
-    const seasonOpts = contextSeasons.map(season => ({
+    const seasonOpts = contextSeasons.map((season) => ({
       value: season.id,
-      label: season.status === 'em_andamento' ? `${season.name} (Ativa)` : season.name
+      label:
+        season.status === "em_andamento"
+          ? `${season.name} (Ativa)`
+          : season.name,
     }));
 
-    const categoryOpts = [
-      { value: 'all', label: 'Todas as categorias' }
-    ];
+    const categoryOpts = [{ value: "all", label: "Todas as categorias" }];
 
     // Usar categorias do contexto
     if (contextCategories.length > 0) {
-      categoryOpts.push(...contextCategories.map(category => ({
-        value: category.id,
-        label: category.name
-      })));
+      categoryOpts.push(
+        ...contextCategories.map((category) => ({
+          value: category.id,
+          label: category.name,
+        })),
+      );
     }
 
     return {
       seasonOptions: seasonOpts,
-      categoryOptions: categoryOpts
+      categoryOptions: categoryOpts,
     };
   }, [contextSeasons, contextCategories]);
 
   // Configuração dos filtros
-  const filterFields = useMemo(() => createFilterFields(seasonOptions, categoryOptions), [seasonOptions, categoryOptions]);
+  const filterFields = useMemo(
+    () => createFilterFields(seasonOptions, categoryOptions),
+    [seasonOptions, categoryOptions],
+  );
 
   // Criar mapa de categorias por ID para uso na renderização
   const categoriesMap = useMemo(() => {
-    const map: {[key: string]: {id: string, name: string}} = {};
-    contextCategories.forEach(category => {
+    const map: { [key: string]: { id: string; name: string } } = {};
+    contextCategories.forEach((category) => {
       map[category.id] = {
         id: category.id,
-        name: category.name
+        name: category.name,
       };
     });
     return map;
@@ -333,65 +369,75 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
 
   // Dados processados
   const { allPilots, filteredPilots } = useMemo(() => {
-    if (!seasonClassification || !seasonClassification.classificationsByCategory) {
+    if (
+      !seasonClassification ||
+      !seasonClassification.classificationsByCategory
+    ) {
       return { allPilots: [], filteredPilots: [] };
     }
 
     // Verificar se há categorias válidas
-    const validCategories = Object.entries(seasonClassification.classificationsByCategory).filter(
-      ([_, data]) => data && data.pilots && data.pilots.length > 0
-    );
+    const validCategories = Object.entries(
+      seasonClassification.classificationsByCategory,
+    ).filter(([_, data]) => data && data.pilots && data.pilots.length > 0);
 
     const allPilotsArray: ClassificationPilot[] = [];
     validCategories.forEach(([categoryId, categoryData]) => {
-      if (categoryData && categoryData.pilots && Array.isArray(categoryData.pilots)) {
+      if (
+        categoryData &&
+        categoryData.pilots &&
+        Array.isArray(categoryData.pilots)
+      ) {
         // Adicionar categoriaId a cada piloto para identificação
-        const pilotsWithCategory = categoryData.pilots.map(pilot => ({
+        const pilotsWithCategory = categoryData.pilots.map((pilot) => ({
           ...pilot,
-          categoryId
+          categoryId,
         }));
         allPilotsArray.push(...pilotsWithCategory);
       }
     });
 
-    const filteredPilotsArray = (!filters.categoryId || filters.categoryId === 'all')
-      ? allPilotsArray.sort((a, b) => {
-          // Ordenar por pontos (maior para menor) quando "todas as categorias" estiver selecionado
-          if (b.totalPoints !== a.totalPoints) {
-            return b.totalPoints - a.totalPoints;
-          }
-          // Em caso de empate, ordenar por número de vitórias
-          if (b.wins !== a.wins) {
-            return b.wins - a.wins;
-          }
-          // Em caso de empate, ordenar por número de pódios
-          if (b.podiums !== a.podiums) {
-            return b.podiums - a.podiums;
-          }
-          // Por último, ordenar por melhor posição (menor posição = melhor)
-          if (a.bestPosition !== null && b.bestPosition !== null) {
-            return a.bestPosition - b.bestPosition;
-          }
-          return 0;
-        })
-      : (() => {
-          // Verificar se a categoria selecionada existe nos dados do Redis
-          const categoryPilots = seasonClassification.classificationsByCategory[filters.categoryId]?.pilots || [];
-          
-          // Se não há pilotos no Redis para essa categoria, retornar array vazio
-          if (categoryPilots.length === 0) {
-            return [];
-          }
-          
-          return categoryPilots.map(pilot => ({
-            ...pilot,
-            categoryId: filters.categoryId
-          }));
-        })();
+    const filteredPilotsArray =
+      !filters.categoryId || filters.categoryId === "all"
+        ? allPilotsArray.sort((a, b) => {
+            // Ordenar por pontos (maior para menor) quando "todas as categorias" estiver selecionado
+            if (b.totalPoints !== a.totalPoints) {
+              return b.totalPoints - a.totalPoints;
+            }
+            // Em caso de empate, ordenar por número de vitórias
+            if (b.wins !== a.wins) {
+              return b.wins - a.wins;
+            }
+            // Em caso de empate, ordenar por número de pódios
+            if (b.podiums !== a.podiums) {
+              return b.podiums - a.podiums;
+            }
+            // Por último, ordenar por melhor posição (menor posição = melhor)
+            if (a.bestPosition !== null && b.bestPosition !== null) {
+              return a.bestPosition - b.bestPosition;
+            }
+            return 0;
+          })
+        : (() => {
+            // Verificar se a categoria selecionada existe nos dados do Redis
+            const categoryPilots =
+              seasonClassification.classificationsByCategory[filters.categoryId]
+                ?.pilots || [];
+
+            // Se não há pilotos no Redis para essa categoria, retornar array vazio
+            if (categoryPilots.length === 0) {
+              return [];
+            }
+
+            return categoryPilots.map((pilot) => ({
+              ...pilot,
+              categoryId: filters.categoryId,
+            }));
+          })();
 
     return {
       allPilots: allPilotsArray,
-      filteredPilots: filteredPilotsArray
+      filteredPilots: filteredPilotsArray,
     };
   }, [seasonClassification, filters.categoryId]);
 
@@ -399,11 +445,21 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
   const pagination = usePagination(filteredPilots.length, 10, 1);
   const paginatedDesktopPilots = useMemo(() => {
     if (isMobile) return [];
-    return filteredPilots.slice(pagination.info.startIndex, pagination.info.endIndex);
-  }, [isMobile, filteredPilots, pagination.info.startIndex, pagination.info.endIndex]);
+    return filteredPilots.slice(
+      pagination.info.startIndex,
+      pagination.info.endIndex,
+    );
+  }, [
+    isMobile,
+    filteredPilots,
+    pagination.info.startIndex,
+    pagination.info.endIndex,
+  ]);
 
   // --- Lógica para Mobile (Scroll Infinito) ---
-  const [visibleMobilePilots, setVisibleMobilePilots] = useState<ClassificationPilot[]>([]);
+  const [visibleMobilePilots, setVisibleMobilePilots] = useState<
+    ClassificationPilot[]
+  >([]);
   const [mobilePage, setMobilePage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -418,28 +474,36 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
     }
   }, [isMobile, filteredPilots]);
 
-  const lastPilotElementRef = useCallback((node: HTMLElement | null) => {
-    if (loadingMore) return;
-    if (observer.current) observer.current.disconnect();
-    
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
-        setLoadingMore(true);
-        setTimeout(() => {
-          const newPilots = filteredPilots.slice(0, mobilePage * mobileItemsPerPage);
-          setVisibleMobilePilots(newPilots);
-          setHasMore(newPilots.length < filteredPilots.length);
-          setMobilePage(prev => prev + 1);
-          setLoadingMore(false);
-        }, 300);
-      }
-    });
+  const lastPilotElementRef = useCallback(
+    (node: HTMLElement | null) => {
+      if (loadingMore) return;
+      if (observer.current) observer.current.disconnect();
 
-    if (node) observer.current.observe(node);
-  }, [loadingMore, hasMore, mobilePage, filteredPilots]);
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          setLoadingMore(true);
+          setTimeout(() => {
+            const newPilots = filteredPilots.slice(
+              0,
+              mobilePage * mobileItemsPerPage,
+            );
+            setVisibleMobilePilots(newPilots);
+            setHasMore(newPilots.length < filteredPilots.length);
+            setMobilePage((prev) => prev + 1);
+            setLoadingMore(false);
+          }, 300);
+        }
+      });
+
+      if (node) observer.current.observe(node);
+    },
+    [loadingMore, hasMore, mobilePage, filteredPilots],
+  );
 
   // Define os dados a serem processados com base no dispositivo
-  const processedPilots = isMobile ? visibleMobilePilots : paginatedDesktopPilots;
+  const processedPilots = isMobile
+    ? visibleMobilePilots
+    : paginatedDesktopPilots;
 
   // Renderizar badge de posição
   const renderPositionBadge = (position: number) => {
@@ -467,24 +531,23 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
         </div>
       );
     }
-    return (
-      <span className="font-semibold">
-        {position}º
-      </span>
-    );
+    return <span className="font-semibold">{position}º</span>;
   };
 
   // Handlers
-  const handleFiltersChange = useCallback((newFilters: FilterValues) => {
-    setFilters(newFilters);
-    // Se uma temporada foi selecionada no filtro, atualizar a temporada selecionada
-    if (newFilters.seasonId && newFilters.seasonId !== selectedSeasonId) {
-      setSelectedSeasonId(newFilters.seasonId as string);
-    }
-    if (!isMobile) {
-      pagination.actions.goToFirstPage();
-    }
-  }, [isMobile, pagination.actions, selectedSeasonId]);
+  const handleFiltersChange = useCallback(
+    (newFilters: FilterValues) => {
+      setFilters(newFilters);
+      // Se uma temporada foi selecionada no filtro, atualizar a temporada selecionada
+      if (newFilters.seasonId && newFilters.seasonId !== selectedSeasonId) {
+        setSelectedSeasonId(newFilters.seasonId as string);
+      }
+      if (!isMobile) {
+        pagination.actions.goToFirstPage();
+      }
+    },
+    [isMobile, pagination.actions, selectedSeasonId],
+  );
 
   const handlePilotAction = (action: string, entry: ClassificationPilot) => {
     switch (action) {
@@ -496,36 +559,45 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
     }
   };
 
-  const handlePageChange = (page: number) => pagination.actions.setCurrentPage(page);
-  const handleItemsPerPageChange = (items: number) => pagination.actions.setItemsPerPage(items);
+  const handlePageChange = (page: number) =>
+    pagination.actions.setCurrentPage(page);
+  const handleItemsPerPageChange = (items: number) =>
+    pagination.actions.setItemsPerPage(items);
 
   // Função para atualizar cache da classificação
   const handleUpdateClassificationCache = useCallback(async () => {
     if (!selectedSeasonId) return;
-    
+
     try {
       setShowLoading(true);
-      
+
       // Atualizar cache da classificação
-      await ChampionshipClassificationService.updateSeasonClassificationCache(selectedSeasonId);
-      
+      await ChampionshipClassificationService.updateSeasonClassificationCache(
+        selectedSeasonId,
+      );
+
       // Recarregar dados após atualização do cache
       await refreshClassification(selectedSeasonId);
       await loadClassification(selectedSeasonId);
-      
+
       // Mostrar toast de sucesso
-      toast.success('Classificação atualizada com sucesso!');
-      
+      toast.success("Classificação atualizada com sucesso!");
     } catch (err: any) {
-      toast.error('Erro ao atualizar classificação');
+      toast.error("Erro ao atualizar classificação");
     } finally {
       setShowLoading(false);
     }
   }, [selectedSeasonId, refreshClassification, loadClassification]);
 
   // Determinar loading e error
-  const isDataLoading = contextLoading.seasons || contextLoading.categories || contextLoading.classifications;
-  const dataError = contextError.seasons || contextError.categories || contextError.classifications;
+  const isDataLoading =
+    contextLoading.seasons ||
+    contextLoading.categories ||
+    contextLoading.classifications;
+  const dataError =
+    contextError.seasons ||
+    contextError.categories ||
+    contextError.classifications;
 
   if (!selectedSeasonId) {
     return (
@@ -538,7 +610,12 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
   }
 
   // Se não há dados de classificação e não está carregando
-  if (!isDataLoading && seasonClassification && Object.keys(seasonClassification.classificationsByCategory || {}).length === 0) {
+  if (
+    !isDataLoading &&
+    seasonClassification &&
+    Object.keys(seasonClassification.classificationsByCategory || {}).length ===
+      0
+  ) {
     return (
       <div className="space-y-6">
         {/* Título da aba */}
@@ -620,30 +697,44 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
               {/* Subtítulo da categoria selecionada */}
               <div className="border-b border-gray-200 pb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  {filters.categoryId && filters.categoryId !== 'all' 
-                    ? categoriesMap[filters.categoryId]?.name || `Categoria ${filters.categoryId.slice(0, 8)}...`
-                    : 'Classificação Geral'
-                  }
+                  {filters.categoryId && filters.categoryId !== "all"
+                    ? categoriesMap[filters.categoryId]?.name ||
+                      `Categoria ${filters.categoryId.slice(0, 8)}...`
+                    : "Classificação Geral"}
                 </h3>
-                {filters.categoryId && filters.categoryId !== 'all' && filteredPilots.length === 0 && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Nenhum piloto encontrado para esta categoria na classificação atual.
-                  </p>
-                )}
+                {filters.categoryId &&
+                  filters.categoryId !== "all" &&
+                  filteredPilots.length === 0 && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Nenhum piloto encontrado para esta categoria na
+                      classificação atual.
+                    </p>
+                  )}
               </div>
-              
+
               {isMobile ? (
                 <>
                   <div className="space-y-4">
                     {processedPilots.map((entry, index) => {
-                      const position = isMobile ? 
-                        filteredPilots.findIndex(p => p.user.id === entry.user.id && p.categoryId === entry.categoryId) + 1 :
-                        pagination.info.startIndex + index + 1;
-                      
+                      const position = isMobile
+                        ? filteredPilots.findIndex(
+                            (p) =>
+                              p.user.id === entry.user.id &&
+                              p.categoryId === entry.categoryId,
+                          ) + 1
+                        : pagination.info.startIndex + index + 1;
+
                       return (
-                        <div key={`${entry.user.id}-${entry.categoryId}`} ref={processedPilots.length === index + 1 ? lastPilotElementRef : null}>
-                          <ClassificationCard 
-                            entry={entry} 
+                        <div
+                          key={`${entry.user.id}-${entry.categoryId}`}
+                          ref={
+                            processedPilots.length === index + 1
+                              ? lastPilotElementRef
+                              : null
+                          }
+                        >
+                          <ClassificationCard
+                            entry={entry}
                             position={position}
                             onAction={handlePilotAction}
                           />
@@ -672,76 +763,112 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
                           <TableHead>Piloto</TableHead>
                           <TableHead>Categoria</TableHead>
                           <TableHead className="text-center">Pontos</TableHead>
-                          <TableHead className="text-center">Vitórias</TableHead>
+                          <TableHead className="text-center">
+                            Vitórias
+                          </TableHead>
                           <TableHead className="text-center">Pódios</TableHead>
                           <TableHead className="text-center">Poles</TableHead>
-                          <TableHead className="text-center">V. Rápidas</TableHead>
-                          <TableHead className="text-center">Melhor Pos.</TableHead>
+                          <TableHead className="text-center">
+                            V. Rápidas
+                          </TableHead>
+                          <TableHead className="text-center">
+                            Melhor Pos.
+                          </TableHead>
                           <TableHead className="text-center">Etapas</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {processedPilots.map((entry, index) => (
-                          <TableRow key={`${entry.user.id}-${entry.categoryId}`}>
+                          <TableRow
+                            key={`${entry.user.id}-${entry.categoryId}`}
+                          >
                             <TableCell className="font-medium">
-                              {renderPositionBadge(pagination.info.startIndex + index + 1)}
+                              {renderPositionBadge(
+                                pagination.info.startIndex + index + 1,
+                              )}
                             </TableCell>
                             <TableCell>
                               <div className="space-y-1">
-                                <div className="font-medium">{formatName(entry.user.name)}</div>
+                                <div className="font-medium">
+                                  {formatName(entry.user.name)}
+                                </div>
                                 {entry.user.nickname && (
-                                  <div className="text-xs text-muted-foreground">@{entry.user.nickname}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    @{entry.user.nickname}
+                                  </div>
                                 )}
                               </div>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <span className="font-medium">
-                                  {entry.categoryId && categoriesMap[entry.categoryId]?.name 
-                                    ? categoriesMap[entry.categoryId].name 
-                                    : entry.categoryId 
-                                      ? `Categoria ${entry.categoryId.slice(0, 8)}...` 
-                                      : 'N/A'
-                                  }
+                                  {entry.categoryId &&
+                                  categoriesMap[entry.categoryId]?.name
+                                    ? categoriesMap[entry.categoryId].name
+                                    : entry.categoryId
+                                      ? `Categoria ${entry.categoryId.slice(0, 8)}...`
+                                      : "N/A"}
                                 </span>
                               </div>
                             </TableCell>
                             <TableCell className="text-center">
                               <div className="space-y-1">
-                                <div className="text-lg font-bold">{entry.totalPoints}</div>
+                                <div className="text-lg font-bold">
+                                  {entry.totalPoints}
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell className="text-center">
                               <div className="flex items-center justify-center gap-1">
-                                {entry.wins > 0 && <Trophy className="h-3 w-3 text-yellow-500" />}
-                                <span className="font-medium">{entry.wins}</span>
+                                {entry.wins > 0 && (
+                                  <Trophy className="h-3 w-3 text-yellow-500" />
+                                )}
+                                <span className="font-medium">
+                                  {entry.wins}
+                                </span>
                               </div>
                             </TableCell>
                             <TableCell className="text-center">
                               <div className="flex items-center justify-center gap-1">
-                                {entry.podiums > 0 && <Medal className="h-3 w-3 text-gray-400" />}
-                                <span className="font-medium">{entry.podiums}</span>
+                                {entry.podiums > 0 && (
+                                  <Medal className="h-3 w-3 text-gray-400" />
+                                )}
+                                <span className="font-medium">
+                                  {entry.podiums}
+                                </span>
                               </div>
                             </TableCell>
                             <TableCell className="text-center">
                               <div className="flex items-center justify-center gap-1">
-                                {entry.polePositions > 0 && <Target className="h-3 w-3 text-blue-500" />}
-                                <span className="font-medium">{entry.polePositions}</span>
+                                {entry.polePositions > 0 && (
+                                  <Target className="h-3 w-3 text-blue-500" />
+                                )}
+                                <span className="font-medium">
+                                  {entry.polePositions}
+                                </span>
                               </div>
                             </TableCell>
                             <TableCell className="text-center">
                               <div className="flex items-center justify-center gap-1">
-                                {entry.fastestLaps > 0 && <Star className="h-3 w-3 text-purple-500" />}
-                                <span className="font-medium">{entry.fastestLaps}</span>
+                                {entry.fastestLaps > 0 && (
+                                  <Star className="h-3 w-3 text-purple-500" />
+                                )}
+                                <span className="font-medium">
+                                  {entry.fastestLaps}
+                                </span>
                               </div>
                             </TableCell>
                             <TableCell className="text-center">
                               <span className="font-medium">
-                                {entry.bestPosition === null ? '-' : `${entry.bestPosition}º`}
+                                {entry.bestPosition === null
+                                  ? "-"
+                                  : `${entry.bestPosition}º`}
                               </span>
                             </TableCell>
                             <TableCell className="text-center">
-                              <span className="font-medium">{entry.totalStages}</span>
+                              <span className="font-medium">
+                                {entry.totalStages}
+                              </span>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -770,4 +897,4 @@ export const ClassificationTab = ({ championshipId }: ClassificationTabProps) =>
       )}
     </div>
   );
-}; 
+};

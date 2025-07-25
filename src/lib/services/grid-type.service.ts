@@ -1,24 +1,27 @@
-import api from '../axios';
-import { GridType, GridTypeFormData } from '@/lib/types/grid-type';
+import { GridType, GridTypeFormData } from "@/lib/types/grid-type";
+
+import api from "../axios";
 
 /**
  * Serviço para gerenciar tipos de grid do campeonato
  */
 export class GridTypeService {
-  private static readonly BASE_URL = '/championships';
+  private static readonly BASE_URL = "/championships";
 
   /**
    * Buscar todos os tipos de grid de um campeonato
    */
   static async getByChampionship(championshipId: string): Promise<GridType[]> {
     try {
-      const response = await api.get<GridType[]>(`${GridTypeService.BASE_URL}/${championshipId}/grid-types`);
+      const response = await api.get<GridType[]>(
+        `${GridTypeService.BASE_URL}/${championshipId}/grid-types`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Error fetching grid types:', error);
+      console.error("Error fetching grid types:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar tipos de grid. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao buscar tipos de grid. Tente novamente.",
       );
     }
   }
@@ -26,15 +29,20 @@ export class GridTypeService {
   /**
    * Buscar um tipo de grid por ID
    */
-  static async getById(championshipId: string, gridTypeId: string): Promise<GridType> {
+  static async getById(
+    championshipId: string,
+    gridTypeId: string,
+  ): Promise<GridType> {
     try {
-      const response = await api.get<GridType>(`${GridTypeService.BASE_URL}/${championshipId}/grid-types/${gridTypeId}`);
+      const response = await api.get<GridType>(
+        `${GridTypeService.BASE_URL}/${championshipId}/grid-types/${gridTypeId}`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Error fetching grid type:', error);
+      console.error("Error fetching grid type:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar tipo de grid. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao buscar tipo de grid. Tente novamente.",
       );
     }
   }
@@ -42,15 +50,21 @@ export class GridTypeService {
   /**
    * Criar um novo tipo de grid
    */
-  static async create(championshipId: string, data: GridTypeFormData): Promise<GridType> {
+  static async create(
+    championshipId: string,
+    data: GridTypeFormData,
+  ): Promise<GridType> {
     try {
-      const response = await api.post<GridType>(`${GridTypeService.BASE_URL}/${championshipId}/grid-types`, data);
+      const response = await api.post<GridType>(
+        `${GridTypeService.BASE_URL}/${championshipId}/grid-types`,
+        data,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Error creating grid type:', error);
+      console.error("Error creating grid type:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao criar tipo de grid. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao criar tipo de grid. Tente novamente.",
       );
     }
   }
@@ -58,15 +72,22 @@ export class GridTypeService {
   /**
    * Atualizar um tipo de grid existente
    */
-  static async update(championshipId: string, gridTypeId: string, data: Partial<GridTypeFormData>): Promise<GridType> {
+  static async update(
+    championshipId: string,
+    gridTypeId: string,
+    data: Partial<GridTypeFormData>,
+  ): Promise<GridType> {
     try {
-      const response = await api.put<GridType>(`${GridTypeService.BASE_URL}/${championshipId}/grid-types/${gridTypeId}`, data);
+      const response = await api.put<GridType>(
+        `${GridTypeService.BASE_URL}/${championshipId}/grid-types/${gridTypeId}`,
+        data,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Error updating grid type:', error);
+      console.error("Error updating grid type:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao atualizar tipo de grid. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao atualizar tipo de grid. Tente novamente.",
       );
     }
   }
@@ -74,14 +95,19 @@ export class GridTypeService {
   /**
    * Excluir um tipo de grid
    */
-  static async delete(championshipId: string, gridTypeId: string): Promise<void> {
+  static async delete(
+    championshipId: string,
+    gridTypeId: string,
+  ): Promise<void> {
     try {
-      await api.delete(`${GridTypeService.BASE_URL}/${championshipId}/grid-types/${gridTypeId}`);
+      await api.delete(
+        `${GridTypeService.BASE_URL}/${championshipId}/grid-types/${gridTypeId}`,
+      );
     } catch (error: any) {
-      console.error('Error deleting grid type:', error);
+      console.error("Error deleting grid type:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao excluir tipo de grid. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao excluir tipo de grid. Tente novamente.",
       );
     }
   }
@@ -91,13 +117,15 @@ export class GridTypeService {
    */
   static async createPredefined(championshipId: string): Promise<GridType[]> {
     try {
-      const response = await api.post<GridType[]>(`${GridTypeService.BASE_URL}/${championshipId}/grid-types/predefined`);
+      const response = await api.post<GridType[]>(
+        `${GridTypeService.BASE_URL}/${championshipId}/grid-types/predefined`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Error creating predefined grid types:', error);
+      console.error("Error creating predefined grid types:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao criar tipos de grid pré-configurados. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao criar tipos de grid pré-configurados. Tente novamente.",
       );
     }
   }
@@ -105,15 +133,20 @@ export class GridTypeService {
   /**
    * Definir um tipo de grid como padrão
    */
-  static async setAsDefault(championshipId: string, gridTypeId: string): Promise<GridType> {
+  static async setAsDefault(
+    championshipId: string,
+    gridTypeId: string,
+  ): Promise<GridType> {
     try {
-      const response = await api.patch<GridType>(`${GridTypeService.BASE_URL}/${championshipId}/grid-types/${gridTypeId}/set-default`);
+      const response = await api.patch<GridType>(
+        `${GridTypeService.BASE_URL}/${championshipId}/grid-types/${gridTypeId}/set-default`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Error setting grid type as default:', error);
+      console.error("Error setting grid type as default:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao definir tipo de grid padrão. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao definir tipo de grid padrão. Tente novamente.",
       );
     }
   }
@@ -121,16 +154,21 @@ export class GridTypeService {
   /**
    * Ativar/desativar um tipo de grid
    */
-  static async toggleActive(championshipId: string, gridTypeId: string): Promise<GridType> {
+  static async toggleActive(
+    championshipId: string,
+    gridTypeId: string,
+  ): Promise<GridType> {
     try {
-      const response = await api.patch<GridType>(`${GridTypeService.BASE_URL}/${championshipId}/grid-types/${gridTypeId}/toggle-active`);
+      const response = await api.patch<GridType>(
+        `${GridTypeService.BASE_URL}/${championshipId}/grid-types/${gridTypeId}/toggle-active`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Error toggling grid type active status:', error);
+      console.error("Error toggling grid type active status:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao alterar status do tipo de grid. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao alterar status do tipo de grid. Tente novamente.",
       );
     }
   }
-} 
+}

@@ -1,35 +1,30 @@
-import { Link, Outlet } from "react-router-dom";
-import { Avatar, AvatarFallback } from "brk-design-system";
-import { ChevronDown, Menu, Shield } from "lucide-react";
 import {
+  Avatar,
+  AvatarFallback,
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "brk-design-system";
-import {
   NavigationMenu,
-  NavigationMenuContent,
+  NavigationMenuIndicator,
   NavigationMenuItem,
   NavigationMenuLink,
   NavigationMenuList,
-  NavigationMenuTrigger,
-  NavigationMenuIndicator,
-  ListItem,
-} from "brk-design-system";
-import { Button } from "brk-design-system";
-import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from "brk-design-system";
-import { useState, ReactNode } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { ChevronDown, Menu, Shield } from "lucide-react";
+import { ReactNode, useState } from "react";
+import { Link, Outlet } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
+
 import { ModeToggle } from "@/components/mode-toggle";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface MainLayoutProps {
   children?: ReactNode;
@@ -40,7 +35,7 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const siteUrl = import.meta.env.VITE_SITE_URL;
-  
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -71,13 +66,19 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                     className="group inline-flex h-9 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent/30 hover:text-accent-foreground focus:bg-accent/30 focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50"
                     asChild
                   >
-                    <button onClick={() => {
-                      if ((window as any).navigateToExternal) {
-                        (window as any).navigateToExternal(`${siteUrl}/campeonatos`);
-                      } else {
-                        window.location.href = `${siteUrl}/campeonatos`;
-                      }
-                    }}>Campeonatos</button>
+                    <button
+                      onClick={() => {
+                        if ((window as any).navigateToExternal) {
+                          (window as any).navigateToExternal(
+                            `${siteUrl}/campeonatos`,
+                          );
+                        } else {
+                          window.location.href = `${siteUrl}/campeonatos`;
+                        }
+                      }}
+                    >
+                      Campeonatos
+                    </button>
                   </NavigationMenuLink>
                 </NavigationMenuItem>
 
@@ -123,7 +124,17 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                 <div className="flex items-center gap-2">
                   <Avatar>
                     <AvatarFallback className="text-foreground">
-                      {user?.name ? user.name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0,2) : (user?.email ? user.email[0].toUpperCase() : 'U')}
+                      {user?.name
+                        ? user.name
+                            .split(" ")
+                            .filter(Boolean)
+                            .map((n) => n[0])
+                            .join("")
+                            .toUpperCase()
+                            .slice(0, 2)
+                        : user?.email
+                          ? user.email[0].toUpperCase()
+                          : "U"}
                     </AvatarFallback>
                   </Avatar>
                   <span className="text-sm font-medium">{user?.name}</span>
@@ -137,7 +148,7 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                 <DropdownMenuItem asChild>
                   <Link to="/profile/edit">Perfil</Link>
                 </DropdownMenuItem>
-                {user?.role === 'Administrator' && (
+                {user?.role === "Administrator" && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
@@ -149,11 +160,13 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                   </>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={async () => { 
-                  localStorage.setItem('isLogoutAction', 'true');
-                  await logout(); 
-                  navigate('/'); 
-                }}>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    localStorage.setItem("isLogoutAction", "true");
+                    await logout();
+                    navigate("/");
+                  }}
+                >
                   Sair
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -181,7 +194,17 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                   <div className="flex items-center gap-2 p-2">
                     <Avatar>
                       <AvatarFallback className="text-foreground">
-                        {user?.name ? user.name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0,2) : (user?.email ? user.email[0].toUpperCase() : 'U')}
+                        {user?.name
+                          ? user.name
+                              .split(" ")
+                              .filter(Boolean)
+                              .map((n) => n[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2)
+                          : user?.email
+                            ? user.email[0].toUpperCase()
+                            : "U"}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-sm font-medium">{user?.name}</span>
@@ -191,11 +214,13 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                       className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors text-left"
                       onClick={() => {
                         if ((window as any).navigateToExternal) {
-                          (window as any).navigateToExternal(`${siteUrl}/campeonatos`);
+                          (window as any).navigateToExternal(
+                            `${siteUrl}/campeonatos`,
+                          );
                         } else {
                           window.location.href = `${siteUrl}/campeonatos`;
                         }
-                        setIsOpen(false)
+                        setIsOpen(false);
                       }}
                     >
                       Campeonatos
@@ -227,7 +252,7 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                     >
                       Perfil
                     </Link>
-                    {user?.role === 'Administrator' && (
+                    {user?.role === "Administrator" && (
                       <>
                         <div className="h-px bg-border my-2" />
                         <Link
@@ -243,11 +268,11 @@ export const MainLayout = ({ children }: MainLayoutProps = {}) => {
                     <div className="h-px bg-border my-2" />
                     <button
                       className="px-2 py-1 rounded-md hover:bg-accent/50 transition-colors text-destructive text-left"
-                      onClick={async () => { 
-                        setIsOpen(false); 
-                        localStorage.setItem('isLogoutAction', 'true');
-                        await logout(); 
-                        navigate('/'); 
+                      onClick={async () => {
+                        setIsOpen(false);
+                        localStorage.setItem("isLogoutAction", "true");
+                        await logout();
+                        navigate("/");
                       }}
                       type="button"
                     >

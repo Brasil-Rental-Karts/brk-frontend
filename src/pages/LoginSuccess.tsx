@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+
 import { Loading } from "@/components/ui/loading";
 
 export const LoginSuccess = () => {
@@ -19,7 +20,7 @@ export const LoginSuccess = () => {
     };
 
     handleLoginSuccess();
-  }, []);  // Empty dependency array to run only once
+  }, []); // Empty dependency array to run only once
 
   return (
     <div className="min-h-screen flex items-center justify-center">
@@ -32,4 +33,4 @@ export const LoginSuccess = () => {
   );
 };
 
-export default LoginSuccess; 
+export default LoginSuccess;

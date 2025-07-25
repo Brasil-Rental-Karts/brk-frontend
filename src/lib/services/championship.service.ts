@@ -1,13 +1,12 @@
-import api from '../axios';
-import { Category } from './category.service';
-import { Season } from './season.service';
+import api from "../axios";
+import { Season } from "./season.service";
 
 export interface Sponsor {
   id?: string;
   name: string;
   logoImage: string;
   website?: string;
-  type: 'sponsor' | 'supporter';
+  type: "sponsor" | "supporter";
 }
 
 export interface ChampionshipData {
@@ -66,21 +65,27 @@ export interface AsaasStatus {
 }
 
 export class ChampionshipService {
-  private static readonly BASE_URL = '/championships';
+  private static readonly BASE_URL = "/championships";
 
   /**
    * Criar um novo campeonato
    */
   static async create(data: ChampionshipData): Promise<Championship> {
     try {
-      const response = await api.post<Championship>(ChampionshipService.BASE_URL, data);
+      const response = await api.post<Championship>(
+        ChampionshipService.BASE_URL,
+        data,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('❌ ChampionshipService: Erro ao criar campeonato:', error);
-      console.error('❌ ChampionshipService: Resposta do servidor:', error.response?.data);
+      console.error("❌ ChampionshipService: Erro ao criar campeonato:", error);
+      console.error(
+        "❌ ChampionshipService: Resposta do servidor:",
+        error.response?.data,
+      );
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao criar campeonato. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao criar campeonato. Tente novamente.",
       );
     }
   }
@@ -90,13 +95,15 @@ export class ChampionshipService {
    */
   static async getAll(): Promise<Championship[]> {
     try {
-      const response = await api.get<Championship[]>(ChampionshipService.BASE_URL);
+      const response = await api.get<Championship[]>(
+        ChampionshipService.BASE_URL,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Error fetching championships:', error);
+      console.error("Error fetching championships:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar campeonatos. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao buscar campeonatos. Tente novamente.",
       );
     }
   }
@@ -106,13 +113,15 @@ export class ChampionshipService {
    */
   static async getById(id: string): Promise<Championship> {
     try {
-      const response = await api.get<Championship>(`${ChampionshipService.BASE_URL}/${id}`);
+      const response = await api.get<Championship>(
+        `${ChampionshipService.BASE_URL}/${id}`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Error fetching championship:', error);
+      console.error("Error fetching championship:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar campeonato. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao buscar campeonato. Tente novamente.",
       );
     }
   }
@@ -122,13 +131,15 @@ export class ChampionshipService {
    */
   static async getPublicById(slugOrId: string): Promise<Championship> {
     try {
-      const response = await api.get<Championship>(`${ChampionshipService.BASE_URL}/public/${slugOrId}`);
+      const response = await api.get<Championship>(
+        `${ChampionshipService.BASE_URL}/public/${slugOrId}`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Error fetching championship:', error);
+      console.error("Error fetching championship:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar campeonato. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao buscar campeonato. Tente novamente.",
       );
     }
   }
@@ -138,13 +149,15 @@ export class ChampionshipService {
    */
   static async getBasicInfo(id: string): Promise<ChampionshipBasicInfo> {
     try {
-      const response = await api.get<ChampionshipBasicInfo>(`${ChampionshipService.BASE_URL}/${id}/basic`);
+      const response = await api.get<ChampionshipBasicInfo>(
+        `${ChampionshipService.BASE_URL}/${id}/basic`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Error fetching championship basic info:', error);
+      console.error("Error fetching championship basic info:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar informações do campeonato. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao buscar informações do campeonato. Tente novamente.",
       );
     }
   }
@@ -154,13 +167,15 @@ export class ChampionshipService {
    */
   static async getMy(): Promise<Championship[]> {
     try {
-      const response = await api.get<Championship[]>(`${ChampionshipService.BASE_URL}/my`);
+      const response = await api.get<Championship[]>(
+        `${ChampionshipService.BASE_URL}/my`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Error fetching my championships:', error);
+      console.error("Error fetching my championships:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar seus campeonatos. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao buscar seus campeonatos. Tente novamente.",
       );
     }
   }
@@ -168,15 +183,21 @@ export class ChampionshipService {
   /**
    * Atualizar campeonato
    */
-  static async update(id: string, data: Partial<ChampionshipData>): Promise<Championship> {
+  static async update(
+    id: string,
+    data: Partial<ChampionshipData>,
+  ): Promise<Championship> {
     try {
-      const response = await api.put<Championship>(`${ChampionshipService.BASE_URL}/${id}`, data);
+      const response = await api.put<Championship>(
+        `${ChampionshipService.BASE_URL}/${id}`,
+        data,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Error updating championship:', error);
+      console.error("Error updating championship:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao atualizar campeonato. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao atualizar campeonato. Tente novamente.",
       );
     }
   }
@@ -188,10 +209,10 @@ export class ChampionshipService {
     try {
       await api.delete(`${ChampionshipService.BASE_URL}/${id}`);
     } catch (error: any) {
-      console.error('Error deleting championship:', error);
+      console.error("Error deleting championship:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao deletar campeonato. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao deletar campeonato. Tente novamente.",
       );
     }
   }
@@ -201,13 +222,15 @@ export class ChampionshipService {
    */
   static async getAsaasStatus(id: string): Promise<AsaasStatus> {
     try {
-      const response = await api.get<AsaasStatus>(`${ChampionshipService.BASE_URL}/${id}/asaas-status`);
+      const response = await api.get<AsaasStatus>(
+        `${ChampionshipService.BASE_URL}/${id}/asaas-status`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Error fetching Asaas status:', error);
+      console.error("Error fetching Asaas status:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao verificar status da conta Asaas. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao verificar status da conta Asaas. Tente novamente.",
       );
     }
   }
@@ -215,18 +238,24 @@ export class ChampionshipService {
   /**
    * Atualizar Wallet ID do Asaas
    */
-  static async updateAsaasWalletId(id: string, walletId: string): Promise<Championship> {
+  static async updateAsaasWalletId(
+    id: string,
+    walletId: string,
+  ): Promise<Championship> {
     try {
-      const response = await api.put<Championship>(`${ChampionshipService.BASE_URL}/${id}/asaas-wallet`, {
-        walletId: walletId
-      });
+      const response = await api.put<Championship>(
+        `${ChampionshipService.BASE_URL}/${id}/asaas-wallet`,
+        {
+          walletId: walletId,
+        },
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Error updating Asaas wallet ID:', error);
+      console.error("Error updating Asaas wallet ID:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao atualizar Wallet ID. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao atualizar Wallet ID. Tente novamente.",
       );
     }
   }
-} 
+}

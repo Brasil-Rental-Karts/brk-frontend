@@ -1,21 +1,23 @@
-import { useState } from "react";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Button } from "brk-design-system";
-import { Input } from "brk-design-system";
-import { InputMask } from "@/components/ui/input-mask";
 import {
+  Button,
+  Checkbox,
+  Form,
   FormControl,
   FormDescription,
   FormField,
+  FormItem,
   FormLabel,
   FormMessage,
+  Input,
 } from "brk-design-system";
-import { Form, FormItem } from "brk-design-system";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
+import { z } from "zod";
+
+import { InputMask } from "@/components/ui/input-mask";
 import { useAuth } from "@/contexts/AuthContext";
-import { Checkbox } from "brk-design-system";
 
 const phoneSchema = z.string().refine(
   (value) => {
@@ -24,13 +26,14 @@ const phoneSchema = z.string().refine(
   },
   {
     message: "O celular deve ter exatamente 11 dígitos (DDD + 9 + número)",
-  }
+  },
 );
 
 // Schema for terms only validation
 const termsSchema = z.object({
   acceptTerms: z.boolean().refine((value) => value === true, {
-    message: "Você precisa aceitar os termos de uso e política de privacidade para continuar",
+    message:
+      "Você precisa aceitar os termos de uso e política de privacidade para continuar",
   }),
 });
 
@@ -47,7 +50,7 @@ const formSchema = z
       .regex(/[0-9]/, "A senha deve conter pelo menos um número")
       .regex(
         /[^A-Za-z0-9]/,
-        "A senha deve conter pelo menos um caractere especial"
+        "A senha deve conter pelo menos um caractere especial",
       ),
     confirmPassword: z.string(),
     acceptTerms: z.boolean().refine((value) => value === true, {
@@ -92,48 +95,52 @@ export function Register() {
 
       // Redirect to confirmation info page after successful registration
       navigate("/auth/confirm-email-info");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Falha no registro:", error);
-      setError(
-        error.response?.data?.message ||
-          "Ocorreu um erro durante o registro. Por favor, tente novamente."
-      );
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Ocorreu um erro durante o registro. Por favor, tente novamente.";
+      setError(errorMessage);
     }
   };
 
   const handleGoogleSignup = async () => {
     setError(null);
-    
+
     // Use Zod to validate only the terms acceptance
     try {
       // Validate terms using Zod schema
-      const result = termsSchema.safeParse({ 
-        acceptTerms: form.getValues("acceptTerms") 
+      const result = termsSchema.safeParse({
+        acceptTerms: form.getValues("acceptTerms"),
       });
-      
+
       if (!result.success) {
         // Set the form error for acceptTerms field using react-hook-form
-        form.setError("acceptTerms", { 
-          type: "manual", 
-          message: "Você precisa aceitar os termos de uso e política de privacidade para continuar com o registro via Google" 
+        form.setError("acceptTerms", {
+          type: "manual",
+          message:
+            "Você precisa aceitar os termos de uso e política de privacidade para continuar com o registro via Google",
         });
-        
+
         // Focus on the terms field
         const termsElement = document.querySelector('[name="acceptTerms"]');
         if (termsElement) {
-          termsElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          termsElement.scrollIntoView({ behavior: "smooth", block: "center" });
           (termsElement as HTMLElement).focus();
         }
-        
+
         return;
       }
-      
+
       // If validation passes, proceed with Google login
       await loginWithGoogle();
       // No navigation needed here as the page will redirect to Google
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Google signup failed:", error);
-      setError("Erro ao iniciar registro com Google. Por favor, tente novamente.");
+      setError(
+        "Erro ao iniciar registro com Google. Por favor, tente novamente.",
+      );
     }
   };
 
@@ -207,11 +214,7 @@ export function Register() {
               <FormItem>
                 <FormLabel>Senha</FormLabel>
                 <FormControl>
-                  <Input
-                    type="password"
-                    placeholder="********"
-                    {...field}
-                  />
+                  <Input type="password" placeholder="********" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -224,11 +227,7 @@ export function Register() {
               <FormItem>
                 <FormLabel>Confirmar Senha</FormLabel>
                 <FormControl>
-                  <Input
-                    type="password"
-                    placeholder="********"
-                    {...field}
-                  />
+                  <Input type="password" placeholder="********" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -238,7 +237,10 @@ export function Register() {
             control={form.control}
             name="acceptTerms"
             render={({ field }) => (
-              <FormItem id="terms-section" className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+              <FormItem
+                id="terms-section"
+                className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"
+              >
                 <FormControl>
                   <Checkbox
                     checked={field.value}
@@ -251,34 +253,28 @@ export function Register() {
                   </FormLabel>
                   <FormDescription>
                     Ao criar sua conta, você concorda com nossos{" "}
-                    <a
-                      href="/terms"
-                      className="text-primary hover:underline"
-                    >
+                    <a href="/terms" className="text-primary hover:underline">
                       termos de uso
                     </a>{" "}
                     e{" "}
-                    <a
-                      href="/privacy"
-                      className="text-primary hover:underline"
-                    >
+                    <a href="/privacy" className="text-primary hover:underline">
                       política de privacidade
                     </a>
                     . Seus dados serão processados de acordo com a LGPD e
-                    poderão ser compartilhados com parceiros conforme
-                    descrito em nossa política de privacidade.
+                    poderão ser compartilhados com parceiros conforme descrito
+                    em nossa política de privacidade.
                   </FormDescription>
                   <FormMessage />
                 </div>
               </FormItem>
             )}
           />
-           
+
           <div className="space-y-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Registrando..." : "Registrar"}
             </Button>
-            
+
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
@@ -289,15 +285,19 @@ export function Register() {
                 </span>
               </div>
             </div>
-            
-            <Button 
-              type="button" 
-              variant="outline" 
-              className="w-full" 
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
               onClick={handleGoogleSignup}
               disabled={isLoading}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-5 w-5 mr-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                className="h-5 w-5 mr-2"
+              >
                 <path
                   fill="#4285F4"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

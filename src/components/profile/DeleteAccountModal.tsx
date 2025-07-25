@@ -1,16 +1,21 @@
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Input,
+  Label,
+} from "brk-design-system";
 import { useState } from "react";
+
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "brk-design-system";
-import { Input } from "brk-design-system";
-import { Label } from "brk-design-system";
-import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
 import { ButtonLoader } from "@/components/ui/loading";
 
 interface DeleteAccountModalProps {
@@ -21,7 +26,11 @@ interface DeleteAccountModalProps {
 
 const CONFIRMATION_TEXT = "Eu quero excluir minha conta";
 
-export const DeleteAccountModal = ({ isOpen, onClose, onConfirm }: DeleteAccountModalProps) => {
+export const DeleteAccountModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+}: DeleteAccountModalProps) => {
   const [confirmationInput, setConfirmationInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +57,7 @@ export const DeleteAccountModal = ({ isOpen, onClose, onConfirm }: DeleteAccount
     setError(null);
     setIsLoading(false);
     onClose();
-  }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -56,8 +65,8 @@ export const DeleteAccountModal = ({ isOpen, onClose, onConfirm }: DeleteAccount
         <DialogHeader>
           <DialogTitle>Excluir Conta</DialogTitle>
           <DialogDescription>
-            Esta ação não pode ser desfeita. Sua conta e todos os dados associados
-            serão permanentemente removidos.
+            Esta ação não pode ser desfeita. Sua conta e todos os dados
+            associados serão permanentemente removidos.
           </DialogDescription>
         </DialogHeader>
 
@@ -105,4 +114,4 @@ export const DeleteAccountModal = ({ isOpen, onClose, onConfirm }: DeleteAccount
       </DialogContent>
     </Dialog>
   );
-}; 
+};

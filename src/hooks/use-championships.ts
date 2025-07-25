@@ -1,5 +1,9 @@
-import { useState, useEffect } from 'react';
-import { ChampionshipService, Championship } from '../lib/services/championship.service';
+import { useEffect, useState } from "react";
+
+import {
+  Championship,
+  ChampionshipService,
+} from "../lib/services/championship.service";
 
 export const useChampionships = () => {
   const [championships, setChampionships] = useState<Championship[]>([]);
@@ -13,8 +17,8 @@ export const useChampionships = () => {
       const data = await ChampionshipService.getAll();
       setChampionships(data);
     } catch (err: any) {
-      setError(err.message || 'Erro ao carregar campeonatos');
-      console.error('Erro ao buscar campeonatos:', err);
+      setError(err.message || "Erro ao carregar campeonatos");
+      console.error("Erro ao buscar campeonatos:", err);
     } finally {
       setLoading(false);
     }
@@ -30,4 +34,4 @@ export const useChampionships = () => {
     error,
     fetchChampionships,
   };
-}; 
+};

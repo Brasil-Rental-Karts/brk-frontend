@@ -1,35 +1,57 @@
-import { useState, useEffect } from "react";
-import { Button } from "brk-design-system";
-import { Card, CardContent, CardHeader, CardTitle } from "brk-design-system";
-import { Input } from "brk-design-system";
-import { Textarea } from "brk-design-system";
-import { Alert, AlertDescription } from "brk-design-system";
-import { AlertTriangle, Plus, Edit, Trash2, GripVertical, HelpCircle, Power, PowerOff, FileText } from "lucide-react";
-import { RegulationService, Regulation, CreateRegulationData, UpdateRegulationData } from "@/lib/services/regulation.service";
-import { Season, SeasonService } from "@/lib/services/season.service";
-import { ChampionshipService, Championship } from "@/lib/services/championship.service";
 import {
-  DndContext,
   closestCenter,
+  DndContext,
   PointerSensor,
   useSensor,
-  useSensors
-} from '@dnd-kit/core';
+  useSensors,
+} from "@dnd-kit/core";
 import {
   arrayMove,
   SortableContext,
   useSortable,
-  verticalListSortingStrategy
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { Label } from "brk-design-system";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "brk-design-system";
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Switch } from "@radix-ui/react-switch";
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Textarea,
+} from "brk-design-system";
+import {
+  Edit,
+  FileText,
+  GripVertical,
+  HelpCircle,
+  Plus,
+  Power,
+  PowerOff,
+  Trash2,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Switch } from "@radix-ui/react-switch";
-import { PDFGenerator, RegulationPDFData } from "@/utils/pdf-generator";
-import { InlineLoader } from '@/components/ui/loading';
+
+import { InlineLoader } from "@/components/ui/loading";
 import { useChampionshipData } from "@/contexts/ChampionshipContext";
+import {
+  CreateRegulationData,
+  Regulation,
+  RegulationService,
+} from "@/lib/services/regulation.service";
+import { Season, SeasonService } from "@/lib/services/season.service";
+import { PDFGenerator, RegulationPDFData } from "@/utils/pdf-generator";
 
 interface RegulationTabProps {
   championshipId: string;
@@ -39,19 +61,21 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
   const [selectedSeason, setSelectedSeason] = useState<string>("");
   const [seasonData, setSeasonData] = useState<Season | null>(null);
   const [generatingPDF, setGeneratingPDF] = useState(false);
-  const [editingRegulation, setEditingRegulation] = useState<Regulation | null>(null);
+  const [editingRegulation, setEditingRegulation] = useState<Regulation | null>(
+    null,
+  );
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [formData, setFormData] = useState<CreateRegulationData>({
     title: "",
     content: "",
-    seasonId: ""
+    seasonId: "",
   });
   const [showMarkdownHelp, setShowMarkdownHelp] = useState(false);
 
   // Usar o contexto de dados do campeonato
-  const { 
-    getSeasons, 
+  const {
+    getSeasons,
     getRegulations,
     fetchRegulations,
     refreshRegulations,
@@ -60,8 +84,8 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
     removeRegulation,
     updateRegulationsOrder,
     getChampionshipInfo,
-    loading: contextLoading, 
-    error: contextError
+    loading: contextLoading,
+    error: contextError,
   } = useChampionshipData();
 
   // Obter dados do contexto
@@ -71,7 +95,9 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
   // Carregar dados da temporada selecionada
   useEffect(() => {
     if (selectedSeason) {
-      SeasonService.getById(selectedSeason).then(setSeasonData).catch(() => setSeasonData(null));
+      SeasonService.getById(selectedSeason)
+        .then(setSeasonData)
+        .catch(() => setSeasonData(null));
       loadRegulations(selectedSeason);
     } else {
       setSeasonData(null);
@@ -82,7 +108,7 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
     try {
       // Buscar regulamentos do contexto
       let regulations = getRegulations(seasonId);
-      
+
       // Se não existe no contexto, buscar do backend
       if (regulations.length === 0) {
         await fetchRegulations(seasonId);
@@ -97,12 +123,12 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
     try {
       const newRegulation = await RegulationService.create({
         ...formData,
-        seasonId: selectedSeason
+        seasonId: selectedSeason,
       });
-      
+
       // Adicionar ao contexto
       addRegulation(selectedSeason, newRegulation);
-      
+
       setShowCreateForm(false);
       setFormData({ title: "", content: "", seasonId: "" });
     } catch (error) {
@@ -112,16 +138,19 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
 
   const handleUpdateRegulation = async () => {
     if (!editingRegulation) return;
-    
+
     try {
-      const updatedRegulation = await RegulationService.update(editingRegulation.id, {
-        title: formData.title,
-        content: formData.content
-      });
-      
+      const updatedRegulation = await RegulationService.update(
+        editingRegulation.id,
+        {
+          title: formData.title,
+          content: formData.content,
+        },
+      );
+
       // Atualizar no contexto
       updateRegulation(selectedSeason, editingRegulation.id, updatedRegulation);
-      
+
       setShowEditForm(false);
       setEditingRegulation(null);
       setFormData({ title: "", content: "", seasonId: "" });
@@ -131,11 +160,12 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
   };
 
   const handleDeleteRegulation = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta seção do regulamento?")) return;
-    
+    if (!confirm("Tem certeza que deseja excluir esta seção do regulamento?"))
+      return;
+
     try {
       await RegulationService.delete(id);
-      
+
       // Remover do contexto
       removeRegulation(selectedSeason, id);
     } catch (error) {
@@ -148,24 +178,28 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
       activationConstraint: {
         distance: 5,
       },
-    })
+    }),
   );
 
   function handleDragEnd(event: any) {
     const { active, over } = event;
     if (active.id !== over?.id) {
       const currentRegulations = getRegulations(selectedSeason);
-      const oldIndex = currentRegulations.findIndex(item => item.id === active.id);
-      const newIndex = currentRegulations.findIndex(item => item.id === over.id);
+      const oldIndex = currentRegulations.findIndex(
+        (item) => item.id === active.id,
+      );
+      const newIndex = currentRegulations.findIndex(
+        (item) => item.id === over.id,
+      );
       const items = arrayMove(currentRegulations, oldIndex, newIndex);
-      
+
       // Atualizar ordem no contexto
       updateRegulationsOrder(selectedSeason, items);
-      
+
       // Update order in backend
       RegulationService.reorder({
         seasonId: selectedSeason,
-        regulationIds: items.map(item => item.id)
+        regulationIds: items.map((item) => item.id),
       }).catch(() => refreshRegulations(selectedSeason));
     }
   }
@@ -175,7 +209,7 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
     setFormData({
       title: regulation.title,
       content: regulation.content,
-      seasonId: regulation.seasonId
+      seasonId: regulation.seasonId,
     });
     setShowEditForm(true);
     setShowCreateForm(false);
@@ -191,19 +225,21 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
 
   const handleGeneratePDF = async () => {
     if (!championshipData || !seasonData) {
-      alert('Não é possível gerar o PDF. Verifique se há regulamentos cadastrados.');
+      alert(
+        "Não é possível gerar o PDF. Verifique se há regulamentos cadastrados.",
+      );
       return;
     }
 
     const regulations = getRegulations(selectedSeason);
     if (regulations.length === 0) {
-      alert('Não há regulamentos cadastrados para gerar o PDF.');
+      alert("Não há regulamentos cadastrados para gerar o PDF.");
       return;
     }
 
     try {
       setGeneratingPDF(true);
-      
+
       const pdfData: RegulationPDFData = {
         championshipName: championshipData.name,
         seasonName: seasonData.name,
@@ -211,21 +247,21 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
         regulations: regulations.map((regulation, index) => ({
           title: regulation.title,
           content: regulation.content,
-          order: regulation.order || index + 1
+          order: regulation.order || index + 1,
         })),
-        generatedAt: new Date().toLocaleDateString('pt-BR', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
+        generatedAt: new Date().toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       };
 
       await PDFGenerator.generateRegulationPDF(pdfData);
     } catch (error) {
-      console.error('Erro ao gerar PDF:', error);
-      alert('Erro ao gerar o PDF. Tente novamente.');
+      console.error("Erro ao gerar PDF:", error);
+      alert("Erro ao gerar o PDF. Tente novamente.");
     } finally {
       setGeneratingPDF(false);
     }
@@ -268,14 +304,16 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
               <PowerOff className="h-5 w-5 text-gray-400" />
             )}
             <div>
-              <Label htmlFor="regulations-enabled-switch" className="text-sm font-medium">
+              <Label
+                htmlFor="regulations-enabled-switch"
+                className="text-sm font-medium"
+              >
                 Regulamento da Temporada
               </Label>
               <p className="text-xs text-gray-500">
-                {seasonData.regulationsEnabled 
-                  ? "Ativo - Os pilotos podem visualizar o regulamento" 
-                  : "Inativo - Os pilotos não podem visualizar o regulamento"
-                }
+                {seasonData.regulationsEnabled
+                  ? "Ativo - Os pilotos podem visualizar o regulamento"
+                  : "Inativo - Os pilotos não podem visualizar o regulamento"}
               </p>
             </div>
           </div>
@@ -287,27 +325,36 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
                 if (!seasonData) return;
                 setSeasonData({ ...seasonData, regulationsEnabled: checked });
                 try {
-                  await SeasonService.update(seasonData.id, { regulationsEnabled: checked });
+                  await SeasonService.update(seasonData.id, {
+                    regulationsEnabled: checked,
+                  });
                 } catch (e) {
                   // rollback visual se erro
-                  setSeasonData({ ...seasonData, regulationsEnabled: !checked });
-                  alert('Erro ao atualizar status do regulamento.');
+                  setSeasonData({
+                    ...seasonData,
+                    regulationsEnabled: !checked,
+                  });
+                  alert("Erro ao atualizar status do regulamento.");
                 }
               }}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
-                seasonData.regulationsEnabled ? 'bg-primary' : 'bg-gray-300'
+                seasonData.regulationsEnabled ? "bg-primary" : "bg-gray-300"
               }`}
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  seasonData.regulationsEnabled ? 'translate-x-6' : 'translate-x-1'
+                  seasonData.regulationsEnabled
+                    ? "translate-x-6"
+                    : "translate-x-1"
                 }`}
               />
             </Switch>
-            <span className={`text-sm font-medium ${
-              seasonData.regulationsEnabled ? 'text-primary' : 'text-gray-500'
-            }`}>
-              {seasonData.regulationsEnabled ? 'ATIVO' : 'INATIVO'}
+            <span
+              className={`text-sm font-medium ${
+                seasonData.regulationsEnabled ? "text-primary" : "text-gray-500"
+              }`}
+            >
+              {seasonData.regulationsEnabled ? "ATIVO" : "INATIVO"}
             </span>
           </div>
         </div>
@@ -320,7 +367,7 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
             <h3 className="text-lg font-semibold">Seções do Regulamento</h3>
             <div className="flex flex-col sm:flex-row gap-2">
               {getRegulations(selectedSeason).length > 0 && (
-                <Button 
+                <Button
                   onClick={handleGeneratePDF}
                   variant="outline"
                   disabled={generatingPDF || showCreateForm || showEditForm}
@@ -330,7 +377,7 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
                   {generatingPDF ? "Gerando PDF..." : "Gerar PDF"}
                 </Button>
               )}
-              <Button 
+              <Button
                 onClick={() => {
                   resetForm();
                   setShowCreateForm(!showCreateForm);
@@ -368,30 +415,47 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
                   <Alert>
                     <AlertDescription>
                       <div className="text-sm space-y-1">
-                        <p><strong>Dicas de Edição:</strong></p>
-                        <p>• <code>**texto**</code> para <strong>negrito</strong></p>
-                        <p>• <code>*texto*</code> para <em>itálico</em></p>
-                        <p>• <code># Título</code> para títulos</p>
-                        <p>• <code>- item</code> para listas</p>
-                        <p>• <code>[link](url)</code> para links</p>
+                        <p>
+                          <strong>Dicas de Edição:</strong>
+                        </p>
+                        <p>
+                          • <code>**texto**</code> para <strong>negrito</strong>
+                        </p>
+                        <p>
+                          • <code>*texto*</code> para <em>itálico</em>
+                        </p>
+                        <p>
+                          • <code># Título</code> para títulos
+                        </p>
+                        <p>
+                          • <code>- item</code> para listas
+                        </p>
+                        <p>
+                          • <code>[link](url)</code> para links
+                        </p>
                       </div>
                     </AlertDescription>
                   </Alert>
                 )}
-                
+
                 <Tabs defaultValue="edit" className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="edit">Editar</TabsTrigger>
                     <TabsTrigger value="preview">Preview</TabsTrigger>
                   </TabsList>
-                  
+
                   <TabsContent value="edit" className="space-y-4 mt-4">
                     <div>
                       <Label htmlFor="title">Título</Label>
                       <Input
                         id="title"
                         value={formData.title}
-                        onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            title: e.target.value,
+                          }))
+                        }
                         placeholder="Digite o título da seção"
                       />
                     </div>
@@ -401,13 +465,18 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
                       <Textarea
                         id="content"
                         value={formData.content}
-                        onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            content: e.target.value,
+                          }))
+                        }
                         placeholder="Digite o conteúdo da seção"
                         rows={6}
                       />
                     </div>
                   </TabsContent>
-                  
+
                   <TabsContent value="preview" className="mt-4">
                     <div className="p-4 border rounded-md bg-gray-50 min-h-[200px] max-h-[500px] overflow-y-auto prose prose-sm max-w-none">
                       {formData.title && (
@@ -434,10 +503,16 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
                 </Tabs>
 
                 <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setShowCreateForm(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCreateForm(false)}
+                  >
                     Cancelar
                   </Button>
-                  <Button onClick={handleCreateRegulation} disabled={!formData.title || !formData.content}>
+                  <Button
+                    onClick={handleCreateRegulation}
+                    disabled={!formData.title || !formData.content}
+                  >
                     Criar
                   </Button>
                 </div>
@@ -468,30 +543,47 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
                   <Alert>
                     <AlertDescription>
                       <div className="text-sm space-y-1">
-                        <p><strong>Dicas de Edição:</strong></p>
-                        <p>• <code>**texto**</code> para <strong>negrito</strong></p>
-                        <p>• <code>*texto*</code> para <em>itálico</em></p>
-                        <p>• <code># Título</code> para títulos</p>
-                        <p>• <code>- item</code> para listas</p>
-                        <p>• <code>[link](url)</code> para links</p>
+                        <p>
+                          <strong>Dicas de Edição:</strong>
+                        </p>
+                        <p>
+                          • <code>**texto**</code> para <strong>negrito</strong>
+                        </p>
+                        <p>
+                          • <code>*texto*</code> para <em>itálico</em>
+                        </p>
+                        <p>
+                          • <code># Título</code> para títulos
+                        </p>
+                        <p>
+                          • <code>- item</code> para listas
+                        </p>
+                        <p>
+                          • <code>[link](url)</code> para links
+                        </p>
                       </div>
                     </AlertDescription>
                   </Alert>
                 )}
-                
+
                 <Tabs defaultValue="edit" className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="edit">Editar</TabsTrigger>
                     <TabsTrigger value="preview">Preview</TabsTrigger>
                   </TabsList>
-                  
+
                   <TabsContent value="edit" className="space-y-4 mt-4">
                     <div>
                       <Label htmlFor="edit-title">Título</Label>
                       <Input
                         id="edit-title"
                         value={formData.title}
-                        onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            title: e.target.value,
+                          }))
+                        }
                         placeholder="Digite o título da seção"
                       />
                     </div>
@@ -501,13 +593,18 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
                       <Textarea
                         id="edit-content"
                         value={formData.content}
-                        onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            content: e.target.value,
+                          }))
+                        }
                         placeholder="Digite o conteúdo da seção"
                         rows={6}
                       />
                     </div>
                   </TabsContent>
-                  
+
                   <TabsContent value="preview" className="mt-4">
                     <div className="p-4 border rounded-md bg-gray-50 min-h-[200px] max-h-[500px] overflow-y-auto prose prose-sm max-w-none">
                       {formData.title && (
@@ -534,10 +631,16 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
                 </Tabs>
 
                 <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setShowEditForm(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowEditForm(false)}
+                  >
                     Cancelar
                   </Button>
-                  <Button onClick={handleUpdateRegulation} disabled={!formData.title || !formData.content}>
+                  <Button
+                    onClick={handleUpdateRegulation}
+                    disabled={!formData.title || !formData.content}
+                  >
                     Salvar
                   </Button>
                 </div>
@@ -557,8 +660,15 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
               </AlertDescription>
             </Alert>
           ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={getRegulations(selectedSeason).map(i => i.id)} strategy={verticalListSortingStrategy}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={getRegulations(selectedSeason).map((i) => i.id)}
+                strategy={verticalListSortingStrategy}
+              >
                 {getRegulations(selectedSeason).map((regulation, index) => (
                   <SortableRegulationCard
                     key={regulation.id}
@@ -580,22 +690,30 @@ export const RegulationTab = ({ championshipId }: RegulationTabProps) => {
   );
 };
 
-function SortableRegulationCard({ regulation, index, onEdit, onDelete, canEdit, isEditing, isCreating }: any) {
+function SortableRegulationCard({
+  regulation,
+  index,
+  onEdit,
+  onDelete,
+  canEdit,
+  isEditing,
+  isCreating,
+}: any) {
   const {
     attributes,
     listeners,
     setNodeRef,
     transform,
     transition,
-    isDragging
+    isDragging,
   } = useSortable({ id: regulation.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    background: isDragging ? '#f3f4f6' : undefined,
-    marginBottom: '0.75rem',
+    background: isDragging ? "#f3f4f6" : undefined,
+    marginBottom: "0.75rem",
   };
 
   return (
@@ -654,4 +772,4 @@ function SortableRegulationCard({ regulation, index, onEdit, onDelete, canEdit, 
       </Card>
     </div>
   );
-} 
+}

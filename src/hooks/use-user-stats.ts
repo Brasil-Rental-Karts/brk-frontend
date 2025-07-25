@@ -1,6 +1,10 @@
-import { useState, useEffect } from 'react';
-import { UserStatsService, type UserBasicStats } from '@/lib/services/user-stats.service';
-import { useAuth } from '@/contexts/AuthContext';
+import { useEffect, useState } from "react";
+
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  type UserBasicStats,
+  UserStatsService,
+} from "@/lib/services/user-stats.service";
 
 export const useUserStats = () => {
   const { user } = useAuth();
@@ -22,7 +26,7 @@ export const useUserStats = () => {
       const userStats = await UserStatsService.getBasicStats();
       setStats(userStats);
     } catch (err: any) {
-      setError(err.message || 'Erro ao carregar estatísticas');
+      setError(err.message || "Erro ao carregar estatísticas");
       setStats(null);
     } finally {
       setLoading(false);
@@ -37,6 +41,6 @@ export const useUserStats = () => {
     stats,
     loading,
     error,
-    refresh: fetchUserStats
+    refresh: fetchUserStats,
   };
-}; 
+};

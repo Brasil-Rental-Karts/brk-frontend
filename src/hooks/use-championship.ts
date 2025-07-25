@@ -1,5 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Championship, ChampionshipService } from '@/lib/services/championship.service';
+import { useEffect, useState } from "react";
+
+import {
+  Championship,
+  ChampionshipService,
+} from "@/lib/services/championship.service";
 
 export interface UseChampionshipReturn {
   championship: Championship | null;
@@ -13,7 +17,9 @@ export interface UseChampionshipReturn {
  * @param championshipId ID do campeonato
  * @returns Dados do campeonato, estado de loading, erro e função de refresh
  */
-export const useChampionship = (championshipId: string | undefined): UseChampionshipReturn => {
+export const useChampionship = (
+  championshipId: string | undefined,
+): UseChampionshipReturn => {
   const [championship, setChampionship] = useState<Championship | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,9 +34,9 @@ export const useChampionship = (championshipId: string | undefined): UseChampion
     try {
       setLoading(true);
       setError(null);
-      
+
       const data = await ChampionshipService.getById(championshipId);
-      
+
       // Não buscar categorias e etapas aqui - o ChampionshipContext fará isso
       // para evitar duplicação de chamadas
       setChampionship(data);
@@ -56,4 +62,4 @@ export const useChampionship = (championshipId: string | undefined): UseChampion
     error,
     refresh,
   };
-}; 
+};

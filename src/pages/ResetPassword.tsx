@@ -1,17 +1,19 @@
-import { useState } from "react";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Button } from "brk-design-system";
-import { Input } from "brk-design-system";
 import {
+  Button,
+  Form,
   FormControl,
   FormField,
+  FormItem,
   FormLabel,
   FormMessage,
+  Input,
 } from "brk-design-system";
-import { Form, FormItem } from "brk-design-system";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
+import { z } from "zod";
+
 import { AuthService } from "@/lib/services";
 
 const formSchema = z.object({
@@ -39,14 +41,15 @@ export function ResetPassword() {
       await AuthService.forgotPassword({
         email: values.email,
       });
-      
+
       navigate("/auth/reset-password/success");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Falha na solicitação:", error);
-      setError(
-        error.response?.data?.message || 
-        "Não foi possível processar sua solicitação. Por favor, tente novamente mais tarde."
-      );
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível processar sua solicitação. Por favor, tente novamente mais tarde.";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -62,7 +65,10 @@ export function ResetPassword() {
       </div>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+        <div
+          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+          role="alert"
+        >
           <span className="block sm:inline">{error}</span>
         </div>
       )}

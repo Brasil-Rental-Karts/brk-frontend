@@ -1,4 +1,4 @@
-import api from '../axios';
+import api from "../axios";
 
 export interface User {
   id: string;
@@ -19,12 +19,15 @@ export interface PaginatedUsers {
 }
 
 export class UserService {
-  private static readonly BASE_URL = '/users';
+  private static readonly BASE_URL = "/users";
 
   /**
    * Listar todos os usuários
    */
-  static async getAll(page: number = 1, limit: number = 100): Promise<PaginatedUsers> {
+  static async getAll(
+    page: number = 1,
+    limit: number = 100,
+  ): Promise<PaginatedUsers> {
     try {
       const response = await api.get<User[]>(`${UserService.BASE_URL}`);
       // O backend retorna um array simples, então criamos a estrutura paginada
@@ -33,13 +36,12 @@ export class UserService {
         total: response.data.length,
         page: 1,
         limit: response.data.length,
-        totalPages: 1
+        totalPages: 1,
       };
     } catch (error: any) {
-      console.error('Error fetching users:', error);
+      console.error("Error fetching users:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar usuários.'
+        error.response?.data?.message || "Erro ao buscar usuários.",
       );
     }
   }
@@ -52,10 +54,9 @@ export class UserService {
       const response = await api.get<User>(`${UserService.BASE_URL}/${id}`);
       return response.data;
     } catch (error: any) {
-      console.error('Error fetching user:', error);
+      console.error("Error fetching user:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar usuário.'
+        error.response?.data?.message || "Erro ao buscar usuário.",
       );
     }
   }
@@ -65,14 +66,15 @@ export class UserService {
    */
   static async getByEmail(email: string): Promise<User> {
     try {
-      const response = await api.get<User>(`${UserService.BASE_URL}/email/${email}`);
+      const response = await api.get<User>(
+        `${UserService.BASE_URL}/email/${email}`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Error fetching user by email:', error);
+      console.error("Error fetching user by email:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar usuário por email.'
+        error.response?.data?.message || "Erro ao buscar usuário por email.",
       );
     }
   }
-} 
+}

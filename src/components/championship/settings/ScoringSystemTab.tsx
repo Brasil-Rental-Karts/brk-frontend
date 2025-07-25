@@ -1,26 +1,37 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Button } from "brk-design-system";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "brk-design-system";
-import { Badge } from "brk-design-system";
-import { Plus, Trophy, Star, X, Trash2, Edit } from "lucide-react";
-import { EmptyState } from "brk-design-system";
-import { Alert, AlertDescription } from "brk-design-system";
-import { Checkbox } from "brk-design-system";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Checkbox,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  EmptyState,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from "brk-design-system";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "brk-design-system";
-import { ScoringSystemService, ScoringSystem, ScoringSystemData } from "@/lib/services/scoring-system.service";
-import { toast } from "sonner";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { Edit, Star, Trash2, Trophy, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loading } from '@/components/ui/loading';
-import { useChampionshipData } from '@/contexts/ChampionshipContext';
+import { toast } from "sonner";
+
+import { Loading } from "@/components/ui/loading";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  ScoringSystem,
+  ScoringSystemService,
+} from "@/lib/services/scoring-system.service";
 
 interface ScoringSystemTabProps {
   championshipId: string;
@@ -28,7 +39,7 @@ interface ScoringSystemTabProps {
 
 const SCORING_TEMPLATES = [
   {
-    label: 'Kart Brasileiro',
+    label: "Kart Brasileiro",
     positions: [
       { position: 1, points: 20 },
       { position: 2, points: 17 },
@@ -44,19 +55,19 @@ const SCORING_TEMPLATES = [
       { position: 12, points: 4 },
       { position: 13, points: 3 },
       { position: 14, points: 2 },
-      { position: 15, points: 1 }
-    ]
+      { position: 15, points: 1 },
+    ],
   },
   {
-    label: 'Top 5',
+    label: "Top 5",
     positions: [
       { position: 1, points: 5 },
       { position: 2, points: 4 },
       { position: 3, points: 3 },
       { position: 4, points: 2 },
-      { position: 5, points: 1 }
-    ]
-  }
+      { position: 5, points: 1 },
+    ],
+  },
 ];
 
 /**
@@ -64,17 +75,26 @@ const SCORING_TEMPLATES = [
  */
 export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
   // Usar o contexto de dados do campeonato
-  const { getScoringSystems, updateScoringSystem, removeScoringSystem, refreshScoringSystems, loading: contextLoading, error: contextError } = useChampionshipData();
-  
+  const {
+    getScoringSystems,
+    updateScoringSystem,
+    removeScoringSystem,
+    refreshScoringSystems,
+    loading: contextLoading,
+    error: contextError,
+  } = useChampionshipData();
+
   const [scoringSystems, setScoringSystems] = useState<ScoringSystem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  
+
   // Estados para modal de confirmação de exclusão
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [deletingSystem, setDeletingSystem] = useState<ScoringSystem | null>(null);
+  const [deletingSystem, setDeletingSystem] = useState<ScoringSystem | null>(
+    null,
+  );
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Ref para o container de posições
@@ -104,15 +124,20 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
   // Alternar status ativo
   const toggleActive = async (system: ScoringSystem) => {
     // Verificar se está tentando desativar o último sistema ativo
-    const activeSystems = scoringSystems.filter(s => s.isActive);
+    const activeSystems = scoringSystems.filter((s) => s.isActive);
     if (system.isActive && activeSystems.length <= 1) {
-      setError("Não é possível desativar o último sistema de pontuação ativo. Pelo menos um sistema deve permanecer ativo.");
+      setError(
+        "Não é possível desativar o último sistema de pontuação ativo. Pelo menos um sistema deve permanecer ativo.",
+      );
       return;
     }
 
     try {
       setError(null);
-      const updatedSystem = await ScoringSystemService.toggleActive(system.id, championshipId);
+      const updatedSystem = await ScoringSystemService.toggleActive(
+        system.id,
+        championshipId,
+      );
       // Atualizar o contexto com o sistema atualizado
       updateScoringSystem(system.id, updatedSystem);
       refreshScoringSystems(); // Refresh the list to reflect the change
@@ -125,12 +150,16 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
   const setDefault = async (system: ScoringSystem) => {
     try {
       setError(null);
-      const updatedSystem = await ScoringSystemService.setDefault(system.id, championshipId);
+      const updatedSystem = await ScoringSystemService.setDefault(
+        system.id,
+        championshipId,
+      );
       // Atualizar o contexto com o sistema atualizado
       updateScoringSystem(system.id, updatedSystem);
       refreshScoringSystems(); // Refresh the list to reflect the change
       toast.success("Sistema de pontuação definido como padrão.", {
-        description: "O sistema de pontuação foi definido como padrão com sucesso.",
+        description:
+          "O sistema de pontuação foi definido como padrão com sucesso.",
       });
     } catch (err: any) {
       setError(err.message);
@@ -170,7 +199,9 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
   };
 
   const handleEdit = (system: ScoringSystem) => {
-    navigate(`/championship/${championshipId}/scoring-system/${system.id}/edit`);
+    navigate(
+      `/championship/${championshipId}/scoring-system/${system.id}/edit`,
+    );
   };
 
   const handleDeleteClick = (system: ScoringSystem) => {
@@ -191,7 +222,9 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
   // Renderizar o resumo de pontos
   const renderPointsSummary = (system: ScoringSystem) => {
     const positions = system.positions.slice(0, 5);
-    return positions.map(pos => `${pos.position}º: ${pos.points}pts`).join(', ');
+    return positions
+      .map((pos) => `${pos.position}º: ${pos.points}pts`)
+      .join(", ");
   };
 
   // Usar loading do contexto se disponível
@@ -200,7 +233,11 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loading type="spinner" size="sm" message="Carregando sistemas de pontuação..." />
+        <Loading
+          type="spinner"
+          size="sm"
+          message="Carregando sistemas de pontuação..."
+        />
       </div>
     );
   }
@@ -210,9 +247,9 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
       <Alert variant="destructive">
         <AlertDescription className="flex items-center justify-between">
           <span>{error || contextError.scoringSystems}</span>
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setError(null)}
             className="h-auto p-1 ml-2"
           >
@@ -232,7 +269,7 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
           description="Crie seu primeiro sistema de pontuação para definir como os pontos serão distribuídos nas corridas."
           action={{
             label: "Criar Sistema Personalizado",
-            onClick: handleCreateNew
+            onClick: handleCreateNew,
           }}
         />
       </div>
@@ -242,15 +279,21 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
   return (
     <div className="space-y-6">
       {/* Header com ações */}
-      <div className={isMobile ? "space-y-4" : "flex items-center justify-between"}>
+      <div
+        className={isMobile ? "space-y-4" : "flex items-center justify-between"}
+      >
         <div>
           <h2 className="text-2xl font-bold">Sistemas de Pontuação</h2>
           <p className="text-muted-foreground">
-            Configure como os pontos serão distribuídos nas corridas do campeonato
+            Configure como os pontos serão distribuídos nas corridas do
+            campeonato
           </p>
         </div>
         <div className={isMobile ? "w-full" : "flex gap-2"}>
-          <Button onClick={handleCreateNew} className={isMobile ? "w-full" : ""}>
+          <Button
+            onClick={handleCreateNew}
+            className={isMobile ? "w-full" : ""}
+          >
             Adicionar Sistema de Pontuação
           </Button>
         </div>
@@ -266,7 +309,10 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
       {/* Lista de sistemas */}
       <div className="grid gap-4">
         {scoringSystems.map((system) => (
-          <Card key={system.id} className={`${!system.isActive ? 'opacity-60' : ''}`}>
+          <Card
+            key={system.id}
+            className={`${!system.isActive ? "opacity-60" : ""}`}
+          >
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="space-y-1 flex-1">
@@ -306,10 +352,9 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        {scoringSystems.length <= 1 
-                          ? "Não é possível excluir o último sistema" 
-                          : "Excluir sistema"
-                        }
+                        {scoringSystems.length <= 1
+                          ? "Não é possível excluir o último sistema"
+                          : "Excluir sistema"}
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -323,19 +368,26 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
                   <h4 className="font-medium mb-2">Pontuação por posição:</h4>
                   <div className="text-sm text-muted-foreground">
                     {renderPointsSummary(system)}
-                    {system.positions.length > 5 && ` ... (${system.positions.length} posições)`}
+                    {system.positions.length > 5 &&
+                      ` ... (${system.positions.length} posições)`}
                   </div>
                 </div>
 
                 {/* Pontos extras */}
-                <div className={`${isMobile ? 'space-y-2' : 'grid grid-cols-2 gap-4'} text-sm`}>
+                <div
+                  className={`${isMobile ? "space-y-2" : "grid grid-cols-2 gap-4"} text-sm`}
+                >
                   <div>
                     <span className="font-medium">Pole Position: </span>
-                    <span className="text-muted-foreground">{system.polePositionPoints} pts</span>
+                    <span className="text-muted-foreground">
+                      {system.polePositionPoints} pts
+                    </span>
                   </div>
                   <div>
                     <span className="font-medium">Volta Mais Rápida: </span>
-                    <span className="text-muted-foreground">{system.fastestLapPoints} pts</span>
+                    <span className="text-muted-foreground">
+                      {system.fastestLapPoints} pts
+                    </span>
                   </div>
                 </div>
 
@@ -346,7 +398,10 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
                       <Checkbox
                         checked={system.isActive}
                         onCheckedChange={() => toggleActive(system)}
-                        disabled={system.isActive && scoringSystems.filter(s => s.isActive).length <= 1}
+                        disabled={
+                          system.isActive &&
+                          scoringSystems.filter((s) => s.isActive).length <= 1
+                        }
                       />
                       Sistema ativo
                     </label>
@@ -387,8 +442,14 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={handleDeleteCancel}>Cancelar</Button>
-            <Button variant="destructive" onClick={deleteSystem} disabled={isDeleting}>
+            <Button variant="outline" onClick={handleDeleteCancel}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={deleteSystem}
+              disabled={isDeleting}
+            >
               Excluir
             </Button>
           </DialogFooter>
@@ -396,4 +457,4 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
       </Dialog>
     </div>
   );
-}; 
+};

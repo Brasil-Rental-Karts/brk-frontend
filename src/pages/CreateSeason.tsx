@@ -1,12 +1,13 @@
-import React, { useCallback, useState, useEffect } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { SeasonService, SeasonData, PaymentCondition } from '../lib/services/season.service';
-import { ChampionshipService } from '../lib/services/championship.service';
-import { formatDateForDisplay, formatDateToISO } from '../utils/date';
-import { PaymentConditions } from '../components/ui/payment-conditions';
-import { FormScreen } from '@/components/ui/FormScreen';
-import { FormSectionConfig } from '@/components/ui/dynamic-form';
-import { useChampionshipData } from '@/contexts/ChampionshipContext';
+import { useCallback, useEffect, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+
+import { FormSectionConfig } from "@/components/ui/dynamic-form";
+import { FormScreen } from "@/components/ui/FormScreen";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
+
+import { PaymentConditions } from "../components/ui/payment-conditions";
+import { SeasonData, SeasonService } from "../lib/services/season.service";
+import { formatDateForDisplay, formatDateToISO } from "../utils/date";
 
 type FormPaymentCondition = {
   type: "por_temporada" | "por_etapa";
@@ -31,16 +32,20 @@ type FormData = {
 export const CreateSeason = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { championshipId, seasonId } = useParams<{ championshipId: string; seasonId?: string }>();
-  const { addSeason, updateSeason, getSeasons, getChampionshipInfo } = useChampionshipData();
-  const isEditMode = seasonId !== 'new' && seasonId !== undefined;
-  
+  const { championshipId, seasonId } = useParams<{
+    championshipId: string;
+    seasonId?: string;
+  }>();
+  const { addSeason, updateSeason, getSeasons, getChampionshipInfo } =
+    useChampionshipData();
+  const isEditMode = seasonId !== "new" && seasonId !== undefined;
+
   // Obter dados duplicados do location.state
   const duplicatedData = location.state?.initialData;
-  
+
   // Obter dados do campeonato do contexto
   const championship = getChampionshipInfo();
-  
+
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
 
   // Configurar o formulário
@@ -64,7 +69,8 @@ export const CreateSeason = () => {
             type: "textarea",
             mandatory: true,
             max_char: 1000,
-            placeholder: "Descrição detalhada da temporada, regulamento, categorias, etc.",
+            placeholder:
+              "Descrição detalhada da temporada, regulamento, categorias, etc.",
           },
           {
             id: "startDate",
@@ -116,7 +122,8 @@ export const CreateSeason = () => {
       },
       {
         section: "Condições de Pagamento",
-        detail: "Configure as condições de pagamento disponíveis. Cada condição pode ter métodos de pagamento específicos.",
+        detail:
+          "Configure as condições de pagamento disponíveis. Cada condição pode ter métodos de pagamento específicos.",
         fields: [
           {
             id: "paymentConditions",
@@ -131,31 +138,35 @@ export const CreateSeason = () => {
   }, []);
 
   const transformInitialData = useCallback((data: any) => {
-
-    
     // Verificar se as datas são válidas antes de formatar
     const formatDateSafely = (dateValue: any): string => {
       if (!dateValue) return "";
-      
+
       // Se já é uma string no formato DD/MM/YYYY, retornar como está
-      if (typeof dateValue === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(dateValue)) {
+      if (
+        typeof dateValue === "string" &&
+        /^\d{2}\/\d{2}\/\d{4}$/.test(dateValue)
+      ) {
         return dateValue;
       }
-      
+
       // Se é uma string ISO (YYYY-MM-DD), formatar
-      if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateValue)) {
+      if (
+        typeof dateValue === "string" &&
+        /^\d{4}-\d{2}-\d{2}/.test(dateValue)
+      ) {
         return formatDateForDisplay(dateValue);
       }
-      
+
       // Se é um objeto Date, formatar
       if (dateValue instanceof Date) {
         return formatDateForDisplay(dateValue);
       }
-      
-      console.warn('🔍 CreateSeason: Data inválida:', dateValue);
+
+      console.warn("🔍 CreateSeason: Data inválida:", dateValue);
       return "";
     };
-    
+
     return {
       ...data,
       startDate: formatDateSafely(data.startDate),
@@ -169,7 +180,7 @@ export const CreateSeason = () => {
           enabled: true,
           paymentMethods: [],
           pixInstallments: 1,
-          creditCardInstallments: 1
+          creditCardInstallments: 1,
         },
         {
           type: "por_etapa",
@@ -178,27 +189,30 @@ export const CreateSeason = () => {
           enabled: false,
           paymentMethods: [],
           pixInstallments: 1,
-          creditCardInstallments: 1
-        }
-      ]
+          creditCardInstallments: 1,
+        },
+      ],
     };
   }, []);
 
-  const transformSubmitData = useCallback((data: any): SeasonData => {
-    return {
-      name: data.name,
-      description: data.description,
-      startDate: formatDateToISO(data.startDate) || '',
-      endDate: formatDateToISO(data.endDate) || '',
-      status: data.status,
-      registrationOpen: data.registrationOpen === 'true',
-      paymentConditions: data.paymentConditions, // Enviar todas as condições, incluindo as inativas
-      paymentMethods: [], // Campo legado - será removido
-      championshipId: championshipId!,
-      pixInstallments: 1, // Campo legado - será removido
-      creditCardInstallments: 1 // Campo legado - será removido
-    };
-  }, [championshipId]);
+  const transformSubmitData = useCallback(
+    (data: any): SeasonData => {
+      return {
+        name: data.name,
+        description: data.description,
+        startDate: formatDateToISO(data.startDate) || "",
+        endDate: formatDateToISO(data.endDate) || "",
+        status: data.status,
+        registrationOpen: data.registrationOpen === "true",
+        paymentConditions: data.paymentConditions, // Enviar todas as condições, incluindo as inativas
+        paymentMethods: [], // Campo legado - será removido
+        championshipId: championshipId!,
+        pixInstallments: 1, // Campo legado - será removido
+        creditCardInstallments: 1, // Campo legado - será removido
+      };
+    },
+    [championshipId],
+  );
 
   const onSuccess = useCallback(() => {
     navigate(`/championship/${championshipId}?tab=seasons`);
@@ -210,58 +224,58 @@ export const CreateSeason = () => {
 
   const fetchData = useCallback(async () => {
     if (!isEditMode || !seasonId) return null;
-    
+
     try {
       // Buscar temporada do contexto primeiro
       const seasons = getSeasons();
-      const seasonFromContext = seasons.find(s => s.id === seasonId);
-      
-      if (seasonFromContext) {
+      const seasonFromContext = seasons.find((s) => s.id === seasonId);
 
+      if (seasonFromContext) {
         return seasonFromContext;
       } else {
-        
         // Fallback para backend se não encontrar no contexto
         const season = await SeasonService.getById(seasonId);
-        
+
         return season;
       }
     } catch (err: any) {
-      console.error('❌ CreateSeason: Erro ao carregar temporada:', err);
-      throw new Error('Erro ao carregar temporada: ' + err.message);
+      console.error("❌ CreateSeason: Erro ao carregar temporada:", err);
+      throw new Error("Erro ao carregar temporada: " + err.message);
     }
   }, [isEditMode, seasonId, getSeasons]);
-  
-  const createData = useCallback(async (data: SeasonData) => {
-    
-    const createdSeason = await SeasonService.create(data);
-    
-    
-    // Atualizar o contexto com a nova temporada
-    addSeason(createdSeason);
-    
-    
-    return createdSeason;
-  }, [addSeason]);
-  
-  const updateData = useCallback(async (id: string, data: SeasonData) => {
-    
-    const updatedSeason = await SeasonService.update(id, data);
-    
-    
-    // Atualizar o contexto com a temporada atualizada
-    updateSeason(id, updatedSeason);
-    
-    
-    return updatedSeason;
-  }, [updateSeason]);
+
+  const createData = useCallback(
+    async (data: SeasonData) => {
+      const createdSeason = await SeasonService.create(data);
+
+      // Atualizar o contexto com a nova temporada
+      addSeason(createdSeason);
+
+      return createdSeason;
+    },
+    [addSeason],
+  );
+
+  const updateData = useCallback(
+    async (id: string, data: SeasonData) => {
+      const updatedSeason = await SeasonService.update(id, data);
+
+      // Atualizar o contexto com a temporada atualizada
+      updateSeason(id, updatedSeason);
+
+      return updatedSeason;
+    },
+    [updateSeason],
+  );
 
   if (!championshipId) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-destructive">Erro</h1>
-          <p className="text-muted-foreground">ID do campeonato não encontrado</p>
+          <p className="text-muted-foreground">
+            ID do campeonato não encontrado
+          </p>
         </div>
       </div>
     );
@@ -281,38 +295,48 @@ export const CreateSeason = () => {
       transformSubmitData={transformSubmitData}
       onSuccess={onSuccess}
       onCancel={onCancel}
-      initialValues={duplicatedData ? transformInitialData(duplicatedData) : {
-        name: "",
-        description: "",
-        startDate: "",
-        endDate: "",
-        status: "agendado",
-        registrationOpen: "true",
-        paymentConditions: [
-          {
-            type: "por_temporada",
-            value: 0,
-            description: "Pagamento por temporada",
-            enabled: true,
-            paymentMethods: [],
-            pixInstallments: 1,
-            creditCardInstallments: 1
-          },
-          {
-            type: "por_etapa",
-            value: 0,
-            description: "Pagamento por etapa",
-            enabled: false,
-            paymentMethods: [],
-            pixInstallments: 1,
-            creditCardInstallments: 1
-          }
-        ]
-      }}
-      successMessage={isEditMode ? "Temporada atualizada com sucesso!" : "Temporada criada com sucesso!"}
-      errorMessage={isEditMode ? "Erro ao atualizar temporada." : "Erro ao criar temporada."}
+      initialValues={
+        duplicatedData
+          ? transformInitialData(duplicatedData)
+          : {
+              name: "",
+              description: "",
+              startDate: "",
+              endDate: "",
+              status: "agendado",
+              registrationOpen: "true",
+              paymentConditions: [
+                {
+                  type: "por_temporada",
+                  value: 0,
+                  description: "Pagamento por temporada",
+                  enabled: true,
+                  paymentMethods: [],
+                  pixInstallments: 1,
+                  creditCardInstallments: 1,
+                },
+                {
+                  type: "por_etapa",
+                  value: 0,
+                  description: "Pagamento por etapa",
+                  enabled: false,
+                  paymentMethods: [],
+                  pixInstallments: 1,
+                  creditCardInstallments: 1,
+                },
+              ],
+            }
+      }
+      successMessage={
+        isEditMode
+          ? "Temporada atualizada com sucesso!"
+          : "Temporada criada com sucesso!"
+      }
+      errorMessage={
+        isEditMode ? "Erro ao atualizar temporada." : "Erro ao criar temporada."
+      }
     />
   );
 };
 
-export default CreateSeason; 
+export default CreateSeason;

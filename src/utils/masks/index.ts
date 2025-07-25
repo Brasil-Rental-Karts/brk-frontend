@@ -1,4 +1,12 @@
-export type MaskType = "phone" | "cpf" | "cnpj" | "cep" | "date" | "currency" | "time" | "number";
+export type MaskType =
+  | "phone"
+  | "cpf"
+  | "cnpj"
+  | "cep"
+  | "date"
+  | "currency"
+  | "time"
+  | "number";
 
 export const masks = {
   phone: (value: string) => {
@@ -8,11 +16,11 @@ export const masks = {
       return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
     if (numbers.length <= 11)
       return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(
-        7
+        7,
       )}`;
     return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(
       7,
-      11
+      11,
     )}`;
   },
   cpf: (value: string) => {
@@ -22,11 +30,11 @@ export const masks = {
       return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
     if (numbers.length <= 9)
       return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(
-        6
+        6,
       )}`;
     return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(
       6,
-      9
+      9,
     )}-${numbers.slice(9, 11)}`;
   },
   cnpj: (value: string) => {
@@ -36,16 +44,16 @@ export const masks = {
       return `${numbers.slice(0, 2)}.${numbers.slice(2)}`;
     if (numbers.length <= 8)
       return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(
-        5
+        5,
       )}`;
     if (numbers.length <= 12)
       return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(
         5,
-        8
+        8,
       )}/${numbers.slice(8)}`;
     return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(
       5,
-      8
+      8,
     )}/${numbers.slice(8, 12)}-${numbers.slice(12, 14)}`;
   },
   cep: (value: string) => {
@@ -60,7 +68,7 @@ export const masks = {
       return `${numbers.slice(0, 2)}/${numbers.slice(2)}`;
     return `${numbers.slice(0, 2)}/${numbers.slice(2, 4)}/${numbers.slice(
       4,
-      8
+      8,
     )}`;
   },
   time: (value: string) => {

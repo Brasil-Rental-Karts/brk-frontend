@@ -1,5 +1,10 @@
-import { useState } from 'react';
-import { ChampionshipService, ChampionshipData, Championship } from '@/lib/services/championship.service';
+import { useState } from "react";
+
+import {
+  Championship,
+  ChampionshipData,
+  ChampionshipService,
+} from "@/lib/services/championship.service";
 
 export interface UseCreateChampionshipReturn {
   isLoading: boolean;
@@ -12,7 +17,9 @@ export const useCreateChampionship = (): UseCreateChampionshipReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createChampionship = async (data: ChampionshipData): Promise<Championship | null> => {
+  const createChampionship = async (
+    data: ChampionshipData,
+  ): Promise<Championship | null> => {
     setIsLoading(true);
     setError(null);
 
@@ -20,7 +27,8 @@ export const useCreateChampionship = (): UseCreateChampionshipReturn => {
       const championship = await ChampionshipService.create(data);
       return championship;
     } catch (err: any) {
-      const errorMessage = err.message || 'Erro ao criar campeonato. Tente novamente.';
+      const errorMessage =
+        err.message || "Erro ao criar campeonato. Tente novamente.";
       setError(errorMessage);
       return null;
     } finally {
@@ -38,4 +46,4 @@ export const useCreateChampionship = (): UseCreateChampionshipReturn => {
     createChampionship,
     clearError,
   };
-}; 
+};

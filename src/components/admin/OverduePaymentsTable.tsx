@@ -1,28 +1,61 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from 'brk-design-system';
-import { Input } from 'brk-design-system';
-import { Label } from 'brk-design-system';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from 'brk-design-system';
-import { Alert, AlertDescription } from 'brk-design-system';
-import { Badge } from 'brk-design-system';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'brk-design-system';
-import { Calendar, CreditCard, RefreshCw, AlertTriangle, CheckCircle, Clock, Search, Filter } from 'lucide-react';
-import { usePaymentManagement } from '@/hooks/use-payment-management';
-import { OverduePayment } from '@/lib/services/payment-management.service';
-import { formatCurrency } from '@/utils/currency';
-import { formatDateToBrazilian } from '@/utils/date';
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "brk-design-system";
+import {
+  AlertTriangle,
+  Calendar,
+  CreditCard,
+  Filter,
+  RefreshCw,
+  Search,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { usePaymentManagement } from "@/hooks/use-payment-management";
+import { OverduePayment } from "@/lib/services/payment-management.service";
+import { formatCurrency } from "@/utils/currency";
+import { formatDateToBrazilian } from "@/utils/date";
 
 export const OverduePaymentsTable = () => {
   const [overduePayments, setOverduePayments] = useState<OverduePayment[]>([]);
-  const [filteredPayments, setFilteredPayments] = useState<OverduePayment[]>([]);
-  const [selectedPayment, setSelectedPayment] = useState<OverduePayment | null>(null);
-  const [newDueDate, setNewDueDate] = useState('');
+  const [filteredPayments, setFilteredPayments] = useState<OverduePayment[]>(
+    [],
+  );
+  const [selectedPayment, setSelectedPayment] = useState<OverduePayment | null>(
+    null,
+  );
+  const [newDueDate, setNewDueDate] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'dueDate' | 'value' | 'registrationId'>('dueDate');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  
-  const { loading, error, getAllOverduePayments, reactivateOverduePayment } = usePaymentManagement();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<"dueDate" | "value" | "registrationId">(
+    "dueDate",
+  );
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  const { loading, error, getAllOverduePayments, reactivateOverduePayment } =
+    usePaymentManagement();
 
   useEffect(() => {
     loadOverduePayments();
@@ -37,7 +70,7 @@ export const OverduePaymentsTable = () => {
       const payments = await getAllOverduePayments();
       setOverduePayments(payments);
     } catch (error) {
-      console.error('Erro ao carregar pagamentos vencidos:', error);
+      console.error("Erro ao carregar pagamentos vencidos:", error);
     }
   };
 
@@ -46,12 +79,27 @@ export const OverduePaymentsTable = () => {
 
     // Filtrar por termo de busca
     if (searchTerm) {
-      filtered = filtered.filter(payment => 
-        payment.registrationId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (payment.registration?.user?.name && payment.registration.user.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (payment.registration?.user?.email && payment.registration.user.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (payment.registration?.season?.championship?.name && payment.registration.season.championship.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (payment.registration?.season?.name && payment.registration.season.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      filtered = filtered.filter(
+        (payment) =>
+          payment.registrationId
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          (payment.registration?.user?.name &&
+            payment.registration.user.name
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase())) ||
+          (payment.registration?.user?.email &&
+            payment.registration.user.email
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase())) ||
+          (payment.registration?.season?.championship?.name &&
+            payment.registration.season.championship.name
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase())) ||
+          (payment.registration?.season?.name &&
+            payment.registration.season.name
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase())),
       );
     }
 
@@ -60,15 +108,15 @@ export const OverduePaymentsTable = () => {
       let aValue: any, bValue: any;
 
       switch (sortBy) {
-        case 'dueDate':
+        case "dueDate":
           aValue = new Date(a.dueDate);
           bValue = new Date(b.dueDate);
           break;
-        case 'value':
+        case "value":
           aValue = a.value;
           bValue = b.value;
           break;
-        case 'registrationId':
+        case "registrationId":
           aValue = a.registrationId;
           bValue = b.registrationId;
           break;
@@ -76,7 +124,7 @@ export const OverduePaymentsTable = () => {
           return 0;
       }
 
-      if (sortOrder === 'asc') {
+      if (sortOrder === "asc") {
         return aValue > bValue ? 1 : -1;
       } else {
         return aValue < bValue ? 1 : -1;
@@ -93,12 +141,12 @@ export const OverduePaymentsTable = () => {
       await reactivateOverduePayment(selectedPayment.id, newDueDate);
       setIsDialogOpen(false);
       setSelectedPayment(null);
-      setNewDueDate('');
-      
+      setNewDueDate("");
+
       // Recarregar pagamentos vencidos
       await loadOverduePayments();
     } catch (error) {
-      console.error('Erro ao reativar pagamento:', error);
+      console.error("Erro ao reativar pagamento:", error);
     }
   };
 
@@ -107,26 +155,26 @@ export const OverduePaymentsTable = () => {
     // Definir data padrão como 7 dias a partir de hoje
     const defaultDate = new Date();
     defaultDate.setDate(defaultDate.getDate() + 7);
-    setNewDueDate(defaultDate.toISOString().split('T')[0]);
+    setNewDueDate(defaultDate.toISOString().split("T")[0]);
     setIsDialogOpen(true);
   };
 
-  const handleSort = (column: 'dueDate' | 'value' | 'registrationId') => {
+  const handleSort = (column: "dueDate" | "value" | "registrationId") => {
     if (sortBy === column) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
       setSortBy(column);
-      setSortOrder('asc');
+      setSortOrder("asc");
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'OVERDUE':
+      case "OVERDUE":
         return <Badge variant="destructive">Vencido</Badge>;
-      case 'PENDING':
+      case "PENDING":
         return <Badge variant="secondary">Pendente</Badge>;
-      case 'CONFIRMED':
+      case "CONFIRMED":
         return <Badge variant="default">Confirmado</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
@@ -138,7 +186,9 @@ export const OverduePaymentsTable = () => {
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-center justify-center py-8">
-            <div className="text-muted-foreground">Carregando pagamentos vencidos...</div>
+            <div className="text-muted-foreground">
+              Carregando pagamentos vencidos...
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -154,7 +204,8 @@ export const OverduePaymentsTable = () => {
             Pagamentos Vencidos
           </CardTitle>
           <CardDescription>
-            Gerencie faturas vencidas por PIX. Você pode reativar faturas alterando a data de vencimento e gerando um novo QR Code.
+            Gerencie faturas vencidas por PIX. Você pode reativar faturas
+            alterando a data de vencimento e gerando um novo QR Code.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -184,7 +235,9 @@ export const OverduePaymentsTable = () => {
               variant="outline"
               className="flex items-center gap-2"
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+              />
               Atualizar
             </Button>
           </div>
@@ -192,18 +245,31 @@ export const OverduePaymentsTable = () => {
           {/* Estatísticas */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <div className="bg-muted rounded-lg p-4">
-              <div className="text-2xl font-bold text-red-600">{filteredPayments.length}</div>
-              <div className="text-sm text-muted-foreground">Faturas Vencidas</div>
+              <div className="text-2xl font-bold text-red-600">
+                {filteredPayments.length}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Faturas Vencidas
+              </div>
             </div>
             <div className="bg-muted rounded-lg p-4">
               <div className="text-2xl font-bold">
-                {formatCurrency(filteredPayments.reduce((sum, p) => sum + (Number(p.value) || 0), 0))}
+                {formatCurrency(
+                  filteredPayments.reduce(
+                    (sum, p) => sum + (Number(p.value) || 0),
+                    0,
+                  ),
+                )}
               </div>
               <div className="text-sm text-muted-foreground">Valor Total</div>
             </div>
             <div className="bg-muted rounded-lg p-4">
-              <div className="text-2xl font-bold text-blue-600">{overduePayments.length}</div>
-              <div className="text-sm text-muted-foreground">Total no Sistema</div>
+              <div className="text-2xl font-bold text-blue-600">
+                {overduePayments.length}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Total no Sistema
+              </div>
             </div>
           </div>
 
@@ -213,18 +279,18 @@ export const OverduePaymentsTable = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Piloto / Competição</TableHead>
-                  <TableHead 
+                  <TableHead
                     className="cursor-pointer hover:bg-muted"
-                    onClick={() => handleSort('dueDate')}
+                    onClick={() => handleSort("dueDate")}
                   >
                     <div className="flex items-center gap-1">
                       Vencimento
                       <Filter className="h-3 w-3" />
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className="cursor-pointer hover:bg-muted"
-                    onClick={() => handleSort('value')}
+                    onClick={() => handleSort("value")}
                   >
                     <div className="flex items-center gap-1">
                       Valor
@@ -241,7 +307,9 @@ export const OverduePaymentsTable = () => {
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8">
                       <div className="text-muted-foreground">
-                        {searchTerm ? 'Nenhum pagamento encontrado para a busca.' : 'Nenhum pagamento vencido encontrado.'}
+                        {searchTerm
+                          ? "Nenhum pagamento encontrado para a busca."
+                          : "Nenhum pagamento vencido encontrado."}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -251,13 +319,16 @@ export const OverduePaymentsTable = () => {
                       <TableCell>
                         <div>
                           <div className="font-medium">
-                            {payment.registration?.user?.name || 'Nome não disponível'}
+                            {payment.registration?.user?.name ||
+                              "Nome não disponível"}
                           </div>
-                          {payment.registration?.season?.championship?.name && payment.registration?.season?.name && (
-                            <div className="text-sm text-muted-foreground">
-                              {payment.registration.season.championship.name} / {payment.registration.season.name}
-                            </div>
-                          )}
+                          {payment.registration?.season?.championship?.name &&
+                            payment.registration?.season?.name && (
+                              <div className="text-sm text-muted-foreground">
+                                {payment.registration.season.championship.name}{" "}
+                                / {payment.registration.season.name}
+                              </div>
+                            )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -267,19 +338,19 @@ export const OverduePaymentsTable = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">{formatCurrency(payment.value || 0)}</div>
+                        <div className="font-medium">
+                          {formatCurrency(payment.value || 0)}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
                           {payment.installmentNumber || 1}
-                          {payment.installmentCount && payment.installmentCount > 1 && 
-                            ` de ${payment.installmentCount}`
-                          }
+                          {payment.installmentCount &&
+                            payment.installmentCount > 1 &&
+                            ` de ${payment.installmentCount}`}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        {getStatusBadge(payment.status)}
-                      </TableCell>
+                      <TableCell>{getStatusBadge(payment.status)}</TableCell>
                       <TableCell className="text-right">
                         <Button
                           onClick={() => openReactivateDialog(payment)}
@@ -305,7 +376,8 @@ export const OverduePaymentsTable = () => {
           <DialogHeader>
             <DialogTitle>Reativar Fatura Vencida</DialogTitle>
             <DialogDescription>
-              Defina uma nova data de vencimento para reativar a fatura. Um novo QR Code PIX será gerado automaticamente.
+              Defina uma nova data de vencimento para reativar a fatura. Um novo
+              QR Code PIX será gerado automaticamente.
             </DialogDescription>
           </DialogHeader>
 
@@ -320,33 +392,40 @@ export const OverduePaymentsTable = () => {
                   <div>
                     <span className="text-muted-foreground">Piloto:</span>
                     <div className="font-semibold">
-                      {selectedPayment.registration?.user?.name || 'Nome não disponível'}
+                      {selectedPayment.registration?.user?.name ||
+                        "Nome não disponível"}
                     </div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Valor:</span>
-                    <div className="font-semibold">{formatCurrency(selectedPayment.value || 0)}</div>
+                    <div className="font-semibold">
+                      {formatCurrency(selectedPayment.value || 0)}
+                    </div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Competição:</span>
                     <div className="font-semibold">
-                      {selectedPayment.registration?.season?.championship?.name && selectedPayment.registration?.season?.name 
+                      {selectedPayment.registration?.season?.championship
+                        ?.name && selectedPayment.registration?.season?.name
                         ? `${selectedPayment.registration.season.championship.name} / ${selectedPayment.registration.season.name}`
-                        : 'Não disponível'
-                      }
+                        : "Não disponível"}
                     </div>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Vencimento Atual:</span>
-                    <div className="font-semibold">{formatDateToBrazilian(selectedPayment.dueDate)}</div>
+                    <span className="text-muted-foreground">
+                      Vencimento Atual:
+                    </span>
+                    <div className="font-semibold">
+                      {formatDateToBrazilian(selectedPayment.dueDate)}
+                    </div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Parcela:</span>
                     <div className="font-semibold">
                       {selectedPayment.installmentNumber || 1}
-                      {selectedPayment.installmentCount && selectedPayment.installmentCount > 1 && 
-                        ` de ${selectedPayment.installmentCount}`
-                      }
+                      {selectedPayment.installmentCount &&
+                        selectedPayment.installmentCount > 1 &&
+                        ` de ${selectedPayment.installmentCount}`}
                     </div>
                   </div>
                 </div>
@@ -360,7 +439,7 @@ export const OverduePaymentsTable = () => {
                 type="date"
                 value={newDueDate}
                 onChange={(e) => setNewDueDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
+                min={new Date().toISOString().split("T")[0]}
               />
               <p className="text-xs text-muted-foreground">
                 A nova data deve ser posterior à data atual.
@@ -398,4 +477,4 @@ export const OverduePaymentsTable = () => {
       </Dialog>
     </>
   );
-}; 
+};

@@ -1,44 +1,102 @@
-import { lazy, Suspense } from 'react';
-import { createBrowserRouter, Navigate, Outlet, Link } from 'react-router-dom';
-import { RouteErrorBoundary } from './components/RouteErrorBoundary';
-import { RouteLoader } from './components/RouteLoader';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { PublicRoute } from './components/PublicRoute';
-import { ScrollRestoration } from './components/ScrollRestoration';
-import { useRouteMetadata } from './hooks/useRouteMetadata';
-import { MainLayout } from '@/layouts/MainLayout';
-import { MainFullWidthLayout } from '@/layouts/MainFullWidhtLayout';
-import { AuthLayout } from '@/layouts/AuthLayout';
-import ConfirmParticipation from '@/pages/ConfirmParticipation';
+import { lazy, Suspense } from "react";
+import { createBrowserRouter, Link, Navigate, Outlet } from "react-router-dom";
+
+import { AuthLayout } from "@/layouts/AuthLayout";
+import { MainFullWidthLayout } from "@/layouts/MainFullWidhtLayout";
+import { MainLayout } from "@/layouts/MainLayout";
+import ConfirmParticipation from "@/pages/ConfirmParticipation";
+
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { PublicRoute } from "./components/PublicRoute";
+import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
+import { RouteLoader } from "./components/RouteLoader";
+import { ScrollRestoration } from "./components/ScrollRestoration";
+import { useRouteMetadata } from "./hooks/useRouteMetadata";
 
 // Lazy load pages for better performance
-const Login = lazy(() => import('@/pages/Login').then(module => ({ default: module.Login })));
-const Register = lazy(() => import('@/pages/Register').then(module => ({ default: module.Register })));
-const ResetPassword = lazy(() => import('@/pages/ResetPassword').then(module => ({ default: module.ResetPassword })));
-const ResetPasswordSuccess = lazy(() => import('@/pages/ResetPasswordSuccess').then(module => ({ default: module.ResetPasswordSuccess })));
-const ChangePassword = lazy(() => import('@/pages/ChangePassword'));
-const CreateChampionship = lazy(() => import('@/pages/CreateChampionship'));
-const CreateSeason = lazy(() => import('@/pages/CreateSeason'));
-const CreateCategory = lazy(() => import('@/pages/CreateCategory'));
-const CreateGridType = lazy(() => import('@/pages/CreateGridType').then(module => ({ default: module.CreateGridType })));
-const CreateScoringSystem = lazy(() => import('@/pages/CreateScoringSystem').then(module => ({ default: module.CreateScoringSystem })));
-const CreateStage = lazy(() => import('@/pages/CreateStage').then(module => ({ default: module.CreateStage })));
-const CreateRaceTrack = lazy(() => import('@/pages/CreateRaceTrack'));
-const CreatePenalty = lazy(() => import('@/pages/CreatePenalty'));
-const SeasonRegistration = lazy(() => import('@/pages/SeasonRegistration').then(module => ({ default: module.SeasonRegistration })));
-const RegistrationPayment = lazy(() => import('@/pages/RegistrationPayment').then(module => ({ default: module.RegistrationPayment })));
-const PaymentDetails = lazy(() => import('@/pages/PaymentDetails').then(module => ({ default: module.PaymentDetails })));
-const Championship = lazy(() => import('@/pages/Championship').then(module => ({ default: module.Championship })));
-const EditProfile = lazy(() => import('@/pages/EditProfile'));
-const Dashboard = lazy(() => import('@/pages/Dashboard'));
-const Financial = lazy(() => import('@/pages/Financial').then(module => ({ default: module.Financial })));
-const Admin = lazy(() => import('@/pages/Admin').then(module => ({ default: module.Admin })));
-const CreditCardFeesAdmin = lazy(() => import('@/pages/CreditCardFeesAdmin'));
-const GoogleCallback = lazy(() => import('@/pages/GoogleCallback'));
-const LoginSuccess = lazy(() => import('@/pages/LoginSuccess'));
-const ConfirmEmailInfo = lazy(() => import('@/pages/ConfirmEmailInfo').then(module => ({ default: module.ConfirmEmailInfo })));
-const ConfirmEmail = lazy(() => import('@/pages/ConfirmEmail').then(module => ({ default: module.ConfirmEmail })));
-const LapTimesChart = lazy(() => import('@/pages/LapTimesChart').then(module => ({ default: module.LapTimesChart })));
+const Login = lazy(() =>
+  import("@/pages/Login").then((module) => ({ default: module.Login })),
+);
+const Register = lazy(() =>
+  import("@/pages/Register").then((module) => ({ default: module.Register })),
+);
+const ResetPassword = lazy(() =>
+  import("@/pages/ResetPassword").then((module) => ({
+    default: module.ResetPassword,
+  })),
+);
+const ResetPasswordSuccess = lazy(() =>
+  import("@/pages/ResetPasswordSuccess").then((module) => ({
+    default: module.ResetPasswordSuccess,
+  })),
+);
+const ChangePassword = lazy(() => import("@/pages/ChangePassword"));
+const CreateChampionship = lazy(() => import("@/pages/CreateChampionship"));
+const CreateSeason = lazy(() => import("@/pages/CreateSeason"));
+const CreateCategory = lazy(() => import("@/pages/CreateCategory"));
+const CreateGridType = lazy(() =>
+  import("@/pages/CreateGridType").then((module) => ({
+    default: module.CreateGridType,
+  })),
+);
+const CreateScoringSystem = lazy(() =>
+  import("@/pages/CreateScoringSystem").then((module) => ({
+    default: module.CreateScoringSystem,
+  })),
+);
+const CreateStage = lazy(() =>
+  import("@/pages/CreateStage").then((module) => ({
+    default: module.CreateStage,
+  })),
+);
+const CreateRaceTrack = lazy(() => import("@/pages/CreateRaceTrack"));
+const CreatePenalty = lazy(() => import("@/pages/CreatePenalty"));
+const SeasonRegistration = lazy(() =>
+  import("@/pages/SeasonRegistration").then((module) => ({
+    default: module.SeasonRegistration,
+  })),
+);
+const RegistrationPayment = lazy(() =>
+  import("@/pages/RegistrationPayment").then((module) => ({
+    default: module.RegistrationPayment,
+  })),
+);
+const PaymentDetails = lazy(() =>
+  import("@/pages/PaymentDetails").then((module) => ({
+    default: module.PaymentDetails,
+  })),
+);
+const Championship = lazy(() =>
+  import("@/pages/Championship").then((module) => ({
+    default: module.Championship,
+  })),
+);
+const EditProfile = lazy(() => import("@/pages/EditProfile"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Financial = lazy(() =>
+  import("@/pages/Financial").then((module) => ({ default: module.Financial })),
+);
+const Admin = lazy(() =>
+  import("@/pages/Admin").then((module) => ({ default: module.Admin })),
+);
+const CreditCardFeesAdmin = lazy(() => import("@/pages/CreditCardFeesAdmin"));
+const GoogleCallback = lazy(() => import("@/pages/GoogleCallback"));
+const LoginSuccess = lazy(() => import("@/pages/LoginSuccess"));
+const ConfirmEmailInfo = lazy(() =>
+  import("@/pages/ConfirmEmailInfo").then((module) => ({
+    default: module.ConfirmEmailInfo,
+  })),
+);
+const ConfirmEmail = lazy(() =>
+  import("@/pages/ConfirmEmail").then((module) => ({
+    default: module.ConfirmEmail,
+  })),
+);
+const LapTimesChart = lazy(() =>
+  import("@/pages/LapTimesChart").then((module) => ({
+    default: module.LapTimesChart,
+  })),
+);
 
 // Route metadata interface
 export interface RouteMetadata {
@@ -46,14 +104,14 @@ export interface RouteMetadata {
   description?: string;
   requiresAuth?: boolean;
   requiresGuest?: boolean;
-  layout?: 'main' | 'auth' | 'none';
+  layout?: "main" | "auth" | "none";
   roles?: string[];
 }
 
 // Root layout component that handles global router concerns
 const RootLayout = () => {
   useRouteMetadata(); // This will now work because we're inside the router context
-  
+
   return (
     <>
       <ScrollRestoration />
@@ -64,9 +122,7 @@ const RootLayout = () => {
 
 // Wrapper component for lazy loading with suspense
 const LazyWrapper = ({ children }: { children: React.ReactNode }) => (
-  <Suspense fallback={<RouteLoader />}>
-    {children}
-  </Suspense>
+  <Suspense fallback={<RouteLoader />}>{children}</Suspense>
 );
 
 // Google callback error handler
@@ -79,18 +135,18 @@ const GoogleCallbackErrorHandler = () => (
 // Login error redirect handler
 const LoginErrorRedirect = () => {
   const urlParams = new URLSearchParams(window.location.search);
-  const error = urlParams.get('error');
-  const errorDescription = urlParams.get('error_description');
-  
+  const error = urlParams.get("error");
+  const errorDescription = urlParams.get("error_description");
+
   // Redirect to login with error state
   return (
-    <Navigate 
-      to="/auth/login" 
-      state={{ 
-        error: error || 'Erro de autenticação',
-        errorDescription: errorDescription || 'Ocorreu um erro durante o login'
-      }} 
-      replace 
+    <Navigate
+      to="/auth/login"
+      state={{
+        error: error || "Erro de autenticação",
+        errorDescription: errorDescription || "Ocorreu um erro durante o login",
+      }}
+      replace
     />
   );
 };
@@ -99,10 +155,10 @@ const LoginErrorRedirect = () => {
 const ConfirmEmailRedirect = () => {
   const urlParams = new URLSearchParams(window.location.search);
   const queryString = urlParams.toString();
-  const redirectUrl = queryString 
+  const redirectUrl = queryString
     ? `/auth/confirm-email?${queryString}`
-    : '/auth/confirm-email';
-  
+    : "/auth/confirm-email";
+
   return <Navigate to={redirectUrl} replace />;
 };
 
@@ -117,7 +173,7 @@ export const router = createBrowserRouter([
         index: true,
         element: <Navigate to="/dashboard" replace />,
       },
-      
+
       // Authentication routes
       {
         path: "auth",
@@ -457,7 +513,7 @@ export const router = createBrowserRouter([
       {
         path: "create-championship",
         element: (
-          <ProtectedRoute requiredRoles={['Manager', 'Administrator']}>
+          <ProtectedRoute requiredRoles={["Manager", "Administrator"]}>
             <MainLayout>
               <LazyWrapper>
                 <CreateChampionship />
@@ -469,7 +525,7 @@ export const router = createBrowserRouter([
       {
         path: "championship/:championshipId/edit",
         element: (
-          <ProtectedRoute requiredRoles={['Manager', 'Administrator']}>
+          <ProtectedRoute requiredRoles={["Manager", "Administrator"]}>
             <MainLayout>
               <LazyWrapper>
                 <CreateChampionship />
@@ -481,7 +537,7 @@ export const router = createBrowserRouter([
       {
         path: "admin",
         element: (
-          <ProtectedRoute requiredRoles={['Administrator']}>
+          <ProtectedRoute requiredRoles={["Administrator"]}>
             <MainLayout>
               <LazyWrapper>
                 <Admin />
@@ -493,7 +549,7 @@ export const router = createBrowserRouter([
       {
         path: "admin/race-tracks/create",
         element: (
-          <ProtectedRoute requiredRoles={['Administrator']}>
+          <ProtectedRoute requiredRoles={["Administrator"]}>
             <MainLayout>
               <LazyWrapper>
                 <CreateRaceTrack />
@@ -505,7 +561,7 @@ export const router = createBrowserRouter([
       {
         path: "admin/race-tracks/edit/:id",
         element: (
-          <ProtectedRoute requiredRoles={['Administrator']}>
+          <ProtectedRoute requiredRoles={["Administrator"]}>
             <MainLayout>
               <LazyWrapper>
                 <CreateRaceTrack />
@@ -517,7 +573,7 @@ export const router = createBrowserRouter([
       {
         path: "admin/credit-card-fees",
         element: (
-          <ProtectedRoute requiredRoles={['Administrator']}>
+          <ProtectedRoute requiredRoles={["Administrator"]}>
             <MainLayout>
               <LazyWrapper>
                 <CreditCardFeesAdmin />
@@ -618,8 +674,12 @@ export const router = createBrowserRouter([
         path: "*",
         element: (
           <div className="flex flex-col items-center justify-center min-h-screen">
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">404</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">Página não encontrada</p>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">
+              404
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-2">
+              Página não encontrada
+            </p>
             <div className="flex gap-4 mt-4">
               <Link
                 to="/dashboard"
@@ -641,4 +701,4 @@ export const router = createBrowserRouter([
   },
 ]);
 
-export default router; 
+export default router;

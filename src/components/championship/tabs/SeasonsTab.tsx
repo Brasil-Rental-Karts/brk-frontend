@@ -1,17 +1,24 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "brk-design-system";
-import { Card, CardHeader, CardContent } from "brk-design-system";
-import { Badge } from "brk-design-system";
-import { PlusCircle, Calendar, Trophy, MoreVertical, DollarSign, Loader2, CreditCard } from "lucide-react";
-import { EmptyState } from "brk-design-system";
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "brk-design-system";
-import {
+  EmptyState,
+  Pagination,
   Table,
   TableBody,
   TableCell,
@@ -20,25 +27,31 @@ import {
   TableRow,
 } from "brk-design-system";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "brk-design-system";
-import { DynamicFilter, FilterField, FilterValues } from "@/components/ui/dynamic-filter";
-import { Pagination } from "brk-design-system";
-import { usePagination } from "@/hooks/usePagination";
-import { SeasonService, Season, PaymentCondition } from "@/lib/services/season.service";
-import { useChampionshipData } from "@/contexts/ChampionshipContext";
+  Calendar,
+  DollarSign,
+  MoreVertical,
+  PlusCircle,
+  Trophy,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-import { Alert, AlertDescription, AlertTitle } from "brk-design-system";
-import { formatDateToBrazilian, getYearFromDate, compareDates } from "@/utils/date";
-import { formatCurrency } from "@/utils/currency";
+import {
+  DynamicFilter,
+  FilterField,
+  FilterValues,
+} from "@/components/ui/dynamic-filter";
+import { InlineLoader } from "@/components/ui/loading";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { InlineLoader } from '@/components/ui/loading';
-import { Loading } from '@/components/ui/loading';
+import { usePagination } from "@/hooks/usePagination";
+import {
+  PaymentCondition,
+  Season,
+  SeasonService,
+} from "@/lib/services/season.service";
+import { formatCurrency } from "@/utils/currency";
+import { compareDates, getYearFromDate } from "@/utils/date";
 
 interface SeasonsTabProps {
   championshipId: string;
@@ -47,17 +60,17 @@ interface SeasonsTabProps {
 // Configuração dos filtros
 const filterFields: FilterField[] = [
   {
-    key: 'year',
-    label: 'Ano',
-    type: 'combobox',
-    placeholder: 'Ano',
+    key: "year",
+    label: "Ano",
+    type: "combobox",
+    placeholder: "Ano",
     options: [
-      { value: '2025', label: '2025' },
-      { value: '2024', label: '2024' },
-      { value: '2023', label: '2023' },
-      { value: '2022', label: '2022' },
-    ]
-  }
+      { value: "2025", label: "2025" },
+      { value: "2024", label: "2024" },
+      { value: "2023", label: "2023" },
+      { value: "2022", label: "2022" },
+    ],
+  },
 ];
 
 // Função auxiliar para formatar condições de pagamento
@@ -68,31 +81,36 @@ const formatPaymentConditions = (season: Season) => {
     const inscriptionValue = SeasonService.getInscriptionValue(season);
     return {
       hasMultipleConditions: false,
-      conditions: [{
-        type: inscriptionType,
-        value: inscriptionValue,
-        description: inscriptionType === 'por_temporada' ? 'Pagamento por temporada' : 'Pagamento por etapa',
-        enabled: true,
-        paymentMethods: season.paymentMethods || []
-      }]
+      conditions: [
+        {
+          type: inscriptionType,
+          value: inscriptionValue,
+          description:
+            inscriptionType === "por_temporada"
+              ? "Pagamento por temporada"
+              : "Pagamento por etapa",
+          enabled: true,
+          paymentMethods: season.paymentMethods || [],
+        },
+      ],
     };
   }
 
-  const activeConditions = season.paymentConditions.filter(c => c.enabled);
-  
+  const activeConditions = season.paymentConditions.filter((c) => c.enabled);
+
   return {
     hasMultipleConditions: activeConditions.length > 1,
-    conditions: activeConditions
+    conditions: activeConditions,
   };
 };
 
 // Função auxiliar para formatar método de pagamento
 const formatPaymentMethod = (method: string) => {
   switch (method) {
-    case 'pix':
-      return 'PIX';
-    case 'cartao_credito':
-      return 'Cartão de Crédito';
+    case "pix":
+      return "PIX";
+    case "cartao_credito":
+      return "Cartão de Crédito";
     default:
       return method;
   }
@@ -101,32 +119,39 @@ const formatPaymentMethod = (method: string) => {
 // Função auxiliar para formatar tipo de inscrição
 const formatInscriptionType = (inscriptionType: string) => {
   switch (inscriptionType) {
-    case 'por_temporada':
-      return 'Por Temporada';
-    case 'por_etapa':
-      return 'Por Etapa';
+    case "por_temporada":
+      return "Por Temporada";
+    case "por_etapa":
+      return "Por Etapa";
     default:
       return inscriptionType;
   }
 };
 
 // Componente para exibir condições de pagamento
-const PaymentConditionsDisplay = ({ conditions, isCompact = false }: { 
-  conditions: PaymentCondition[], 
-  isCompact?: boolean 
+const PaymentConditionsDisplay = ({
+  conditions,
+  isCompact = false,
+}: {
+  conditions: PaymentCondition[];
+  isCompact?: boolean;
 }) => {
   if (conditions.length === 0) {
     return (
-      <div className={`${isCompact ? 'text-xs' : 'text-sm'} text-muted-foreground`}>
+      <div
+        className={`${isCompact ? "text-xs" : "text-sm"} text-muted-foreground`}
+      >
         Sem condições ativas
       </div>
     );
   }
-  
+
   if (conditions.length === 1) {
     const condition = conditions[0];
     return (
-      <div className={`${isCompact ? 'text-xs' : 'text-sm'} text-muted-foreground capitalize`}>
+      <div
+        className={`${isCompact ? "text-xs" : "text-sm"} text-muted-foreground capitalize`}
+      >
         {formatInscriptionType(condition.type)}
       </div>
     );
@@ -135,11 +160,16 @@ const PaymentConditionsDisplay = ({ conditions, isCompact = false }: {
   return (
     <div className="space-y-1">
       {conditions.map((condition, index) => (
-        <div key={index} className={`${isCompact ? 'text-xs' : 'text-sm'} text-muted-foreground`}>
-          <span className="capitalize">{formatInscriptionType(condition.type)}</span>
+        <div
+          key={index}
+          className={`${isCompact ? "text-xs" : "text-sm"} text-muted-foreground`}
+        >
+          <span className="capitalize">
+            {formatInscriptionType(condition.type)}
+          </span>
           {condition.paymentMethods.length > 0 && (
             <span className="ml-1">
-              • {condition.paymentMethods.map(formatPaymentMethod).join(', ')}
+              • {condition.paymentMethods.map(formatPaymentMethod).join(", ")}
             </span>
           )}
         </div>
@@ -148,14 +178,19 @@ const PaymentConditionsDisplay = ({ conditions, isCompact = false }: {
   );
 };
 
-const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod }: { 
-  season: Season, 
-  onAction: (action: string, seasonId: string) => void, 
-  getStatusBadge: (status: string) => JSX.Element, 
-  formatPeriod: (startDate: string, endDate: string) => string
+const SeasonCard = ({
+  season,
+  onAction,
+  getStatusBadge,
+  formatPeriod,
+}: {
+  season: Season;
+  onAction: (action: string, seasonId: string) => void;
+  getStatusBadge: (status: string) => JSX.Element;
+  formatPeriod: (startDate: string, endDate: string) => string;
 }) => {
   const paymentInfo = formatPaymentConditions(season);
-  
+
   return (
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -173,7 +208,7 @@ const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod }: {
             <DropdownMenuItem onClick={() => onAction("duplicate", season.id)}>
               Duplicar
             </DropdownMenuItem>
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={() => onAction("delete", season.id)}
               className="text-destructive"
             >
@@ -195,7 +230,9 @@ const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod }: {
           </div>
           <div className="flex flex-col">
             <span className="text-muted-foreground">Período</span>
-            <span className="font-medium">{formatPeriod(season.startDate, season.endDate)}</span>
+            <span className="font-medium">
+              {formatPeriod(season.startDate, season.endDate)}
+            </span>
           </div>
           <div className="flex flex-col">
             <span className="text-muted-foreground">Inscrição</span>
@@ -207,7 +244,9 @@ const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod }: {
               ) : paymentInfo.hasMultipleConditions ? (
                 paymentInfo.conditions.map((condition, index) => (
                   <div key={index} className="text-sm">
-                    <span className="font-medium">{formatCurrency(condition.value)}</span>
+                    <span className="font-medium">
+                      {formatCurrency(condition.value)}
+                    </span>
                     <span className="text-muted-foreground ml-1 capitalize">
                       ({formatInscriptionType(condition.type)})
                     </span>
@@ -221,7 +260,9 @@ const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod }: {
             </div>
           </div>
           <div className="flex flex-col">
-            <span className="text-muted-foreground">Condições de pagamento</span>
+            <span className="text-muted-foreground">
+              Condições de pagamento
+            </span>
             <PaymentConditionsDisplay conditions={paymentInfo.conditions} />
           </div>
         </div>
@@ -234,21 +275,19 @@ const SeasonCard = ({ season, onAction, getStatusBadge, formatPeriod }: {
  * Tab de temporadas do campeonato
  * Exibe e gerencia as temporadas de um campeonato específico
  */
-export const SeasonsTab = ({ 
-  championshipId 
-}: SeasonsTabProps) => {
+export const SeasonsTab = ({ championshipId }: SeasonsTabProps) => {
   const navigate = useNavigate();
-  const { 
-    getSeasons, 
-    loading: contextLoading, 
+  const {
+    getSeasons,
+    loading: contextLoading,
     error: contextError,
-    removeSeason: removeSeasonFromContext
+    removeSeason: removeSeasonFromContext,
   } = useChampionshipData();
   const isMobile = useIsMobile();
   const [filters, setFilters] = useState<FilterValues>({});
   const [sortBy, setSortBy] = useState<keyof Season>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  
+
   // --- Estados para o modal de exclusão ---
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [seasonToDelete, setSeasonToDelete] = useState<Season | null>(null);
@@ -281,20 +320,20 @@ export const SeasonsTab = ({
       let bValue: any = b[sortBy];
 
       // Tratamento especial para diferentes tipos de dados
-      if (sortBy === 'startDate' || sortBy === 'endDate') {
+      if (sortBy === "startDate" || sortBy === "endDate") {
         // Usar função utilitária para comparar datas
         const comparison = compareDates(aValue, bValue);
-        return sortOrder === 'asc' ? comparison : -comparison;
-      } else if (typeof aValue === 'string') {
+        return sortOrder === "asc" ? comparison : -comparison;
+      } else if (typeof aValue === "string") {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
 
       if (aValue < bValue) {
-        return sortOrder === 'asc' ? -1 : 1;
+        return sortOrder === "asc" ? -1 : 1;
       }
       if (aValue > bValue) {
-        return sortOrder === 'asc' ? 1 : -1;
+        return sortOrder === "asc" ? 1 : -1;
       }
       return 0;
     });
@@ -306,12 +345,21 @@ export const SeasonsTab = ({
   const pagination = usePagination(filteredSeasons.length, 5, 1);
   const paginatedDesktopSeasons = useMemo(() => {
     if (isMobile) return [];
-    return filteredSeasons.slice(pagination.info.startIndex, pagination.info.endIndex);
-  }, [isMobile, filteredSeasons, pagination.info.startIndex, pagination.info.endIndex]);
-
+    return filteredSeasons.slice(
+      pagination.info.startIndex,
+      pagination.info.endIndex,
+    );
+  }, [
+    isMobile,
+    filteredSeasons,
+    pagination.info.startIndex,
+    pagination.info.endIndex,
+  ]);
 
   // --- Lógica para Mobile (Scroll Infinito) ---
-  const [visibleMobileSeasons, setVisibleMobileSeasons] = useState<Season[]>([]);
+  const [visibleMobileSeasons, setVisibleMobileSeasons] = useState<Season[]>(
+    [],
+  );
   const [mobilePage, setMobilePage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -327,31 +375,38 @@ export const SeasonsTab = ({
     }
   }, [isMobile, filteredSeasons]);
 
-
   // Intersection Observer para carregar mais no mobile
-  const lastSeasonElementRef = useCallback((node: HTMLElement | null) => {
-    if (loadingMore) return;
-    if (observer.current) observer.current.disconnect();
-    
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
-        setLoadingMore(true);
-        // Timeout para simular uma carga e evitar piscar a tela
-        setTimeout(() => {
-          const newSeasons = filteredSeasons.slice(0, mobilePage * itemsPerPage);
-          setVisibleMobileSeasons(newSeasons);
-          setHasMore(newSeasons.length < filteredSeasons.length);
-          setMobilePage(prev => prev + 1);
-          setLoadingMore(false);
-        }, 300);
-      }
-    });
+  const lastSeasonElementRef = useCallback(
+    (node: HTMLElement | null) => {
+      if (loadingMore) return;
+      if (observer.current) observer.current.disconnect();
 
-    if (node) observer.current.observe(node);
-  }, [loadingMore, hasMore, mobilePage, filteredSeasons]);
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          setLoadingMore(true);
+          // Timeout para simular uma carga e evitar piscar a tela
+          setTimeout(() => {
+            const newSeasons = filteredSeasons.slice(
+              0,
+              mobilePage * itemsPerPage,
+            );
+            setVisibleMobileSeasons(newSeasons);
+            setHasMore(newSeasons.length < filteredSeasons.length);
+            setMobilePage((prev) => prev + 1);
+            setLoadingMore(false);
+          }, 300);
+        }
+      });
+
+      if (node) observer.current.observe(node);
+    },
+    [loadingMore, hasMore, mobilePage, filteredSeasons],
+  );
 
   // Define os dados a serem processados com base no dispositivo
-  const processedSeasons = isMobile ? visibleMobileSeasons : paginatedDesktopSeasons;
+  const processedSeasons = isMobile
+    ? visibleMobileSeasons
+    : paginatedDesktopSeasons;
 
   const handleSort = (column: keyof Season) => {
     if (sortBy === column) {
@@ -403,15 +458,15 @@ export const SeasonsTab = ({
 
     try {
       await SeasonService.delete(seasonToDelete.id);
-      
+
       // Atualizar a lista de temporadas usando o contexto
       removeSeasonFromContext(seasonToDelete.id);
-      
+
       // Fechar o modal
       setShowDeleteDialog(false);
       setSeasonToDelete(null);
     } catch (err: any) {
-      setDeleteError(err.message || 'Erro ao excluir temporada');
+      setDeleteError(err.message || "Erro ao excluir temporada");
     } finally {
       setIsDeleting(false);
     }
@@ -444,33 +499,38 @@ export const SeasonsTab = ({
 
   const getStatusBadge = (status: string) => {
     const statusMap = {
-      'agendado': { color: 'bg-blue-100 text-blue-800', label: 'Agendado' },
-      'em_andamento': { color: 'bg-green-100 text-green-800', label: 'Em andamento' },
-      'cancelado': { color: 'bg-red-100 text-red-800', label: 'Cancelado' },
-      'finalizado': { color: 'bg-gray-100 text-gray-800', label: 'Finalizado' }
+      agendado: { color: "bg-blue-100 text-blue-800", label: "Agendado" },
+      em_andamento: {
+        color: "bg-green-100 text-green-800",
+        label: "Em andamento",
+      },
+      cancelado: { color: "bg-red-100 text-red-800", label: "Cancelado" },
+      finalizado: { color: "bg-gray-100 text-gray-800", label: "Finalizado" },
     };
-    
-    const statusInfo = statusMap[status as keyof typeof statusMap] || { color: 'bg-gray-100 text-gray-800', label: status };
-    
-    return (
-      <Badge className={statusInfo.color}>
-        {statusInfo.label}
-      </Badge>
-    );
+
+    const statusInfo = statusMap[status as keyof typeof statusMap] || {
+      color: "bg-gray-100 text-gray-800",
+      label: status,
+    };
+
+    return <Badge className={statusInfo.color}>{statusInfo.label}</Badge>;
   };
 
   const formatPeriod = (startDate: string, endDate: string) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
-    return `${start.toLocaleDateString('pt-BR')} - ${end.toLocaleDateString('pt-BR')}`;
+    return `${start.toLocaleDateString("pt-BR")} - ${end.toLocaleDateString("pt-BR")}`;
   };
 
-  const handleFiltersChange = useCallback((newFilters: FilterValues) => {
-    setFilters(newFilters);
-    if (!isMobile) {
-      pagination.actions.goToFirstPage();
-    }
-  }, [isMobile, pagination.actions]);
+  const handleFiltersChange = useCallback(
+    (newFilters: FilterValues) => {
+      setFilters(newFilters);
+      if (!isMobile) {
+        pagination.actions.goToFirstPage();
+      }
+    },
+    [isMobile, pagination.actions],
+  );
 
   // Handlers diretos para paginação (não precisam mais de useCallback)
   const handlePageChange = (page: number) => {
@@ -491,7 +551,7 @@ export const SeasonsTab = ({
         description="Crie sua primeira temporada para começar a organizar as competições"
         action={{
           label: "Criar Temporada",
-          onClick: handleAddSeason
+          onClick: handleAddSeason,
         }}
       />
     );
@@ -526,9 +586,16 @@ export const SeasonsTab = ({
         <>
           <div className="space-y-4">
             {processedSeasons.map((season, index) => (
-              <div key={season.id} ref={processedSeasons.length === index + 1 ? lastSeasonElementRef : null}>
-                <SeasonCard 
-                  season={season} 
+              <div
+                key={season.id}
+                ref={
+                  processedSeasons.length === index + 1
+                    ? lastSeasonElementRef
+                    : null
+                }
+              >
+                <SeasonCard
+                  season={season}
                   onAction={handleSeasonAction}
                   getStatusBadge={getStatusBadge}
                   formatPeriod={formatPeriod}
@@ -553,7 +620,7 @@ export const SeasonsTab = ({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead 
+                  <TableHead
                     className="cursor-pointer hover:bg-muted/50 min-w-[200px]"
                     onClick={() => handleSort("name")}
                   >
@@ -566,7 +633,7 @@ export const SeasonsTab = ({
                       )}
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className="cursor-pointer hover:bg-muted/50 text-center"
                     onClick={() => handleSort("status")}
                   >
@@ -579,7 +646,7 @@ export const SeasonsTab = ({
                       )}
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className="cursor-pointer hover:bg-muted/50 text-center"
                     onClick={() => handleSort("startDate")}
                   >
@@ -593,7 +660,7 @@ export const SeasonsTab = ({
                       )}
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className="cursor-pointer hover:bg-muted/50 text-center"
                     onClick={() => handleSort("inscriptionValue")}
                   >
@@ -613,7 +680,10 @@ export const SeasonsTab = ({
               <TableBody>
                 {processedSeasons.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell
+                      colSpan={5}
+                      className="text-center py-8 text-muted-foreground"
+                    >
                       Nenhuma temporada encontrada com os filtros aplicados
                     </TableCell>
                   </TableRow>
@@ -641,7 +711,7 @@ export const SeasonsTab = ({
                       <TableCell className="text-center py-4">
                         {(() => {
                           const paymentInfo = formatPaymentConditions(season);
-                          
+
                           // Verificar se há condições disponíveis
                           if (paymentInfo.conditions.length === 0) {
                             return (
@@ -650,28 +720,32 @@ export const SeasonsTab = ({
                               </div>
                             );
                           }
-                          
+
                           return (
                             <div className="space-y-1">
                               {paymentInfo.hasMultipleConditions ? (
-                                paymentInfo.conditions.map((condition, index) => (
-                                  <div key={index} className="text-sm">
-                                    <div className="font-medium">
-                                      {formatCurrency(condition.value)}
+                                paymentInfo.conditions.map(
+                                  (condition, index) => (
+                                    <div key={index} className="text-sm">
+                                      <div className="font-medium">
+                                        {formatCurrency(condition.value)}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground capitalize">
+                                        {formatInscriptionType(condition.type)}
+                                      </div>
                                     </div>
-                                    <div className="text-xs text-muted-foreground capitalize">
-                                      {formatInscriptionType(condition.type)}
-                                    </div>
-                                  </div>
-                                ))
+                                  ),
+                                )
                               ) : (
                                 <>
                                   <div className="text-sm font-medium">
-                                    {formatCurrency(paymentInfo.conditions[0].value)}
+                                    {formatCurrency(
+                                      paymentInfo.conditions[0].value,
+                                    )}
                                   </div>
-                                  <PaymentConditionsDisplay 
-                                    conditions={paymentInfo.conditions} 
-                                    isCompact={true} 
+                                  <PaymentConditionsDisplay
+                                    conditions={paymentInfo.conditions}
+                                    isCompact={true}
                                   />
                                 </>
                               )}
@@ -682,19 +756,33 @@ export const SeasonsTab = ({
                       <TableCell className="text-center py-4">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                            >
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleSeasonAction("edit", season.id)}>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleSeasonAction("edit", season.id)
+                              }
+                            >
                               Editar
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleSeasonAction("duplicate", season.id)}>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleSeasonAction("duplicate", season.id)
+                              }
+                            >
                               Duplicar
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleSeasonAction("delete", season.id)}
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleSeasonAction("delete", season.id)
+                              }
                               className="text-destructive"
                             >
                               Excluir
@@ -708,7 +796,7 @@ export const SeasonsTab = ({
               </TableBody>
             </Table>
           </div>
-        
+
           {/* Paginação sempre fixada na parte inferior */}
           <div className="flex-shrink-0">
             <Pagination
@@ -733,12 +821,13 @@ export const SeasonsTab = ({
           <DialogHeader>
             <DialogTitle>Confirmar exclusão</DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja excluir a temporada <strong>"{seasonToDelete?.name}"</strong>?
+              Tem certeza que deseja excluir a temporada{" "}
+              <strong>"{seasonToDelete?.name}"</strong>?
               <br />
               Esta ação não pode ser desfeita.
             </DialogDescription>
           </DialogHeader>
-          
+
           {deleteError && (
             <Alert variant="destructive">
               <AlertTitle>Erro ao excluir</AlertTitle>
@@ -747,15 +836,15 @@ export const SeasonsTab = ({
           )}
 
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={cancelDeleteSeason}
               disabled={isDeleting}
             >
               Cancelar
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={confirmDeleteSeason}
               disabled={isDeleting}
             >
@@ -766,4 +855,4 @@ export const SeasonsTab = ({
       </Dialog>
     </div>
   );
-}; 
+};

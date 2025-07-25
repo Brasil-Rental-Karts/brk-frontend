@@ -1,4 +1,4 @@
-import api from '../axios';
+import api from "../axios";
 
 export interface ChampionshipStats {
   id: string;
@@ -34,7 +34,7 @@ export interface PreloadCategoriesResult {
 }
 
 export class AdminStatsService {
-  private static readonly BASE_URL = '/admin-stats';
+  private static readonly BASE_URL = "/admin-stats";
 
   /**
    * Retrieves administrative statistics for the system.
@@ -42,7 +42,9 @@ export class AdminStatsService {
    */
   static async getAdminStats(): Promise<AdminStats> {
     try {
-      const response = await api.get<{ message: string; data: AdminStats }>(AdminStatsService.BASE_URL);
+      const response = await api.get<{ message: string; data: AdminStats }>(
+        AdminStatsService.BASE_URL,
+      );
       return response.data.data;
     } catch (error) {
       console.error("Failed to get admin stats:", error);
@@ -56,9 +58,10 @@ export class AdminStatsService {
    */
   static async preloadUsersCache(): Promise<PreloadUsersResult> {
     try {
-      const response = await api.post<{ message: string; data: PreloadUsersResult }>(
-        `${AdminStatsService.BASE_URL}/cache/users/preload`
-      );
+      const response = await api.post<{
+        message: string;
+        data: PreloadUsersResult;
+      }>(`${AdminStatsService.BASE_URL}/cache/users/preload`);
       return response.data.data;
     } catch (error) {
       console.error("Failed to preload users cache:", error);
@@ -72,13 +75,14 @@ export class AdminStatsService {
    */
   static async updateCategoriesCache(): Promise<PreloadCategoriesResult> {
     try {
-      const response = await api.post<{ message: string; data: PreloadCategoriesResult }>(
-        `${AdminStatsService.BASE_URL}/cache/categories/update`
-      );
+      const response = await api.post<{
+        message: string;
+        data: PreloadCategoriesResult;
+      }>(`${AdminStatsService.BASE_URL}/cache/categories/update`);
       return response.data.data;
     } catch (error) {
       console.error("Failed to update categories cache:", error);
       throw error;
     }
   }
-} 
+}

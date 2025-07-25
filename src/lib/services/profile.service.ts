@@ -1,4 +1,4 @@
-import api from '../axios';
+import api from "../axios";
 
 export interface MemberProfileUpdate {
   [key: string]: any;
@@ -9,13 +9,12 @@ export const ProfileService = {
     try {
       // Wrap the step data in a proper structure expected by the API
       const requestPayload = {
-        profile: data
+        profile: data,
       };
-      
+
       // Log the request payload for debugging
-    
-      
-      const response = await api.put<any>('/member-profiles', requestPayload);
+
+      const response = await api.put<any>("/member-profiles", requestPayload);
       return response.data;
     } catch (error: any) {
       throw error;
@@ -23,7 +22,7 @@ export const ProfileService = {
   },
   getMemberProfile: async (): Promise<any> => {
     try {
-      const response = await api.get<any>('/member-profiles');
+      const response = await api.get<any>("/member-profiles");
       return response.data;
     } catch (error: any) {
       throw error;
@@ -31,9 +30,9 @@ export const ProfileService = {
   },
   deleteAccount: async (): Promise<void> => {
     try {
-      await api.delete('/users/me');
+      await api.delete("/users/me");
     } catch (error: any) {
       throw error;
     }
-  }
-}; 
+  },
+};

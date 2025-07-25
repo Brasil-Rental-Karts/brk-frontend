@@ -1,13 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { CreditCard, ExternalLink, AlertCircle, Shield } from 'lucide-react';
-import { Button } from 'brk-design-system';
-import { Card, CardContent, CardHeader, CardTitle } from 'brk-design-system';
-import { Alert, AlertDescription } from 'brk-design-system';
-import { Badge } from 'brk-design-system';
-import { SeasonRegistration, RegistrationPaymentData, SeasonRegistrationService } from '@/lib/services/season-registration.service';
-import { CreditCardFeesService, CreditCardFeesRate } from '@/lib/services/credit-card-fees.service';
-import { formatCurrency } from '@/utils/currency';
-import { toast } from 'sonner';
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "brk-design-system";
+import { AlertCircle, CreditCard, ExternalLink, Shield } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
+
+import {
+  CreditCardFeesRate,
+  CreditCardFeesService,
+} from "@/lib/services/credit-card-fees.service";
+import {
+  RegistrationPaymentData,
+  SeasonRegistration,
+} from "@/lib/services/season-registration.service";
+import { formatCurrency } from "@/utils/currency";
 
 interface CreditCardPaymentProps {
   paymentData: RegistrationPaymentData;
@@ -18,7 +31,7 @@ interface CreditCardPaymentProps {
 export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
   paymentData,
   registration,
-  onPaymentComplete
+  onPaymentComplete,
 }) => {
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
   const [feeRate, setFeeRate] = useState<CreditCardFeesRate | null>(null);
@@ -29,22 +42,22 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
   useEffect(() => {
     const fetchFees = async () => {
       if (!registration.season?.championshipId) return;
-      
+
       setLoadingFees(true);
       try {
         const installments = paymentData.installmentCount || 1;
         const rate = await creditCardFeesService.getRateForInstallments(
           registration.season.championshipId,
-          installments
+          installments,
         );
         setFeeRate(rate);
       } catch (error) {
-        console.error('Erro ao buscar taxas configuráveis:', error);
+        console.error("Erro ao buscar taxas configuráveis:", error);
         // Usar taxas padrão se não conseguir buscar
         setFeeRate({
           percentageRate: 3.29, // Taxa padrão para 13 a 21 parcelas
           fixedFee: 0.49,
-          isDefault: true
+          isDefault: true,
         });
       } finally {
         setLoadingFees(false);
@@ -56,14 +69,14 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
 
   const handlePaymentRedirect = async () => {
     if (!paymentData.paymentLink) {
-      toast.error('Link de pagamento não disponível');
+      toast.error("Link de pagamento não disponível");
       return;
     }
 
     // Verificar se o valor precisa ser atualizado
     const currentTotal = getTotalAmountWithFees();
     const originalTotal = registration.amount;
-    
+
     // Se o valor original é menor que o valor com taxas, significa que as taxas não foram aplicadas
     // Mas como estamos no CreditCardPayment, sempre vamos mostrar o valor com taxas
     const needsUpdate = false; // Não precisamos atualizar, apenas mostrar o valor correto
@@ -72,15 +85,15 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
       setIsUpdatingPayment(true);
       try {
         // Notificar que está atualizando o valor
-        toast.info('Atualizando valor do pagamento com as taxas do cartão...');
-        
+        toast.info("Atualizando valor do pagamento com as taxas do cartão...");
+
         // Aqui você pode implementar uma chamada para atualizar o valor no backend
         // Por enquanto, vamos apenas mostrar o aviso e continuar
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simular atualização
-        
-        toast.success('Valor atualizado! Redirecionando para pagamento...');
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Simular atualização
+
+        toast.success("Valor atualizado! Redirecionando para pagamento...");
       } catch (error) {
-        toast.error('Erro ao atualizar valor do pagamento');
+        toast.error("Erro ao atualizar valor do pagamento");
         setIsUpdatingPayment(false);
         return;
       }
@@ -88,8 +101,8 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
     }
 
     // Redirecionar para o pagamento
-    window.open(paymentData.paymentLink, '_blank');
-    
+    window.open(paymentData.paymentLink, "_blank");
+
     // Opcional: chamar callback se fornecido
     if (onPaymentComplete) {
       onPaymentComplete();
@@ -105,11 +118,14 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
   };
 
   const getCardType = () => {
-    return 'Cartão de Crédito';
+    return "Cartão de Crédito";
   };
 
   // Função para calcular o valor total com taxas configuráveis
-  const calculateTotalWithConfigurableFees = (baseTotal: number, installments: number) => {
+  const calculateTotalWithConfigurableFees = (
+    baseTotal: number,
+    installments: number,
+  ) => {
     if (!feeRate) {
       // Se não houver taxa configurada, retornar o valor base
       return baseTotal;
@@ -120,7 +136,10 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
   };
 
   // Função para calcular o valor base a partir do total com taxas
-  const calculateBaseFromTotal = (totalWithFees: number, installments: number) => {
+  const calculateBaseFromTotal = (
+    totalWithFees: number,
+    installments: number,
+  ) => {
     if (!feeRate) {
       // Se não houver taxa configurada, retornar o valor total
       return totalWithFees;
@@ -129,7 +148,8 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
     // Fórmula: total = base + (base * taxa%) + taxa_fixa
     // total = base * (1 + taxa%) + taxa_fixa
     // base = (total - taxa_fixa) / (1 + taxa%)
-    const baseAmount = (totalWithFees - feeRate.fixedFee) / (1 + percentageRateDecimal);
+    const baseAmount =
+      (totalWithFees - feeRate.fixedFee) / (1 + percentageRateDecimal);
     return baseAmount;
   };
 
@@ -163,7 +183,7 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
       }
       return `Pagamento à vista (taxa ${feeRate.percentageRate}% + R$ ${Number(feeRate.fixedFee || 0).toFixed(2)})`;
     } catch (err) {
-      return 'Taxa de cartão de crédito não configurada. Solicite ao administrador.';
+      return "Taxa de cartão de crédito não configurada. Solicite ao administrador.";
     }
   };
 
@@ -183,7 +203,8 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
             <AlertDescription className="text-blue-800">
               <strong>Redirecionamento para pagamento seguro</strong>
               <br />
-              Você será redirecionado para o ambiente seguro do Asaas para finalizar o pagamento.
+              Você será redirecionado para o ambiente seguro do Asaas para
+              finalizar o pagamento.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -203,21 +224,17 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
                 {formatCurrency(getTotalAmountWithFees())}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {loadingFees ? (
-                  'Carregando taxas...'
-                ) : feeRate ? (
-                  `Inclui taxa de ${feeRate.percentageRate}% + R$ ${Number(feeRate.fixedFee || 0).toFixed(2)}${feeRate.isDefault ? ' (padrão)' : ''}`
-                ) : (
-                  `Inclui taxa de 3.29% + R$ 0,49`
-                )}
+                {loadingFees
+                  ? "Carregando taxas..."
+                  : feeRate
+                    ? `Inclui taxa de ${feeRate.percentageRate}% + R$ ${Number(feeRate.fixedFee || 0).toFixed(2)}${feeRate.isDefault ? " (padrão)" : ""}`
+                    : `Inclui taxa de 3.29% + R$ 0,49`}
               </p>
             </div>
-            
+
             <div className="text-center p-4 bg-muted rounded-lg">
               <p className="text-sm text-muted-foreground">Parcelamento</p>
-              <p className="text-lg font-semibold">
-                {getInstallmentText()}
-              </p>
+              <p className="text-lg font-semibold">{getInstallmentText()}</p>
             </div>
           </div>
 
@@ -226,20 +243,43 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium text-orange-900 mb-1">Taxas do Gateway de Pagamento</p>
+                <p className="font-medium text-orange-900 mb-1">
+                  Taxas do Gateway de Pagamento
+                </p>
                 <div className="text-orange-800 space-y-1">
                   <p>• Valor da inscrição: {formatCurrency(getBaseAmount())}</p>
                   {feeRate ? (
                     <>
-                      <p>• Taxa configurada: {feeRate.percentageRate}% + R$ {Number(feeRate.fixedFee || 0).toFixed(2)}</p>
-                      <p>• <strong>Total a pagar: {formatCurrency(getTotalAmountWithFees())}</strong></p>
+                      <p>
+                        • Taxa configurada: {feeRate.percentageRate}% + R${" "}
+                        {Number(feeRate.fixedFee || 0).toFixed(2)}
+                      </p>
+                      <p>
+                        •{" "}
+                        <strong>
+                          Total a pagar:{" "}
+                          {formatCurrency(getTotalAmountWithFees())}
+                        </strong>
+                      </p>
                     </>
                   ) : (
                     <>
-                      <p>• <strong>Taxa não configurada para este campeonato</strong></p>
-                      <p>• <strong>Total a pagar: {formatCurrency(getTotalAmountWithFees())}</strong></p>
+                      <p>
+                        •{" "}
+                        <strong>
+                          Taxa não configurada para este campeonato
+                        </strong>
+                      </p>
+                      <p>
+                        •{" "}
+                        <strong>
+                          Total a pagar:{" "}
+                          {formatCurrency(getTotalAmountWithFees())}
+                        </strong>
+                      </p>
                       <p className="text-xs text-orange-700 mt-2">
-                        ⚠️ Solicite ao administrador que configure as taxas no painel
+                        ⚠️ Solicite ao administrador que configure as taxas no
+                        painel
                       </p>
                     </>
                   )}
@@ -259,10 +299,12 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
             <div className="flex items-start gap-3">
               <Shield className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium text-green-900 mb-1">Pagamento 100% seguro</p>
+                <p className="font-medium text-green-900 mb-1">
+                  Pagamento 100% seguro
+                </p>
                 <p className="text-green-800">
-                  Seus dados são protegidos com criptografia SSL de 256 bits.
-                  O pagamento é processado pelo Asaas, certificado PCI DSS.
+                  Seus dados são protegidos com criptografia SSL de 256 bits. O
+                  pagamento é processado pelo Asaas, certificado PCI DSS.
                 </p>
               </div>
             </div>
@@ -329,7 +371,9 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
               1
             </div>
             <div>
-              <p className="font-medium">Clique em "Pagar com {getCardType()}"</p>
+              <p className="font-medium">
+                Clique em "Pagar com {getCardType()}"
+              </p>
               <p className="text-sm text-muted-foreground">
                 Você será redirecionado para o ambiente seguro do Asaas
               </p>
@@ -381,14 +425,22 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium text-blue-900 mb-1">Informações importantes:</p>
+                <p className="font-medium text-blue-900 mb-1">
+                  Informações importantes:
+                </p>
                 <ul className="text-blue-800 space-y-1">
                   <li>• A aprovação do pagamento é imediata</li>
                   <li>• Certifique-se de que o cartão tem limite disponível</li>
                   <li>• Em caso de recusa, verifique os dados informados</li>
                   <li>• O ambiente de pagamento é 100% seguro e certificado</li>
                   <li>• Parcelamento disponível conforme política do cartão</li>
-                  <li>• <strong>O valor final inclui as taxas do gateway de pagamento Asaas</strong></li>
+                  <li>
+                    •{" "}
+                    <strong>
+                      O valor final inclui as taxas do gateway de pagamento
+                      Asaas
+                    </strong>
+                  </li>
                 </ul>
               </div>
             </div>
@@ -397,4 +449,4 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
       </Card>
     </div>
   );
-}; 
+};

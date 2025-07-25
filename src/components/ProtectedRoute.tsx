@@ -1,7 +1,8 @@
-import { useAuth } from "@/contexts/AuthContext";
-import { Navigate, Outlet } from "react-router-dom";
 import { ReactNode } from "react";
+import { Navigate, Outlet } from "react-router-dom";
+
 import { Loading } from "@/components/ui/loading";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ProtectedRouteProps {
   redirectPath?: string;
@@ -10,18 +11,14 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute = ({
   redirectPath = "/",
-  children
+  children,
 }: ProtectedRouteProps) => {
   const { isAuthenticated, isLoading } = useAuth();
 
   // While checking authentication status, we can show a loading spinner
   if (isLoading) {
     return (
-      <Loading 
-        type="spinner" 
-        size="lg" 
-        message="Verificando autenticação..."
-      />
+      <Loading type="spinner" size="lg" message="Verificando autenticação..." />
     );
   }
 
@@ -32,4 +29,4 @@ export const ProtectedRoute = ({
 
   // If authenticated, render the children or outlet
   return children ? <>{children}</> : <Outlet />;
-}; 
+};

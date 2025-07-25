@@ -1,19 +1,28 @@
-import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { GridType, GridTypeEnum } from "@/lib/types/grid-type";
-import { GridTypeService } from "@/lib/services/grid-type.service";
-import { GridTypeFormStandalone } from "@/components/championship/settings/GridTypeFormStandalone";
-import { useChampionshipData } from "@/contexts/ChampionshipContext";
-import { FormScreen } from "@/components/ui/FormScreen";
+import { useCallback } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+
 import { FormSectionConfig } from "@/components/ui/dynamic-form";
+import { FormScreen } from "@/components/ui/FormScreen";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
+import { GridTypeService } from "@/lib/services/grid-type.service";
+import { GridType, GridTypeEnum } from "@/lib/types/grid-type";
 
 export const CreateGridType = () => {
-  const { championshipId, gridTypeId } = useParams<{ championshipId: string; gridTypeId?: string }>();
+  const { championshipId, gridTypeId } = useParams<{
+    championshipId: string;
+    gridTypeId?: string;
+  }>();
   const navigate = useNavigate();
-  
+
   // Usar o contexto de dados do campeonato
-  const { getGridTypes, addGridType, updateGridType, loading: contextLoading, error: contextError } = useChampionshipData();
-  
+  const {
+    getGridTypes,
+    addGridType,
+    updateGridType,
+    loading: contextLoading,
+    error: contextError,
+  } = useChampionshipData();
+
   const isEditing = !!gridTypeId;
 
   // Configuração do formulário
@@ -22,35 +31,66 @@ export const CreateGridType = () => {
       section: "Configurações do Grid",
       detail: "Configure as propriedades do tipo de grid",
       fields: [
-        { id: "name", name: "Nome", type: "input", mandatory: true, max_char: 100, placeholder: "Ex: Grid Principal" },
-        { id: "description", name: "Descrição", type: "textarea", mandatory: false, placeholder: "Descrição opcional do tipo de grid", max_char: 500 },
-        { id: "type", name: "Tipo", type: "select", mandatory: true, options: [
-          { value: GridTypeEnum.SUPER_POLE, description: "Super Pole" },
-          { value: GridTypeEnum.INVERTED, description: "Invertido" },
-          { value: GridTypeEnum.INVERTED_PARTIAL, description: "Invertido + 10" },
-          { value: GridTypeEnum.QUALIFYING_SESSION, description: "Classificação 5min" }
-        ]},
+        {
+          id: "name",
+          name: "Nome",
+          type: "input",
+          mandatory: true,
+          max_char: 100,
+          placeholder: "Ex: Grid Principal",
+        },
+        {
+          id: "description",
+          name: "Descrição",
+          type: "textarea",
+          mandatory: false,
+          placeholder: "Descrição opcional do tipo de grid",
+          max_char: 500,
+        },
+        {
+          id: "type",
+          name: "Tipo",
+          type: "select",
+          mandatory: true,
+          options: [
+            { value: GridTypeEnum.SUPER_POLE, description: "Super Pole" },
+            { value: GridTypeEnum.INVERTED, description: "Invertido" },
+            {
+              value: GridTypeEnum.INVERTED_PARTIAL,
+              description: "Invertido + 10",
+            },
+            {
+              value: GridTypeEnum.QUALIFYING_SESSION,
+              description: "Classificação 5min",
+            },
+          ],
+        },
         { id: "isActive", name: "Ativo", type: "checkbox" },
       ],
     },
   ];
 
   // Carregar dados do tipo de grid se estiver editando
-  const fetchGridType = useCallback(async (id: string) => {
-    try {
-      // Buscar do contexto em vez do backend
-      const gridTypes = getGridTypes();
-      const foundGridType = gridTypes.find(gt => gt.id === id);
-      
-      if (!foundGridType) {
-        throw new Error('Tipo de grid não encontrado');
+  const fetchGridType = useCallback(
+    async (id: string) => {
+      try {
+        // Buscar do contexto em vez do backend
+        const gridTypes = getGridTypes();
+        const foundGridType = gridTypes.find((gt) => gt.id === id);
+
+        if (!foundGridType) {
+          throw new Error("Tipo de grid não encontrado");
+        }
+
+        return foundGridType;
+      } catch (err: unknown) {
+        const errorMessage =
+          err instanceof Error ? err.message : "Erro ao carregar tipo de grid";
+        throw new Error(errorMessage);
       }
-      
-      return foundGridType;
-    } catch (err: any) {
-      throw new Error(err.message || 'Erro ao carregar tipo de grid');
-    }
-  }, [getGridTypes]);
+    },
+    [getGridTypes],
+  );
 
   // Transformar dados para o formulário
   const transformInitialData = useCallback((data: GridType) => {
@@ -73,24 +113,34 @@ export const CreateGridType = () => {
   }, []);
 
   // Criar grid type
-  const createGridType = useCallback(async (data: any) => {
-    if (!championshipId) throw new Error('ID do campeonato não encontrado');
-    
-    const newGridType = await GridTypeService.create(championshipId, data);
-    // Adicionar o novo grid type ao contexto
-    addGridType(newGridType);
-    return newGridType;
-  }, [championshipId, addGridType]);
+  const createGridType = useCallback(
+    async (data: any) => {
+      if (!championshipId) throw new Error("ID do campeonato não encontrado");
+
+      const newGridType = await GridTypeService.create(championshipId, data);
+      // Adicionar o novo grid type ao contexto
+      addGridType(newGridType);
+      return newGridType;
+    },
+    [championshipId, addGridType],
+  );
 
   // Atualizar grid type
-  const updateGridTypeData = useCallback(async (id: string, data: any) => {
-    if (!championshipId) throw new Error('ID do campeonato não encontrado');
-    
-    const updatedGridType = await GridTypeService.update(championshipId, id, data);
-    // Atualizar o contexto com o grid type atualizado
-    updateGridType(id, updatedGridType);
-    return updatedGridType;
-  }, [championshipId, updateGridType]);
+  const updateGridTypeData = useCallback(
+    async (id: string, data: any) => {
+      if (!championshipId) throw new Error("ID do campeonato não encontrado");
+
+      const updatedGridType = await GridTypeService.update(
+        championshipId,
+        id,
+        data,
+      );
+      // Atualizar o contexto com o grid type atualizado
+      updateGridType(id, updatedGridType);
+      return updatedGridType;
+    },
+    [championshipId, updateGridType],
+  );
 
   // Handlers
   const onSuccess = useCallback(() => {
@@ -111,9 +161,10 @@ export const CreateGridType = () => {
   return (
     <FormScreen
       title={isEditing ? "Editar Tipo de Grid" : "Novo Tipo de Grid"}
-      description={isEditing 
-        ? "Modifique as configurações do tipo de grid"
-        : "Configure um novo tipo de grid para o campeonato"
+      description={
+        isEditing
+          ? "Modifique as configurações do tipo de grid"
+          : "Configure um novo tipo de grid para o campeonato"
       }
       formId="grid-type-form"
       formConfig={formConfig}
@@ -125,8 +176,16 @@ export const CreateGridType = () => {
       transformSubmitData={transformSubmitData}
       onSuccess={onSuccess}
       onCancel={onCancel}
-      successMessage={isEditing ? "Tipo de grid atualizado com sucesso!" : "Tipo de grid criado com sucesso!"}
-      errorMessage={isEditing ? "Erro ao atualizar tipo de grid." : "Erro ao criar tipo de grid."}
+      successMessage={
+        isEditing
+          ? "Tipo de grid atualizado com sucesso!"
+          : "Tipo de grid criado com sucesso!"
+      }
+      errorMessage={
+        isEditing
+          ? "Erro ao atualizar tipo de grid."
+          : "Erro ao criar tipo de grid."
+      }
     />
   );
-}; 
+};

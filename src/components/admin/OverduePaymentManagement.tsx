@@ -1,32 +1,54 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from 'brk-design-system';
-import { Input } from 'brk-design-system';
-import { Label } from 'brk-design-system';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from 'brk-design-system';
-import { Alert, AlertDescription } from 'brk-design-system';
-import { Badge } from 'brk-design-system';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from 'brk-design-system';
-import { Calendar, CreditCard, RefreshCw, AlertTriangle, CheckCircle, Clock, Search, Filter } from 'lucide-react';
-import { usePaymentManagement } from '@/hooks/use-payment-management';
-import { formatCurrency } from '@/utils/currency';
-import { OverduePayment } from '@/lib/services/payment-management.service';
-import { formatDateToBrazilian } from '@/utils/date';
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+} from "brk-design-system";
+import {
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  CreditCard,
+  RefreshCw,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { usePaymentManagement } from "@/hooks/use-payment-management";
+import { OverduePayment } from "@/lib/services/payment-management.service";
+import { formatCurrency } from "@/utils/currency";
+import { formatDateToBrazilian } from "@/utils/date";
 
 interface OverduePaymentManagementProps {
   registrationId: string;
   onPaymentReactivated?: () => void;
 }
 
-export const OverduePaymentManagement = ({ 
-  registrationId, 
-  onPaymentReactivated 
+export const OverduePaymentManagement = ({
+  registrationId,
+  onPaymentReactivated,
 }: OverduePaymentManagementProps) => {
   const [overduePayments, setOverduePayments] = useState<OverduePayment[]>([]);
-  const [selectedPayment, setSelectedPayment] = useState<OverduePayment | null>(null);
-  const [newDueDate, setNewDueDate] = useState('');
+  const [selectedPayment, setSelectedPayment] = useState<OverduePayment | null>(
+    null,
+  );
+  const [newDueDate, setNewDueDate] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  
-  const { loading, error, getOverduePayments, reactivateOverduePayment } = usePaymentManagement();
+
+  const { loading, error, getOverduePayments, reactivateOverduePayment } =
+    usePaymentManagement();
 
   useEffect(() => {
     loadOverduePayments();
@@ -37,7 +59,7 @@ export const OverduePaymentManagement = ({
       const payments = await getOverduePayments(registrationId);
       setOverduePayments(payments);
     } catch (error) {
-      console.error('Erro ao carregar pagamentos vencidos:', error);
+      console.error("Erro ao carregar pagamentos vencidos:", error);
     }
   };
 
@@ -48,15 +70,15 @@ export const OverduePaymentManagement = ({
       await reactivateOverduePayment(selectedPayment.id, newDueDate);
       setIsDialogOpen(false);
       setSelectedPayment(null);
-      setNewDueDate('');
-      
+      setNewDueDate("");
+
       // Recarregar pagamentos vencidos
       await loadOverduePayments();
-      
+
       // Notificar componente pai
       onPaymentReactivated?.();
     } catch (error) {
-      console.error('Erro ao reativar pagamento:', error);
+      console.error("Erro ao reativar pagamento:", error);
     }
   };
 
@@ -65,17 +87,17 @@ export const OverduePaymentManagement = ({
     // Definir data padrão como 7 dias a partir de hoje
     const defaultDate = new Date();
     defaultDate.setDate(defaultDate.getDate() + 7);
-    setNewDueDate(defaultDate.toISOString().split('T')[0]);
+    setNewDueDate(defaultDate.toISOString().split("T")[0]);
     setIsDialogOpen(true);
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'OVERDUE':
+      case "OVERDUE":
         return <AlertTriangle className="h-4 w-4 text-red-500" />;
-      case 'PENDING':
+      case "PENDING":
         return <Clock className="h-4 w-4 text-yellow-500" />;
-      case 'CONFIRMED':
+      case "CONFIRMED":
         return <CheckCircle className="h-4 w-4 text-green-500" />;
       default:
         return <Clock className="h-4 w-4 text-gray-500" />;
@@ -84,11 +106,11 @@ export const OverduePaymentManagement = ({
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'OVERDUE':
+      case "OVERDUE":
         return <Badge variant="destructive">Vencido</Badge>;
-      case 'PENDING':
+      case "PENDING":
         return <Badge variant="secondary">Pendente</Badge>;
-      case 'CONFIRMED':
+      case "CONFIRMED":
         return <Badge variant="default">Confirmado</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
@@ -100,7 +122,9 @@ export const OverduePaymentManagement = ({
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-center justify-center py-8">
-            <div className="text-muted-foreground">Carregando pagamentos vencidos...</div>
+            <div className="text-muted-foreground">
+              Carregando pagamentos vencidos...
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -113,8 +137,12 @@ export const OverduePaymentManagement = ({
         <CardContent className="pt-6">
           <div className="text-center text-muted-foreground py-8">
             <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
-            <p className="text-lg font-medium">Nenhum pagamento vencido encontrado</p>
-            <p className="text-sm">Todos os pagamentos estão em dia ou já foram pagos.</p>
+            <p className="text-lg font-medium">
+              Nenhum pagamento vencido encontrado
+            </p>
+            <p className="text-sm">
+              Todos os pagamentos estão em dia ou já foram pagos.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -130,7 +158,8 @@ export const OverduePaymentManagement = ({
             Pagamentos Vencidos
           </CardTitle>
           <CardDescription>
-            Gerencie faturas vencidas por PIX. Você pode reativar faturas alterando a data de vencimento e gerando um novo QR Code.
+            Gerencie faturas vencidas por PIX. Você pode reativar faturas
+            alterando a data de vencimento e gerando um novo QR Code.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -149,9 +178,9 @@ export const OverduePaymentManagement = ({
                     {getStatusIcon(payment.status)}
                     <span className="font-medium">
                       Parcela {payment.installmentNumber || 1}
-                      {payment.installmentCount && payment.installmentCount > 1 && 
-                        ` de ${payment.installmentCount}`
-                      }
+                      {payment.installmentCount &&
+                        payment.installmentCount > 1 &&
+                        ` de ${payment.installmentCount}`}
                     </span>
                   </div>
                   {getStatusBadge(payment.status)}
@@ -161,25 +190,30 @@ export const OverduePaymentManagement = ({
                   <div>
                     <span className="text-muted-foreground">Piloto:</span>
                     <div className="font-semibold">
-                      {payment.registration?.user?.name || 'Nome não disponível'}
+                      {payment.registration?.user?.name ||
+                        "Nome não disponível"}
                     </div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Competição:</span>
                     <div className="font-semibold">
-                      {payment.registration?.season?.championship?.name && payment.registration?.season?.name 
+                      {payment.registration?.season?.championship?.name &&
+                      payment.registration?.season?.name
                         ? `${payment.registration.season.championship.name} / ${payment.registration.season.name}`
-                        : 'Não disponível'
-                      }
+                        : "Não disponível"}
                     </div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Valor:</span>
-                    <div className="font-semibold">{formatCurrency(payment.value || 0)}</div>
+                    <div className="font-semibold">
+                      {formatCurrency(payment.value || 0)}
+                    </div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Vencimento:</span>
-                    <div className="font-semibold">{formatDateToBrazilian(payment.dueDate)}</div>
+                    <div className="font-semibold">
+                      {formatDateToBrazilian(payment.dueDate)}
+                    </div>
                   </div>
                 </div>
 
@@ -204,7 +238,8 @@ export const OverduePaymentManagement = ({
           <DialogHeader>
             <DialogTitle>Reativar Fatura Vencida</DialogTitle>
             <DialogDescription>
-              Defina uma nova data de vencimento para reativar a fatura. Um novo QR Code PIX será gerado automaticamente.
+              Defina uma nova data de vencimento para reativar a fatura. Um novo
+              QR Code PIX será gerado automaticamente.
             </DialogDescription>
           </DialogHeader>
 
@@ -219,25 +254,32 @@ export const OverduePaymentManagement = ({
                   <div>
                     <span className="text-muted-foreground">Piloto:</span>
                     <div className="font-semibold">
-                      {selectedPayment.registration?.user?.name || 'Nome não disponível'}
+                      {selectedPayment.registration?.user?.name ||
+                        "Nome não disponível"}
                     </div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Valor:</span>
-                    <div className="font-semibold">{formatCurrency(selectedPayment.value || 0)}</div>
+                    <div className="font-semibold">
+                      {formatCurrency(selectedPayment.value || 0)}
+                    </div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Competição:</span>
                     <div className="font-semibold">
-                      {selectedPayment.registration?.season?.championship?.name && selectedPayment.registration?.season?.name 
+                      {selectedPayment.registration?.season?.championship
+                        ?.name && selectedPayment.registration?.season?.name
                         ? `${selectedPayment.registration.season.championship.name} / ${selectedPayment.registration.season.name}`
-                        : 'Não disponível'
-                      }
+                        : "Não disponível"}
                     </div>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Vencimento Atual:</span>
-                    <div className="font-semibold">{formatDateToBrazilian(selectedPayment.dueDate)}</div>
+                    <span className="text-muted-foreground">
+                      Vencimento Atual:
+                    </span>
+                    <div className="font-semibold">
+                      {formatDateToBrazilian(selectedPayment.dueDate)}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -250,7 +292,7 @@ export const OverduePaymentManagement = ({
                 type="date"
                 value={newDueDate}
                 onChange={(e) => setNewDueDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
+                min={new Date().toISOString().split("T")[0]}
               />
               <p className="text-xs text-muted-foreground">
                 A nova data deve ser posterior à data atual.
@@ -288,4 +330,4 @@ export const OverduePaymentManagement = ({
       </Dialog>
     </>
   );
-}; 
+};

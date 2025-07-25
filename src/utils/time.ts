@@ -7,15 +7,13 @@
  */
 export const convertTimeToMs = (time: string): number => {
   if (!time) return 0;
-  
-  const [minutes, seconds] = time.includes(':') 
-    ? time.split(':') 
-    : ['0', time];
-  
-  const [secs, ms] = seconds.includes('.') 
-    ? seconds.split('.') 
-    : [seconds, '0'];
-  
+
+  const [minutes, seconds] = time.includes(":") ? time.split(":") : ["0", time];
+
+  const [secs, ms] = seconds.includes(".")
+    ? seconds.split(".")
+    : [seconds, "0"];
+
   return parseFloat(minutes) * 60000 + parseFloat(secs) * 1000 + parseFloat(ms);
 };
 
@@ -26,8 +24,8 @@ export const convertMsToTime = (ms: number): string => {
   const minutes = Math.floor(ms / 60000);
   const seconds = Math.floor((ms % 60000) / 1000);
   const milliseconds = Math.floor(ms % 1000);
-  
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
+
+  return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}.${milliseconds.toString().padStart(3, "0")}`;
 };
 
 /**
@@ -36,8 +34,8 @@ export const convertMsToTime = (ms: number): string => {
 export const convertSecondsToTime = (seconds: number): string => {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
-  
-  return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}.000`;
+
+  return `${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}.000`;
 };
 
 /**
@@ -46,7 +44,7 @@ export const convertSecondsToTime = (seconds: number): string => {
  */
 export const calculateTotalTimeWithPenalties = (
   savedTime: string | undefined,
-  penaltyTimeSeconds: number | undefined
+  penaltyTimeSeconds: number | undefined,
 ): {
   originalTime: string | undefined; // Tempo real da corrida (sem punições)
   penaltyTime: string | undefined; // Tempo de punição
@@ -58,7 +56,7 @@ export const calculateTotalTimeWithPenalties = (
       originalTime: undefined,
       penaltyTime: undefined,
       finalTime: undefined,
-      hasPenalty: false
+      hasPenalty: false,
     };
   }
 
@@ -68,9 +66,11 @@ export const calculateTotalTimeWithPenalties = (
 
   return {
     originalTime: convertMsToTime(originalTimeMs), // Tempo real da corrida
-    penaltyTime: penaltyTimeSeconds ? convertSecondsToTime(penaltyTimeSeconds) : undefined,
+    penaltyTime: penaltyTimeSeconds
+      ? convertSecondsToTime(penaltyTimeSeconds)
+      : undefined,
     finalTime: savedTime, // Tempo salvo na base (já inclui punições)
-    hasPenalty: penaltyTimeSeconds ? penaltyTimeSeconds > 0 : false
+    hasPenalty: penaltyTimeSeconds ? penaltyTimeSeconds > 0 : false,
   };
 };
 
@@ -82,10 +82,10 @@ export const formatTimeWithPenalty = (
   savedTime: string | undefined,
   penaltyTimeSeconds: number | undefined,
   isImportMode: boolean = false,
-  hasImportedPenalties: boolean = false
+  hasImportedPenalties: boolean = false,
 ): string => {
-  if (!savedTime) return '-';
-  
+  if (!savedTime) return "-";
+
   if (isImportMode || hasImportedPenalties) {
     // Quando há punições importadas: o tempo salvo já é o tempo real (sem punições)
     // Apenas mostramos o tempo salvo + punição
@@ -93,7 +93,7 @@ export const formatTimeWithPenalty = (
       const penaltyTime = convertSecondsToTime(penaltyTimeSeconds);
       return `${savedTime} (+${penaltyTime})`;
     }
-    
+
     return savedTime;
   } else {
     // Sem punições importadas: tempo salvo é o tempo real, então apenas mostramos o tempo salvo + punição se houver
@@ -101,7 +101,7 @@ export const formatTimeWithPenalty = (
       const penaltyTime = convertSecondsToTime(penaltyTimeSeconds);
       return `${savedTime} (+${penaltyTime})`;
     }
-    
-    return savedTime || '-';
+
+    return savedTime || "-";
   }
-}; 
+};

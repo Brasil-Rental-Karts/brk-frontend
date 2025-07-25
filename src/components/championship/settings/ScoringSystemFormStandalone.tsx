@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from "react";
-import { Button } from "brk-design-system";
-import { Input } from "brk-design-system";
-import { Checkbox } from "brk-design-system";
-import { X, Plus } from "lucide-react";
-import { ScoringSystem, ScoringSystemData } from "@/lib/services/scoring-system.service";
+import { Button, Checkbox, Input } from "brk-design-system";
+import { Plus, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
 import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  ScoringSystem,
+  ScoringSystemData,
+} from "@/lib/services/scoring-system.service";
 
 interface ScoringSystemFormStandaloneProps {
   championshipId: string;
@@ -16,7 +18,7 @@ interface ScoringSystemFormStandaloneProps {
 
 const SCORING_TEMPLATES = [
   {
-    label: 'Kart Brasileiro',
+    label: "Kart Brasileiro",
     positions: [
       { position: 1, points: 20 },
       { position: 2, points: 17 },
@@ -32,19 +34,19 @@ const SCORING_TEMPLATES = [
       { position: 12, points: 4 },
       { position: 13, points: 3 },
       { position: 14, points: 2 },
-      { position: 15, points: 1 }
-    ]
+      { position: 15, points: 1 },
+    ],
   },
   {
-    label: 'Top 5',
+    label: "Top 5",
     positions: [
       { position: 1, points: 5 },
       { position: 2, points: 4 },
       { position: 3, points: 3 },
       { position: 4, points: 2 },
-      { position: 5, points: 1 }
-    ]
-  }
+      { position: 5, points: 1 },
+    ],
+  },
 ];
 
 export const ScoringSystemFormStandalone = ({
@@ -52,18 +54,18 @@ export const ScoringSystemFormStandalone = ({
   initialData,
   onSubmit,
   onCancel,
-  loading = false
+  loading = false,
 }: ScoringSystemFormStandaloneProps) => {
   const isMobile = useIsMobile();
   const [formData, setFormData] = useState<ScoringSystemData>({
-    name: '',
+    name: "",
     positions: [{ position: 1, points: 25 }],
     polePositionPoints: 0,
     fastestLapPoints: 0,
     isActive: true,
-    isDefault: false
+    isDefault: false,
   });
-  
+
   const [error, setError] = useState<string | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
   const positionsContainerRef = useRef<HTMLDivElement>(null);
@@ -80,16 +82,16 @@ export const ScoringSystemFormStandalone = ({
         polePositionPoints: initialData.polePositionPoints,
         fastestLapPoints: initialData.fastestLapPoints,
         isActive: initialData.isActive,
-        isDefault: initialData.isDefault
+        isDefault: initialData.isDefault,
       });
     } else {
       setFormData({
-        name: '',
+        name: "",
         positions: [{ position: 1, points: 25 }],
         polePositionPoints: 0,
         fastestLapPoints: 0,
         isActive: true,
-        isDefault: false
+        isDefault: false,
       });
     }
     setError(null);
@@ -97,11 +99,14 @@ export const ScoringSystemFormStandalone = ({
 
   // Scroll automático quando adicionar posições
   useEffect(() => {
-    if (formData.positions.length > previousPositionsCount && positionsContainerRef.current) {
+    if (
+      formData.positions.length > previousPositionsCount &&
+      positionsContainerRef.current
+    ) {
       setTimeout(() => {
         positionsContainerRef.current?.scrollTo({
           top: positionsContainerRef.current.scrollHeight,
-          behavior: 'smooth'
+          behavior: "smooth",
         });
       }, 100);
     }
@@ -127,10 +132,10 @@ export const ScoringSystemFormStandalone = ({
     }
   };
 
-  const applyTemplate = (template: typeof SCORING_TEMPLATES[0]) => {
-    setFormData(prev => ({
+  const applyTemplate = (template: (typeof SCORING_TEMPLATES)[0]) => {
+    setFormData((prev) => ({
       ...prev,
-      positions: template.positions
+      positions: template.positions,
     }));
     setShowTemplates(false);
   };
@@ -148,10 +153,10 @@ export const ScoringSystemFormStandalone = ({
               size="sm"
               onClick={() => setShowTemplates(!showTemplates)}
             >
-              {showTemplates ? 'Ocultar' : 'Mostrar'} Templates
+              {showTemplates ? "Ocultar" : "Mostrar"} Templates
             </Button>
           </div>
-          
+
           {showTemplates && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 border rounded-lg bg-muted/30">
               {SCORING_TEMPLATES.map((template, idx) => (
@@ -170,8 +175,11 @@ export const ScoringSystemFormStandalone = ({
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1 break-words whitespace-normal leading-relaxed">
-                      {template.positions.slice(0, 3).map(pos => `${pos.position}º: ${pos.points}pts`).join(', ')}
-                      {template.positions.length > 3 && '...'}
+                      {template.positions
+                        .slice(0, 3)
+                        .map((pos) => `${pos.position}º: ${pos.points}pts`)
+                        .join(", ")}
+                      {template.positions.length > 3 && "..."}
                     </p>
                   </div>
                 </Button>
@@ -190,7 +198,9 @@ export const ScoringSystemFormStandalone = ({
           </label>
           <Input
             value={formData.name}
-            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, name: e.target.value }))
+            }
             placeholder="Ex: Fórmula 1, Kart Brasileiro, etc."
             disabled={loading}
             className="mt-1"
@@ -207,11 +217,17 @@ export const ScoringSystemFormStandalone = ({
               size="sm"
               onClick={() => {
                 const prevPositions = formData.positions;
-                const lastPoints = prevPositions.length > 0 ? prevPositions[prevPositions.length - 1].points : 0;
+                const lastPoints =
+                  prevPositions.length > 0
+                    ? prevPositions[prevPositions.length - 1].points
+                    : 0;
                 const newPoints = Math.max(0, lastPoints - 1);
-                setFormData(prev => ({
+                setFormData((prev) => ({
                   ...prev,
-                  positions: [...prev.positions, { position: prev.positions.length + 1, points: newPoints }]
+                  positions: [
+                    ...prev.positions,
+                    { position: prev.positions.length + 1, points: newPoints },
+                  ],
                 }));
               }}
             >
@@ -219,10 +235,16 @@ export const ScoringSystemFormStandalone = ({
               Adicionar Posição
             </Button>
           </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-h-60 overflow-y-auto" ref={positionsContainerRef}>
+
+          <div
+            className="grid grid-cols-2 md:grid-cols-4 gap-4 max-h-60 overflow-y-auto"
+            ref={positionsContainerRef}
+          >
             {formData.positions.map((pos, index) => (
-              <div key={index} className="flex items-center gap-2 p-2 border rounded">
+              <div
+                key={index}
+                className="flex items-center gap-2 p-2 border rounded"
+              >
                 <div className="w-8 text-center font-medium text-sm">
                   {index + 1}º
                 </div>
@@ -232,8 +254,14 @@ export const ScoringSystemFormStandalone = ({
                     value={pos.points}
                     onChange={(e) => {
                       const newPositions = [...formData.positions];
-                      newPositions[index] = { ...newPositions[index], points: parseInt(e.target.value) || 0 };
-                      setFormData(prev => ({ ...prev, positions: newPositions }));
+                      newPositions[index] = {
+                        ...newPositions[index],
+                        points: parseInt(e.target.value) || 0,
+                      };
+                      setFormData((prev) => ({
+                        ...prev,
+                        positions: newPositions,
+                      }));
                     }}
                     className="w-full px-2 py-1 text-sm"
                     min="0"
@@ -252,9 +280,12 @@ export const ScoringSystemFormStandalone = ({
                           .filter((_, i) => i !== index)
                           .map((pos, newIndex) => ({
                             ...pos,
-                            position: newIndex + 1
+                            position: newIndex + 1,
                           }));
-                        setFormData(prev => ({ ...prev, positions: newPositions }));
+                        setFormData((prev) => ({
+                          ...prev,
+                          positions: newPositions,
+                        }));
                       }}
                       className="text-destructive hover:text-destructive h-5 w-5 p-0"
                       disabled={loading}
@@ -271,39 +302,49 @@ export const ScoringSystemFormStandalone = ({
         {/* Pontos extras */}
         <div className="space-y-4">
           <h4 className="text-sm font-medium">Pontos Extras</h4>
-          <div className={`${isMobile ? 'space-y-4' : 'grid grid-cols-2 gap-4'}`}>
+          <div
+            className={`${isMobile ? "space-y-4" : "grid grid-cols-2 gap-4"}`}
+          >
             <div className="space-y-2">
               <label className="text-sm font-medium">Pole Position</label>
               <Input
                 type="number"
                 value={formData.polePositionPoints || 0}
-                onChange={(e) => setFormData(prev => ({
-                  ...prev,
-                  polePositionPoints: parseInt(e.target.value) || 0
-                }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    polePositionPoints: parseInt(e.target.value) || 0,
+                  }))
+                }
                 min="0"
                 step="1"
                 placeholder="0"
                 disabled={loading}
               />
-              <p className="text-xs text-muted-foreground">Pontos para quem faz a pole position</p>
+              <p className="text-xs text-muted-foreground">
+                Pontos para quem faz a pole position
+              </p>
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Volta Mais Rápida</label>
               <Input
                 type="number"
                 value={formData.fastestLapPoints || 0}
-                onChange={(e) => setFormData(prev => ({
-                  ...prev,
-                  fastestLapPoints: parseInt(e.target.value) || 0
-                }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    fastestLapPoints: parseInt(e.target.value) || 0,
+                  }))
+                }
                 min="0"
                 step="1"
                 placeholder="0"
                 disabled={loading}
               />
-              <p className="text-xs text-muted-foreground">Pontos para a volta mais rápida da corrida</p>
+              <p className="text-xs text-muted-foreground">
+                Pontos para a volta mais rápida da corrida
+              </p>
             </div>
           </div>
         </div>
@@ -315,10 +356,12 @@ export const ScoringSystemFormStandalone = ({
             <label className="flex items-center gap-2 text-sm">
               <Checkbox
                 checked={formData.isActive || false}
-                onCheckedChange={(checked) => setFormData(prev => ({ 
-                  ...prev, 
-                  isActive: !!checked 
-                }))}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    isActive: !!checked,
+                  }))
+                }
                 disabled={loading}
               />
               Sistema ativo
@@ -326,14 +369,16 @@ export const ScoringSystemFormStandalone = ({
                 (sistemas ativos podem ser usados nas corridas)
               </span>
             </label>
-            
+
             <label className="flex items-center gap-2 text-sm">
               <Checkbox
                 checked={formData.isDefault || false}
-                onCheckedChange={(checked) => setFormData(prev => ({ 
-                  ...prev, 
-                  isDefault: !!checked 
-                }))}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    isDefault: !!checked,
+                  }))
+                }
                 disabled={loading}
               />
               Definir como padrão
@@ -353,24 +398,30 @@ export const ScoringSystemFormStandalone = ({
       )}
 
       {/* Botões */}
-      <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'justify-end space-x-2'}`}>
+      <div
+        className={`flex ${isMobile ? "flex-col space-y-2" : "justify-end space-x-2"}`}
+      >
         <Button
           type="button"
           variant="outline"
           onClick={onCancel}
           disabled={loading}
-          className={isMobile ? 'w-full' : ''}
+          className={isMobile ? "w-full" : ""}
         >
           Cancelar
         </Button>
         <Button
           type="submit"
           disabled={loading}
-          className={isMobile ? 'w-full' : ''}
+          className={isMobile ? "w-full" : ""}
         >
-          {loading ? 'Salvando...' : (isEditing ? 'Salvar Alterações' : 'Criar Sistema')}
+          {loading
+            ? "Salvando..."
+            : isEditing
+              ? "Salvar Alterações"
+              : "Criar Sistema"}
         </Button>
       </div>
     </form>
   );
-}; 
+};

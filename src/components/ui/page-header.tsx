@@ -1,11 +1,12 @@
-import React from 'react';
-import { Button } from 'brk-design-system';
-import { cn } from '@/lib/utils';
+import { Button } from "brk-design-system";
+import React from "react";
+
+import { cn } from "@/lib/utils";
 
 interface PageHeaderAction {
   label: React.ReactNode;
   onClick: () => void;
-  variant?: 'default' | 'outline' | 'destructive';
+  variant?: "default" | "outline" | "destructive";
   disabled?: boolean;
 }
 
@@ -20,7 +21,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   title,
   subtitle,
   actions = [],
-  className
+  className,
 }) => {
   return (
     <div className={cn("w-full py-6 px-6", className)}>
@@ -32,7 +33,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             <p className="text-sm text-muted-foreground">{subtitle}</p>
           )}
         </div>
-        
+
         {/* Actions section */}
         {actions.length > 0 && (
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 md:flex-row">
@@ -41,7 +42,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                 key={index}
                 onClick={action.onClick}
                 disabled={action.disabled}
-                variant={action.variant || 'default'}
+                variant={action.variant || "default"}
               >
                 {action.label}
               </Button>
@@ -51,4 +52,4 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       </div>
     </div>
   );
-}; 
+};

@@ -25,7 +25,7 @@ export function Stepper({ steps, currentStep, className }: StepperProps) {
                     isCurrent || isCompleted,
                   "border-muted-foreground text-muted-foreground":
                     !isCurrent && !isCompleted,
-                }
+                },
               )}
             >
               {isCompleted ? (

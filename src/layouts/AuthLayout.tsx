@@ -1,5 +1,6 @@
-import { Outlet } from 'react-router-dom';
-import { ModeToggle } from '@/components/mode-toggle';
+import { Outlet } from "react-router-dom";
+
+import { ModeToggle } from "@/components/mode-toggle";
 
 export const AuthLayout = () => {
   return (
@@ -9,7 +10,7 @@ export const AuthLayout = () => {
         <div className="absolute top-4 right-4">
           <ModeToggle />
         </div>
-        
+
         <div className="flex items-center justify-center min-h-screen">
           <div className="w-full max-w-md">
             {/* Logo/Brand */}
@@ -19,12 +20,12 @@ export const AuthLayout = () => {
                 Plataforma de Gerenciamento de Campeonatos
               </p>
             </div>
-            
+
             {/* Auth Form Container */}
             <div className="bg-card border rounded-lg shadow-lg p-6">
               <Outlet />
             </div>
-            
+
             {/* Footer */}
             <div className="text-center mt-8 text-sm text-muted-foreground">
               <p>&copy; 2024 BRK. Todos os direitos reservados.</p>
@@ -34,4 +35,4 @@ export const AuthLayout = () => {
       </div>
     </div>
   );
-}; 
+};

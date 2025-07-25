@@ -1,6 +1,5 @@
-import api from '../axios';
-import { BatteriesConfig } from '../types/battery.types';
-import { Season } from './season.service';
+import api from "../axios";
+import { BatteriesConfig } from "../types/battery.types";
 
 export interface Category {
   id: string;
@@ -10,7 +9,7 @@ export interface Category {
   batteriesConfig: BatteriesConfig;
   minimumAge: number;
   allowDiscarding: boolean;
-  discardingType?: 'bateria' | 'etapa';
+  discardingType?: "bateria" | "etapa";
   discardingQuantity?: number;
   seasonId: string;
   createdAt: string;
@@ -25,7 +24,7 @@ export interface CategoryData {
   batteriesConfig: BatteriesConfig;
   minimumAge: number;
   allowDiscarding: boolean;
-  discardingType?: 'bateria' | 'etapa';
+  discardingType?: "bateria" | "etapa";
   discardingQuantity?: number;
   seasonId: string;
 }
@@ -38,7 +37,7 @@ export interface PaginatedCategories {
 }
 
 export class CategoryService {
-  private static readonly BASE_URL = '/categories';
+  private static readonly BASE_URL = "/categories";
 
   /**
    * Retrieves all categories.
@@ -61,7 +60,9 @@ export class CategoryService {
    */
   static async getById(id: string): Promise<Category> {
     try {
-      const response = await api.get<Category>(`${CategoryService.BASE_URL}/${id}`);
+      const response = await api.get<Category>(
+        `${CategoryService.BASE_URL}/${id}`,
+      );
       return response.data;
     } catch (error) {
       console.error(`Failed to retrieve category with ID ${id}:`, error);
@@ -76,10 +77,15 @@ export class CategoryService {
    */
   static async getBySeasonId(seasonId: string): Promise<Category[]> {
     try {
-      const response = await api.get<Category[]>(`${CategoryService.BASE_URL}/season/${seasonId}`);
+      const response = await api.get<Category[]>(
+        `${CategoryService.BASE_URL}/season/${seasonId}`,
+      );
       return response.data;
     } catch (error) {
-      console.error(`Failed to retrieve categories for season ID ${seasonId}:`, error);
+      console.error(
+        `Failed to retrieve categories for season ID ${seasonId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -91,10 +97,15 @@ export class CategoryService {
    */
   static async getByStageId(stageId: string): Promise<Category[]> {
     try {
-      const response = await api.get<Category[]>(`${CategoryService.BASE_URL}/stage/${stageId}`);
+      const response = await api.get<Category[]>(
+        `${CategoryService.BASE_URL}/stage/${stageId}`,
+      );
       return response.data;
     } catch (error) {
-      console.error(`Failed to retrieve categories for stage ID ${stageId}:`, error);
+      console.error(
+        `Failed to retrieve categories for stage ID ${stageId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -106,7 +117,9 @@ export class CategoryService {
    */
   static async getByName(name: string): Promise<Category[]> {
     try {
-      const response = await api.get<Category[]>(`${CategoryService.BASE_URL}/name/${name}`);
+      const response = await api.get<Category[]>(
+        `${CategoryService.BASE_URL}/name/${name}`,
+      );
       return response.data;
     } catch (error) {
       console.error(`Failed to retrieve categories with name ${name}:`, error);
@@ -120,12 +133,20 @@ export class CategoryService {
    * @param seasonId - The ID of the season.
    * @returns The category with the given name and season ID.
    */
-  static async getByNameAndSeason(name: string, seasonId: string): Promise<Category> {
+  static async getByNameAndSeason(
+    name: string,
+    seasonId: string,
+  ): Promise<Category> {
     try {
-      const response = await api.get<Category>(`${CategoryService.BASE_URL}/name/${name}?seasonId=${seasonId}`);
+      const response = await api.get<Category>(
+        `${CategoryService.BASE_URL}/name/${name}?seasonId=${seasonId}`,
+      );
       return response.data;
     } catch (error) {
-      console.error(`Failed to retrieve category with name ${name} for season ID ${seasonId}:`, error);
+      console.error(
+        `Failed to retrieve category with name ${name} for season ID ${seasonId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -137,10 +158,15 @@ export class CategoryService {
    */
   static async getByBallast(ballast: number): Promise<Category[]> {
     try {
-      const response = await api.get<Category[]>(`${CategoryService.BASE_URL}/ballast/${ballast}`);
+      const response = await api.get<Category[]>(
+        `${CategoryService.BASE_URL}/ballast/${ballast}`,
+      );
       return response.data;
     } catch (error) {
-      console.error(`Failed to retrieve categories with ballast ${ballast}:`, error);
+      console.error(
+        `Failed to retrieve categories with ballast ${ballast}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -166,9 +192,15 @@ export class CategoryService {
    * @param data - The data to update the category with.
    * @returns The updated category.
    */
-  static async update(id: string, data: Partial<CategoryData>): Promise<Category> {
+  static async update(
+    id: string,
+    data: Partial<CategoryData>,
+  ): Promise<Category> {
     try {
-      const response = await api.put<Category>(`${CategoryService.BASE_URL}/${id}`, data);
+      const response = await api.put<Category>(
+        `${CategoryService.BASE_URL}/${id}`,
+        data,
+      );
       return response.data;
     } catch (error) {
       console.error(`Failed to update category with ID ${id}:`, error);
@@ -188,4 +220,4 @@ export class CategoryService {
       throw error;
     }
   }
-} 
+}

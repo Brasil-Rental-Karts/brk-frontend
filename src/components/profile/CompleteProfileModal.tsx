@@ -1,15 +1,16 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Button } from "brk-design-system";
+import { ArrowRight, CheckCircle, User } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "brk-design-system";
-import { User, CheckCircle, ArrowRight } from "lucide-react";
 
 interface CompleteProfileModalProps {
   isOpen: boolean;
@@ -17,13 +18,17 @@ interface CompleteProfileModalProps {
   onSkip: () => void;
 }
 
-export const CompleteProfileModal = ({ isOpen, onClose, onSkip }: CompleteProfileModalProps) => {
+export const CompleteProfileModal = ({
+  isOpen,
+  onClose,
+  onSkip,
+}: CompleteProfileModalProps) => {
   const navigate = useNavigate();
   const [isNavigating, setIsNavigating] = useState(false);
 
   const handleCompleteProfile = () => {
     setIsNavigating(true);
-    navigate('/profile/edit');
+    navigate("/profile/edit");
   };
 
   const handleSkip = () => {
@@ -52,7 +57,8 @@ export const CompleteProfileModal = ({ isOpen, onClose, onSkip }: CompleteProfil
             Complete seu perfil
           </DialogTitle>
           <DialogDescription className="text-base">
-            Para aproveitar ao máximo a plataforma BRK, complete suas informações de piloto.
+            Para aproveitar ao máximo a plataforma BRK, complete suas
+            informações de piloto.
           </DialogDescription>
         </DialogHeader>
 
@@ -97,4 +103,4 @@ export const CompleteProfileModal = ({ isOpen, onClose, onSkip }: CompleteProfil
       </DialogContent>
     </Dialog>
   );
-}; 
+};

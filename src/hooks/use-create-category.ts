@@ -1,5 +1,10 @@
-import { useState } from 'react';
-import { CategoryService, CategoryData, Category } from '@/lib/services/category.service';
+import { useState } from "react";
+
+import {
+  Category,
+  CategoryData,
+  CategoryService,
+} from "@/lib/services/category.service";
 
 export interface UseCreateCategoryReturn {
   isLoading: boolean;
@@ -12,7 +17,9 @@ export const useCreateCategory = (): UseCreateCategoryReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createCategory = async (data: CategoryData): Promise<Category | null> => {
+  const createCategory = async (
+    data: CategoryData,
+  ): Promise<Category | null> => {
     setIsLoading(true);
     setError(null);
 
@@ -20,7 +27,8 @@ export const useCreateCategory = (): UseCreateCategoryReturn => {
       const category = await CategoryService.create(data);
       return category;
     } catch (err: any) {
-      const errorMessage = err.message || 'Erro ao criar categoria. Tente novamente.';
+      const errorMessage =
+        err.message || "Erro ao criar categoria. Tente novamente.";
       setError(errorMessage);
       return null;
     } finally {
@@ -38,4 +46,4 @@ export const useCreateCategory = (): UseCreateCategoryReturn => {
     createCategory,
     clearError,
   };
-}; 
+};

@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useBlocker } from "react-router-dom";
 import { toast } from "sonner";
 
 const deepEqual = (obj1: any, obj2: any): boolean => {
   if (obj1 === obj2) return true;
 
-  if (obj1 && typeof obj1 === 'object' && obj2 && typeof obj2 === 'object') {
+  if (obj1 && typeof obj1 === "object" && obj2 && typeof obj2 === "object") {
     if (obj1.constructor !== obj2.constructor) return false;
 
     if (Array.isArray(obj1)) {
@@ -22,7 +22,8 @@ const deepEqual = (obj1: any, obj2: any): boolean => {
     if (keys1.length !== keys2.length) return false;
 
     for (const key of keys1) {
-      if (!keys2.includes(key) || !deepEqual(obj1[key], obj2[key])) return false;
+      if (!keys2.includes(key) || !deepEqual(obj1[key], obj2[key]))
+        return false;
     }
 
     return true;
@@ -45,7 +46,7 @@ export interface UseFormScreenOptions<TData, TSubmit> {
     fieldId: string,
     value: any,
     formData: any,
-    formActions: { setValue: (name: string, value: any) => void }
+    formActions: { setValue: (name: string, value: any) => void },
   ) => void;
   onInitialDataLoaded?: (data: TData) => void;
   initialValues?: Record<string, any>;
@@ -70,7 +71,7 @@ export const useFormScreen = <TData, TSubmit>({
   errorMessage,
 }: UseFormScreenOptions<TData, TSubmit>) => {
   const [initialData, setInitialData] = useState<Record<string, any> | null>(
-    null
+    null,
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -90,7 +91,7 @@ export const useFormScreen = <TData, TSubmit>({
       hasUnsavedChanges &&
       !isSaving &&
       !isProceeding &&
-      currentLocation.pathname !== nextLocation.pathname
+      currentLocation.pathname !== nextLocation.pathname,
   );
 
   useEffect(() => {
@@ -98,10 +99,10 @@ export const useFormScreen = <TData, TSubmit>({
       setShowUnsavedChangesDialog(true);
     }
   }, [blocker]);
-  
+
   useEffect(() => {
     if (isProceeding) {
-      if (blocker.state === 'blocked') {
+      if (blocker.state === "blocked") {
         blocker.proceed();
       } else {
         onCancel();
@@ -109,15 +110,12 @@ export const useFormScreen = <TData, TSubmit>({
     }
   }, [isProceeding, blocker, onCancel]);
 
-
   useEffect(() => {
     return () => {
       setHasUnsavedChanges(false);
       setFormInitialized(false);
     };
   }, []);
-
-
 
   const loadData = useCallback(async () => {
     if (!isEditMode || !fetchData) {
@@ -138,7 +136,9 @@ export const useFormScreen = <TData, TSubmit>({
       if (onInitialDataLoaded) {
         onInitialDataLoaded(data);
       }
-      const transformedData = transformInitialData ? transformInitialData(data) : (data as Record<string, any>);
+      const transformedData = transformInitialData
+        ? transformInitialData(data)
+        : (data as Record<string, any>);
       setInitialData(transformedData);
     } catch (err: any) {
       setError(err.message || "Erro ao carregar dados.");
@@ -146,7 +146,14 @@ export const useFormScreen = <TData, TSubmit>({
       setIsLoading(false);
       setTimeout(() => setFormInitialized(true), 100);
     }
-  }, [id, isEditMode, fetchData, transformInitialData, onInitialDataLoaded, defaultInitialValues]);
+  }, [
+    id,
+    isEditMode,
+    fetchData,
+    transformInitialData,
+    onInitialDataLoaded,
+    defaultInitialValues,
+  ]);
 
   useEffect(() => {
     loadData();
@@ -163,7 +170,7 @@ export const useFormScreen = <TData, TSubmit>({
 
       setHasUnsavedChanges(hasChanges);
     },
-    [initialData, formInitialized]
+    [initialData, formInitialized],
   );
 
   const handleFormChange = (data: any) => {
@@ -177,7 +184,7 @@ export const useFormScreen = <TData, TSubmit>({
   const scrollToFirstError = () => {
     setTimeout(() => {
       const firstErrorElement = document.querySelector(
-        '[data-invalid="true"], .text-destructive, [aria-invalid="true"]'
+        '[data-invalid="true"], .text-destructive, [aria-invalid="true"]',
       );
       if (firstErrorElement) {
         firstErrorElement.scrollIntoView({
@@ -226,7 +233,7 @@ export const useFormScreen = <TData, TSubmit>({
       setIsSaving(false);
     }
   };
-  
+
   const handleAttemptCancel = () => {
     if (hasUnsavedChanges) {
       setShowUnsavedChangesDialog(true);
@@ -270,4 +277,4 @@ export const useFormScreen = <TData, TSubmit>({
     handleCancelUnsavedChanges,
     isEditMode,
   };
-}; 
+};

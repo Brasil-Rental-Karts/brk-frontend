@@ -1,5 +1,4 @@
-import api from '../axios';
-import { AxiosError } from 'axios';
+import api from "../axios";
 
 export interface StaffPermissions {
   seasons?: boolean;
@@ -26,7 +25,7 @@ export interface StaffMember {
     name: string;
     email: string;
   };
-  role: 'staff' | 'owner';
+  role: "staff" | "owner";
   addedAt: string;
   addedBy: {
     id: string;
@@ -59,20 +58,22 @@ export interface StaffListResponse {
  * Serviço para gerenciar staff de campeonatos
  */
 export class ChampionshipStaffService {
-  private static readonly BASE_URL = '/championships';
+  private static readonly BASE_URL = "/championships";
 
   /**
    * Buscar membros do staff de um campeonato
    */
   static async getStaffMembers(championshipId: string): Promise<StaffMember[]> {
     try {
-      const response = await api.get<StaffListResponse>(`${ChampionshipStaffService.BASE_URL}/${championshipId}/staff`);
+      const response = await api.get<StaffListResponse>(
+        `${ChampionshipStaffService.BASE_URL}/${championshipId}/staff`,
+      );
       return response.data.data;
     } catch (error: any) {
-      console.error('Error fetching staff members:', error);
+      console.error("Error fetching staff members:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao buscar membros da equipe. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao buscar membros da equipe. Tente novamente.",
       );
     }
   }
@@ -80,15 +81,21 @@ export class ChampionshipStaffService {
   /**
    * Adicionar membro ao staff
    */
-  static async addStaffMember(championshipId: string, request: AddStaffMemberRequest): Promise<StaffMember> {
+  static async addStaffMember(
+    championshipId: string,
+    request: AddStaffMemberRequest,
+  ): Promise<StaffMember> {
     try {
-      const response = await api.post<StaffMemberResponse>(`${ChampionshipStaffService.BASE_URL}/${championshipId}/staff`, request);
+      const response = await api.post<StaffMemberResponse>(
+        `${ChampionshipStaffService.BASE_URL}/${championshipId}/staff`,
+        request,
+      );
       return response.data.data;
     } catch (error: any) {
-      console.error('Error adding staff member:', error);
+      console.error("Error adding staff member:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao adicionar membro à equipe. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao adicionar membro à equipe. Tente novamente.",
       );
     }
   }
@@ -96,14 +103,19 @@ export class ChampionshipStaffService {
   /**
    * Remover membro do staff
    */
-  static async removeStaffMember(championshipId: string, staffMemberId: string): Promise<void> {
+  static async removeStaffMember(
+    championshipId: string,
+    staffMemberId: string,
+  ): Promise<void> {
     try {
-      await api.delete(`${ChampionshipStaffService.BASE_URL}/${championshipId}/staff/${staffMemberId}`);
+      await api.delete(
+        `${ChampionshipStaffService.BASE_URL}/${championshipId}/staff/${staffMemberId}`,
+      );
     } catch (error: any) {
-      console.error('Error removing staff member:', error);
+      console.error("Error removing staff member:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao remover membro da equipe. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao remover membro da equipe. Tente novamente.",
       );
     }
   }
@@ -112,22 +124,22 @@ export class ChampionshipStaffService {
    * Atualizar permissões de um membro do staff
    */
   static async updateStaffMemberPermissions(
-    championshipId: string, 
-    staffMemberId: string, 
-    request: UpdateStaffMemberRequest
+    championshipId: string,
+    staffMemberId: string,
+    request: UpdateStaffMemberRequest,
   ): Promise<StaffMember> {
     try {
       const response = await api.put<StaffMemberResponse>(
-        `${ChampionshipStaffService.BASE_URL}/${championshipId}/staff/${staffMemberId}/permissions`, 
-        request
+        `${ChampionshipStaffService.BASE_URL}/${championshipId}/staff/${staffMemberId}/permissions`,
+        request,
       );
       return response.data.data;
     } catch (error: any) {
-      console.error('Error updating staff member permissions:', error);
+      console.error("Error updating staff member permissions:", error);
       throw new Error(
-        error.response?.data?.message || 
-        'Erro ao atualizar permissões do membro. Tente novamente.'
+        error.response?.data?.message ||
+          "Erro ao atualizar permissões do membro. Tente novamente.",
       );
     }
   }
-} 
+}

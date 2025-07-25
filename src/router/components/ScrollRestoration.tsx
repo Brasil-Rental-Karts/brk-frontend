@@ -1,14 +1,14 @@
-import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 
 interface ScrollRestorationProps {
   enabled?: boolean;
   scrollToTop?: boolean;
 }
 
-export const ScrollRestoration = ({ 
-  enabled = true, 
-  scrollToTop = true 
+export const ScrollRestoration = ({
+  enabled = true,
+  scrollToTop = true,
 }: ScrollRestorationProps) => {
   const location = useLocation();
 
@@ -20,7 +20,7 @@ export const ScrollRestoration = ({
       window.scrollTo({
         top: 0,
         left: 0,
-        behavior: 'smooth'
+        behavior: "smooth",
       });
     }
   }, [location.pathname, enabled, scrollToTop]);
@@ -34,7 +34,7 @@ export const useScrollRestoration = () => {
     window.scrollTo({
       top: 0,
       left: 0,
-      behavior: smooth ? 'smooth' : 'auto'
+      behavior: smooth ? "smooth" : "auto",
     });
   };
 
@@ -42,8 +42,8 @@ export const useScrollRestoration = () => {
     const element = document.getElementById(elementId);
     if (element) {
       element.scrollIntoView({
-        behavior: smooth ? 'smooth' : 'auto',
-        block: 'start'
+        behavior: smooth ? "smooth" : "auto",
+        block: "start",
       });
     }
   };
@@ -52,13 +52,13 @@ export const useScrollRestoration = () => {
     window.scrollTo({
       top: y,
       left: x,
-      behavior: smooth ? 'smooth' : 'auto'
+      behavior: smooth ? "smooth" : "auto",
     });
   };
 
   return {
     scrollToTop,
     scrollToElement,
-    scrollToPosition
+    scrollToPosition,
   };
-}; 
+};

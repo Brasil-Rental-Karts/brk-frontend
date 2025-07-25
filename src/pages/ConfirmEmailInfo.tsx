@@ -6,7 +6,8 @@ export function ConfirmEmailInfo() {
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold">Confirme seu E-mail</h1>
         <p className="text-muted-foreground mt-2">
-          Enviamos um e-mail de confirmação para você. Por favor, verifique sua caixa de entrada e clique no link para ativar sua conta.
+          Enviamos um e-mail de confirmação para você. Por favor, verifique sua
+          caixa de entrada e clique no link para ativar sua conta.
         </p>
       </div>
 
@@ -20,7 +21,6 @@ export function ConfirmEmailInfo() {
       <Button asChild className="w-full mb-6">
         <a href="/auth/login">Voltar para o Login</a>
       </Button>
-
     </div>
   );
-} 
+}

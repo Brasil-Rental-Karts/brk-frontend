@@ -1,4 +1,4 @@
-import api from '../axios';
+import api from "../axios";
 
 export interface ScoringPosition {
   position: number;
@@ -22,19 +22,26 @@ export interface ScoringSystem extends ScoringSystemData {
 }
 
 export class ScoringSystemService {
-  private static readonly BASE_URL = '/scoring-systems';
+  private static readonly BASE_URL = "/scoring-systems";
 
   /**
    * Retrieves all scoring systems for a given championship.
    * @param championshipId - The ID of the championship.
    * @returns A list of scoring systems.
    */
-  static async getByChampionshipId(championshipId: string): Promise<ScoringSystem[]> {
+  static async getByChampionshipId(
+    championshipId: string,
+  ): Promise<ScoringSystem[]> {
     try {
-      const response = await api.get<ScoringSystem[]>(`${ScoringSystemService.BASE_URL}/championship/${championshipId}`);
+      const response = await api.get<ScoringSystem[]>(
+        `${ScoringSystemService.BASE_URL}/championship/${championshipId}`,
+      );
       return response.data;
     } catch (error) {
-      console.error(`Failed to get scoring systems for championship ${championshipId}:`, error);
+      console.error(
+        `Failed to get scoring systems for championship ${championshipId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -45,9 +52,14 @@ export class ScoringSystemService {
    * @param championshipId - The ID of the championship.
    * @returns The scoring system.
    */
-  static async getById(id: string, championshipId: string): Promise<ScoringSystem> {
+  static async getById(
+    id: string,
+    championshipId: string,
+  ): Promise<ScoringSystem> {
     try {
-      const response = await api.get<ScoringSystem>(`${ScoringSystemService.BASE_URL}/${id}/championship/${championshipId}`);
+      const response = await api.get<ScoringSystem>(
+        `${ScoringSystemService.BASE_URL}/${id}/championship/${championshipId}`,
+      );
       return response.data;
     } catch (error) {
       console.error(`Failed to get scoring system with id ${id}:`, error);
@@ -61,12 +73,21 @@ export class ScoringSystemService {
    * @param data - The data for the new scoring system.
    * @returns The created scoring system.
    */
-  static async create(championshipId: string, data: ScoringSystemData): Promise<ScoringSystem> {
+  static async create(
+    championshipId: string,
+    data: ScoringSystemData,
+  ): Promise<ScoringSystem> {
     try {
-      const response = await api.post<ScoringSystem>(`${ScoringSystemService.BASE_URL}/championship/${championshipId}`, data);
+      const response = await api.post<ScoringSystem>(
+        `${ScoringSystemService.BASE_URL}/championship/${championshipId}`,
+        data,
+      );
       return response.data;
     } catch (error) {
-      console.error(`Failed to create scoring system for championship ${championshipId}:`, error);
+      console.error(
+        `Failed to create scoring system for championship ${championshipId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -78,9 +99,16 @@ export class ScoringSystemService {
    * @param data - The data to update the scoring system with.
    * @returns The updated scoring system.
    */
-  static async update(id: string, championshipId: string, data: Partial<ScoringSystemData>): Promise<ScoringSystem> {
+  static async update(
+    id: string,
+    championshipId: string,
+    data: Partial<ScoringSystemData>,
+  ): Promise<ScoringSystem> {
     try {
-      const response = await api.put<ScoringSystem>(`${ScoringSystemService.BASE_URL}/${id}/championship/${championshipId}`, data);
+      const response = await api.put<ScoringSystem>(
+        `${ScoringSystemService.BASE_URL}/${id}/championship/${championshipId}`,
+        data,
+      );
       return response.data;
     } catch (error) {
       console.error(`Failed to update scoring system with id ${id}:`, error);
@@ -95,7 +123,9 @@ export class ScoringSystemService {
    */
   static async delete(id: string, championshipId: string): Promise<void> {
     try {
-      await api.delete(`${ScoringSystemService.BASE_URL}/${id}/championship/${championshipId}`);
+      await api.delete(
+        `${ScoringSystemService.BASE_URL}/${id}/championship/${championshipId}`,
+      );
     } catch (error) {
       console.error(`Failed to delete scoring system with id ${id}:`, error);
       throw error;
@@ -108,12 +138,20 @@ export class ScoringSystemService {
    * @param championshipId - The ID of the championship.
    * @returns The updated scoring system.
    */
-  static async setDefault(id: string, championshipId: string): Promise<ScoringSystem> {
+  static async setDefault(
+    id: string,
+    championshipId: string,
+  ): Promise<ScoringSystem> {
     try {
-      const response = await api.patch<ScoringSystem>(`${ScoringSystemService.BASE_URL}/${id}/championship/${championshipId}/set-default`);
+      const response = await api.patch<ScoringSystem>(
+        `${ScoringSystemService.BASE_URL}/${id}/championship/${championshipId}/set-default`,
+      );
       return response.data;
     } catch (error) {
-      console.error(`Failed to set default scoring system with id ${id}:`, error);
+      console.error(
+        `Failed to set default scoring system with id ${id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -124,12 +162,20 @@ export class ScoringSystemService {
    * @param championshipId - The ID of the championship.
    * @returns The updated scoring system.
    */
-  static async toggleActive(id: string, championshipId: string): Promise<ScoringSystem> {
+  static async toggleActive(
+    id: string,
+    championshipId: string,
+  ): Promise<ScoringSystem> {
     try {
-      const response = await api.patch<ScoringSystem>(`${ScoringSystemService.BASE_URL}/${id}/championship/${championshipId}/toggle-active`);
+      const response = await api.patch<ScoringSystem>(
+        `${ScoringSystemService.BASE_URL}/${id}/championship/${championshipId}/toggle-active`,
+      );
       return response.data;
     } catch (error) {
-      console.error(`Failed to toggle active for scoring system with id ${id}:`, error);
+      console.error(
+        `Failed to toggle active for scoring system with id ${id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -139,13 +185,20 @@ export class ScoringSystemService {
    * @param championshipId - The ID of the championship.
    * @returns The created scoring systems.
    */
-  static async createPredefined(championshipId: string): Promise<ScoringSystem[]> {
+  static async createPredefined(
+    championshipId: string,
+  ): Promise<ScoringSystem[]> {
     try {
-      const response = await api.post<ScoringSystem[]>(`${ScoringSystemService.BASE_URL}/championship/${championshipId}/create-predefined`);
+      const response = await api.post<ScoringSystem[]>(
+        `${ScoringSystemService.BASE_URL}/championship/${championshipId}/create-predefined`,
+      );
       return response.data;
     } catch (error) {
-      console.error(`Failed to create predefined scoring systems for championship ${championshipId}:`, error);
+      console.error(
+        `Failed to create predefined scoring systems for championship ${championshipId}:`,
+        error,
+      );
       throw error;
     }
   }
-} 
+}

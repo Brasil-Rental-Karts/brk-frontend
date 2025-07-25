@@ -1,4 +1,4 @@
-import api from '../axios';
+import api from "../axios";
 
 export interface OverduePayment {
   id: string;
@@ -62,15 +62,19 @@ export class PaymentManagementService {
    * Busca todos os pagamentos vencidos do sistema
    */
   static async getAllOverduePayments(): Promise<OverduePayment[]> {
-    const response = await api.get('/payment-management/overdue-payments');
+    const response = await api.get("/payment-management/overdue-payments");
     return response.data.data;
   }
 
   /**
    * Busca pagamentos vencidos de uma inscrição
    */
-  static async getOverduePayments(registrationId: string): Promise<OverduePayment[]> {
-    const response = await api.get(`/payment-management/overdue-payments/${registrationId}`);
+  static async getOverduePayments(
+    registrationId: string,
+  ): Promise<OverduePayment[]> {
+    const response = await api.get(
+      `/payment-management/overdue-payments/${registrationId}`,
+    );
     return response.data.data;
   }
 
@@ -78,12 +82,15 @@ export class PaymentManagementService {
    * Reativa uma fatura vencida
    */
   static async reactivateOverduePayment(
-    paymentId: string, 
-    newDueDate: string
+    paymentId: string,
+    newDueDate: string,
   ): Promise<ReactivatePaymentResponse> {
-    const response = await api.post(`/payment-management/reactivate-payment/${paymentId}`, {
-      newDueDate
-    });
+    const response = await api.post(
+      `/payment-management/reactivate-payment/${paymentId}`,
+      {
+        newDueDate,
+      },
+    );
     return response.data.data;
   }
-} 
+}

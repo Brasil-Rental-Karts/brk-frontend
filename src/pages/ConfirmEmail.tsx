@@ -1,11 +1,14 @@
+import { Button } from "brk-design-system";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Button } from "brk-design-system";
+
 import { AuthService } from "@/lib/services/auth.service";
 
 export function ConfirmEmail() {
   const [searchParams] = useSearchParams();
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "success" | "error">(
+    "loading",
+  );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -23,7 +26,7 @@ export function ConfirmEmail() {
         setStatus("error");
         setError(
           err?.response?.data?.message ||
-            "Não foi possível confirmar seu e-mail. O link pode estar expirado ou já ter sido utilizado."
+            "Não foi possível confirmar seu e-mail. O link pode estar expirado ou já ter sido utilizado.",
         );
       });
   }, [searchParams]);
@@ -35,15 +38,15 @@ export function ConfirmEmail() {
           {status === "success"
             ? "E-mail confirmado!"
             : status === "loading"
-            ? "Confirmando..."
-            : "Falha na Confirmação"}
+              ? "Confirmando..."
+              : "Falha na Confirmação"}
         </h1>
         <p className="text-muted-foreground mt-2">
           {status === "success"
             ? "Seu e-mail foi confirmado com sucesso. Agora você pode acessar sua conta."
             : status === "loading"
-            ? "Aguarde enquanto confirmamos seu e-mail..."
-            : error}
+              ? "Aguarde enquanto confirmamos seu e-mail..."
+              : error}
         </p>
       </div>
 
@@ -56,7 +59,6 @@ export function ConfirmEmail() {
       <Button asChild className="w-full mb-6">
         <a href="/auth/login">Voltar para o Login</a>
       </Button>
-
     </div>
   );
-} 
+}

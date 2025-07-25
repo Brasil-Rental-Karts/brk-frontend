@@ -1,7 +1,9 @@
-import { useAuth } from '@/contexts/AuthContext';
-import { Navigate, Outlet } from 'react-router-dom';
-import { ReactNode } from 'react';
-import { FullPageLoader } from './RouteLoader';
+import { ReactNode } from "react";
+import { Navigate, Outlet } from "react-router-dom";
+
+import { useAuth } from "@/contexts/AuthContext";
+
+import { FullPageLoader } from "./RouteLoader";
 
 interface PublicRouteProps {
   children?: ReactNode;
@@ -11,8 +13,8 @@ interface PublicRouteProps {
 
 export const PublicRoute = ({
   children,
-  redirectPath = '/dashboard',
-  fallback
+  redirectPath = "/dashboard",
+  fallback,
 }: PublicRouteProps) => {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -28,4 +30,4 @@ export const PublicRoute = ({
 
   // Render children or outlet for non-authenticated users
   return children ? <>{children}</> : <Outlet />;
-}; 
+};
