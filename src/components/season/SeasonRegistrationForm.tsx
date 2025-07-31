@@ -213,31 +213,35 @@ const StageOptionBadge = React.forwardRef<
           {stage.name}
         </span>
       </div>
-      <div className="flex flex-wrap gap-2 sm:ml-6">
-        <Badge variant="default" className="text-xs">
-          {new Date(stage.date).toLocaleDateString("pt-BR", { timeZone: "UTC" })}
-        </Badge>
-        <Badge variant="default" className="text-xs">
-          {stage.time}
-        </Badge>
-        {/* Badges separados para cada categoria selecionada */}
-        {categoryAvailability.map((cat, index) => (
-          <Badge
-            key={`${cat?.category.id}-${index}`}
-            variant={
-              cat?.isFull
-                ? "destructive"
-                : (cat?.availableSlots || 0) <= 2
-                  ? "secondary"
-                  : "outline"
-            }
-            className="text-xs"
-          >
-            {selectedCategories.length > 1 ? `${cat?.category.name}: ` : ""}{cat?.isFull
-              ? "Lotada"
-              : `${cat?.availableSlots} vaga${(cat?.availableSlots || 0) !== 1 ? "s" : ""} disponível${(cat?.availableSlots || 0) !== 1 ? "is" : ""}`}
+      <div className="flex flex-col gap-2 sm:ml-6">
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="default" className="text-xs">
+            {new Date(stage.date).toLocaleDateString("pt-BR", { timeZone: "UTC" })}
           </Badge>
-        ))}
+          <Badge variant="default" className="text-xs">
+            {stage.time}
+          </Badge>
+        </div>
+        {/* Badges separados para cada categoria selecionada - empilhados verticalmente */}
+        <div className="flex flex-col gap-1">
+          {categoryAvailability.map((cat, index) => (
+            <Badge
+              key={`${cat?.category.id}-${index}`}
+              variant={
+                cat?.isFull
+                  ? "destructive"
+                  : (cat?.availableSlots || 0) <= 2
+                    ? "secondary"
+                    : "outline"
+              }
+              className="text-xs"
+            >
+              {selectedCategories.length > 1 ? `${cat?.category.name}: ` : ""}{cat?.isFull
+                ? "Lotada"
+                : `${cat?.availableSlots} vaga${(cat?.availableSlots || 0) !== 1 ? "s" : ""} disponível${(cat?.availableSlots || 0) !== 1 ? "is" : ""}`}
+            </Badge>
+          ))}
+        </div>
       </div>
     </div>
   );
