@@ -541,6 +541,10 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       // Calcular o total com taxas no momento da submissão
       const finalTotal = getCurrentTotalWithFees();
 
+      // Determinar o tipo de inscrição baseado na condição selecionada
+      // Se selectedCondition estiver definido, usar ele; caso contrário, usar o tipo da temporada
+      const finalInscriptionType = selectedCondition || inscriptionType;
+
       const transformedData = {
         userId: user?.id || "",
         seasonId: season?.id || "",
@@ -550,6 +554,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
         userDocument: data.cpf,
         installments: installmentsCount,
         totalAmount: finalTotal, // Enviar o total correto incluindo taxas
+        inscriptionType: finalInscriptionType, // Incluir o tipo de inscrição
       };
 
       return transformedData;

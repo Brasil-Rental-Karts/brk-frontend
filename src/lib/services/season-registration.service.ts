@@ -31,6 +31,7 @@ export interface CreateRegistrationData {
   userDocument: string;
   installments?: number;
   totalAmount?: number; // Valor total calculado incluindo taxas
+  inscriptionType?: "por_temporada" | "por_etapa"; // Tipo de inscrição selecionado pelo usuário
 }
 
 export interface CreateAdminRegistrationData {
