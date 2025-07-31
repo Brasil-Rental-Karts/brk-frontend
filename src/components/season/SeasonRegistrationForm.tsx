@@ -161,31 +161,87 @@ const StageOptionBadge = React.forwardRef<
     checked: boolean;
     onChange: (checked: boolean) => void;
     disabled?: boolean;
+    selectedCategories: string[];
+    categories: Category[];
+    categoryRegistrationCounts: Record<string, number>;
+    stageRegistrationCounts: Record<string, number>;
   }
->(({ stage, checked, onChange, disabled }, ref) => (
-  <div
-    ref={ref}
-    className={`flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors ${checked ? "border-primary" : "border-gray-200"}`}
-  >
-    <div className="flex items-center space-x-3">
-      <Checkbox
-        checked={checked}
-        onCheckedChange={onChange}
-        disabled={disabled}
-        className="mt-0.5"
-      />
-      <span className="font-medium text-sm">{stage.name}</span>
+>(({ stage, checked, onChange, disabled, selectedCategories, categories, categoryRegistrationCounts, stageRegistrationCounts }, ref) => {
+  const stageRegistrations = stageRegistrationCounts[stage.id] || 0;
+  
+  // Calcular vagas disponíveis para cada categoria selecionada
+  const categoryAvailability = selectedCategories.map(categoryId => {
+    const category = categories.find(cat => cat.id === categoryId);
+    if (!category) return null;
+    
+    const maxPilots = category.maxPilots;
+    const categoryRegistrations = categoryRegistrationCounts[categoryId] || 0;
+    
+    // Calcular vagas disponíveis: Max_pilots - inscrições por temporada - inscrições da etapa
+    const availableSlots = maxPilots - categoryRegistrations - stageRegistrations;
+    
+    return {
+      category,
+      availableSlots,
+      isFull: availableSlots <= 0
+    };
+  }).filter(Boolean);
+
+  // Verificar se alguma categoria está lotada para determinar se a etapa deve ser desabilitada
+  const isAnyCategoryFull = categoryAvailability.some(cat => cat?.isFull);
+  const isDisabled = disabled || isAnyCategoryFull;
+
+  return (
+    <div
+      ref={ref}
+      className={`flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 p-3 border rounded-lg transition-colors ${
+        checked
+          ? "border-primary bg-primary/5"
+          : isAnyCategoryFull
+            ? "border-red-200 bg-red-50"
+            : "border-gray-200 hover:bg-gray-50"
+      }`}
+    >
+      <div className="flex items-center space-x-3">
+        <Checkbox
+          checked={checked}
+          onCheckedChange={onChange}
+          disabled={isDisabled}
+          className="mt-0.5"
+        />
+        <span className={`font-medium text-sm ${isAnyCategoryFull ? "text-red-600" : ""}`}>
+          {stage.name}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-2 sm:ml-6">
+        <Badge variant="default" className="text-xs">
+          {new Date(stage.date).toLocaleDateString("pt-BR", { timeZone: "UTC" })}
+        </Badge>
+        <Badge variant="default" className="text-xs">
+          {stage.time}
+        </Badge>
+        {/* Badges separados para cada categoria selecionada */}
+        {categoryAvailability.map((cat, index) => (
+          <Badge
+            key={`${cat?.category.id}-${index}`}
+            variant={
+              cat?.isFull
+                ? "destructive"
+                : (cat?.availableSlots || 0) <= 2
+                  ? "secondary"
+                  : "outline"
+            }
+            className="text-xs"
+          >
+            {selectedCategories.length > 1 ? `${cat?.category.name}: ` : ""}{cat?.isFull
+              ? "Lotada"
+              : `${cat?.availableSlots} vaga${(cat?.availableSlots || 0) !== 1 ? "s" : ""} disponível${(cat?.availableSlots || 0) !== 1 ? "is" : ""}`}
+          </Badge>
+        ))}
+      </div>
     </div>
-    <div className="flex flex-wrap gap-2 sm:ml-6">
-      <Badge variant="default" className="text-xs">
-        {new Date(stage.date).toLocaleDateString("pt-BR", { timeZone: "UTC" })}
-      </Badge>
-      <Badge variant="default" className="text-xs">
-        {stage.time}
-      </Badge>
-    </div>
-  </div>
-));
+  );
+});
 
 StageOptionBadge.displayName = "StageOptionBadge";
 
@@ -237,8 +293,12 @@ const StageSelectionComponent = React.forwardRef<
     onChange: (value: string[]) => void;
     disabled?: boolean;
     stages: any[];
+    selectedCategories: string[];
+    categories: Category[];
+    categoryRegistrationCounts: Record<string, number>;
+    stageRegistrationCounts: Record<string, number>;
   }
->(({ value = [], onChange, disabled, stages }, ref) => {
+>(({ value = [], onChange, disabled, stages, selectedCategories, categories, categoryRegistrationCounts, stageRegistrationCounts }, ref) => {
   const safeValue = Array.isArray(value) ? value : [];
   return (
     <div ref={ref} className="space-y-2">
@@ -254,6 +314,10 @@ const StageSelectionComponent = React.forwardRef<
             onChange(newValue);
           }}
           disabled={disabled}
+          selectedCategories={selectedCategories}
+          categories={categories}
+          categoryRegistrationCounts={categoryRegistrationCounts}
+          stageRegistrationCounts={stageRegistrationCounts}
         />
       ))}
     </div>
@@ -295,6 +359,10 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   const [categoryRegistrationCounts, setCategoryRegistrationCounts] = useState<
     Record<string, number>
   >({});
+  const [stageRegistrationCounts, setStageRegistrationCounts] = useState<
+    Record<string, number>
+  >({});
+  const [selectedCategoriesState, setSelectedCategoriesState] = useState<string[]>([]);
   const creditCardFeesService = new CreditCardFeesService();
   const [feeRates, setFeeRates] = useState<Record<number, CreditCardFeesRate>>(
     {},
@@ -419,6 +487,27 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
         }),
       );
       setCategoryRegistrationCounts(counts);
+
+      // Buscar contagens de pilotos por etapa
+      const stageCounts: Record<string, number> = {};
+      await Promise.all(
+        stagesData.map(async (stage: Stage) => {
+          try {
+            const count =
+              await SeasonRegistrationService.getStageRegistrationCount(
+                stage.id,
+              );
+            stageCounts[stage.id] = count;
+          } catch (error) {
+            console.error(
+              `Erro ao buscar contagem para etapa ${stage.id}:`,
+              error,
+            );
+            stageCounts[stage.id] = 0;
+          }
+        }),
+      );
+      setStageRegistrationCounts(stageCounts);
 
       // Verificar se é inscrição por etapa e se há etapas
       if (seasonData.inscriptionType === "por_etapa") {
@@ -787,8 +876,8 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       },
     ];
 
-    // Adicionar seção de etapas se for inscrição por etapa
-    if (inscriptionType === "por_etapa" && filteredStages.length > 0) {
+    // Adicionar seção de etapas se for inscrição por etapa e houver categorias selecionadas
+    if (inscriptionType === "por_etapa" && filteredStages.length > 0 && selectedCategoriesState.length > 0) {
       config.push({
         section: "Seleção de Etapas",
         detail: "Escolha as etapas que deseja participar",
@@ -811,6 +900,10 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
                   {...props}
                   ref={ref}
                   stages={filteredStages}
+                  selectedCategories={selectedCategoriesState}
+                  categories={categories}
+                  categoryRegistrationCounts={categoryRegistrationCounts}
+                  stageRegistrationCounts={stageRegistrationCounts}
                 />
               ));
               Component.displayName = "StageSelectionWrapper";
@@ -851,6 +944,8 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     selectedPaymentMethod,
     total,
     categoryRegistrationCounts,
+    stageRegistrationCounts,
+    selectedCategoriesState,
   ]);
 
   // Função para obter o valor da inscrição baseado na condição selecionada
@@ -915,8 +1010,9 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       setSelectedInstallments(installmentsCount);
     }
 
-    // Calcular total baseado nas categorias selecionadas
+    // Atualizar categorias selecionadas para cálculo de vagas das etapas
     if (data.categorias && Array.isArray(data.categorias)) {
+      setSelectedCategoriesState(data.categorias);
       calculateTotal(data.categorias, data.etapas || []);
     }
   };
