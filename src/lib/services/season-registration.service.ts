@@ -12,6 +12,7 @@ export interface SeasonRegistration {
   confirmedAt?: string;
   cancelledAt?: string;
   cancellationReason?: string;
+  inscriptionType: 'por_temporada' | 'por_etapa';
   createdAt: string;
   updatedAt: string;
   user: any; // Simplified for now
