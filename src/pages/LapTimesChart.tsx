@@ -666,7 +666,7 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
   // Dialog de limite de pilotos
   const MaxPilotsDialog = () => (
     <Dialog open={showMaxPilotsDialog} onOpenChange={setShowMaxPilotsDialog}>
-      <DialogContent>
+      <DialogContent className="w-[95vw] max-w-md p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Limite de pilotos atingido</DialogTitle>
         </DialogHeader>

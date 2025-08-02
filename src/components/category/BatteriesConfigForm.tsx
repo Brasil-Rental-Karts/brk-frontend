@@ -501,7 +501,7 @@ const BatteryFormDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="w-[95vw] max-w-lg p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>
             {battery ? "Editar Bateria" : "Nova Bateria"}

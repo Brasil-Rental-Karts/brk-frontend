@@ -6028,7 +6028,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
         open={showShareScheduleModal}
         onOpenChange={setShowShareScheduleModal}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="w-[95vw] max-w-2xl p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Compartilhar Cronograma</DialogTitle>
             <DialogDescription>

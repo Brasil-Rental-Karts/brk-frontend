@@ -555,7 +555,7 @@ export const GridTypesTab = ({ championshipId }: GridTypesTabProps) => {
 
       {/* Modal de confirmação de exclusão */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Confirmar exclusão</DialogTitle>
             <DialogDescription>

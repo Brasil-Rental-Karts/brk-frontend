@@ -898,7 +898,7 @@ export const Dashboard = () => {
 
       {/* Modal de detalhes da corrida */}
       <Dialog open={!!selectedRace} onOpenChange={() => setSelectedRace(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="w-[95vw] max-w-2xl p-4 sm:p-6">
           <DialogHeader className="text-center">
             <div className="flex items-center justify-center gap-2 mb-2">
               <Trophy className="h-6 w-6 text-primary" />
@@ -1204,7 +1204,7 @@ export const Dashboard = () => {
         open={!!showCancelConfirmation}
         onOpenChange={() => setShowCancelConfirmation(null)}
       >
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Cancelar Participação</DialogTitle>
             <DialogDescription>
@@ -1268,7 +1268,7 @@ export const Dashboard = () => {
         open={!!showConfirmConfirmation}
         onOpenChange={() => setShowConfirmConfirmation(null)}
       >
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Vou Correr!</DialogTitle>
             <DialogDescription>

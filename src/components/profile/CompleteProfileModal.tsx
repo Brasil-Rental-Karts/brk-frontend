@@ -46,7 +46,7 @@ export const CompleteProfileModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[95vw] max-w-md p-4 sm:p-6">
         <DialogHeader className="text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <div className="p-3 bg-primary/10 rounded-full">

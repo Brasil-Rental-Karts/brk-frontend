@@ -372,7 +372,7 @@ export const OverduePaymentsTable = () => {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-lg p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Reativar Fatura Vencida</DialogTitle>
             <DialogDescription>

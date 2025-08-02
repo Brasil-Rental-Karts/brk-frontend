@@ -516,7 +516,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
 
       {/* Modal de confirmação de exclusão */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Confirmar remoção</DialogTitle>
             <DialogDescription>
@@ -565,7 +565,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
         open={showPermissionsDialog}
         onOpenChange={setShowPermissionsDialog}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] max-w-md p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Editar Permissões</DialogTitle>
             <DialogDescription>

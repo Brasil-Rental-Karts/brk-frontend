@@ -1500,7 +1500,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
           open={showUnsavedChangesDialog}
           onOpenChange={handleCancelUnsavedChanges}
         >
-          <DialogContent>
+          <DialogContent className="w-[95vw] max-w-md p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle>Inscrição em andamento</DialogTitle>
               <DialogDescription>

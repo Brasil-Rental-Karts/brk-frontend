@@ -61,7 +61,7 @@ export const DeleteAccountModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent>
+      <DialogContent className="w-[95vw] max-w-md p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Excluir Conta</DialogTitle>
           <DialogDescription>
