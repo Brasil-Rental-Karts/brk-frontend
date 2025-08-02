@@ -107,17 +107,24 @@ const ConfirmParticipation = () => {
               className="flex flex-col items-center text-center bg-red-50 border-red-200"
             >
               <AlertTitle className="text-lg font-semibold text-red-700 mb-2">
-                Não foi possível confirmar sua participação
+                {error ? error : "Não foi possível confirmar sua participação"}
               </AlertTitle>
               <AlertDescription className="mb-2 text-gray-700">
-                Ocorreu um problema ao tentar confirmar sua participação.
-                <br />
-                Por favor, tente novamente ou entre em contato com a
-                organização.
+                {!error && (
+                  <>
+                    Ocorreu um problema ao tentar confirmar sua participação.
+                    <br />
+                    Por favor, tente novamente ou entre em contato com a organização.
+                  </>
+                )}
+                {error && (
+                  <>
+                    Não foi possível confirmar sua participação.
+                    <br />
+                    Por favor, tente novamente ou entre em contato com a organização.
+                  </>
+                )}
               </AlertDescription>
-              {error && (
-                <div className="text-xs text-gray-400 mt-1 mb-2">{error}</div>
-              )}
               <div className="mt-2 text-gray-600 text-sm text-center">
                 Redirecionando para{" "}
                 <span className="font-semibold">Minha Página</span> em{" "}
