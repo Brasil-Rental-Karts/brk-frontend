@@ -248,6 +248,12 @@ const PilotCard = ({
             </div>
           )}
           <div className="flex flex-col">
+            <span className="text-muted-foreground">Tipo de Inscrição</span>
+            <span className="font-medium">
+              {registration.inscriptionType === "por_temporada" ? "Por Temporada" : "Por Etapa"}
+            </span>
+          </div>
+          <div className="flex flex-col">
             <span className="text-muted-foreground">Data de Inscrição</span>
             <span className="font-medium flex items-center gap-1">
               <Calendar className="h-3 w-3" />
@@ -336,6 +342,10 @@ const PilotTableRow = ({
                       : registration.paymentMethod}
             </div>
           )}
+          <div className="text-xs text-muted-foreground">
+            <span className="font-medium">Tipo de Inscrição:</span>{" "}
+            {registration.inscriptionType === "por_temporada" ? "Por Temporada" : "Por Etapa"}
+          </div>
         </div>
       </TableCell>
       <TableCell className="text-center py-4">
