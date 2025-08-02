@@ -44,6 +44,7 @@ interface PilotInfo {
   categoryId: string;
   status: "confirmed" | "not_confirmed";
   confirmedAt?: string | null;
+  inscriptionType: "por_temporada" | "por_etapa";
 }
 
 interface CategoryWithParticipants {
@@ -112,12 +113,26 @@ export const StageDetailsModal = ({
       // Organizar pilotos por categoria usando a mesma lógica do RaceDayTab
       const categoriesWithParticipants: CategoryWithParticipants[] =
         stageCategories.map((category) => {
-          // Filtrar inscrições que incluem esta categoria (mesma lógica do RaceDayTab)
-          const categoryPilots = seasonRegistrations.filter((reg) =>
+          // Filtrar inscrições que incluem esta categoria
+          let categoryPilots = seasonRegistrations.filter((reg) =>
             reg.categories.some((rc: any) => rc.category.id === category.id),
           );
 
-          // Filtrar participações confirmadas desta categoria (mesma lógica do RaceDayTab)
+          // Filtrar por tipo de inscrição:
+          // - Para inscrições por_temporada: incluir todos os pilotos inscritos na temporada
+          // - Para inscrições por_etapa: incluir apenas pilotos inscritos especificamente nesta etapa
+          categoryPilots = categoryPilots.filter((reg) => {
+            if (reg.inscriptionType === "por_temporada") {
+              // Inscrição por temporada: incluir todos os pilotos
+              return true;
+            } else if (reg.inscriptionType === "por_etapa") {
+              // Inscrição por etapa: verificar se o piloto está inscrito nesta etapa específica
+              return reg.stages && reg.stages.some((stage: any) => stage.stageId === stageId);
+            }
+            return false;
+          });
+
+          // Filtrar participações confirmadas desta categoria
           const confirmedParticipations = stageParticipations.filter(
             (participation) => participation.categoryId === category.id,
           );
@@ -139,6 +154,7 @@ export const StageDetailsModal = ({
                     (p) => p.userId === registration.userId,
                   )?.confirmedAt
                 : null,
+              inscriptionType: registration.inscriptionType,
             };
           });
 
@@ -191,7 +207,7 @@ export const StageDetailsModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Trophy className="h-5 w-5" />
@@ -206,7 +222,7 @@ export const StageDetailsModal = ({
           {/* Informações da etapa */}
           <Card className="p-4">
             <h3 className="font-semibold mb-3">Informações da Etapa</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span>{formatDateTime(stage.date, stage.time)}</span>
@@ -216,7 +232,7 @@ export const StageDetailsModal = ({
                 <span>{raceTrack?.name || "Carregando..."}</span>
               </div>
               {raceTrack?.address && (
-                <div className="flex items-start gap-2 md:col-span-2">
+                <div className="flex items-start gap-2 lg:col-span-2">
                   <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <span className="text-sm text-muted-foreground">
                     {raceTrack.address}
@@ -224,7 +240,7 @@ export const StageDetailsModal = ({
                 </div>
               )}
               {stage.trackLayoutId && stage.trackLayoutId !== "undefined" && (
-                <div className="flex items-center gap-2 md:col-span-2">
+                <div className="flex items-center gap-2 lg:col-span-2">
                   <Navigation className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">
                     Traçado: {stage.trackLayoutId}
@@ -283,17 +299,36 @@ export const StageDetailsModal = ({
               <div className="space-y-4">
                 {categories.map((category) => (
                   <Card key={category.id} className="p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="font-semibold flex items-center gap-2">
-                        {category.name}
-                        <Badge variant="outline" className="text-xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                      <h4 className="font-semibold flex flex-col sm:flex-row sm:items-center gap-2">
+                        <span>{category.name}</span>
+                        <Badge variant="outline" className="text-xs w-fit">
                           Lastro: {category.ballast}kg
                         </Badge>
                       </h4>
-                      <Badge variant="secondary" className="text-xs">
-                        {category.totalRegistered}{" "}
-                        {category.totalRegistered === 1 ? "piloto" : "pilotos"}
-                      </Badge>
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                        <Badge variant="secondary" className="text-xs w-fit">
+                          {category.totalRegistered}{" "}
+                          {category.totalRegistered === 1 ? "piloto" : "pilotos"}
+                        </Badge>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full sm:w-auto"
+                          onClick={() => {
+                            const siteUrl = window.location.origin;
+                            const link = `${siteUrl}/confirm-participation/stage/${stage.id}/category/${category.id}`;
+                            setLinkModalData({
+                              pilotName: `${category.name} - Todos os pilotos`,
+                              stageName: stage.name,
+                              link,
+                            });
+                            setShowLinkModal(true);
+                          }}
+                        >
+                          Gerar Link de Confirmação
+                        </Button>
+                      </div>
                     </div>
 
                     {category.participants.length === 0 ? (
@@ -308,38 +343,34 @@ export const StageDetailsModal = ({
                         {category.participants.map((pilot) => (
                           <div
                             key={pilot.id}
-                            className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-muted/30 rounded-lg"
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-col gap-2">
                               <div>
                                 <p className="font-medium">
                                   {formatName(pilot.user.name)}
                                 </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {pilot.user.email}
-                                </p>
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-1">
+                                  <p className="text-xs text-muted-foreground">
+                                    {pilot.user.email}
+                                  </p>
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-xs w-fit"
+                                  >
+                                    {pilot.inscriptionType === "por_temporada" ? "Por Temporada" : "Por Etapa"}
+                                  </Badge>
+                                </div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 self-start sm:self-center">
                               {pilot.status === "confirmed" ? (
                                 getStatusBadge(pilot)
                               ) : (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    const siteUrl = window.location.origin;
-                                    const link = `${siteUrl}/confirm-participation/stage/${stage.id}/category/${category.id}`;
-                                    setLinkModalData({
-                                      pilotName: pilot.user.name,
-                                      stageName: stage.name,
-                                      link,
-                                    });
-                                    setShowLinkModal(true);
-                                  }}
-                                >
-                                  Gerar Link de Confirmação
-                                </Button>
+                                <Badge variant="outline" className="text-xs text-orange-600">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  Não Confirmado
+                                </Badge>
                               )}
                             </div>
                           </div>
@@ -356,9 +387,9 @@ export const StageDetailsModal = ({
 
       {/* Modal de link de confirmação */}
       <Dialog open={showLinkModal} onOpenChange={setShowLinkModal}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle>Convite para confirmação de participação</DialogTitle>
+            <DialogTitle>Convite para confirmação de participação - Categoria</DialogTitle>
             {/* DialogDescription removido conforme solicitado */}
           </DialogHeader>
           <div className="flex flex-col gap-4 py-4">
@@ -378,7 +409,8 @@ export const StageDetailsModal = ({
                         /\s+/g,
                         "",
                       );
-                      return `Olá ${formatName(linkModalData.pilotName)} 🏎️\n\n🏁 Você está convocado(a) para acelerar na etapa "${linkModalData.stageName}" do campeonato ${championshipName}!\n\n⏱️ Confirme sua presença no grid pelo link abaixo:\n${linkModalData.link}\n\nNos vemos na pista! 🏆\n\n#BRK #Kart #Corrida #${championshipHashtag}`;
+                      const categoryName = linkModalData.pilotName.replace(" - Todos os pilotos", "");
+                      return `🏎️ PILOTOS DA ${categoryName.toUpperCase()} 🏎️\n\n🏁 É HORA DE ACELERAR! 🏁\n\nVocês estão convocados para a próxima etapa do ${championshipName}!\n\n📅 Etapa: ${linkModalData.stageName}\n🏆 Categoria: ${categoryName}\n\n⚡ Confirmem suas presenças no grid:\n${linkModalData.link}\n\n🚀 Preparem-se para a disputa! 🚀\n\n#BRK #Kart #Corrida #${championshipHashtag} #${categoryName.replace(/\s+/g, "")}`;
                     })()
                   : ""
               }
@@ -401,7 +433,8 @@ export const StageDetailsModal = ({
                     /\s+/g,
                     "",
                   );
-                  const msg = `Olá ${formatName(linkModalData.pilotName)} 🏎️\n\n🏁 Você está convocado(a) para acelerar na etapa \"${linkModalData.stageName}\" do campeonato ${championshipName}!\n\n⏱️ Confirme sua presença no grid pelo link abaixo:\n${linkModalData.link}\n\nNos vemos na pista! 🏆\n\n#BRK #Kart #Corrida #${championshipHashtag}`;
+                  const categoryName = linkModalData.pilotName.replace(" - Todos os pilotos", "");
+                  const msg = `🏎️ PILOTOS DA ${categoryName.toUpperCase()} 🏎️\n\n🏁 É HORA DE ACELERAR! 🏁\n\nVocês estão convocados para a próxima etapa do ${championshipName}!\n\n📅 Etapa: ${linkModalData.stageName}\n🏆 Categoria: ${categoryName}\n\n⚡ Confirmem suas presenças no grid:\n${linkModalData.link}\n\n🚀 Preparem-se para a disputa! 🚀\n\n#BRK #Kart #Corrida #${championshipHashtag} #${categoryName.replace(/\s+/g, "")}`;
                   navigator.clipboard.writeText(msg);
                   toast.success("Mensagem copiada!");
                 }
