@@ -46,7 +46,7 @@ const ConfirmParticipation = () => {
       .catch((err) => {
         const data = err.response?.data;
         // Se já estiver confirmado, mostrar mensagem de sucesso
-        if (data?.message && /já confirmad[oa]/i.test(data.message)) {
+        if (data?.message === "Sua participação já foi confirmada para esta etapa") {
           setSuccess(true);
           setError(null);
         } else {
