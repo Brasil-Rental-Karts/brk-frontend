@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { Loading } from "@/components/ui/loading";
 import { useChampionshipData } from "@/contexts/ChampionshipContext";
 import { StageService } from "@/lib/services/stage.service";
+import { ShortioService } from "@/lib/services/shortio.service";
 import { Stage } from "@/lib/types/stage";
 import { formatName } from "@/utils/name";
 
@@ -72,6 +73,8 @@ export const StageDetailsModal = ({
     stageName: string;
     link: string;
   } | null>(null);
+  const [shortenedLinks, setShortenedLinks] = useState<{[key: string]: string}>({});
+  const [isShorteningLinks, setIsShorteningLinks] = useState(false);
 
   // Usar o contexto de dados do campeonato
   const {
@@ -181,6 +184,12 @@ export const StageDetailsModal = ({
     }
   }, [stage, isOpen]);
 
+  useEffect(() => {
+    if (categories.length > 0 && stage) {
+      generateShortenedLinks(stage.id, categories);
+    }
+  }, [categories, stage]);
+
   const getStatusBadge = (pilot: PilotInfo) => {
     if (pilot.status === "confirmed") {
       return (
@@ -201,6 +210,42 @@ export const StageDetailsModal = ({
 
   const formatDateTime = (date: string, time: string) => {
     return `${StageService.formatDate(date)} às ${StageService.formatTime(time)}`;
+  };
+
+  const shortenUrl = async (originalUrl: string, title: string): Promise<string> => {
+    try {
+      const result = await ShortioService.shortenUrlWithDuplicateCheck({
+        url: originalUrl,
+        title: title,
+        tags: ['brk', 'confirmation', 'stage']
+      });
+      return result.shortURL;
+    } catch (error) {
+      console.error('Error shortening URL:', error);
+      // Fallback para URL original se falhar
+      return originalUrl;
+    }
+  };
+
+  const generateShortenedLinks = async (stageId: string, categories: CategoryWithParticipants[]) => {
+    setIsShorteningLinks(true);
+    try {
+      const siteUrl = window.location.origin;
+      const links: {[key: string]: string} = {};
+      
+      // Encurtar links para cada categoria individual
+      for (const category of categories) {
+        const categoryUrl = `${siteUrl}/confirm-participation/stage/${stageId}/category/${category.id}`;
+        links[category.id] = await shortenUrl(categoryUrl, `BRK - Confirmação ${category.name}`);
+      }
+      
+      setShortenedLinks(links);
+    } catch (error) {
+      console.error('Error generating shortened links:', error);
+      toast.error('Erro ao encurtar links. Usando URLs originais.');
+    } finally {
+      setIsShorteningLinks(false);
+    }
   };
 
   if (!stage) return null;
@@ -271,10 +316,28 @@ export const StageDetailsModal = ({
 
           {/* Participações por categoria */}
           <div>
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Participações por Categoria
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Participações por Categoria
+              </h3>
+                                                    <Button
+                size="sm"
+                variant="outline"
+                className="w-full sm:w-auto"
+                disabled={isShorteningLinks}
+                onClick={() => {
+                  setLinkModalData({
+                    pilotName: "Todas as Categorias",
+                    stageName: stage.name,
+                    link: "", // Não precisamos de link único, usaremos os links individuais
+                  });
+                  setShowLinkModal(true);
+                }}
+              >
+                {isShorteningLinks ? "Gerando..." : "Mensagem de Confirmação para Todas as Categorias"}
+              </Button>
+            </div>
 
             {loading ? (
               <div className="space-y-4">
@@ -315,9 +378,9 @@ export const StageDetailsModal = ({
                           size="sm"
                           variant="outline"
                           className="w-full sm:w-auto"
+                          disabled={isShorteningLinks}
                           onClick={() => {
-                            const siteUrl = window.location.origin;
-                            const link = `${siteUrl}/confirm-participation/stage/${stage.id}/category/${category.id}`;
+                            const link = shortenedLinks[category.id] || `${window.location.origin}/confirm-participation/stage/${stage.id}/category/${category.id}`;
                             setLinkModalData({
                               pilotName: `${category.name} - Todos os pilotos`,
                               stageName: stage.name,
@@ -326,7 +389,7 @@ export const StageDetailsModal = ({
                             setShowLinkModal(true);
                           }}
                         >
-                          Gerar Link de Confirmação
+                          {isShorteningLinks ? "Gerando..." : "Mensagem de Confirmação"}
                         </Button>
                       </div>
                     </div>
@@ -409,8 +472,21 @@ export const StageDetailsModal = ({
                         /\s+/g,
                         "",
                       );
-                      const categoryName = linkModalData.pilotName.replace(" - Todos os pilotos", "");
-                      return `🏎️ PILOTOS DA ${categoryName.toUpperCase()} 🏎️\n\n🏁 É HORA DE ACELERAR! 🏁\n\nVocês estão convocados para a próxima etapa do ${championshipName}!\n\n📅 Etapa: ${linkModalData.stageName}\n🏆 Categoria: ${categoryName}\n\n⚡ Confirmem suas presenças no grid:\n${linkModalData.link}\n\n🚀 Preparem-se para a disputa! 🚀\n\n#BRK #Kart #Corrida #${championshipHashtag} #${categoryName.replace(/\s+/g, "")}`;
+                      
+                      if (linkModalData.pilotName === "Todas as Categorias") {
+                        const categoryLinks = categories.map(category => {
+                          const link = shortenedLinks[category.id] || `${window.location.origin}/confirm-participation/stage/${stage.id}/category/${category.id}`;
+                          return `Piloto da ${category.name} - Confirmo minha presença:\n👉 ${link}`;
+                        }).join('\n\n');
+                        
+                        return `🏁 CONVOCAÇÃO GERAL PILOTOS DE TODAS AS CATEGORIAS - ${championshipName.toUpperCase()} 🏁\n\n🔥 A PRÓXIMA ETAPA ESTÁ CHEGANDO 🔥\n\n📅 Etapa: ${linkModalData.stageName} no dia ${formatDateTime(stage.date, stage.time)}\n\n🎯 Confirmem suas presenças no grid:\n\n${categoryLinks}\n\n💪 A COMPETIÇÃO ESTÁ ACIRRADA! QUEM VAI DOMINAR ESTA ETAPA?\n\n#BRK #Kart #Corrida #${championshipHashtag}`;
+                      } else {
+                        const categoryName = linkModalData.pilotName.replace(" - Todos os pilotos", "");
+                        // Encontrar a categoria correspondente para obter o link encurtado
+                        const category = categories.find(cat => cat.name === categoryName);
+                        const shortenedLink = category ? shortenedLinks[category.id] : linkModalData.link;
+                        return `🏎️ PILOTOS DA ${categoryName.toUpperCase()} 🏎️\n\n🏁 É HORA DE ACELERAR! 🏁\n\nVocês estão convocados para a próxima etapa do ${championshipName}!\n\n📅 Etapa: ${linkModalData.stageName} no dia ${formatDateTime(stage.date, stage.time)}\n\n⚡ Confirmem suas presenças no grid:\n${shortenedLink}\n\n🚀 Preparem-se para a disputa! 🚀\n\n#BRK #Kart #Corrida #${championshipHashtag} #${categoryName.replace(/\s+/g, "")}`;
+                      }
                     })()
                   : ""
               }
@@ -433,8 +509,22 @@ export const StageDetailsModal = ({
                     /\s+/g,
                     "",
                   );
-                  const categoryName = linkModalData.pilotName.replace(" - Todos os pilotos", "");
-                  const msg = `🏎️ PILOTOS DA ${categoryName.toUpperCase()} 🏎️\n\n🏁 É HORA DE ACELERAR! 🏁\n\nVocês estão convocados para a próxima etapa do ${championshipName}!\n\n📅 Etapa: ${linkModalData.stageName}\n🏆 Categoria: ${categoryName}\n\n⚡ Confirmem suas presenças no grid:\n${linkModalData.link}\n\n🚀 Preparem-se para a disputa! 🚀\n\n#BRK #Kart #Corrida #${championshipHashtag} #${categoryName.replace(/\s+/g, "")}`;
+                  
+                  let msg = "";
+                  if (linkModalData.pilotName === "Todas as Categorias") {
+                    const categoryLinks = categories.map(category => {
+                      const link = shortenedLinks[category.id] || `${window.location.origin}/confirm-participation/stage/${stage.id}/category/${category.id}`;
+                      return `Piloto da ${category.name} - Confirmo minha presença:\n👉 ${link}`;
+                    }).join('\n\n');
+                    
+                    msg = `🏁 CONVOCAÇÃO GERAL PILOTOS DE TODAS AS CATEGORIAS - ${championshipName.toUpperCase()} 🏁\n\n🔥 A PRÓXIMA ETAPA ESTÁ CHEGANDO 🔥\n\n📅 Etapa: ${linkModalData.stageName} no dia ${formatDateTime(stage.date, stage.time)}\n\n🎯 Confirmem suas presenças no grid:\n\n${categoryLinks}\n\n💪 A COMPETIÇÃO ESTÁ ACIRRADA! QUEM VAI DOMINAR ESTA ETAPA?\n\n#BRK #Kart #Corrida #${championshipHashtag}`;
+                  } else {
+                    const categoryName = linkModalData.pilotName.replace(" - Todos os pilotos", "");
+                    // Encontrar a categoria correspondente para obter o link encurtado
+                    const category = categories.find(cat => cat.name === categoryName);
+                    const shortenedLink = category ? shortenedLinks[category.id] : linkModalData.link;
+                    msg = `🏎️ PILOTOS DA ${categoryName.toUpperCase()} 🏎️\n\n🏁 É HORA DE ACELERAR! 🏁\n\nVocês estão convocados para a próxima etapa do ${championshipName}!\n\n📅 Etapa: ${linkModalData.stageName} no dia ${formatDateTime(stage.date, stage.time)}\n\n⚡ Confirmem suas presenças no grid:\n${shortenedLink}\n\n🚀 Preparem-se para a disputa! 🚀\n\n#BRK #Kart #Corrida #${championshipHashtag} #${categoryName.replace(/\s+/g, "")}`;
+                  }
                   navigator.clipboard.writeText(msg);
                   toast.success("Mensagem copiada!");
                 }
