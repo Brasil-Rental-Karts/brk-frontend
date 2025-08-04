@@ -949,12 +949,43 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         const categories =
           registration.categories?.map((rc) => rc.category.name).join(", ") ||
           "Sem categorias";
+        
+        // Preparar informações sobre etapas para inscrições por etapa
+        let etapasInfo = "";
+        if (registration.inscriptionType === "por_etapa") {
+          if (registration.stages && registration.stages.length > 0) {
+            const stageNames = registration.stages
+              .map((regStage) => {
+                // Verificar se regStage tem a propriedade stage e se stage tem name
+                if (regStage && regStage.stage && regStage.stage.name) {
+                  return regStage.stage.name;
+                }
+                // Fallback: verificar se regStage tem name diretamente
+                if (regStage && regStage.name) {
+                  return regStage.name;
+                }
+                return "Etapa não encontrada";
+              })
+              .filter(name => name !== "Etapa não encontrada"); // Remover etapas não encontradas
+            
+            etapasInfo = stageNames.length > 0 
+              ? stageNames.join(", ") 
+              : "Nenhuma etapa selecionada";
+          } else {
+            etapasInfo = "Nenhuma etapa selecionada";
+          }
+        } else {
+          etapasInfo = "Todas as etapas (inscrição por temporada)";
+        }
+
         return {
           "Nome do Piloto": formatName(registration.user.name),
           Email: registration.user.email,
           Telefone: registration.user.phone || "Não informado",
           Temporada: registration.season.name,
           Categorias: categories,
+          "Tipo de Inscrição": registration.inscriptionType === "por_temporada" ? "Por Temporada" : "Por Etapa",
+          "Etapas Inscritas": etapasInfo,
           "Status da Inscrição": getRegistrationStatusLabel(
             registration.status,
           ),
@@ -987,6 +1018,8 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         { wch: 15 }, // Telefone
         { wch: 20 }, // Temporada
         { wch: 30 }, // Categorias
+        { wch: 15 }, // Tipo de Inscrição
+        { wch: 40 }, // Etapas Inscritas
         { wch: 20 }, // Status da Inscrição
         { wch: 20 }, // Status do Pagamento
         { wch: 12 }, // Valor
