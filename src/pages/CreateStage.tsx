@@ -36,6 +36,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { useChampionshipData } from "@/contexts/ChampionshipContext";
 import { Category } from "@/lib/services/category.service";
 import { CreateStageData, StageService } from "@/lib/services/stage.service";
+import { parseCurrencyMask, formatCurrency } from "@/utils/currency";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _unused = {
@@ -100,6 +101,7 @@ const STAGE_INITIAL_VALUES = {
   doubleRound: false,
   briefing: "",
   briefingTime: "",
+  price: "",
 };
 
 export const CreateStage = () => {
@@ -236,6 +238,13 @@ export const CreateStage = () => {
           },
           { id: "doublePoints", name: "Pontuação em dobro", type: "checkbox" },
           { id: "doubleRound", name: "Rodada Dupla", type: "checkbox" },
+          {
+            id: "price",
+            name: "Preço diferenciado",
+            type: "inputMask",
+            mask: "currency",
+            placeholder: "R$ 0,00",
+          },
         ],
       },
       {
@@ -305,6 +314,7 @@ export const CreateStage = () => {
             date: formatISOToDate(stageData.date),
             raceTrackId: stageData.raceTrackId || "",
             trackLayoutId: stageData.trackLayoutId || "undefined",
+            price: stageData.price ? formatCurrency(stageData.price) : "",
           };
 
           if (stageData.seasonId) {
@@ -370,6 +380,7 @@ export const CreateStage = () => {
               : formatISOToDate(duplicatedData.date),
             raceTrackId: duplicatedData.raceTrackId || "",
             trackLayoutId: duplicatedData.trackLayoutId || "undefined",
+            price: duplicatedData.price ? formatCurrency(duplicatedData.price) : "",
           };
 
           if (duplicatedData.seasonId) {
@@ -462,6 +473,12 @@ export const CreateStage = () => {
         transformedData.trackLayoutId === "undefined"
       ) {
         transformedData.trackLayoutId = null;
+      }
+      if (transformedData.price === "" || transformedData.price === null) {
+        transformedData.price = null;
+      } else {
+        // Converter o valor da máscara de moeda para número
+        transformedData.price = parseCurrencyMask(String(transformedData.price));
       }
 
       // Garantir que doublePoints seja boolean

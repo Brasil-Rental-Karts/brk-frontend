@@ -221,9 +221,14 @@ const StageOptionBadge = React.forwardRef<
           <Badge variant="default" className="text-xs">
             {stage.time}
           </Badge>
+          {stage.price && stage.price > 0 && (
+            <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">
+              Preço diferenciado
+            </Badge>
+          )}
           {stage.doubleRound && (
             <Badge variant="secondary" className="text-xs">
-              Rodada Dupla (2x valor)
+              {stage.price && stage.price > 0 ? "Rodada Dupla" : "Rodada Dupla (2x valor)"}
             </Badge>
           )}
         </div>
@@ -986,14 +991,28 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     const inscriptionValue = getInscriptionValue();
 
     if (inscriptionType === "por_etapa" && selectedStages.length > 0) {
-      // Por etapa: calcular valor considerando etapas com rodada dupla
+      // Por etapa: calcular valor considerando etapas com rodada dupla e preço diferenciado
       let stageTotal = 0;
       
       selectedStages.forEach(stageId => {
         const stage = stages.find(s => s.id === stageId);
         if (stage) {
-          // Se a etapa é rodada dupla, multiplicar por 2
-          const stageValue = stage.doubleRound ? inscriptionValue * 2 : inscriptionValue;
+          // Verificar se a etapa tem preço diferenciado
+          let stageValue: number;
+          
+          if (stage.price && Number(stage.price) > 0) {
+            // Usar o preço diferenciado da etapa (não multiplicar por 2 mesmo se for rodada dupla)
+            stageValue = Number(stage.price);
+          } else {
+            // Usar o valor padrão da inscrição
+            stageValue = inscriptionValue;
+            
+            // Se a etapa é rodada dupla E não tem preço diferenciado, multiplicar por 2
+            if (stage.doubleRound) {
+              stageValue *= 2;
+            }
+          }
+          
           stageTotal += stageValue;
         }
       });
@@ -1033,7 +1052,11 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     // Atualizar categorias selecionadas para cálculo de vagas das etapas
     if (data.categorias && Array.isArray(data.categorias)) {
       setSelectedCategoriesState(data.categorias);
-      calculateTotal(data.categorias, data.etapas || []);
+    }
+    
+    // Calcular total sempre que categorias ou etapas mudarem
+    if ((data.categorias && Array.isArray(data.categorias)) || (data.etapas && Array.isArray(data.etapas))) {
+      calculateTotal(data.categorias || [], data.etapas || []);
     }
   };
 
@@ -1440,30 +1463,6 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
                 </div>
               </div>
             </div>
-
-            {/* Informações sobre rodadas duplas */}
-            {inscriptionType === "por_etapa" && filteredStages.some(stage => stage.doubleRound) && (
-              <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <div className="flex items-start space-x-2">
-                  <svg
-                    className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <div className="text-sm text-blue-800">
-                    <span className="font-medium">Rodadas Duplas:</span> Algumas etapas marcadas como "Rodada Dupla" têm valor dobrado (2x) para compensar a maior duração da prova.
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Informações sobre parcelamento e taxas */}
             {inscriptionType === "por_temporada" && (

@@ -15,6 +15,7 @@ export interface Stage {
   doubleRound: boolean;
   briefing?: string;
   briefingTime?: string; // HH:MM format
+  price?: number; // Decimal field for stage price
   schedule?: any; // JSONB field for schedule items
   fleets?: any[]; // JSONB field for fleets configuration
   kart_draw_assignments?: {
@@ -68,6 +69,7 @@ export interface CreateStageData {
   doubleRound?: boolean;
   briefing?: string;
   briefingTime?: string; // HH:MM format
+  price?: number; // Decimal field for stage price
 }
 
 /**
@@ -85,6 +87,7 @@ export interface UpdateStageData {
   doubleRound?: boolean;
   briefing?: string;
   briefingTime?: string; // HH:MM format
+  price?: number; // Decimal field for stage price
   fleets?: any[]; // JSONB field for fleets configuration
 }
 

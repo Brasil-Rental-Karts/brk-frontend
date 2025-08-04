@@ -53,3 +53,21 @@ export const formatDecimal = (value: number | string): string => {
   const numericValue = parseMonetaryValue(value);
   return numericValue.toFixed(2);
 };
+
+/**
+ * Converte um valor da máscara de moeda para número
+ * @param maskedValue Valor formatado da máscara (ex: "R$ 150,00")
+ * @returns Número ou null se inválido
+ */
+export const parseCurrencyMask = (maskedValue: string): number | null => {
+  if (!maskedValue || maskedValue.trim() === "") return null;
+  
+  // Remove caracteres não numéricos
+  const numericString = maskedValue.replace(/[^\d]/g, "");
+  
+  if (numericString === "") return null;
+  
+  // Converte para número dividindo por 100 (centavos)
+  const value = Number(numericString) / 100;
+  return isNaN(value) ? null : value;
+};
