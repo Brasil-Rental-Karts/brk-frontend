@@ -151,11 +151,18 @@ const StageCard = ({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {stage.doublePoints && (
-          <Badge variant="outline" className="w-fit text-xs">
-            Pontos em dobro
-          </Badge>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {stage.doublePoints && (
+            <Badge variant="outline" className="w-fit text-xs">
+              Pontos em dobro
+            </Badge>
+          )}
+          {stage.doubleRound && (
+            <Badge variant="outline" className="w-fit text-xs">
+              Rodada Dupla
+            </Badge>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex flex-col">
             <span className="text-muted-foreground">Data</span>
@@ -443,6 +450,7 @@ export const StagesTab = ({
       seasonId: stageData.seasonId,
       categoryIds,
       doublePoints: stageData.doublePoints || false,
+      doubleRound: stageData.doubleRound || false,
       briefing: stageData.briefing || "",
       briefingTime: stageData.briefingTime || "",
     };

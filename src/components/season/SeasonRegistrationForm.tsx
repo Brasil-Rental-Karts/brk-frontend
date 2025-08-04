@@ -221,6 +221,11 @@ const StageOptionBadge = React.forwardRef<
           <Badge variant="default" className="text-xs">
             {stage.time}
           </Badge>
+          {stage.doubleRound && (
+            <Badge variant="secondary" className="text-xs">
+              Rodada Dupla (2x valor)
+            </Badge>
+          )}
         </div>
         {/* Badges separados para cada categoria selecionada - empilhados verticalmente */}
         <div className="flex flex-col gap-1">
@@ -981,9 +986,20 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     const inscriptionValue = getInscriptionValue();
 
     if (inscriptionType === "por_etapa" && selectedStages.length > 0) {
-      // Por etapa: quantidade de categorias x quantidade de etapas x valor da inscrição
-      newTotal =
-        selectedCategories.length * selectedStages.length * inscriptionValue;
+      // Por etapa: calcular valor considerando etapas com rodada dupla
+      let stageTotal = 0;
+      
+      selectedStages.forEach(stageId => {
+        const stage = stages.find(s => s.id === stageId);
+        if (stage) {
+          // Se a etapa é rodada dupla, multiplicar por 2
+          const stageValue = stage.doubleRound ? inscriptionValue * 2 : inscriptionValue;
+          stageTotal += stageValue;
+        }
+      });
+      
+      // Multiplicar pelo número de categorias selecionadas
+      newTotal = selectedCategories.length * stageTotal;
     } else {
       // Por temporada: quantidade de categorias x valor da inscrição
       newTotal = selectedCategories.length * inscriptionValue;
@@ -1424,6 +1440,30 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Informações sobre rodadas duplas */}
+            {inscriptionType === "por_etapa" && filteredStages.some(stage => stage.doubleRound) && (
+              <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-start space-x-2">
+                  <svg
+                    className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <div className="text-sm text-blue-800">
+                    <span className="font-medium">Rodadas Duplas:</span> Algumas etapas marcadas como "Rodada Dupla" têm valor dobrado (2x) para compensar a maior duração da prova.
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Informações sobre parcelamento e taxas */}
             {inscriptionType === "por_temporada" && (

@@ -97,6 +97,7 @@ const STAGE_INITIAL_VALUES = {
   seasonId: "",
   categoryIds: [] as string[],
   doublePoints: false,
+  doubleRound: false,
   briefing: "",
   briefingTime: "",
 };
@@ -234,6 +235,7 @@ export const CreateStage = () => {
             max_char: 2000,
           },
           { id: "doublePoints", name: "Pontuação em dobro", type: "checkbox" },
+          { id: "doubleRound", name: "Rodada Dupla", type: "checkbox" },
         ],
       },
       {
@@ -470,6 +472,16 @@ export const CreateStage = () => {
         transformedData.doublePoints = false;
       } else {
         transformedData.doublePoints = Boolean(transformedData.doublePoints);
+      }
+
+      // Garantir que doubleRound seja boolean
+      if (
+        transformedData.doubleRound === undefined ||
+        transformedData.doubleRound === null
+      ) {
+        transformedData.doubleRound = false;
+      } else {
+        transformedData.doubleRound = Boolean(transformedData.doubleRound);
       }
 
       // Garantir que categoryIds seja um array válido

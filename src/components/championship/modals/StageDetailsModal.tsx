@@ -298,6 +298,12 @@ export const StageDetailsModal = ({
                   <Badge variant="outline">Pontuação em Dobro</Badge>
                 </div>
               )}
+              {stage.doubleRound && (
+                <div className="flex items-center gap-2">
+                  <Navigation className="h-4 w-4 text-muted-foreground" />
+                  <Badge variant="outline">Rodada Dupla</Badge>
+                </div>
+              )}
               {stage.streamLink && (
                 <div className="flex items-center gap-2">
                   <LinkIcon className="h-4 w-4 text-muted-foreground" />

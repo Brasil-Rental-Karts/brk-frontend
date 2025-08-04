@@ -201,8 +201,7 @@ export const PaymentConditions = forwardRef<
 
   return (
     <div ref={ref} className="space-y-4" onBlur={onBlur}>
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">Condições de Pagamento</Label>
+      <div className="flex items-center justify-end">
         {canAddMore && (
           <Button
             type="button"

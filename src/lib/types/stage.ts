@@ -12,6 +12,7 @@ export interface Stage {
   seasonId: string;
   categoryIds: string[];
   doublePoints: boolean;
+  doubleRound: boolean;
   briefing?: string;
   briefingTime?: string; // HH:MM format
   schedule?: any; // JSONB field for schedule items
@@ -64,6 +65,7 @@ export interface CreateStageData {
   seasonId: string;
   categoryIds: string[];
   doublePoints?: boolean;
+  doubleRound?: boolean;
   briefing?: string;
   briefingTime?: string; // HH:MM format
 }
@@ -80,6 +82,7 @@ export interface UpdateStageData {
   streamLink?: string;
   categoryIds?: string[];
   doublePoints?: boolean;
+  doubleRound?: boolean;
   briefing?: string;
   briefingTime?: string; // HH:MM format
   fleets?: any[]; // JSONB field for fleets configuration

@@ -739,6 +739,14 @@ export const Dashboard = () => {
                               2x Pontos
                             </Badge>
                           )}
+                          {race.stage.doubleRound && (
+                            <Badge
+                              variant="secondary"
+                              className="text-xs whitespace-nowrap"
+                            >
+                              Rodada Dupla
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       {/* Informações essenciais */}
@@ -979,6 +987,12 @@ export const Dashboard = () => {
               <Badge variant="secondary" className="px-3 py-1">
                 <Trophy className="h-3 w-3 mr-1" />
                 Pontuação em Dobro
+              </Badge>
+            )}
+            {selectedRace?.stage?.doubleRound && (
+              <Badge variant="secondary" className="px-3 py-1">
+                <Navigation className="h-3 w-3 mr-1" />
+                Rodada Dupla
               </Badge>
             )}
             {selectedRace?.hasConfirmedParticipation && (
