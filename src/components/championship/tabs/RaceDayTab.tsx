@@ -49,6 +49,7 @@ import {
   Minus,
   MoreVertical,
   Plus,
+  Weight,
   Trash2,
   Upload,
   X,
@@ -380,6 +381,9 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
   const [importType, setImportType] = useState<
     "race" | "qualification" | "lapTimes"
   >("race");
+
+  // Modo de pesagem (mobile): exibir apenas Nome, Kart e Peso
+  const [weighingMode, setWeighingMode] = useState(false);
 
   // Estados para lap times
   const [lapTimes, setLapTimes] = useState<{
@@ -4059,7 +4063,34 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                   {/* MOBILE: Cards de resultados */}
                   {categoryPilots.length > 0 && (
                     <div className="block lg:hidden">
-                      {getSortedPilots(categoryPilots, category).map(
+                      {/* Barra de ações mobile */}
+                      <div className="flex items-center justify-end mb-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className={`h-10 px-3 ${weighingMode ? "border-orange-500 text-orange-600" : ""}`}
+                          onClick={() => setWeighingMode((v) => !v)}
+                          title="Modo de pesagem"
+                        >
+                          <Weight className={`${weighingMode ? "text-orange-500" : ""} w-12 h-12`} />
+                        </Button>
+                      </div>
+                      {(
+                        weighingMode
+                          ? [...categoryPilots].sort((a: any, b: any) => {
+                              const kartA =
+                                fleetDrawResults[category.id]?.[a.userId]?.[
+                                  selectedBatteryIndex
+                                ]?.kart ?? Number.POSITIVE_INFINITY;
+                              const kartB =
+                                fleetDrawResults[category.id]?.[b.userId]?.[
+                                  selectedBatteryIndex
+                                ]?.kart ?? Number.POSITIVE_INFINITY;
+                              return kartA - kartB;
+                            })
+                          : getSortedPilots(categoryPilots, category)
+                      ).map(
                         (pilot) => (
                           <div
                             key={pilot.id}
@@ -4170,7 +4201,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                             </div>
 
                             {/* Segunda linha: Qualificação e Corrida */}
-                            <div className="grid grid-cols-2 gap-3">
+                            {!weighingMode && (
+                              <div className="grid grid-cols-2 gap-3">
                               {/* Qualificação */}
                               <div className="flex flex-col">
                                 <span className="text-xs text-gray-500 mb-1">
@@ -4256,11 +4288,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                                     );
                                   })()}
                                 </button>
+                                </div>
                               </div>
-                            </div>
+                            )}
 
                             {/* Terceira linha: Melhor Volta */}
-                            <div className="grid grid-cols-1 gap-3 mt-3">
+                            {!weighingMode && (
+                              <div className="grid grid-cols-1 gap-3 mt-3">
                               <div className="flex flex-col">
                                 <span className="text-xs text-gray-500 mb-1">
                                   Melhor Volta
@@ -4374,10 +4408,12 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                                   )}
                                 </button>
                               </div>
-                            </div>
+                              </div>
+                            )}
 
                             {/* Quarta linha: Tempo Total e Total de Voltas */}
-                            <div className="grid grid-cols-2 gap-3 mt-3">
+                            {!weighingMode && (
+                              <div className="grid grid-cols-2 gap-3 mt-3">
                               <div className="flex flex-col">
                                 <span className="text-xs text-gray-500 mb-1">
                                   Tempo Total
@@ -4458,10 +4494,11 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                                     </span>
                                   ) : (
                                     <span className="text-gray-400">-</span>
-                                  )}
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
+                            )}
                           </div>
                         ),
                       )}
