@@ -5391,6 +5391,22 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                       transferidos automaticamente.
                     </p>
 
+                    {/* Legenda de cores */}
+                    <div className="flex flex-wrap items-center gap-4 mb-4 text-sm text-gray-700">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block w-4 h-4 rounded-full bg-black border border-gray-700" />
+                        <span>Preto = Kart Ocupado</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block w-4 h-4 rounded-full bg-gray-300 border border-gray-400" />
+                        <span>Cinza = Kart Atual</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block w-4 h-4 rounded-full bg-orange-500 border border-orange-600" />
+                        <span>Laranja = Kart disponível</span>
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-6 gap-2">
                       {getAvailableKarts(
                         selectedPilotForKartChange.categoryId,
@@ -5403,9 +5419,15 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                               <button
                                 onClick={() => changePilotKart(kartInfo.kart)}
                                 className={`w-12 h-12 rounded-full font-bold text-sm border-2 transition-colors flex items-center justify-center ${
-                                  kartInfo.isUsed
-                                    ? "bg-black text-orange-500 border-gray-700 hover:bg-gray-800"
-                                    : "bg-orange-500 text-black border-orange-600 hover:bg-orange-600"
+                                  (fleetDrawResults[
+                                    selectedPilotForKartChange.categoryId
+                                  ]?.[selectedPilotForKartChange.pilotId]?.[
+                                    selectedPilotForKartChange.batteryIndex
+                                  ]?.kart === kartInfo.kart)
+                                    ? "bg-gray-300 text-orange-500 border-gray-400 hover:bg-gray-300"
+                                    : kartInfo.isUsed
+                                      ? "bg-black text-orange-500 border-gray-700 hover:bg-gray-800"
+                                      : "bg-orange-500 text-black border-orange-600 hover:bg-orange-600"
                                 }`}
                                 disabled={kartLoading}
                               >
@@ -5413,9 +5435,15 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                               </button>
                             </TooltipTrigger>
                             <TooltipContent>
-                              {kartInfo.isUsed
-                                ? `Kart ${kartInfo.kart} - Em uso por ${formatName(registrations.find((r) => r.userId === kartInfo.usedBy)?.user?.name || kartInfo.usedBy)}`
-                                : `Kart ${kartInfo.kart} - Disponível`}
+                              {fleetDrawResults[
+                                selectedPilotForKartChange.categoryId
+                              ]?.[selectedPilotForKartChange.pilotId]?.[
+                                selectedPilotForKartChange.batteryIndex
+                              ]?.kart === kartInfo.kart
+                                ? `Kart ${kartInfo.kart} - Atual do piloto`
+                                : kartInfo.isUsed
+                                  ? `Kart ${kartInfo.kart} - Em uso por ${formatName(registrations.find((r) => r.userId === kartInfo.usedBy)?.user?.name || kartInfo.usedBy)}`
+                                  : `Kart ${kartInfo.kart} - Disponível`}
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
