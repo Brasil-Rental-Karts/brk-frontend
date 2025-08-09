@@ -29,6 +29,24 @@ export const usePaymentManagement = () => {
     }
   };
 
+  const getAllPendingPayments = async (): Promise<OverduePayment[]> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const payments = await PaymentManagementService.getAllPendingPayments();
+      return payments;
+    } catch (err: any) {
+      const errorMessage =
+        err.response?.data?.message || "Erro ao buscar pagamentos pendentes";
+      setError(errorMessage);
+      toast.error(errorMessage);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getOverduePayments = async (
     registrationId: string,
   ): Promise<OverduePayment[]> => {
@@ -75,11 +93,38 @@ export const usePaymentManagement = () => {
     }
   };
 
+  const updatePaymentValue = async (
+    paymentId: string,
+    newValue: number,
+  ): Promise<ReactivatePaymentResponse> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await PaymentManagementService.updatePaymentValue(
+        paymentId,
+        newValue,
+      );
+      toast.success("Valor atualizado com sucesso!");
+      return result;
+    } catch (err: any) {
+      const errorMessage =
+        err.response?.data?.message || "Erro ao atualizar valor";
+      setError(errorMessage);
+      toast.error(errorMessage);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     loading,
     error,
     getAllOverduePayments,
     getOverduePayments,
     reactivateOverduePayment,
+    updatePaymentValue,
+    getAllPendingPayments,
   };
 };

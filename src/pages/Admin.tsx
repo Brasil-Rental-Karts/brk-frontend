@@ -165,7 +165,7 @@ export const Admin = () => {
             value="overdue-payments"
             className="text-xs sm:text-sm py-2 sm:py-1.5"
           >
-            Pagamentos Vencidos
+            Pagamentos
           </TabsTrigger>
           <TabsTrigger
             value="race-tracks"

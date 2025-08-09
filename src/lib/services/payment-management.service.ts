@@ -67,6 +67,14 @@ export class PaymentManagementService {
   }
 
   /**
+   * Busca todos os pagamentos pendentes do sistema
+   */
+  static async getAllPendingPayments(): Promise<OverduePayment[]> {
+    const response = await api.get("/payment-management/pending-payments");
+    return response.data.data;
+  }
+
+  /**
    * Busca pagamentos vencidos de uma inscrição
    */
   static async getOverduePayments(
@@ -90,6 +98,20 @@ export class PaymentManagementService {
       {
         newDueDate,
       },
+    );
+    return response.data.data;
+  }
+
+  /**
+   * Atualiza o valor de uma cobrança
+   */
+  static async updatePaymentValue(
+    paymentId: string,
+    newValue: number,
+  ): Promise<ReactivatePaymentResponse> {
+    const response = await api.put(
+      `/payment-management/update-payment-value/${paymentId}`,
+      { newValue },
     );
     return response.data.data;
   }

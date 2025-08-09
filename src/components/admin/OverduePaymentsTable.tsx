@@ -8,6 +8,10 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -16,6 +20,7 @@ import {
   DialogTitle,
   Input,
   Label,
+  Pagination,
   Table,
   TableBody,
   TableCell,
@@ -37,38 +42,67 @@ import { usePaymentManagement } from "@/hooks/use-payment-management";
 import { OverduePayment } from "@/lib/services/payment-management.service";
 import { formatCurrency } from "@/utils/currency";
 import { formatDateToBrazilian } from "@/utils/date";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { usePagination } from "@/hooks/usePagination";
+import { InlineLoader } from "@/components/ui/loading";
 
 export const OverduePaymentsTable = () => {
+  const isMobile = useIsMobile();
+  const [activeTab, setActiveTab] = useState<'overdue' | 'pending'>('overdue');
   const [overduePayments, setOverduePayments] = useState<OverduePayment[]>([]);
+  const [pendingPayments, setPendingPayments] = useState<OverduePayment[]>([]);
   const [filteredPayments, setFilteredPayments] = useState<OverduePayment[]>(
     [],
   );
+  const [filteredPending, setFilteredPending] = useState<OverduePayment[]>([]);
   const [selectedPayment, setSelectedPayment] = useState<OverduePayment | null>(
     null,
   );
   const [newDueDate, setNewDueDate] = useState("");
+  const [newValue, setNewValue] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditValueDialogOpen, setIsEditValueDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<"dueDate" | "value" | "registrationId">(
-    "dueDate",
-  );
+  const [sortBy, setSortBy] = useState<
+    "name" | "dueDate" | "value" | "registrationId"
+  >("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
-  const { loading, error, getAllOverduePayments, reactivateOverduePayment } =
+  const { loading, error, getAllOverduePayments, getAllPendingPayments, reactivateOverduePayment, updatePaymentValue } =
     usePaymentManagement();
 
+  // Paginação (desktop)
+  const overduePagination = usePagination(filteredPayments.length, 10, 1);
+  const pendingPagination = usePagination(filteredPending.length, 10, 1);
+  const paginatedOverdue = isMobile
+    ? filteredPayments
+    : filteredPayments.slice(
+        overduePagination.info.startIndex,
+        overduePagination.info.endIndex,
+      );
+  const paginatedPending = isMobile
+    ? filteredPending
+    : filteredPending.slice(
+        pendingPagination.info.startIndex,
+        pendingPagination.info.endIndex,
+      );
+
   useEffect(() => {
-    loadOverduePayments();
+    loadAllPayments();
   }, []);
 
   useEffect(() => {
     filterAndSortPayments();
-  }, [overduePayments, searchTerm, sortBy, sortOrder]);
+  }, [overduePayments, pendingPayments, searchTerm, sortBy, sortOrder]);
 
-  const loadOverduePayments = async () => {
+  const loadAllPayments = async () => {
     try {
-      const payments = await getAllOverduePayments();
-      setOverduePayments(payments);
+      const [overdues, pendings] = await Promise.all([
+        getAllOverduePayments(),
+        getAllPendingPayments(),
+      ]);
+      setOverduePayments(overdues);
+      setPendingPayments(pendings);
     } catch (error) {
       console.error("Erro ao carregar pagamentos vencidos:", error);
     }
@@ -76,38 +110,42 @@ export const OverduePaymentsTable = () => {
 
   const filterAndSortPayments = () => {
     let filtered = overduePayments;
+    let filteredP = pendingPayments;
 
     // Filtrar por termo de busca
     if (searchTerm) {
-      filtered = filtered.filter(
-        (payment) =>
-          payment.registrationId
+      const match = (p: OverduePayment) =>
+        p.registrationId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.registration?.user?.name &&
+          p.registration.user.name
             .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          (payment.registration?.user?.name &&
-            payment.registration.user.name
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase())) ||
-          (payment.registration?.user?.email &&
-            payment.registration.user.email
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase())) ||
-          (payment.registration?.season?.championship?.name &&
-            payment.registration.season.championship.name
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase())) ||
-          (payment.registration?.season?.name &&
-            payment.registration.season.name
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase())),
-      );
+            .includes(searchTerm.toLowerCase())) ||
+        (p.registration?.user?.email &&
+          p.registration.user.email
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())) ||
+        (p.registration?.season?.championship?.name &&
+          p.registration.season.championship.name
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())) ||
+        (p.registration?.season?.name &&
+          p.registration.season.name
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()));
+
+      filtered = filtered.filter(match);
+      filteredP = filteredP.filter(match);
     }
 
     // Ordenar
-    filtered.sort((a, b) => {
+    const sorter = (a: any, b: any) => {
       let aValue: any, bValue: any;
 
       switch (sortBy) {
+        case "name":
+          aValue = (a.registration?.user?.name || "").toLowerCase();
+          bValue = (b.registration?.user?.name || "").toLowerCase();
+          break;
         case "dueDate":
           aValue = new Date(a.dueDate);
           bValue = new Date(b.dueDate);
@@ -129,9 +167,13 @@ export const OverduePaymentsTable = () => {
       } else {
         return aValue < bValue ? 1 : -1;
       }
-    });
+    };
+
+    filtered.sort(sorter);
+    filteredP.sort(sorter);
 
     setFilteredPayments(filtered);
+    setFilteredPending(filteredP);
   };
 
   const handleReactivatePayment = async () => {
@@ -143,8 +185,8 @@ export const OverduePaymentsTable = () => {
       setSelectedPayment(null);
       setNewDueDate("");
 
-      // Recarregar pagamentos vencidos
-      await loadOverduePayments();
+      // Recarregar pagamentos
+      await loadAllPayments();
     } catch (error) {
       console.error("Erro ao reativar pagamento:", error);
     }
@@ -159,7 +201,15 @@ export const OverduePaymentsTable = () => {
     setIsDialogOpen(true);
   };
 
-  const handleSort = (column: "dueDate" | "value" | "registrationId") => {
+  const openEditValueDialog = (payment: OverduePayment) => {
+    setSelectedPayment(payment);
+    setNewValue(String(payment.value || ""));
+    setIsEditValueDialogOpen(true);
+  };
+
+  const handleSort = (
+    column: "name" | "dueDate" | "value" | "registrationId",
+  ) => {
     if (sortBy === column) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
@@ -189,6 +239,22 @@ export const OverduePaymentsTable = () => {
             <div className="text-muted-foreground">
               Carregando pagamentos vencidos...
             </div>
+            {!isMobile && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={overduePagination.state.currentPage}
+                  totalPages={overduePagination.info.totalPages}
+                  itemsPerPage={overduePagination.state.itemsPerPage}
+                  totalItems={overduePagination.state.totalItems}
+                  startIndex={overduePagination.info.startIndex}
+                  endIndex={overduePagination.info.endIndex}
+                  hasNextPage={overduePagination.info.hasNextPage}
+                  hasPreviousPage={overduePagination.info.hasPreviousPage}
+                  onPageChange={overduePagination.actions.setCurrentPage}
+                  onItemsPerPageChange={overduePagination.actions.setItemsPerPage}
+                />
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -199,14 +265,8 @@ export const OverduePaymentsTable = () => {
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-red-500" />
-            Pagamentos Vencidos
-          </CardTitle>
-          <CardDescription>
-            Gerencie faturas vencidas por PIX. Você pode reativar faturas
-            alterando a data de vencimento e gerando um novo QR Code.
-          </CardDescription>
+          <CardTitle className="flex items-center gap-2">Pagamentos</CardTitle>
+          <CardDescription>Gerencie faturas por status</CardDescription>
         </CardHeader>
         <CardContent>
           {error && (
@@ -230,7 +290,7 @@ export const OverduePaymentsTable = () => {
               </div>
             </div>
             <Button
-              onClick={loadOverduePayments}
+              onClick={loadAllPayments}
               disabled={loading}
               variant="outline"
               className="flex items-center gap-2"
@@ -242,43 +302,64 @@ export const OverduePaymentsTable = () => {
             </Button>
           </div>
 
-          {/* Estatísticas */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <div className="bg-muted rounded-lg p-4">
-              <div className="text-2xl font-bold text-red-600">
-                {filteredPayments.length}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Faturas Vencidas
-              </div>
-            </div>
-            <div className="bg-muted rounded-lg p-4">
-              <div className="text-2xl font-bold">
-                {formatCurrency(
-                  filteredPayments.reduce(
-                    (sum, p) => sum + (Number(p.value) || 0),
-                    0,
-                  ),
-                )}
-              </div>
-              <div className="text-sm text-muted-foreground">Valor Total</div>
-            </div>
-            <div className="bg-muted rounded-lg p-4">
-              <div className="text-2xl font-bold text-blue-600">
-                {overduePayments.length}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Total no Sistema
-              </div>
-            </div>
-          </div>
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-2 h-auto sm:h-10 gap-2 mb-4">
+              <TabsTrigger
+                value="overdue"
+                className="text-xs sm:text-sm py-2 text-center whitespace-nowrap"
+              >
+                Vencidos
+              </TabsTrigger>
+              <TabsTrigger
+                value="pending"
+                className="text-xs sm:text-sm py-2 text-center whitespace-nowrap"
+              >
+                Pendentes
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Tabela */}
-          <div className="rounded-md border">
-            <Table>
+            <TabsContent value="overdue" className="mt-2 sm:mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div className="bg-muted rounded-lg p-4">
+                  <div className="text-2xl font-bold text-red-600">
+                    {filteredPayments.length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Faturas Vencidas</div>
+                </div>
+                <div className="bg-muted rounded-lg p-4">
+                  <div className="text-2xl font-bold">
+                    {formatCurrency(
+                      filteredPayments.reduce(
+                        (sum, p) => sum + (Number(p.value) || 0),
+                        0,
+                      ),
+                    )}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Valor Total</div>
+                </div>
+                <div className="bg-muted rounded-lg p-4">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {overduePayments.length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Total no Sistema</div>
+                </div>
+              </div>
+
+          {/* Lista: Vencidos */}
+          {!isMobile ? (
+            <div className="rounded-md border">
+              <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Piloto / Competição</TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted"
+                    onClick={() => handleSort("name")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Piloto / Competição
+                      <Filter className="h-3 w-3" />
+                    </div>
+                  </TableHead>
                   <TableHead
                     className="cursor-pointer hover:bg-muted"
                     onClick={() => handleSort("dueDate")}
@@ -303,7 +384,7 @@ export const OverduePaymentsTable = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPayments.length === 0 ? (
+                {paginatedOverdue.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8">
                       <div className="text-muted-foreground">
@@ -314,7 +395,7 @@ export const OverduePaymentsTable = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredPayments.map((payment) => (
+                  paginatedOverdue.map((payment) => (
                     <TableRow key={payment.id}>
                       <TableCell>
                         <div>
@@ -352,22 +433,301 @@ export const OverduePaymentsTable = () => {
                       </TableCell>
                       <TableCell>{getStatusBadge(payment.status)}</TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          onClick={() => openReactivateDialog(payment)}
-                          disabled={loading}
-                          size="sm"
-                          className="flex items-center gap-2"
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                          Reativar
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            onClick={() => openEditValueDialog(payment)}
+                            disabled={loading}
+                            size="sm"
+                            variant="outline"
+                          >
+                            Editar Valor
+                          </Button>
+                          <Button
+                            onClick={() => openReactivateDialog(payment)}
+                            disabled={loading}
+                            size="sm"
+                            className="flex items-center gap-2"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                            Reativar
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
                 )}
               </TableBody>
-            </Table>
-          </div>
+              </Table>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredPayments.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8">
+                  Nenhum pagamento vencido encontrado.
+                </div>
+              ) : (
+                filteredPayments.map((payment) => (
+                  <Card key={payment.id} className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <div className="font-medium">
+                          {payment.registration?.user?.name ||
+                            "Nome não disponível"}
+                        </div>
+                        {payment.registration?.season?.championship?.name &&
+                          payment.registration?.season?.name && (
+                            <div className="text-sm text-muted-foreground">
+                              {payment.registration.season.championship.name} / {payment.registration.season.name}
+                            </div>
+                          )}
+                      </div>
+                      {getStatusBadge(payment.status)}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                      <div>
+                        <span className="text-muted-foreground">Vencimento</span>
+                        <div className="font-medium">{formatDateToBrazilian(payment.dueDate)}</div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Valor</span>
+                        <div className="font-medium">{formatCurrency(payment.value || 0)}</div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Parcela</span>
+                        <div className="font-medium">
+                          {payment.installmentNumber || 1}
+                          {payment.installmentCount && payment.installmentCount > 1 && ` de ${payment.installmentCount}`}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        onClick={() => openEditValueDialog(payment)}
+                        disabled={loading}
+                        size="sm"
+                        variant="outline"
+                      >
+                        Editar Valor
+                      </Button>
+                      <Button
+                        onClick={() => openReactivateDialog(payment)}
+                        disabled={loading}
+                        size="sm"
+                        className="flex items-center gap-2"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Reativar
+                      </Button>
+                    </div>
+                  </Card>
+                ))
+              )}
+            </div>
+          )}
+            </TabsContent>
+
+            <TabsContent value="pending" className="mt-2 sm:mt-4">
+              {/* Estatísticas Pendentes */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div className="bg-muted rounded-lg p-4">
+                  <div className="text-2xl font-bold">{filteredPending.length}</div>
+                  <div className="text-sm text-muted-foreground">Faturas Pendentes</div>
+                </div>
+                <div className="bg-muted rounded-lg p-4">
+                  <div className="text-2xl font-bold">
+                    {formatCurrency(
+                      filteredPending.reduce(
+                        (sum, p) => sum + (Number(p.value) || 0),
+                        0,
+                      ),
+                    )}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Valor Total</div>
+                </div>
+                <div className="bg-muted rounded-lg p-4">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {pendingPayments.length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Total no Sistema</div>
+                </div>
+              </div>
+              {!isMobile ? (
+              <div className="rounded-md border">
+                <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted"
+                      onClick={() => handleSort("name")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Piloto / Competição
+                        <Filter className="h-3 w-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted"
+                      onClick={() => handleSort("dueDate")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Vencimento
+                        <Filter className="h-3 w-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted"
+                      onClick={() => handleSort("value")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Valor
+                        <Filter className="h-3 w-3" />
+                      </div>
+                    </TableHead>
+                    <TableHead>Parcela</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedPending.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        <div className="text-muted-foreground">
+                          {searchTerm
+                            ? "Nenhum pagamento encontrado para a busca."
+                            : "Nenhum pagamento pendente encontrado."}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedPending.map((payment) => (
+                      <TableRow key={payment.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">
+                              {payment.registration?.user?.name ||
+                                "Nome não disponível"}
+                            </div>
+                            {payment.registration?.season?.championship?.name &&
+                              payment.registration?.season?.name && (
+                                <div className="text-sm text-muted-foreground">
+                                  {payment.registration.season.championship.name}{" "}
+                                  / {payment.registration.season.name}
+                                </div>
+                              )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            {formatDateToBrazilian(payment.dueDate)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">
+                            {formatCurrency(payment.value || 0)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {payment.installmentNumber || 1}
+                            {payment.installmentCount &&
+                              payment.installmentCount > 1 &&
+                              ` de ${payment.installmentCount}`}
+                          </div>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(payment.status)}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              onClick={() => openEditValueDialog(payment)}
+                              disabled={loading}
+                              size="sm"
+                              variant="outline"
+                            >
+                              Editar Valor
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredPending.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-8">
+                    Nenhum pagamento pendente encontrado.
+                  </div>
+                ) : (
+                  filteredPending.map((payment) => (
+                    <Card key={payment.id} className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <div className="font-medium">
+                            {payment.registration?.user?.name || "Nome não disponível"}
+                          </div>
+                          {payment.registration?.season?.championship?.name &&
+                            payment.registration?.season?.name && (
+                              <div className="text-sm text-muted-foreground">
+                                {payment.registration.season.championship.name} / {payment.registration.season.name}
+                              </div>
+                            )}
+                        </div>
+                        {getStatusBadge(payment.status)}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                        <div>
+                          <span className="text-muted-foreground">Vencimento</span>
+                          <div className="font-medium">{formatDateToBrazilian(payment.dueDate)}</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Valor</span>
+                          <div className="font-medium">{formatCurrency(payment.value || 0)}</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Parcela</span>
+                          <div className="font-medium">
+                            {payment.installmentNumber || 1}
+                            {payment.installmentCount && payment.installmentCount > 1 && ` de ${payment.installmentCount}`}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          onClick={() => openEditValueDialog(payment)}
+                          disabled={loading}
+                          size="sm"
+                          variant="outline"
+                        >
+                          Editar Valor
+                        </Button>
+                      </div>
+                    </Card>
+                  ))
+                )}
+              </div>
+            )}
+            {!isMobile && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={pendingPagination.state.currentPage}
+                  totalPages={pendingPagination.info.totalPages}
+                  itemsPerPage={pendingPagination.state.itemsPerPage}
+                  totalItems={pendingPagination.state.totalItems}
+                  startIndex={pendingPagination.info.startIndex}
+                  endIndex={pendingPagination.info.endIndex}
+                  hasNextPage={pendingPagination.info.hasNextPage}
+                  hasPreviousPage={pendingPagination.info.hasPreviousPage}
+                  onPageChange={pendingPagination.actions.setCurrentPage}
+                  onItemsPerPageChange={pendingPagination.actions.setItemsPerPage}
+                />
+              </div>
+            )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
@@ -471,6 +831,79 @@ export const OverduePaymentsTable = () => {
                   Reativar Fatura
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Editar Valor */}
+      <Dialog open={isEditValueDialogOpen} onOpenChange={setIsEditValueDialogOpen}>
+        <DialogContent className="w-[95vw] max-w-lg p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle>Editar Valor da Cobrança</DialogTitle>
+            <DialogDescription>
+              Altere o valor da cobrança. Se for PIX, um novo QR Code poderá ser gerado ao reabrir o vencimento.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {selectedPayment && (
+              <div className="border rounded-lg p-4 bg-muted/50">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Piloto:</span>
+                    <div className="font-semibold">
+                      {selectedPayment.registration?.user?.name || "Nome não disponível"}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Valor Atual:</span>
+                    <div className="font-semibold">{formatCurrency(selectedPayment.value || 0)}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="newValue">Novo Valor (R$)</Label>
+              <Input
+                id="newValue"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={newValue}
+                onChange={(e) => setNewValue(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Informe o novo valor da cobrança.</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditValueDialogOpen(false)}
+              disabled={loading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!selectedPayment) return;
+                const parsed = Number(newValue);
+                if (!parsed || parsed <= 0) return;
+                try {
+                  await updatePaymentValue(selectedPayment.id, parsed);
+                  setIsEditValueDialogOpen(false);
+                  setSelectedPayment(null);
+                  setNewValue("");
+                  await loadAllPayments();
+                } catch (e) {
+                  // erro já tratado no hook
+                }
+              }}
+              disabled={loading || !newValue}
+            >
+              Salvar
             </Button>
           </DialogFooter>
         </DialogContent>
