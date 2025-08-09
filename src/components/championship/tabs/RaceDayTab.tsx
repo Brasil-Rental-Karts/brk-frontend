@@ -327,7 +327,6 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     [categoryId: string]: string;
   }>({});
   const [drawVersion, setDrawVersion] = useState(0);
-  const [openKartTooltip, setOpenKartTooltip] = useState<string | null>(null);
   const [selectedOverviewCategory, setSelectedOverviewCategory] = useState<
     string | null
   >(() => {
@@ -868,26 +867,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     });
   };
 
-  const toggleKartTooltip = (pilotId: string) => {
-    setOpenKartTooltip(openKartTooltip === pilotId ? null : pilotId);
-  };
-
-  // Close tooltip when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        openKartTooltip &&
-        !(event.target as Element).closest("[data-kart-tooltip]")
-      ) {
-        setOpenKartTooltip(null);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [openKartTooltip]);
+  // Removido tooltip de karts na visão geral
 
   useEffect(() => {
     if (selectedStage && categories.length > 0) {
@@ -3652,7 +3632,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                         </div>
 
                         {expandedCategories.has(category.id) && (
-                          <div className="border-t border-gray-200 p-3 space-y-2">
+                          <div className="border-t border-gray-200 p-3 space-y-2 divide-y divide-gray-200">
                             {confirmedPilots.length > 0 ? (
                               confirmedPilots
                                 .sort((a, b) => {
@@ -3673,7 +3653,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                                   return (
                                     <div
                                       key={pilot.id}
-                                      className="flex items-center justify-between"
+                                      className="flex items-center justify-between py-2"
                                     >
                                       <span className="text-sm text-gray-900 font-medium">
                                         {formatName(
@@ -3681,59 +3661,38 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                                         )}
                                       </span>
                                       {hasKartAssignments && (
-                                        <div
-                                          className="relative"
-                                          data-kart-tooltip
-                                        >
-                                          <button
-                                            onClick={() =>
-                                              toggleKartTooltip(pilot.id)
-                                            }
-                                            className="flex items-center ml-2 p-1 rounded hover:bg-gray-100"
-                                          >
-                                            <img
-                                              src="/kart.svg"
-                                              alt="Kart"
-                                              className="w-4 h-4 text-black"
-                                            />
-                                          </button>
-                                          {openKartTooltip === pilot.id && (
-                                            <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-max max-w-[calc(100vw-2rem)] min-w-[200px]">
-                                              <div className="space-y-1">
-                                                <div className="font-semibold text-sm">
-                                                  Karts Sorteados:
-                                                </div>
-                                                {Object.entries(
-                                                  pilotKartAssignments,
-                                                ).map(
-                                                  ([batteryIdx, result]) => {
-                                                    const batteryNumber =
-                                                      Number(batteryIdx) + 1;
-                                                    const assignedFleetId =
-                                                      categoryFleetAssignments[
-                                                        category.id
-                                                      ];
-                                                    const fleet = fleets.find(
-                                                      (f) =>
-                                                        f.id ===
-                                                        assignedFleetId,
-                                                    );
-                                                    return (
-                                                      <div
-                                                        key={batteryIdx}
-                                                        className="text-xs"
-                                                      >
-                                                        Bateria {batteryNumber}:
-                                                        Kart {result.kart}
-                                                        {fleet &&
-                                                          ` (${fleet.name})`}
-                                                      </div>
-                                                    );
-                                                  },
+                                        <div className="ml-2 text-xs text-gray-700 space-y-1">
+                                          {Object.entries(
+                                            pilotKartAssignments,
+                                          ).map(([batteryIdx, result]) => {
+                                            const batteryNumber =
+                                              Number(batteryIdx) + 1;
+                                            const assignedFleetId =
+                                              categoryFleetAssignments[
+                                                category.id
+                                              ];
+                                            const fleet = fleets.find(
+                                              (f) => f.id === assignedFleetId,
+                                            );
+                                            return (
+                                              <div
+                                                key={batteryIdx}
+                                                className="flex items-center"
+                                              >
+                                                <span className="text-gray-500 mr-1">
+                                                  B{batteryNumber}:
+                                                </span>
+                                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-orange-500 text-black font-bold border border-orange-600">
+                                                  {result.kart}
+                                                </span>
+                                                {fleet && (
+                                                  <span className="ml-1 text-[10px] text-gray-500">
+                                                    ({fleet.name})
+                                                  </span>
                                                 )}
                                               </div>
-                                            </div>
-                                          )}
+                                            );
+                                          })}
                                         </div>
                                       )}
                                     </div>
