@@ -60,7 +60,7 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
 import { BulkConfirmPilotsModal } from "@/components/championship/modals/BulkConfirmPilotsModal";
-import { Loading } from "@/components/ui/loading";
+import { Loading, ButtonLoader } from "@/components/ui/loading";
 import { useAuth } from "@/contexts/AuthContext";
 import { useChampionshipData } from "@/contexts/ChampionshipContext";
 import {
@@ -399,6 +399,10 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
   // Estado para modal de confirmação em massa
   const [showBulkConfirmModal, setShowBulkConfirmModal] = useState(false);
 
+  // Dialog de confirmação para refazer sorteio de frota
+  const [showFleetRedrawDialog, setShowFleetRedrawDialog] = useState(false);
+  const [fleetRedrawLoading, setFleetRedrawLoading] = useState(false);
+
   // Estado para modal de compartilhar cronograma
   const [showShareScheduleModal, setShowShareScheduleModal] = useState(false);
   const [scheduleText, setScheduleText] = useState("");
@@ -481,6 +485,15 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
 
   // Função para abrir o modal de sorteio de frota
   const handleOpenFleetDrawModal = () => {
+    // Bloquear se já houver resultados da etapa importados
+    const hasStageResults =
+      stageResults && Object.keys(stageResults || {}).length > 0;
+    if (hasStageResults) {
+      toast.error(
+        "Já existem resultados importados para esta etapa. Não é possível realizar um novo sorteio.",
+      );
+      return;
+    }
     setShowFleetDrawModal(true);
     // Inicializar atribuições de frota por categoria
     const initialAssignments: { [categoryId: string]: string } = {};
@@ -1368,6 +1381,15 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
   // Salvar sorteio no backend ao clicar em 'Realizar Sorteio'
   const handleSaveFleetDraw = async (results?: any) => {
     if (!selectedStageId) return;
+    // Bloquear se já houver resultados da etapa importados
+    const hasStageResults =
+      stageResults && Object.keys(stageResults || {}).length > 0;
+    if (hasStageResults) {
+      toast.error(
+        "Já existem resultados importados para esta etapa. Não é possível realizar um novo sorteio.",
+      );
+      return;
+    }
     const dataToSave = results || fleetDrawResults;
     const dataWithFleetAssignments = {
       results: dataToSave,
@@ -5291,6 +5313,17 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                 </Button>
                 <Button
                   onClick={async () => {
+                    const hasPreviousResults =
+                      fleetDrawResults &&
+                      Object.values(fleetDrawResults).some(
+                        (pilotMap) => Object.keys(pilotMap || {}).length > 0,
+                      );
+
+                    if (hasPreviousResults) {
+                      setShowFleetRedrawDialog(true);
+                      return;
+                    }
+
                     const results = performFleetDraw();
                     await handleSaveFleetDraw(results);
                   }}
@@ -6022,6 +6055,59 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
         onClose={handleCloseBulkConfirmModal}
         onSuccess={handleBulkConfirmSuccess}
       />
+
+  {/* Dialog de confirmação para refazer sorteio de frota */}
+  <Dialog
+    open={showFleetRedrawDialog}
+    onOpenChange={setShowFleetRedrawDialog}
+  >
+    <DialogContent>
+      {fleetRedrawLoading ? (
+        <div className="flex items-center gap-2 py-4">
+          <ButtonLoader size="sm" />
+          <span>Refazendo sorteio...</span>
+        </div>
+      ) : (
+        <>
+          <DialogHeader>
+            <DialogTitle>Refazer sorteio de frota</DialogTitle>
+            <DialogDescription>
+              Já existe um sorteio realizado anteriormente.
+              <br />
+              Deseja realmente fazer um novo sorteio? Isso irá resetar todos os
+              karts sorteados anteriormente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowFleetRedrawDialog(false)}
+              disabled={fleetRedrawLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  setFleetRedrawLoading(true);
+                  const results = performFleetDraw();
+                  await handleSaveFleetDraw(results);
+                  setShowFleetRedrawDialog(false);
+                } finally {
+                  setFleetRedrawLoading(false);
+                }
+              }}
+              className="bg-orange-500 hover:bg-orange-600 text-black"
+              disabled={fleetRedrawLoading}
+            >
+              Refazer Sorteio
+            </Button>
+          </DialogFooter>
+        </>
+      )}
+    </DialogContent>
+  </Dialog>
 
       {/* Modal de compartilhamento do cronograma */}
       <Dialog
