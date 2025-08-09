@@ -991,45 +991,91 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                                 : getPilotColor(lapTime.userId);
 
                               return (
-                                <label
+                                <div
                                   key={lapTime.userId}
+                                  role="button"
+                                  tabIndex={0}
                                   className={`flex items-center p-3 rounded-lg cursor-pointer transition-all hover:bg-gray-50 border ${
                                     isSelected
                                       ? "bg-orange-50 border-orange-200"
                                       : "bg-white border-gray-200 hover:border-gray-300"
                                   }`}
                                   onClick={(e) => {
-                                    // Evitar duplo clique no checkbox
                                     if (
                                       e.target instanceof HTMLElement &&
                                       e.target.tagName === "INPUT"
                                     )
                                       return;
-                                    if (
-                                      !isSelected &&
-                                      selectedPilotsForChart.length >= 4
-                                    ) {
-                                      setShowMaxPilotsDialog(true);
-                                      return;
-                                    }
-                                    if (!isSelected) {
-                                      setSelectedPilotsForChart((prev) => [
-                                        ...prev,
-                                        lapTime.userId,
-                                      ]);
-                                    } else {
-                                      setSelectedPilotsForChart((prev) =>
-                                        prev.filter(
-                                          (id) => id !== lapTime.userId,
-                                        ),
-                                      );
+                                    const togglePilot = () => {
+                                      if (
+                                        !isSelected &&
+                                        selectedPilotsForChart.length >= 4
+                                      ) {
+                                        setShowMaxPilotsDialog(true);
+                                        return;
+                                      }
+                                      if (!isSelected) {
+                                        setSelectedPilotsForChart((prev) => [
+                                          ...prev,
+                                          lapTime.userId,
+                                        ]);
+                                      } else {
+                                        setSelectedPilotsForChart((prev) =>
+                                          prev.filter((id) => id !== lapTime.userId),
+                                        );
+                                      }
+                                    };
+                                    togglePilot();
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      const togglePilot = () => {
+                                        if (
+                                          !isSelected &&
+                                          selectedPilotsForChart.length >= 4
+                                        ) {
+                                          setShowMaxPilotsDialog(true);
+                                          return;
+                                        }
+                                        if (!isSelected) {
+                                          setSelectedPilotsForChart((prev) => [
+                                            ...prev,
+                                            lapTime.userId,
+                                          ]);
+                                        } else {
+                                          setSelectedPilotsForChart((prev) =>
+                                            prev.filter((id) => id !== lapTime.userId),
+                                          );
+                                        }
+                                      };
+                                      togglePilot();
                                     }
                                   }}
                                 >
                                   <input
                                     type="checkbox"
                                     checked={isSelected}
-                                    readOnly
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      if (
+                                        !isSelected &&
+                                        selectedPilotsForChart.length >= 4
+                                      ) {
+                                        setShowMaxPilotsDialog(true);
+                                        return;
+                                      }
+                                      if (!isSelected) {
+                                        setSelectedPilotsForChart((prev) => [
+                                          ...prev,
+                                          lapTime.userId,
+                                        ]);
+                                      } else {
+                                        setSelectedPilotsForChart((prev) =>
+                                          prev.filter((id) => id !== lapTime.userId),
+                                        );
+                                      }
+                                    }}
                                     className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 mr-3"
                                   />
 
@@ -1068,7 +1114,7 @@ export const LapTimesChart: React.FC<LapTimesChartProps> = ({
                                       </div>
                                     </div>
                                   </div>
-                                </label>
+                                </div>
                               );
                             })
                         ) : (
