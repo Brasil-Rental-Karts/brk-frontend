@@ -93,6 +93,31 @@ export const usePaymentManagement = () => {
     }
   };
 
+  const updatePaymentDueDate = async (
+    paymentId: string,
+    newDueDate: string,
+  ): Promise<ReactivatePaymentResponse> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await PaymentManagementService.updatePaymentDueDate(
+        paymentId,
+        newDueDate,
+      );
+      toast.success('Vencimento atualizado com sucesso!');
+      return result;
+    } catch (err: any) {
+      const errorMessage =
+        err.response?.data?.message || 'Erro ao atualizar vencimento';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updatePaymentValue = async (
     paymentId: string,
     newValue: number,
@@ -124,6 +149,7 @@ export const usePaymentManagement = () => {
     getAllOverduePayments,
     getOverduePayments,
     reactivateOverduePayment,
+    updatePaymentDueDate,
     updatePaymentValue,
     getAllPendingPayments,
   };

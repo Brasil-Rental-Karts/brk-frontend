@@ -115,4 +115,18 @@ export class PaymentManagementService {
     );
     return response.data.data;
   }
+
+  /**
+   * Atualiza a data de vencimento de um pagamento pendente/aberto
+   */
+  static async updatePaymentDueDate(
+    paymentId: string,
+    newDueDate: string,
+  ): Promise<ReactivatePaymentResponse> {
+    const response = await api.put(
+      `/payment-management/update-due-date/${paymentId}`,
+      { newDueDate },
+    );
+    return response.data.data;
+  }
 }

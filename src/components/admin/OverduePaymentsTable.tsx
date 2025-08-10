@@ -62,13 +62,14 @@ export const OverduePaymentsTable = () => {
   const [newValue, setNewValue] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditValueDialogOpen, setIsEditValueDialogOpen] = useState(false);
+  const [isDueDateDialogOpen, setIsDueDateDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<
     "name" | "dueDate" | "value" | "registrationId"
   >("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
-  const { loading, error, getAllOverduePayments, getAllPendingPayments, reactivateOverduePayment, updatePaymentValue } =
+  const { loading, error, getAllOverduePayments, getAllPendingPayments, reactivateOverduePayment, updatePaymentValue, updatePaymentDueDate } =
     usePaymentManagement();
 
   // Paginação (desktop)
@@ -205,6 +206,14 @@ export const OverduePaymentsTable = () => {
     setSelectedPayment(payment);
     setNewValue(String(payment.value || ""));
     setIsEditValueDialogOpen(true);
+  };
+
+  const openDueDateDialog = (payment: OverduePayment) => {
+    setSelectedPayment(payment);
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 7);
+    setNewDueDate(defaultDate.toISOString().split("T")[0]);
+    setIsDueDateDialogOpen(true);
   };
 
   const handleSort = (
@@ -647,6 +656,14 @@ export const OverduePaymentsTable = () => {
                             >
                               Editar Valor
                             </Button>
+                            <Button
+                              onClick={() => openDueDateDialog(payment)}
+                              disabled={loading}
+                              size="sm"
+                              variant="outline"
+                            >
+                              Alterar Vencimento
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -703,6 +720,14 @@ export const OverduePaymentsTable = () => {
                           variant="outline"
                         >
                           Editar Valor
+                        </Button>
+                        <Button
+                          onClick={() => openDueDateDialog(payment)}
+                          disabled={loading}
+                          size="sm"
+                          variant="outline"
+                        >
+                          Alterar Vencimento
                         </Button>
                       </div>
                     </Card>
@@ -902,6 +927,70 @@ export const OverduePaymentsTable = () => {
                 }
               }}
               disabled={loading || !newValue}
+            >
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Alterar Vencimento (Pendentes) */}
+      <Dialog open={isDueDateDialogOpen} onOpenChange={setIsDueDateDialogOpen}>
+        <DialogContent className="w-[95vw] max-w-lg p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle>Alterar Data de Vencimento</DialogTitle>
+            <DialogDescription>
+              Defina uma nova data de vencimento para a cobrança pendente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {selectedPayment && (
+              <div className="border rounded-lg p-4 bg-muted/50">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Piloto:</span>
+                    <div className="font-semibold">
+                      {selectedPayment.registration?.user?.name || "Nome não disponível"}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Vencimento Atual:</span>
+                    <div className="font-semibold">{formatDateToBrazilian(selectedPayment.dueDate)}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="pendingNewDueDate">Nova Data de Vencimento</Label>
+              <Input
+                id="pendingNewDueDate"
+                type="date"
+                value={newDueDate}
+                onChange={(e) => setNewDueDate(e.target.value)}
+                min={new Date().toISOString().split("T")[0]}
+              />
+              <p className="text-xs text-muted-foreground">A nova data deve ser posterior à data atual.</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDueDateDialogOpen(false)} disabled={loading}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!selectedPayment || !newDueDate) return;
+                try {
+                  await updatePaymentDueDate(selectedPayment.id, newDueDate);
+                  setIsDueDateDialogOpen(false);
+                  setSelectedPayment(null);
+                  setNewDueDate("");
+                  await loadAllPayments();
+                } catch (e) {}
+              }}
+              disabled={loading || !newDueDate}
             >
               Salvar
             </Button>
