@@ -488,15 +488,6 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
 
   // Função para abrir o modal de sorteio de frota
   const handleOpenFleetDrawModal = () => {
-    // Bloquear se já houver resultados da etapa importados
-    const hasStageResults =
-      stageResults && Object.keys(stageResults || {}).length > 0;
-    if (hasStageResults) {
-      toast.error(
-        "Já existem resultados importados para esta etapa. Não é possível realizar um novo sorteio.",
-      );
-      return;
-    }
     setShowFleetDrawModal(true);
     // Inicializar atribuições de frota por categoria
     const initialAssignments: { [categoryId: string]: string } = {};
@@ -1365,15 +1356,6 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
   // Salvar sorteio no backend ao clicar em 'Realizar Sorteio'
   const handleSaveFleetDraw = async (results?: any) => {
     if (!selectedStageId) return;
-    // Bloquear se já houver resultados da etapa importados
-    const hasStageResults =
-      stageResults && Object.keys(stageResults || {}).length > 0;
-    if (hasStageResults) {
-      toast.error(
-        "Já existem resultados importados para esta etapa. Não é possível realizar um novo sorteio.",
-      );
-      return;
-    }
     const dataToSave = results || fleetDrawResults;
     const dataWithFleetAssignments = {
       results: dataToSave,
