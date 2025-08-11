@@ -2,6 +2,7 @@ import {
   Alert,
   AlertDescription,
   Badge,
+  Button,
   Card,
   CardContent,
   CardHeader,
@@ -416,15 +417,6 @@ export const PaymentDetails: React.FC = () => {
             onClick: handleBack,
             variant: "outline",
           },
-          ...(summary.pendingAmount > 0 || summary.overdueAmount > 0
-            ? [
-                {
-                  label: "Pagar",
-                  onClick: handleMakePayment,
-                  variant: "default" as const,
-                },
-              ]
-            : []),
         ]}
       />
 
@@ -695,6 +687,7 @@ export const PaymentDetails: React.FC = () => {
                           payment.status === "AWAITING_PAYMENT" ||
                           payment.status === "AWAITING_RISK_ANALYSIS";
                         const isOverdue = payment.status === "OVERDUE";
+                        const isPayable = isPending || isOverdue;
                         return (
                           <div
                             key={payment.id}
@@ -722,7 +715,21 @@ export const PaymentDetails: React.FC = () => {
                                   </span>
                                 </div>
                               </div>
-                              {getStatusBadge(payment.status)}
+                              <div className="flex items-center gap-2">
+                                {getStatusBadge(payment.status)}
+                                {isPayable && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() =>
+                                      navigate(
+                                        `/registration/${registrationId}/payment?paymentId=${payment.id}`,
+                                      )
+                                    }
+                                  >
+                                    Pagar
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                             <div className="flex items-center gap-4 text-xs md:text-sm text-muted-foreground">
                               <div className="flex items-center gap-1">

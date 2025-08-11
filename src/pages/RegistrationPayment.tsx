@@ -388,22 +388,27 @@ export const RegistrationPayment: React.FC = () => {
     };
 
     let paymentToRender: RegistrationPaymentData | null = null;
+    // Se vier paymentId via query param, tentar selecionar essa parcela
+    const qpPaymentId = searchParams.get("paymentId");
+    if (qpPaymentId) {
+      paymentToRender = payments.find((p) => p.id === qpPaymentId) || null;
+    }
     let selectionReason = "";
 
     // Prioridade 1: Parcelas vencidas (ordenadas por número/data)
-    if (overduePayments.length > 0) {
+    if (!paymentToRender && overduePayments.length > 0) {
       const sortedOverdue = sortPayments(overduePayments);
       paymentToRender = sortedOverdue[0];
       selectionReason = "OVERDUE_PRIORITY";
     }
     // Prioridade 2: Parcelas pendentes (ordenadas por número/data)
-    else if (pendingPayments.length > 0) {
+    else if (!paymentToRender && pendingPayments.length > 0) {
       const sortedPending = sortPayments(pendingPayments);
       paymentToRender = sortedPending[0];
       selectionReason = "PENDING_PRIORITY";
     }
     // Fallback: Primeira parcela da lista
-    else {
+    else if (!paymentToRender) {
       paymentToRender = payments[0];
       selectionReason = "FALLBACK_FIRST";
     }
