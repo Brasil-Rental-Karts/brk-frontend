@@ -226,8 +226,14 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
   // Função para pegar etapa mais próxima
   function getClosestStage(stages: any[]) {
     if (!stages || stages.length === 0) return undefined;
-    const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+    // Usa data de São Paulo (UTC-3) para evitar virar o dia às 21h por conta do UTC
+    // Formata diretamente para YYYY-MM-DD independente do fuso do dispositivo
+    const todayStr = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
     const stagesWithDate = stages.map((s) => ({
       ...s,
       dateObj: s.date ? new Date(s.date) : null,
