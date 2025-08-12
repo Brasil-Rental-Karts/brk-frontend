@@ -165,8 +165,9 @@ const StageOptionBadge = React.forwardRef<
     categories: Category[];
     categoryRegistrationCounts: Record<string, number>;
     stageRegistrationCounts: Record<string, number>;
+    stageCategoryRegistrationCounts: Record<string, Record<string, number>>;
   }
->(({ stage, checked, onChange, disabled, selectedCategories, categories, categoryRegistrationCounts, stageRegistrationCounts }, ref) => {
+>(({ stage, checked, onChange, disabled, selectedCategories, categories, categoryRegistrationCounts, stageRegistrationCounts, stageCategoryRegistrationCounts }, ref) => {
   const stageRegistrations = stageRegistrationCounts[stage.id] || 0;
   
   // Calcular vagas disponíveis para cada categoria selecionada
@@ -176,10 +177,13 @@ const StageOptionBadge = React.forwardRef<
     
     const maxPilots = category.maxPilots;
     const categoryRegistrations = categoryRegistrationCounts[categoryId] || 0;
+    const stageCategoryRegistrations = (stageCategoryRegistrationCounts[stage.id] || {})[categoryId] || 0;
     
-    // Calcular vagas disponíveis: Max_pilots - inscrições por temporada - inscrições da etapa
-    const availableSlots = maxPilots - categoryRegistrations - stageRegistrations;
-    
+    // Vagas por categoria devem considerar registros por categoria na etapa
+    // Max_pilots - (inscrições por temporada na categoria) - (inscrições por etapa nessa categoria)
+    const availableSlots = maxPilots - categoryRegistrations - stageCategoryRegistrations;
+
+
     return {
       category,
       availableSlots,
@@ -311,8 +315,9 @@ const StageSelectionComponent = React.forwardRef<
     categories: Category[];
     categoryRegistrationCounts: Record<string, number>;
     stageRegistrationCounts: Record<string, number>;
+    stageCategoryRegistrationCounts: Record<string, Record<string, number>>;
   }
->(({ value = [], onChange, disabled, stages, selectedCategories, categories, categoryRegistrationCounts, stageRegistrationCounts }, ref) => {
+>(({ value = [], onChange, disabled, stages, selectedCategories, categories, categoryRegistrationCounts, stageRegistrationCounts, stageCategoryRegistrationCounts }, ref) => {
   const safeValue = Array.isArray(value) ? value : [];
   return (
     <div ref={ref} className="space-y-2">
@@ -332,6 +337,7 @@ const StageSelectionComponent = React.forwardRef<
           categories={categories}
           categoryRegistrationCounts={categoryRegistrationCounts}
           stageRegistrationCounts={stageRegistrationCounts}
+            stageCategoryRegistrationCounts={stageCategoryRegistrationCounts}
         />
       ))}
     </div>
@@ -373,9 +379,8 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   const [categoryRegistrationCounts, setCategoryRegistrationCounts] = useState<
     Record<string, number>
   >({});
-  const [stageRegistrationCounts, setStageRegistrationCounts] = useState<
-    Record<string, number>
-  >({});
+  const [stageRegistrationCounts, setStageRegistrationCounts] = useState<Record<string, number>>({});
+  const [stageCategoryRegistrationCounts, setStageCategoryRegistrationCounts] = useState<Record<string, Record<string, number>>>({});
   const [selectedCategoriesState, setSelectedCategoriesState] = useState<string[]>([]);
   const creditCardFeesService = new CreditCardFeesService();
   const [feeRates, setFeeRates] = useState<Record<number, CreditCardFeesRate>>(
@@ -502,26 +507,38 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
       );
       setCategoryRegistrationCounts(counts);
 
-      // Buscar contagens de pilotos por etapa
+      // Buscar contagens de pilotos por etapa (global) e por etapa+categoria
       const stageCounts: Record<string, number> = {};
+      const stageCatCounts: Record<string, Record<string, number>> = {};
+
       await Promise.all(
         stagesData.map(async (stage: Stage) => {
+          // Global por etapa (informativo)
           try {
-            const count =
-              await SeasonRegistrationService.getStageRegistrationCount(
-                stage.id,
-              );
+            const count = await SeasonRegistrationService.getStageRegistrationCount(stage.id);
             stageCounts[stage.id] = count;
           } catch (error) {
-            console.error(
-              `Erro ao buscar contagem para etapa ${stage.id}:`,
-              error,
-            );
+            console.error(`Erro ao buscar contagem para etapa ${stage.id}:`, error);
             stageCounts[stage.id] = 0;
           }
-        }),
+
+          // Por categoria selecionável (preparar cache por categoria)
+          stageCatCounts[stage.id] = {};
+          await Promise.all(
+            categoriesData.map(async (category: Category) => {
+              try {
+                const count = await SeasonRegistrationService.getStageCategoryRegistrationCount(stage.id, category.id);
+                stageCatCounts[stage.id][category.id] = count;
+              } catch (error) {
+                // Fallback em caso de erro
+                stageCatCounts[stage.id][category.id] = 0;
+              }
+            })
+          );
+        })
       );
       setStageRegistrationCounts(stageCounts);
+      setStageCategoryRegistrationCounts(stageCatCounts);
 
       // Verificar se é inscrição por etapa e se há etapas
       if (seasonData.inscriptionType === "por_etapa") {
@@ -918,6 +935,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
                   categories={categories}
                   categoryRegistrationCounts={categoryRegistrationCounts}
                   stageRegistrationCounts={stageRegistrationCounts}
+                  stageCategoryRegistrationCounts={stageCategoryRegistrationCounts}
                 />
               ));
               Component.displayName = "StageSelectionWrapper";

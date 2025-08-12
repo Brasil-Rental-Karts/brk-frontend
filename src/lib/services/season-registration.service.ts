@@ -333,6 +333,28 @@ export class SeasonRegistrationService {
   }
 
   /**
+   * Contar inscrições confirmadas de uma etapa por categoria
+   */
+  static async getStageCategoryRegistrationCount(
+    stageId: string,
+    categoryId: string,
+  ): Promise<number> {
+    try {
+      const response = await api.get<{
+        message: string;
+        data: { count: number };
+      }>(`${SeasonRegistrationService.BASE_URL}/stage/${stageId}/category/${categoryId}/count`);
+      return response.data.data.count;
+    } catch (error: any) {
+      console.error("Error getting stage+category registration count:", error);
+      throw new Error(
+        error.response?.data?.message ||
+          "Erro ao contar inscrições da etapa por categoria.",
+      );
+    }
+  }
+
+  /**
    * Atualizar categorias de uma inscrição
    */
   static async updateCategories(
