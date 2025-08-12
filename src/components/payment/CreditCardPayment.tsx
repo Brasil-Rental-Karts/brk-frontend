@@ -29,6 +29,16 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
   const [loadingFees, setLoadingFees] = useState(false);
   const creditCardFeesService = new CreditCardFeesService();
 
+  // Descobrir número de parcelas derivando do total dividido pelo valor da parcela
+  const getDerivedInstallmentCount = (): number => {
+    const totalWithFees = getTotalAmountWithFees();
+    const installmentValue = Number(paymentData.value);
+    if (!installmentValue || installmentValue <= 0) return 1;
+    const rawCount = totalWithFees / installmentValue;
+    const rounded = Math.round(rawCount);
+    return Number.isFinite(rounded) && rounded >= 1 ? rounded : 1;
+  };
+
   // Buscar taxas configuráveis para o campeonato
   useEffect(() => {
     const fetchFees = async () => {
@@ -36,7 +46,7 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
 
       setLoadingFees(true);
       try {
-        const installments = paymentData.installmentCount || 1;
+        const installments = getDerivedInstallmentCount();
         const rate = await creditCardFeesService.getRateForInstallments(
           registration.season.championshipId,
           installments,
@@ -56,7 +66,7 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
     };
 
     fetchFees();
-  }, [registration.season?.championshipId, paymentData.installmentCount]);
+  }, [registration.season?.championshipId, paymentData.value, registration.amount]);
 
   const handlePaymentRedirect = async () => {
     if (!paymentData.paymentLink) {
@@ -157,17 +167,20 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
   };
 
   const getInstallmentText = () => {
-    try {
-      const totalWithFees = getTotalAmountWithFees();
-      if (!feeRate) throw new Error();
-      if (paymentData.installmentCount && paymentData.installmentCount > 1) {
-        const installmentValue = totalWithFees / paymentData.installmentCount;
-        return `${paymentData.installmentCount}x de ${formatCurrency(installmentValue)} (taxa ${feeRate.percentageRate}% + R$ ${Number(feeRate.fixedFee || 0).toFixed(2)})`;
+    const installmentValue = Number(paymentData.value) || 0;
+    const count = getDerivedInstallmentCount();
+
+    if (count > 1 && installmentValue > 0) {
+      if (feeRate) {
+        return `${count}x de ${formatCurrency(installmentValue)}`;
       }
-      return `Pagamento à vista (taxa ${feeRate.percentageRate}% + R$ ${Number(feeRate.fixedFee || 0).toFixed(2)})`;
-    } catch (err) {
-      return "Taxa de cartão de crédito não configurada. Solicite ao administrador.";
+      return `${count}x de ${formatCurrency(installmentValue)}`;
     }
+
+    if (feeRate) {
+      return `Pagamento à vista (taxa ${feeRate.percentageRate}% + R$ ${Number(feeRate.fixedFee || 0).toFixed(2)})`;
+    }
+    return "Pagamento à vista";
   };
 
   return (
@@ -216,62 +229,6 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
             <div className="text-center p-4 bg-muted rounded-lg">
               <p className="text-sm text-muted-foreground">Parcelamento</p>
               <p className="text-lg font-semibold">{getInstallmentText()}</p>
-            </div>
-          </div>
-
-          {/* Detalhamento das Taxas */}
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium text-orange-900 mb-1">
-                  Taxas do Gateway de Pagamento
-                </p>
-                <div className="text-orange-800 space-y-1">
-                  <p>• Valor da inscrição: {formatCurrency(getBaseAmount())}</p>
-                  {feeRate ? (
-                    <>
-                      <p>
-                        • Taxa configurada: {feeRate.percentageRate}% + R${" "}
-                        {Number(feeRate.fixedFee || 0).toFixed(2)}
-                      </p>
-                      <p>
-                        •{" "}
-                        <strong>
-                          Total a pagar:{" "}
-                          {formatCurrency(getTotalAmountWithFees())}
-                        </strong>
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p>
-                        •{" "}
-                        <strong>
-                          Taxa não configurada para este campeonato
-                        </strong>
-                      </p>
-                      <p>
-                        •{" "}
-                        <strong>
-                          Total a pagar:{" "}
-                          {formatCurrency(getTotalAmountWithFees())}
-                        </strong>
-                      </p>
-                      <p className="text-xs text-orange-700 mt-2">
-                        ⚠️ Solicite ao administrador que configure as taxas no
-                        painel
-                      </p>
-                    </>
-                  )}
-                  <p className="text-xs text-orange-700 mt-2">
-                    Taxas promocionais válidas até 16/09/2025
-                  </p>
-                  <p className="text-xs text-orange-600 mt-1">
-                    ✓ Usando valor já calculado pelo sistema
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
 
