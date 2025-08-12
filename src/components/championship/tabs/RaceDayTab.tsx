@@ -1793,6 +1793,13 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
   const [bestLapTimeInput, setBestLapTimeInput] = useState("");
   const [bestLapLoading, setBestLapLoading] = useState(false);
 
+  // Modal de Resultado Final (Top 5 por bateria e melhor volta)
+  const [showFinalResultsModal, setShowFinalResultsModal] = useState(false);
+  const handleOpenFinalResultsModal = () => setShowFinalResultsModal(true);
+  const handleCloseFinalResultsModal = () => setShowFinalResultsModal(false);
+  // Modo Pódio: aumenta tipografia e usa modal em tela cheia no mobile
+  const [podiumMode, setPodiumMode] = useState(false);
+
   // Estados para modal de melhor volta de qualificação
   const [showQualifyingBestLapModal, setShowQualifyingBestLapModal] =
     useState(false);
@@ -3392,12 +3399,21 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
               Gerencie tudo para o dia da corrida.
             </p>
           </div>
-          <div className="flex justify-center lg:justify-end">
+          <div className="flex items-center gap-2 justify-center lg:justify-end">
+            {selectedOverviewCategory === null && (
+
+              <Button
+                onClick={handleOpenFinalResultsModal}
+                className="bg-orange-500 hover:bg-orange-600 text-black font-semibold rounded-full px-4 py-1 h-8 text-sm flex items-center gap-1 w-full sm:w-auto"
+              >
+                Resultado Final
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="rounded-full px-4 py-1 h-8 text-sm font-semibold flex items-center gap-1 w-full lg:w-auto"
+                  className="rounded-full px-4 py-1 h-8 text-sm font-semibold flex items-center gap-1 w-full sm:w-auto"
                 >
                   {selectedOverviewCategory
                     ? categories.find(
@@ -5167,6 +5183,117 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
               {/* Content */}
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="space-y-6">
+                  {/* Voltas mais rápidas (bloco separado, por categoria e bateria) */}
+                  {(() => {
+                    const toMsFast = (time?: string) => {
+                      if (!time) return Number.POSITIVE_INFINITY;
+                      const normalized = String(time).replace(",", ".");
+                      const [m, s] = normalized.includes(":")
+                        ? normalized.split(":")
+                        : ["0", normalized];
+                      const minutes = parseFloat(m || "0");
+                      const seconds = parseFloat(s || "0");
+                      if (Number.isNaN(minutes) || Number.isNaN(seconds))
+                        return Number.POSITIVE_INFINITY;
+                      return minutes * 60000 + seconds * 1000;
+                    };
+
+                    type FastLapEntry = {
+                      categoryId: string;
+                      categoryName: string;
+                      batteryIndex: number;
+                      batteryLabel: string;
+                      pilotName: string;
+                      bestLap: string;
+                      bestMs: number;
+                    };
+
+                    const entries: FastLapEntry[] = [];
+
+                    categories.forEach((category) => {
+                      const batteries = (category as any).batteriesConfig || [
+                        { name: "Bateria 1" },
+                      ];
+                      const categoryPilots = registrations.filter(
+                        (reg) =>
+                          reg.categories.some(
+                            (rc: any) => rc.category.id === category.id,
+                          ) &&
+                          stageParticipations.some(
+                            (part) =>
+                              part.userId === reg.userId &&
+                              part.categoryId === category.id &&
+                              part.status === "confirmed",
+                          ),
+                      );
+                      const catResults = stageResults[category.id] || {};
+
+                      batteries.forEach((battery: any, idx: number) => {
+                        const best = categoryPilots
+                          .map((reg) => {
+                            const pilotId = reg.userId;
+                            const r = catResults[pilotId]?.[idx] || {};
+                            const bestLap = r.bestLap ?? null;
+                            if (!bestLap) return null;
+                            return {
+                              pilotName: formatName(
+                                reg.user?.name || String(pilotId),
+                              ),
+                              bestLap,
+                              bestMs: toMsFast(bestLap),
+                            };
+                          })
+                          .filter(Boolean)
+                          .sort((a: any, b: any) => a.bestMs - b.bestMs)[0] as
+                          | { pilotName: string; bestLap: string; bestMs: number }
+                          | undefined;
+
+                        if (best) {
+                          entries.push({
+                            categoryId: category.id,
+                            categoryName: category.name,
+                            batteryIndex: idx,
+                            batteryLabel: battery?.name || `Bateria ${idx + 1}`,
+                            pilotName: best.pilotName,
+                            bestLap: best.bestLap,
+                            bestMs: best.bestMs,
+                          });
+                        }
+                      });
+                    });
+
+                    if (entries.length === 0) return null;
+                    entries.sort((a, b) => a.bestMs - b.bestMs);
+
+                    return (
+                      <Card className="border border-gray-200 rounded-lg">
+                        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                          <h3 className="text-base font-semibold text-gray-900">
+                            Voltas mais rápidas
+                          </h3>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Melhor volta por categoria e bateria
+                          </p>
+                        </div>
+                        <CardContent className="p-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                            {entries.map((e, idx) => (
+                              <Card key={`${e.categoryId}-${e.batteryIndex}-${idx}`} className="border border-gray-200">
+                                <CardContent className="p-4">
+                                  <div className={`text-xs ${idx === 0 ? "text-orange-600" : "text-gray-500"}`}>
+                                    {e.categoryName} • {e.batteryLabel}
+                                  </div>
+                                  <div className={`mt-1 text-sm ${idx === 0 ? "text-orange-700" : "text-gray-700"}`}>
+                                    <span className="font-semibold">{e.bestLap}</span> — {e.pilotName}
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })()}
                   {/* Configuração de frotas por categoria */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-gray-900">
@@ -5707,6 +5834,262 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                   Importar
                 </Button>
               </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* Modal de Resultado Final */}
+      {showFinalResultsModal &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black bg-opacity-50"
+              onClick={handleCloseFinalResultsModal}
+            />
+
+            {/* Modal Content */}
+            <div className="relative bg-white rounded-none sm:rounded-lg shadow-xl sm:max-w-5xl sm:max-h-[90vh] w-screen h-screen sm:w-full mx-0 sm:mx-4 overflow-hidden flex flex-col z-10">
+              {/* Header */}
+              <div className="sticky top-0 z-10 flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-white">
+                <div>
+                  <h2 className={`font-semibold text-gray-900 ${podiumMode ? 'text-3xl sm:text-xl' : 'text-2xl sm:text-xl'}`}>Resultado Final</h2>
+                  <p className="text-sm text-gray-600 mt-1 hidden sm:block">
+                    Top 5 de cada bateria por categoria e melhor volta por bateria
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={podiumMode ? 'default' : 'outline'}
+                    onClick={() => setPodiumMode((v) => !v)}
+                    className={podiumMode ? 'bg-orange-500 hover:bg-orange-600 text-black' : ''}
+                  >
+                    {podiumMode ? 'Modo Pódio: ON' : 'Modo Pódio'}
+                  </Button>
+                  <button
+                    onClick={handleCloseFinalResultsModal}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7 sm:w-6 sm:h-6"><path fillRule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clipRule="evenodd" /></svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                <div className="space-y-6">
+                  {/* Voltas mais rápidas (bloco separado, por categoria e bateria) */}
+                  {(() => {
+                    const toMsFast = (time?: string) => {
+                      if (!time) return Number.POSITIVE_INFINITY;
+                      const normalized = String(time).replace(",", ".");
+                      const [m, s] = normalized.includes(":")
+                        ? normalized.split(":")
+                        : ["0", normalized];
+                      const minutes = parseFloat(m || "0");
+                      const seconds = parseFloat(s || "0");
+                      if (Number.isNaN(minutes) || Number.isNaN(seconds))
+                        return Number.POSITIVE_INFINITY;
+                      return minutes * 60000 + seconds * 1000;
+                    };
+
+                    type FastLapEntry = {
+                      categoryId: string;
+                      categoryName: string;
+                      batteryIndex: number;
+                      batteryLabel: string;
+                      pilotName: string;
+                      bestLap: string;
+                      bestMs: number;
+                    };
+
+                    const entries: FastLapEntry[] = [];
+
+                    categories.forEach((category) => {
+                      const batteries = (category as any).batteriesConfig || [
+                        { name: "Bateria 1" },
+                      ];
+                      const categoryPilots = registrations.filter(
+                        (reg) =>
+                          reg.categories.some(
+                            (rc: any) => rc.category.id === category.id,
+                          ) &&
+                          stageParticipations.some(
+                            (part) =>
+                              part.userId === reg.userId &&
+                              part.categoryId === category.id &&
+                              part.status === "confirmed",
+                          ),
+                      );
+                      const catResults = stageResults[category.id] || {};
+
+                      batteries.forEach((battery: any, idx: number) => {
+                        const best = categoryPilots
+                          .map((reg) => {
+                            const pilotId = reg.userId;
+                            const r = catResults[pilotId]?.[idx] || {};
+                            const bestLap = r.bestLap ?? null;
+                            if (!bestLap) return null;
+                            return {
+                              pilotName: formatName(
+                                reg.user?.name || String(pilotId),
+                              ),
+                              bestLap,
+                              bestMs: toMsFast(bestLap),
+                            };
+                          })
+                          .filter(Boolean)
+                          .sort((a: any, b: any) => a.bestMs - b.bestMs)[0] as
+                          | { pilotName: string; bestLap: string; bestMs: number }
+                          | undefined;
+
+                        if (best) {
+                          entries.push({
+                            categoryId: category.id,
+                            categoryName: category.name,
+                            batteryIndex: idx,
+                            batteryLabel: battery?.name || `Bateria ${idx + 1}`,
+                            pilotName: best.pilotName,
+                            bestLap: best.bestLap,
+                            bestMs: best.bestMs,
+                          });
+                        }
+                      });
+                    });
+
+                    if (entries.length === 0) return null;
+                    entries.sort((a, b) => a.bestMs - b.bestMs);
+
+                    return (
+                      <Card className="border border-gray-200 rounded-lg">
+                        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                          <h3 className={`font-semibold text-gray-900 ${podiumMode ? 'text-xl sm:text-base' : 'text-base'}`}>
+                            Voltas mais rápidas
+                          </h3>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Melhor volta por categoria e bateria
+                          </p>
+                        </div>
+                        <CardContent className="p-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                            {entries.map((e, idx) => (
+                              <Card key={`${e.categoryId}-${e.batteryIndex}-${idx}`} className="border border-gray-200">
+                                <CardContent className="p-4">
+                                  <div className={`${idx === 0 ? 'text-orange-600' : 'text-gray-500'} ${podiumMode ? 'text-sm sm:text-xs' : 'text-xs'}` }>
+                                    {e.categoryName} • {e.batteryLabel}
+                                  </div>
+                                  <div className={`mt-1 ${idx === 0 ? 'text-orange-700' : 'text-gray-700'} ${podiumMode ? 'text-xl sm:text-sm' : 'text-sm'}` }>
+                                    <span className="font-semibold">{e.bestLap}</span> — {e.pilotName}
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })()}
+
+                  {categories.map((category) => {
+                    const batteries = category.batteriesConfig || [{ name: "Bateria 1" }];
+
+                    // Agrupar pilotos confirmados desta categoria
+                    const categoryPilots = registrations.filter((reg) =>
+                      reg.categories.some((rc: any) => rc.category.id === category.id) &&
+                      stageParticipations.some(
+                        (part) =>
+                          part.userId === reg.userId &&
+                          part.categoryId === category.id &&
+                          part.status === "confirmed",
+                      ),
+                    );
+
+                    // Mapa de resultados desta categoria
+                    const catResults = stageResults[category.id] || {};
+
+                    // Função utilitária: converter tempo para ms
+                    const toMs = (time?: string) => {
+                      if (!time) return Number.POSITIVE_INFINITY;
+                      const normalized = String(time).replace(",", ".");
+                      const [m, s] = normalized.includes(":")
+                        ? normalized.split(":")
+                        : ["0", normalized];
+                      const minutes = parseFloat(m || "0");
+                      const seconds = parseFloat(s || "0");
+                      if (Number.isNaN(minutes) || Number.isNaN(seconds)) return Number.POSITIVE_INFINITY;
+                      return minutes * 60000 + seconds * 1000;
+                    };
+
+                    return (
+                      <Card key={category.id} className="border border-gray-200 rounded-lg">
+                        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                          <h3 className={`font-semibold text-gray-900 ${podiumMode ? 'text-xl sm:text-base' : 'text-base'}`}>{category.name}</h3>
+                        </div>
+                        <CardContent className="p-4 space-y-6">
+                          {batteries.map((battery, idx) => {
+                            // Construir array com pilotos + finishPosition + bestLap
+                            const rows = categoryPilots
+                              .map((reg) => {
+                                const pilotId = reg.userId;
+                                const r = catResults[pilotId]?.[idx] || {};
+                                const finish = r.finishPosition ?? null;
+                                const bestLap = r.bestLap ?? null;
+                                return {
+                                  pilotId,
+                                  name: formatName(reg.user?.name || pilotId),
+                                  finish,
+                                  bestLap,
+                                };
+                              })
+                              .filter((row) => row.finish !== null)
+                              .sort((a, b) => (a.finish! as number) - (b.finish! as number));
+
+                            const top5 = rows.slice(0, 5).reverse();
+
+                            return (
+                              <Card key={idx} className="border border-gray-200 rounded-lg">
+                                <CardContent className="p-4 sm:p-4">
+                                  <div className="flex items-center justify-between mb-4">
+                                    <h4 className={`${podiumMode ? 'text-2xl sm:text-sm' : 'text-sm'} font-semibold text-gray-900`}>
+                                      {battery.name || `Bateria ${idx + 1}`}
+                                    </h4>
+                                  </div>
+
+                                  {top5.length > 0 ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                                      {top5.map((row) => (
+                                        <Card key={row.pilotId} className="border border-gray-200">
+                                          <CardContent className={`text-center ${podiumMode ? 'p-6 sm:p-4' : 'p-4'}`}>
+                                            <div className={`${podiumMode ? 'text-base sm:text-xs' : 'text-xs'} text-gray-500`}>Posição</div>
+                                            <div className={`mt-1 font-extrabold ${podiumMode ? 'text-6xl sm:text-3xl' : 'text-3xl'}`}>{row.finish}</div>
+                                            <div className={`mt-2 font-semibold text-gray-900 ${podiumMode ? 'text-2xl sm:text-sm' : 'text-sm'}`}>{row.name}</div>
+                                          </CardContent>
+                                        </Card>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="text-sm text-gray-500">Sem resultados de chegada para esta bateria.</div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            );
+                          })}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Footer */}
+              {!podiumMode && (
+                <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+                  <Button variant="outline" onClick={handleCloseFinalResultsModal}>
+                    Fechar
+                  </Button>
+                </div>
+              )}
             </div>
           </div>,
           document.body,
