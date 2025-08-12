@@ -1,14 +1,5 @@
-import {
-  Alert,
-  AlertDescription,
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "brk-design-system";
-import { AlertCircle, CreditCard, ExternalLink, Shield } from "lucide-react";
+import { Button, Card, CardContent, CardHeader, CardTitle } from "brk-design-system";
+import { AlertCircle, ExternalLink, Shield } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -109,14 +100,6 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
     }
   };
 
-  const getCardIcon = () => {
-    return (
-      <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
-        <CreditCard className="w-4 h-4 text-white" />
-      </div>
-    );
-  };
-
   const getCardType = () => {
     return "Cartão de Crédito";
   };
@@ -189,33 +172,31 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Status do Pagamento */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {getCardIcon()}
-            Pagamento via {getCardType()}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Alert className="border-blue-500 bg-blue-50">
-            <AlertCircle className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="text-blue-800">
-              <strong>Redirecionamento para pagamento seguro</strong>
-              <br />
-              Você será redirecionado para o ambiente seguro do Asaas para
-              finalizar o pagamento.
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
-
       {/* Detalhes do Pagamento */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <CardTitle className="text-lg">Detalhes do Pagamento</CardTitle>
+          <Button
+            onClick={handlePaymentRedirect}
+            disabled={!paymentData.paymentLink || isUpdatingPayment}
+            className="w-full md:w-auto"
+            size="lg"
+          >
+            {isUpdatingPayment ? (
+              <>
+                <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                Atualizando...
+              </>
+            ) : (
+              <>
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Pagar com Cartão de Crédito
+              </>
+            )}
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
+          
           {/* Valor e Parcelamento */}
           <div className="grid md:grid-cols-2 gap-4">
             <div className="text-center p-4 bg-muted rounded-lg">
@@ -309,56 +290,12 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
               </div>
             </div>
           </div>
-
-          {/* Botão de Pagamento */}
-          <div className="flex justify-center pt-4">
-            <Button
-              onClick={handlePaymentRedirect}
-              disabled={!paymentData.paymentLink || isUpdatingPayment}
-              className="w-full md:w-auto"
-              size="lg"
-            >
-              {isUpdatingPayment ? (
-                <>
-                  <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Atualizando...
-                </>
-              ) : (
-                <>
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Pagar {formatCurrency(getTotalAmountWithFees())}
-                </>
-              )}
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
-      {/* Cartões Aceitos */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Cartões Aceitos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline" className="px-3 py-1">
-              <span className="text-sm">Visa</span>
-            </Badge>
-            <Badge variant="outline" className="px-3 py-1">
-              <span className="text-sm">Mastercard</span>
-            </Badge>
-            <Badge variant="outline" className="px-3 py-1">
-              <span className="text-sm">American Express</span>
-            </Badge>
-            <Badge variant="outline" className="px-3 py-1">
-              <span className="text-sm">Elo</span>
-            </Badge>
-            <Badge variant="outline" className="px-3 py-1">
-              <span className="text-sm">Hipercard</span>
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
+      
+
+      
 
       {/* Instruções */}
       <Card>
@@ -418,35 +355,7 @@ export const CreditCardPayment: React.FC<CreditCardPaymentProps> = ({
         </CardContent>
       </Card>
 
-      {/* Informações Importantes */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium text-blue-900 mb-1">
-                  Informações importantes:
-                </p>
-                <ul className="text-blue-800 space-y-1">
-                  <li>• A aprovação do pagamento é imediata</li>
-                  <li>• Certifique-se de que o cartão tem limite disponível</li>
-                  <li>• Em caso de recusa, verifique os dados informados</li>
-                  <li>• O ambiente de pagamento é 100% seguro e certificado</li>
-                  <li>• Parcelamento disponível conforme política do cartão</li>
-                  <li>
-                    •{" "}
-                    <strong>
-                      O valor final inclui as taxas do gateway de pagamento
-                      Asaas
-                    </strong>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      
     </div>
   );
 };

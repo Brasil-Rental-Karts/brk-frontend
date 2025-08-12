@@ -218,6 +218,122 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
 
   return (
     <div className="space-y-6">
+      
+
+      {/* QR Code e Código PIX Copia e Cola */}
+      {!isExpired() &&
+        !isPaymentConfirmed() &&
+        paymentData.pixCopyPaste &&
+        paymentData.billingType !== "ADMIN_EXEMPT" &&
+        paymentData.billingType !== "ADMIN_DIRECT" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Código PIX Copia e Cola */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">
+                  Código PIX Copia e Cola
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Copie e cole no seu app de pagamento
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Valor */}
+                <div className="text-center p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    {paymentData.installmentCount &&
+                    paymentData.installmentCount > 1
+                      ? `Valor da ${paymentData.installmentNumber || 1}ª parcela`
+                      : "Valor"}
+                  </p>
+                  <p className="text-2xl font-bold text-primary">
+                    {formatCurrency(paymentData.value)}
+                  </p>
+                  {paymentData.installmentCount &&
+                    paymentData.installmentCount > 1 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {paymentData.installmentCount}x de{" "}
+                        {formatCurrency(paymentData.value)}
+                        (Total: {formatCurrency(registration.amount)})
+                      </p>
+                    )}
+                </div>
+
+                {/* Código PIX Copia e Cola */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium">
+                    Código PIX Copia e Cola:
+                  </label>
+
+                  {/* Botão de Copiar - Full Width */}
+                  <Button
+                    onClick={() =>
+                      handleCopy(paymentData.pixCopyPaste || "", "pixCode")
+                    }
+                    variant="outline"
+                    className="w-full flex items-center justify-center gap-2"
+                  >
+                    {copySuccess === "pixCode" ? (
+                      <>
+                        <Check className="w-4 h-4 text-green-600" />
+                        <span>Código PIX Copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        <span>Copiar Código PIX</span>
+                      </>
+                    )}
+                  </Button>
+
+                  {/* Área do Código PIX */}
+                  <div className="w-full p-3 bg-muted rounded-lg font-mono text-xs break-all max-h-20 overflow-y-auto overflow-x-hidden">
+                    {paymentData.pixCopyPaste}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* QR Code */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">QR Code PIX</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Escaneie o código com seu banco ou carteira digital
+                </p>
+              </CardHeader>
+              <CardContent className="text-center">
+                <div className="bg-white p-2 md:p-4 rounded-lg inline-block shadow-sm border">
+                  <QRCode
+                    value={paymentData.pixCopyPaste}
+                    size={150}
+                    level="M"
+                    className="w-32 h-32 md:w-48 md:h-48"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Use a câmera do seu celular ou app do banco
+                </p>
+                {/* Botão Já Paguei! */}
+                <div className="mt-4">
+                  <Button
+                    onClick={handleCheckPayment}
+                    disabled={checking}
+                    variant="outline"
+                  >
+                    {checking ? "Verificando..." : "Já Paguei!"}
+                  </Button>
+                  {checkResult && (
+                    <div className="mt-2 text-sm text-center text-black">
+                      {checkResult}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
       {/* Status do Pagamento */}
       {!isPaymentConfirmed() && (
         <Card>
@@ -334,120 +450,6 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
           </CardContent>
         </Card>
       )}
-
-      {/* QR Code e Código PIX Copia e Cola */}
-      {!isExpired() &&
-        !isPaymentConfirmed() &&
-        paymentData.pixCopyPaste &&
-        paymentData.billingType !== "ADMIN_EXEMPT" &&
-        paymentData.billingType !== "ADMIN_DIRECT" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* QR Code */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">QR Code PIX</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Escaneie o código com seu banco ou carteira digital
-                </p>
-              </CardHeader>
-              <CardContent className="text-center">
-                <div className="bg-white p-2 md:p-4 rounded-lg inline-block shadow-sm border">
-                  <QRCode
-                    value={paymentData.pixCopyPaste}
-                    size={150}
-                    level="M"
-                    className="w-32 h-32 md:w-48 md:h-48"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Use a câmera do seu celular ou app do banco
-                </p>
-                {/* Botão Já Paguei! */}
-                <div className="mt-4">
-                  <Button
-                    onClick={handleCheckPayment}
-                    disabled={checking}
-                    variant="outline"
-                  >
-                    {checking ? "Verificando..." : "Já Paguei!"}
-                  </Button>
-                  {checkResult && (
-                    <div className="mt-2 text-sm text-center text-black">
-                      {checkResult}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Código PIX Copia e Cola */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  Código PIX Copia e Cola
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Copie e cole no seu app de pagamento
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Valor */}
-                <div className="text-center p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    {paymentData.installmentCount &&
-                    paymentData.installmentCount > 1
-                      ? `Valor da ${paymentData.installmentNumber || 1}ª parcela`
-                      : "Valor"}
-                  </p>
-                  <p className="text-2xl font-bold text-primary">
-                    {formatCurrency(paymentData.value)}
-                  </p>
-                  {paymentData.installmentCount &&
-                    paymentData.installmentCount > 1 && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {paymentData.installmentCount}x de{" "}
-                        {formatCurrency(paymentData.value)}
-                        (Total: {formatCurrency(registration.amount)})
-                      </p>
-                    )}
-                </div>
-
-                {/* Código PIX Copia e Cola */}
-                <div className="space-y-3">
-                  <label className="text-sm font-medium">
-                    Código PIX Copia e Cola:
-                  </label>
-
-                  {/* Botão de Copiar - Full Width */}
-                  <Button
-                    onClick={() =>
-                      handleCopy(paymentData.pixCopyPaste || "", "pixCode")
-                    }
-                    variant="outline"
-                    className="w-full flex items-center justify-center gap-2"
-                  >
-                    {copySuccess === "pixCode" ? (
-                      <>
-                        <Check className="w-4 h-4 text-green-600" />
-                        <span>Código PIX Copiado!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-4 h-4" />
-                        <span>Copiar Código PIX</span>
-                      </>
-                    )}
-                  </Button>
-
-                  {/* Área do Código PIX */}
-                  <div className="w-full p-3 bg-muted rounded-lg font-mono text-xs break-all max-h-20 overflow-y-auto overflow-x-hidden">
-                    {paymentData.pixCopyPaste}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
 
       {/* Mensagem para pagamentos administrativos */}
       {!isExpired() &&
@@ -573,31 +575,7 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
         </Card>
       )}
 
-      {/* Informações Importantes */}
-      {!isPaymentConfirmed() && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-medium text-blue-900 mb-1">
-                    Informações importantes:
-                  </p>
-                  <ul className="text-blue-800 space-y-1">
-                    <li>
-                      • O PIX é processado 24 horas por dia, 7 dias por semana
-                    </li>
-                    <li>• A confirmação do pagamento é automática</li>
-                    <li>• Não é necessário enviar comprovante</li>
-                    <li>• O valor deve ser pago exatamente como mostrado</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      
     </div>
   );
 };
