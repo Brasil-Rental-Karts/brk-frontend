@@ -193,13 +193,17 @@ export const PaymentDetails: React.FC = () => {
         );
       }
 
+      const hasCreditCard = payments.some(
+        (p: any) => p.billingType === "CREDIT_CARD" || p.billingType === "cartao_credito",
+      );
+
       const summary = {
         totalAmount: Number(registration.amount),
         paidAmount,
         pendingAmount,
         overdueAmount,
-        totalInstallments: payments.length || 1,
-        paidInstallments: paidPayments.length,
+        totalInstallments: hasCreditCard ? 1 : payments.length || 1,
+        paidInstallments: hasCreditCard ? (paidPayments.length > 0 ? 1 : 0) : paidPayments.length,
       };
 
       setData({
@@ -676,6 +680,9 @@ export const PaymentDetails: React.FC = () => {
                           (b.installmentNumber || 1),
                       )
                       .map((payment, index) => {
+                        const hasCreditCard =
+                          payment.billingType === "CREDIT_CARD" ||
+                          payment.billingType === "cartao_credito";
                         const isPaid =
                           payment.status === "RECEIVED" ||
                           payment.status === "CONFIRMED" ||
@@ -711,7 +718,11 @@ export const PaymentDetails: React.FC = () => {
                                     <XCircle className="w-4 h-4 text-red-600" />
                                   )}
                                   <span className="font-bold text-sm md:text-base">
-                                    {formatCurrency(payment.value)}
+                                    {formatCurrency(
+                                      hasCreditCard
+                                        ? Number(registration.amount)
+                                        : Number(payment.value),
+                                    )}
                                   </span>
                                 </div>
                               </div>
