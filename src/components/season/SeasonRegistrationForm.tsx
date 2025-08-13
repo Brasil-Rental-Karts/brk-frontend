@@ -419,8 +419,6 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
   // Função para filtrar etapas
   const filterStages = useCallback(
     (allStages: Stage[], registrations: SeasonRegistration[]) => {
-      const now = new Date();
-
       // Buscar inscrição do usuário na temporada atual
       const userRegistration = registrations.find(
         (reg) => reg.seasonId === season?.id,
@@ -443,10 +441,10 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
         );
       }
 
-      // Filtrar etapas que já passaram e que o usuário já está inscrito
+      // Filtrar etapas que já passaram (considerando data e horário) e que o usuário já está inscrito
       const availableStages = allStages.filter((stage) => {
-        const stageDate = new Date(stage.date);
-        const isFutureStage = stageDate > now;
+        const isPast = StageService.isPastStage(stage.date, stage.time);
+        const isFutureStage = !isPast; // inclui hoje se horário ainda não passou
         const isNotRegistered = !userRegisteredStageIds.includes(stage.id);
 
         return isFutureStage && isNotRegistered;
