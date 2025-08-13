@@ -3378,52 +3378,88 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
       batteries.forEach((battery: any, batteryIndex: number) => {
         const exportData: any[] = [];
 
+        const headers = [
+          "Categoria",
+          "Nº",
+          "UId",
+          "Transponder",
+          "Competidor",
+          "Iniciais",
+          "E-mail",
+          "Patrocinador",
+          "Clube",
+          "Cidade",
+          "Estado",
+          "País",
+          "Peso",
+          "Prova",
+        ];
+
         sortedPilots.forEach((pilot) => {
           const pilotKartAssignments =
             fleetDrawResults[category.id]?.[pilot.userId] || {};
-          const assignedFleetId = categoryFleetAssignments[category.id];
-          let fleetName = "";
-          if (assignedFleetId) {
-            const fleet = fleets.find((f) => f.id === assignedFleetId);
-            if (fleet) fleetName = fleet.name;
-          }
 
           const kart = pilotKartAssignments[batteryIndex]
             ? pilotKartAssignments[batteryIndex].kart
             : "";
 
-          const row: any = {
-            Nome: formatName(pilot.user?.name || ""),
-            Apelido: formatName(
-              pilot.user?.nickname || (pilot as any).profile?.nickName || "",
-            ),
-            Estado:
-              (pilot as any).profile && (pilot as any).profile.state
-                ? (pilot as any).profile.state
-                : "",
-            Categoria: category.name,
-            Frota: fleetName,
-            Kart: kart ? `${kart}` : "",
+          const row: Record<string, string | number> = {
+            Categoria: category.name || "",
+            "Nº": kart ? `${kart}` : "",
+            UId: "",
+            Transponder: kart ? `${kart}` : "",
+            Competidor: formatName(pilot.user?.name || ""),
+            Iniciais: "",
+            "E-mail": "",
+            Patrocinador: "",
+            Clube: "",
+            Cidade: "",
+            Estado: "",
+            País: "",
+            Peso: "",
+            Prova: "",
           };
 
           exportData.push(row);
         });
 
-        const dataForSheet =
-          exportData.length > 0
-            ? exportData
-            : [
-                {
-                  Nome: "",
-                  Apelido: "",
-                  Estado: "",
-                  Categoria: category.name,
-                  Frota: "",
-                  Kart: "",
-                },
-              ];
+        const defaultRow: Record<string, string> = {
+          Categoria: category.name || "",
+          "Nº": "",
+          UId: "",
+          Transponder: "",
+          Competidor: "",
+          Iniciais: "",
+          "E-mail": "",
+          Patrocinador: "",
+          Clube: "",
+          Cidade: "",
+          Estado: "",
+          País: "",
+          Peso: "",
+          Prova: "",
+        };
 
-        const ws = XLSX.utils.json_to_sheet(dataForSheet);
+        const dataForSheet = exportData.length > 0 ? exportData : [defaultRow];
+
+        const ws = XLSX.utils.json_to_sheet(dataForSheet, {
+          header: [
+            "Categoria",
+            "Nº",
+            "UId",
+            "Transponder",
+            "Competidor",
+            "Iniciais",
+            "E-mail",
+            "Patrocinador",
+            "Clube",
+            "Cidade",
+            "Estado",
+            "País",
+            "Peso",
+            "Prova",
+          ],
+        });
         const wb = XLSX.utils.book_new();
         const batteryLabel = (battery && battery.name) || `Bateria ${batteryIndex + 1}`;
         const sheetName =
