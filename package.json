@@ -49,6 +49,7 @@
     "framer-motion": "^12.7.3",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.1",
+    "jszip": "^3.10.1",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.284.0",
     "qrcode.react": "^4.2.0",

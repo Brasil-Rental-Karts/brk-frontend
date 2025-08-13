@@ -59,6 +59,7 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
+import JSZip from "jszip";
 
 import { BulkConfirmPilotsModal } from "@/components/championship/modals/BulkConfirmPilotsModal";
 import { Loading, ButtonLoader } from "@/components/ui/loading";
@@ -3304,15 +3305,30 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     }
   };
 
-  // Função para exportar Planilha dos pilotos confirmados
-  const exportConfirmedPilotsXLSX = useCallback(() => {
-    // Descobrir o maior número de baterias entre todos os pilotos confirmados
-    let maxBatteries = 0;
-    // Ordenar categorias por nome
+  // Função para exportar Planilhas dos pilotos confirmados dentro de um ZIP (um arquivo por categoria/bateria)
+  const exportConfirmedPilotsXLSX = useCallback(async () => {
+    const sanitize = (text?: string) =>
+      (text || "")
+        // Substitui caracteres inválidos em nomes de arquivo por hífen
+        .replace(/[\\/:*?"<>|]+/g, "-")
+        // Condensa múltiplos hífens
+        .replace(/-+/g, "-")
+        // Condensa espaços
+        .replace(/\s+/g, " ")
+        .trim();
+
     const sortedCategories = [...categories].sort((a, b) =>
       a.name.localeCompare(b.name, "pt-BR"),
     );
-    sortedCategories.forEach((category) => {
+    const sanitizeSheet = (text?: string) =>
+      (text || "")
+        .replace(/[\\/:*?"<>|\[\]]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 31);
+
+    // Checar rapidamente se há algum confirmado em qualquer categoria
+    const hasAnyConfirmed = sortedCategories.some((category) => {
       const categoryPilots = registrations.filter((reg) =>
         reg.categories.some((rc: any) => rc.category.id === category.id),
       );
@@ -3324,16 +3340,15 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
             part.status === "confirmed",
         ),
       );
-      confirmedPilots.forEach((pilot) => {
-        const pilotKartAssignments =
-          fleetDrawResults[category.id]?.[pilot.userId] || {};
-        const numBatteries = Object.keys(pilotKartAssignments).length;
-        if (numBatteries > maxBatteries) maxBatteries = numBatteries;
-      });
+      return confirmedPilots.length > 0;
     });
 
-    // Montar dados para exportação
-    const exportData: any[] = [];
+    if (!hasAnyConfirmed) {
+      toast.error("Não há pilotos confirmados para exportar.");
+      return;
+    }
+
+    const zip = new JSZip();
     sortedCategories.forEach((category) => {
       const categoryPilots = registrations.filter((reg) =>
         reg.categories.some((rc: any) => rc.category.id === category.id),
@@ -3346,53 +3361,110 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
             part.status === "confirmed",
         ),
       );
-      // Ordenar pilotos por nome
+
+      // Ordenar pilotos confirmados por nome
       const sortedPilots = [...confirmedPilots].sort((a, b) => {
         const nameA = a.user?.name || "";
         const nameB = b.user?.name || "";
         return nameA.localeCompare(nameB, "pt-BR");
       });
-      sortedPilots.forEach((pilot) => {
-        const pilotKartAssignments =
-          fleetDrawResults[category.id]?.[pilot.userId] || {};
-        const assignedFleetId = categoryFleetAssignments[category.id];
-        let fleetName = "";
-        if (assignedFleetId) {
-          const fleet = fleets.find((f) => f.id === assignedFleetId);
-          if (fleet) fleetName = fleet.name;
-        }
-        const row: any = {
-          Nome: formatName(pilot.user?.name || ""),
-          Apelido: formatName(
-            pilot.user?.nickname || (pilot as any).profile?.nickName || "",
-          ),
-          Estado:
-            (pilot as any).profile && (pilot as any).profile.state
-              ? (pilot as any).profile.state
-              : "",
-          Categoria: category.name,
-          Frota: fleetName,
-        };
-        for (let i = 0; i < maxBatteries; i++) {
-          const kart = pilotKartAssignments[i]
-            ? pilotKartAssignments[i].kart
+
+      const batteries =
+        (category as any).batteriesConfig &&
+        (category as any).batteriesConfig.length > 0
+          ? (category as any).batteriesConfig
+          : [{ name: "Bateria 1" }];
+
+      batteries.forEach((battery: any, batteryIndex: number) => {
+        const exportData: any[] = [];
+
+        sortedPilots.forEach((pilot) => {
+          const pilotKartAssignments =
+            fleetDrawResults[category.id]?.[pilot.userId] || {};
+          const assignedFleetId = categoryFleetAssignments[category.id];
+          let fleetName = "";
+          if (assignedFleetId) {
+            const fleet = fleets.find((f) => f.id === assignedFleetId);
+            if (fleet) fleetName = fleet.name;
+          }
+
+          const kart = pilotKartAssignments[batteryIndex]
+            ? pilotKartAssignments[batteryIndex].kart
             : "";
-          row[`Bateria ${i + 1}`] = kart ? `${kart}` : "";
-        }
-        exportData.push(row);
+
+          const row: any = {
+            Nome: formatName(pilot.user?.name || ""),
+            Apelido: formatName(
+              pilot.user?.nickname || (pilot as any).profile?.nickName || "",
+            ),
+            Estado:
+              (pilot as any).profile && (pilot as any).profile.state
+                ? (pilot as any).profile.state
+                : "",
+            Categoria: category.name,
+            Frota: fleetName,
+            Kart: kart ? `${kart}` : "",
+          };
+
+          exportData.push(row);
+        });
+
+        const dataForSheet =
+          exportData.length > 0
+            ? exportData
+            : [
+                {
+                  Nome: "",
+                  Apelido: "",
+                  Estado: "",
+                  Categoria: category.name,
+                  Frota: "",
+                  Kart: "",
+                },
+              ];
+
+        const ws = XLSX.utils.json_to_sheet(dataForSheet);
+        const wb = XLSX.utils.book_new();
+        const batteryLabel = (battery && battery.name) || `Bateria ${batteryIndex + 1}`;
+        const sheetName =
+          sanitizeSheet(
+            `Pilotos Confirmados - ${category.name} - ${batteryLabel}`,
+          ) || "Pilotos Confirmados";
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+        const championshipName = sanitize(championship?.name || "Campeonato");
+        const stageName = sanitize(selectedStage?.name || "Etapa");
+        const categoryName = sanitize(category.name || "Categoria");
+        const fileName = `${championshipName} ${stageName} ${categoryName} ${sanitize(
+          batteryLabel,
+        )}.xlsx`;
+
+        const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        zip.file(fileName, wbout);
       });
     });
-    if (exportData.length === 0) {
-      toast.error("Não há pilotos confirmados para exportar.");
-      return;
-    }
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Pilotos Confirmados");
-    const now = new Date();
-    const dateStr = now.toISOString().split("T")[0];
-    XLSX.writeFile(wb, `pilotos_confirmados_etapa_${dateStr}.xlsx`);
-  }, [categories, registrations, stageParticipations, fleetDrawResults]);
+    const zipName = `${sanitize(championship?.name || "Campeonato")} ${sanitize(
+      selectedStage?.name || "Etapa",
+    )} - Pilotos Confirmados.zip`;
+    const blob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = zipName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, [
+    categories,
+    registrations,
+    stageParticipations,
+    fleetDrawResults,
+    categoryFleetAssignments,
+    fleets,
+    championship,
+    selectedStage,
+  ]);
 
   return (
     <div className="space-y-6">
