@@ -35,6 +35,8 @@ import {
   Filter,
   RefreshCw,
   Search,
+  Copy,
+  Check,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -68,6 +70,7 @@ export const OverduePaymentsTable = () => {
     "name" | "dueDate" | "value" | "registrationId"
   >("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [copiedPaymentId, setCopiedPaymentId] = useState<string | null>(null);
 
   const { loading, error, getAllOverduePayments, getAllPendingPayments, reactivateOverduePayment, updatePaymentValue, updatePaymentDueDate } =
     usePaymentManagement();
@@ -237,6 +240,17 @@ export const OverduePaymentsTable = () => {
         return <Badge variant="default">Confirmado</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const handleCopyPix = async (payment: OverduePayment) => {
+    if (!payment.pixCopyPaste) return;
+    try {
+      await navigator.clipboard.writeText(payment.pixCopyPaste);
+      setCopiedPaymentId(payment.id);
+      setTimeout(() => setCopiedPaymentId(null), 2000);
+    } catch (err) {
+      console.error("Erro ao copiar PIX:", err);
     }
   };
 
@@ -656,6 +670,27 @@ export const OverduePaymentsTable = () => {
                             >
                               Editar Valor
                             </Button>
+                            {payment.pixCopyPaste && (
+                              <Button
+                                onClick={() => handleCopyPix(payment)}
+                                disabled={loading}
+                                size="sm"
+                                variant="outline"
+                                className="flex items-center gap-2"
+                              >
+                                {copiedPaymentId === payment.id ? (
+                                  <>
+                                    <Check className="h-4 w-4" />
+                                    Copiado!
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="h-4 w-4" />
+                                    Copiar PIX
+                                  </>
+                                )}
+                              </Button>
+                            )}
                             <Button
                               onClick={() => openDueDateDialog(payment)}
                               disabled={loading}
@@ -721,6 +756,27 @@ export const OverduePaymentsTable = () => {
                         >
                           Editar Valor
                         </Button>
+                        {payment.pixCopyPaste && (
+                          <Button
+                            onClick={() => handleCopyPix(payment)}
+                            disabled={loading}
+                            size="sm"
+                            variant="outline"
+                            className="flex items-center gap-2"
+                          >
+                            {copiedPaymentId === payment.id ? (
+                              <>
+                                <Check className="h-4 w-4" />
+                                Copiado!
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-4 w-4" />
+                                Copiar PIX
+                              </>
+                            )}
+                          </Button>
+                        )}
                         <Button
                           onClick={() => openDueDateDialog(payment)}
                           disabled={loading}
