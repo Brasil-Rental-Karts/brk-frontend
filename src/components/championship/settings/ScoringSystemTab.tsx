@@ -20,7 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "brk-design-system";
-import { Edit, Star, Trash2, Trophy, X } from "lucide-react";
+import { Copy, Edit, Star, Trash2, Trophy, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -204,6 +204,12 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
     );
   };
 
+  const handleDuplicate = (system: ScoringSystem) => {
+    navigate(`/championship/${championshipId}/scoring-system/create`, {
+      state: { duplicateScoringSystem: system },
+    });
+  };
+
   const handleDeleteClick = (system: ScoringSystem) => {
     setDeletingSystem(system);
     setShowDeleteDialog(true);
@@ -337,6 +343,20 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>Editar sistema</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDuplicate(system)}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Duplicar sistema</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                   <TooltipProvider>
