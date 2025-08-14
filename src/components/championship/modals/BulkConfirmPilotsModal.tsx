@@ -244,8 +244,35 @@ export const BulkConfirmPilotsModal: React.FC<BulkConfirmPilotsModalProps> = ({
           })),
         };
 
+        // Confirmar na etapa atual
         const response =
           await StageParticipationService.bulkConfirmParticipation(data);
+
+        // Se for rodada dupla, confirmar também na etapa pareada (filtrando categorias válidas)
+        try {
+          const stages = getStages();
+          const currentStage: any = stages.find((s: any) => s.id === stageId);
+          const pairStageId: string | undefined = currentStage?.doubleRound
+            ? currentStage?.doubleRoundPairId
+            : undefined;
+          if (pairStageId) {
+            const pairStage: any = stages.find((s: any) => s.id === pairStageId);
+            const allowedCats = new Set<string>(pairStage?.categoryIds || []);
+            const pairConfirmations = data.confirmations.filter((c) =>
+              allowedCats.has(c.categoryId),
+            );
+            if (pairConfirmations.length > 0) {
+              await StageParticipationService.bulkConfirmParticipation({
+                stageId: pairStageId,
+                confirmations: pairConfirmations,
+              });
+              // Atualizar participações também da etapa pareada
+              await refreshStageParticipations(pairStageId);
+            }
+          }
+        } catch (e) {
+          // Não bloquear fluxo principal em caso de erro na etapa pareada
+        }
 
         if (response.errors.length > 0) {
           toast.warning(
@@ -266,8 +293,35 @@ export const BulkConfirmPilotsModal: React.FC<BulkConfirmPilotsModalProps> = ({
           })),
         };
 
+        // Cancelar na etapa atual
         const response =
           await StageParticipationService.bulkCancelParticipation(data);
+
+        // Se for rodada dupla, cancelar também na etapa pareada (filtrando categorias válidas)
+        try {
+          const stages = getStages();
+          const currentStage: any = stages.find((s: any) => s.id === stageId);
+          const pairStageId: string | undefined = currentStage?.doubleRound
+            ? currentStage?.doubleRoundPairId
+            : undefined;
+          if (pairStageId) {
+            const pairStage: any = stages.find((s: any) => s.id === pairStageId);
+            const allowedCats = new Set<string>(pairStage?.categoryIds || []);
+            const pairCancellations = data.cancellations.filter((c) =>
+              allowedCats.has(c.categoryId),
+            );
+            if (pairCancellations.length > 0) {
+              await StageParticipationService.bulkCancelParticipation({
+                stageId: pairStageId,
+                cancellations: pairCancellations,
+              });
+              // Atualizar participações também da etapa pareada
+              await refreshStageParticipations(pairStageId);
+            }
+          }
+        } catch (e) {
+          // Não bloquear fluxo principal em caso de erro na etapa pareada
+        }
 
         if (response.errors.length > 0) {
           toast.warning(
