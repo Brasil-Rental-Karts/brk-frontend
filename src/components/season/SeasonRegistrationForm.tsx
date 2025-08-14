@@ -144,7 +144,7 @@ const CategoryOptionBadge = React.forwardRef<
         >
           {isFull
             ? "Lotada"
-            : `${availableSlots} vaga${availableSlots !== 1 ? "s" : ""} disponível${availableSlots !== 1 ? "is" : ""}`}
+            : `${availableSlots} vaga${availableSlots !== 1 ? "s" : ""} ${availableSlots !== 1 ? "disponíveis" : "disponível"}`}
         </Badge>
       </div>
     </div>
@@ -252,7 +252,7 @@ const StageOptionBadge = React.forwardRef<
             >
               {selectedCategories.length > 1 ? `${cat?.category.name}: ` : ""}{cat?.isFull
                 ? "Lotada"
-                : `${cat?.availableSlots} vaga${(cat?.availableSlots || 0) !== 1 ? "s" : ""} disponível${(cat?.availableSlots || 0) !== 1 ? "is" : ""}`}
+                : `${cat?.availableSlots} vaga${(cat?.availableSlots || 0) !== 1 ? "s" : ""} ${(cat?.availableSlots || 0) !== 1 ? "disponíveis" : "disponível"}`}
             </Badge>
           ))}
         </div>
@@ -1618,7 +1618,7 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
                   confirmAndNavigate();
                 }}
               >
-                Deixar inscrição para mais tarde
+                Deixar para depois
               </Button>
             </DialogFooter>
           </DialogContent>
