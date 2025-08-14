@@ -327,9 +327,32 @@ const StageSelectionComponent = React.forwardRef<
           stage={stage}
           checked={safeValue.includes(stage.id)}
           onChange={(checked) => {
-            const newValue = checked
-              ? [...safeValue, stage.id]
-              : safeValue.filter((v: string) => v !== stage.id);
+            let newValue = Array.isArray(safeValue) ? [...safeValue] : [];
+
+            const ensurePairConsistency = (selected: boolean) => {
+              const pairId = (stage as any).doubleRoundPairId as string | undefined;
+              if (pairId) {
+                const pairExists = stages.some((s) => s.id === pairId);
+                if (pairExists) {
+                  if (selected) {
+                    if (!newValue.includes(pairId)) newValue.push(pairId);
+                  } else {
+                    newValue = newValue.filter((v: string) => v !== pairId);
+                  }
+                }
+              }
+            };
+
+            if (checked) {
+              if (!newValue.includes(stage.id)) newValue.push(stage.id);
+              // Se etapa for rodada dupla, garantir seleção da etapa vinculada
+              ensurePairConsistency(true);
+            } else {
+              newValue = newValue.filter((v: string) => v !== stage.id);
+              // Ao desmarcar, remover também a etapa vinculada, se existir
+              ensurePairConsistency(false);
+            }
+
             onChange(newValue);
           }}
           disabled={disabled}
@@ -337,7 +360,7 @@ const StageSelectionComponent = React.forwardRef<
           categories={categories}
           categoryRegistrationCounts={categoryRegistrationCounts}
           stageRegistrationCounts={stageRegistrationCounts}
-            stageCategoryRegistrationCounts={stageCategoryRegistrationCounts}
+          stageCategoryRegistrationCounts={stageCategoryRegistrationCounts}
         />
       ))}
     </div>
@@ -1081,6 +1104,27 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     // Ativar o loading imediatamente - o DynamicForm já valida internamente
     setProcessing(true);
     try {
+      // Validação: em inscrição por etapa, se selecionar uma etapa de rodada dupla, a pareada deve estar inclusa
+      if (
+        inscriptionType === "por_etapa" &&
+        Array.isArray(data.etapas) &&
+        data.etapas.length > 0
+      ) {
+        const selectedStageIds: string[] = data.etapas;
+        for (const stageId of selectedStageIds) {
+          const st = stages.find((s) => s.id === stageId);
+          const pairId = (st as any)?.doubleRoundPairId as string | undefined;
+          if (pairId) {
+            const mustInclude = selectedStageIds.includes(pairId);
+            if (!mustInclude) {
+              setProcessing(false);
+              throw new Error(
+                "Esta etapa faz parte de uma rodada dupla. Selecione também a etapa vinculada."
+              );
+            }
+          }
+        }
+      }
       await useFormScreenSubmit(data);
     } catch (error) {
       setProcessing(false);
