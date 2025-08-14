@@ -411,6 +411,26 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
                   </div>
                 </div>
 
+                {/* Descarte */}
+                <div className={`${isMobile ? "space-y-2" : "grid grid-cols-2 gap-4"} text-sm`}>
+                  <div>
+                    <span className="font-medium">Descarte: </span>
+                    <span className="text-muted-foreground capitalize">
+                      {system.discardMode === 'per_stage'
+                        ? 'por etapa'
+                        : system.discardMode === 'per_battery'
+                          ? 'por bateria'
+                          : 'sem descarte'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Qtd. para Descartar: </span>
+                    <span className="text-muted-foreground">
+                      {system.discardMode === 'none' ? 0 : (system as any).discardCount ?? 0}
+                    </span>
+                  </div>
+                </div>
+
                 {/* Controles */}
                 <div className="flex items-center justify-between pt-4 border-t">
                   <div className="flex items-center gap-4">

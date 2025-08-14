@@ -100,6 +100,35 @@ export const CreateScoringSystem = () => {
         },
       ],
     },
+    {
+      section: "Descarte",
+      detail: "Configure descartes de etapas/baterias deste sistema",
+      fields: [
+        {
+          id: "discardMode",
+          name: "Modo de Descarte",
+          type: "select",
+          options: [
+            { value: "none", description: "Sem descarte" },
+            { value: "per_stage", description: "Descarte por etapa" },
+            { value: "per_battery", description: "Descarte por bateria" },
+          ],
+          placeholder: "Selecione...",
+        },
+        {
+          id: "discardCount",
+          name: "Quantidade para Descartar",
+          type: "input",
+          placeholder: "0",
+          mask: "number",
+          min_value: 0,
+          conditionalField: {
+            dependsOn: "discardMode",
+            showWhen: (val: string) => val && val !== "none",
+          },
+        },
+      ],
+    },
   ];
 
   // Carregar dados do sistema de pontuação se estiver editando
@@ -135,6 +164,8 @@ export const CreateScoringSystem = () => {
       positions: data.positions || [{ position: 1, points: 25 }],
       polePositionPoints: String(data.polePositionPoints ?? 0),
       fastestLapPoints: String(data.fastestLapPoints ?? 0),
+      discardMode: (data as any).discardMode ?? "none",
+      discardCount: String((data as any).discardCount ?? 0),
     };
   }, []);
 
@@ -152,6 +183,8 @@ export const CreateScoringSystem = () => {
         positions: formData.positions || [{ position: 1, points: 25 }],
         polePositionPoints: toNumber(formData.polePositionPoints),
         fastestLapPoints: toNumber(formData.fastestLapPoints),
+        discardMode: (formData.discardMode as string) || "none",
+        discardCount: toNumber(formData.discardCount),
       };
     },
     [],
