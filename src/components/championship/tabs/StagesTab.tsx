@@ -441,11 +441,18 @@ export const StagesTab = ({
         )
       : [];
 
+    const priceValue: any = (stageData as any).price;
+    const priceNumber =
+      priceValue !== undefined && priceValue !== null && String(priceValue).trim() !== ""
+        ? Number(priceValue)
+        : null;
+
     const duplicatedStageData = {
       name: `${stageData.name} (Cópia)`,
       date,
       time: stageData.time,
       raceTrackId: stageData.raceTrackId || "",
+      trackLayoutId: stageData.trackLayoutId || "undefined",
       streamLink: stageData.streamLink || "",
       seasonId: stageData.seasonId,
       categoryIds,
@@ -453,6 +460,7 @@ export const StagesTab = ({
       doubleRound: stageData.doubleRound || false,
       briefing: stageData.briefing || "",
       briefingTime: stageData.briefingTime || "",
+      price: priceNumber,
     };
     navigate(`/championship/${championshipId}/stage/new`, {
       state: { initialData: duplicatedStageData },
