@@ -523,12 +523,13 @@ export const OverduePaymentsTable = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2 justify-end">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
                       <Button
                         onClick={() => openEditValueDialog(payment)}
                         disabled={loading}
                         size="sm"
                         variant="outline"
+                        className="w-full sm:w-auto"
                       >
                         Editar Valor
                       </Button>
@@ -536,7 +537,7 @@ export const OverduePaymentsTable = () => {
                         onClick={() => openReactivateDialog(payment)}
                         disabled={loading}
                         size="sm"
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 w-full sm:w-auto"
                       >
                         <RefreshCw className="h-4 w-4" />
                         Reativar
@@ -747,12 +748,13 @@ export const OverduePaymentsTable = () => {
                           </div>
                         </div>
                       </div>
-                      <div className="flex gap-2 justify-end">
+                      <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
                         <Button
                           onClick={() => openEditValueDialog(payment)}
                           disabled={loading}
                           size="sm"
                           variant="outline"
+                          className="w-full sm:w-auto"
                         >
                           Editar Valor
                         </Button>
@@ -762,7 +764,7 @@ export const OverduePaymentsTable = () => {
                             disabled={loading}
                             size="sm"
                             variant="outline"
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-2 w-full sm:w-auto"
                           >
                             {copiedPaymentId === payment.id ? (
                               <>
@@ -782,6 +784,7 @@ export const OverduePaymentsTable = () => {
                           disabled={loading}
                           size="sm"
                           variant="outline"
+                          className="w-full sm:w-auto"
                         >
                           Alterar Vencimento
                         </Button>

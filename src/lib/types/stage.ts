@@ -13,6 +13,7 @@ export interface Stage {
   categoryIds: string[];
   doublePoints: boolean;
   doubleRound: boolean;
+  doubleRoundPairId?: string;
   briefing?: string;
   briefingTime?: string; // HH:MM format
   price?: number; // Decimal field for stage price
@@ -67,6 +68,7 @@ export interface CreateStageData {
   categoryIds: string[];
   doublePoints?: boolean;
   doubleRound?: boolean;
+  doubleRoundPairId?: string;
   briefing?: string;
   briefingTime?: string; // HH:MM format
   price?: number; // Decimal field for stage price
@@ -85,6 +87,7 @@ export interface UpdateStageData {
   categoryIds?: string[];
   doublePoints?: boolean;
   doubleRound?: boolean;
+  doubleRoundPairId?: string;
   briefing?: string;
   briefingTime?: string; // HH:MM format
   price?: number; // Decimal field for stage price

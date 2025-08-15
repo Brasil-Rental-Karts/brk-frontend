@@ -10,6 +10,8 @@ export interface ScoringSystemData {
   positions: ScoringPosition[];
   polePositionPoints?: number;
   fastestLapPoints?: number;
+  discardMode?: 'none' | 'per_stage' | 'per_battery';
+  discardCount?: number;
   isActive?: boolean;
   isDefault?: boolean;
 }

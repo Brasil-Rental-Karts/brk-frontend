@@ -1,5 +1,5 @@
-import { useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useCallback, useMemo } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { ScoringPositionsForm } from "@/components/championship/settings/ScoringPositionsForm";
 import { FormSectionConfig } from "@/components/ui/dynamic-form";
@@ -9,6 +9,7 @@ import { ScoringSystem } from "@/lib/services/scoring-system.service";
 import { ScoringSystemService } from "@/lib/services/scoring-system.service";
 
 export const CreateScoringSystem = () => {
+  const location = useLocation();
   const { championshipId, scoringSystemId } = useParams<{
     championshipId: string;
     scoringSystemId?: string;
@@ -25,6 +26,23 @@ export const CreateScoringSystem = () => {
   } = useChampionshipData();
 
   const isEditing = !!scoringSystemId;
+
+  // Dados vindos da ação de duplicar
+  const duplicateScoringSystem = (location.state as any)?.duplicateScoringSystem as
+    | ScoringSystem
+    | undefined;
+
+  // Valores iniciais para duplicação (como TData para ser transformado por transformInitialData)
+  const initialValues = useMemo(() => {
+    if (!duplicateScoringSystem || isEditing) return undefined;
+    return {
+      ...duplicateScoringSystem,
+      id: undefined,
+      name: `${duplicateScoringSystem.name} (Cópia)`,
+      isDefault: false,
+      isActive: true,
+    } as unknown as ScoringSystem;
+  }, [duplicateScoringSystem, isEditing]);
 
   // Configuração do formulário
   const formConfig: FormSectionConfig[] = [
@@ -68,6 +86,8 @@ export const CreateScoringSystem = () => {
           type: "input",
           mandatory: false,
           placeholder: "0",
+          mask: "number",
+          min_value: 0,
         },
         {
           id: "fastestLapPoints",
@@ -75,6 +95,37 @@ export const CreateScoringSystem = () => {
           type: "input",
           mandatory: false,
           placeholder: "0",
+          mask: "number",
+          min_value: 0,
+        },
+      ],
+    },
+    {
+      section: "Descarte",
+      detail: "Configure descartes de etapas/baterias deste sistema",
+      fields: [
+        {
+          id: "discardMode",
+          name: "Modo de Descarte",
+          type: "select",
+          options: [
+            { value: "none", description: "Sem descarte" },
+            { value: "per_stage", description: "Descarte por etapa" },
+            { value: "per_battery", description: "Descarte por bateria" },
+          ],
+          placeholder: "Selecione...",
+        },
+        {
+          id: "discardCount",
+          name: "Quantidade para Descartar",
+          type: "input",
+          placeholder: "0",
+          mask: "number",
+          min_value: 0,
+          conditionalField: {
+            dependsOn: "discardMode",
+            showWhen: (val: string) => val && val !== "none",
+          },
         },
       ],
     },
@@ -111,21 +162,29 @@ export const CreateScoringSystem = () => {
       isActive: data.isActive ?? true,
       isDefault: data.isDefault ?? false,
       positions: data.positions || [{ position: 1, points: 25 }],
-      polePositionPoints: data.polePositionPoints || 0,
-      fastestLapPoints: data.fastestLapPoints || 0,
+      polePositionPoints: String(data.polePositionPoints ?? 0),
+      fastestLapPoints: String(data.fastestLapPoints ?? 0),
+      discardMode: (data as any).discardMode ?? "none",
+      discardCount: String((data as any).discardCount ?? 0),
     };
   }, []);
 
   // Transformar dados do formulário para envio
   const transformSubmitData = useCallback(
     (formData: Record<string, unknown>) => {
+      const toNumber = (val: unknown) => {
+        const n = Number(val ?? 0);
+        return Number.isNaN(n) ? 0 : n;
+      };
       return {
         name: formData.name,
         isActive: formData.isActive ?? true,
         isDefault: formData.isDefault ?? false,
         positions: formData.positions || [{ position: 1, points: 25 }],
-        polePositionPoints: formData.polePositionPoints || 0,
-        fastestLapPoints: formData.fastestLapPoints || 0,
+        polePositionPoints: toNumber(formData.polePositionPoints),
+        fastestLapPoints: toNumber(formData.fastestLapPoints),
+        discardMode: (formData.discardMode as string) || "none",
+        discardCount: toNumber(formData.discardCount),
       };
     },
     [],
@@ -195,6 +254,7 @@ export const CreateScoringSystem = () => {
       updateData={updateScoringSystemData}
       transformInitialData={transformInitialData}
       transformSubmitData={transformSubmitData}
+      initialValues={initialValues as any}
       onSuccess={onSuccess}
       onCancel={onCancel}
       successMessage={

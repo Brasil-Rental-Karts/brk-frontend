@@ -99,6 +99,7 @@ const STAGE_INITIAL_VALUES = {
   categoryIds: [] as string[],
   doublePoints: false,
   doubleRound: false,
+  doubleRoundPairId: "",
   briefing: "",
   briefingTime: "",
   price: "",
@@ -120,6 +121,7 @@ export const CreateStage = () => {
     getRaceTracks,
     addStage,
     updateStage,
+    refreshStages,
   } = useChampionshipData();
 
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
@@ -239,6 +241,14 @@ export const CreateStage = () => {
           { id: "doublePoints", name: "Pontuação em dobro", type: "checkbox" },
           { id: "doubleRound", name: "Rodada Dupla", type: "checkbox" },
           {
+            id: "doubleRoundPairId",
+            name: "Outra etapa (rodada dupla)",
+            type: "select",
+            mandatory: true,
+            conditionalField: { dependsOn: "doubleRound", showWhen: true },
+            options: [],
+          },
+          {
             id: "price",
             name: "Preço diferenciado",
             type: "inputMask",
@@ -286,6 +296,7 @@ export const CreateStage = () => {
         let stageDataToSet: Record<string, any> = STAGE_INITIAL_VALUES;
         let raceTrackOptions: { value: string; description: string }[] = [];
         let configToUse = [...baseConfig];
+        let pairStageOptions: { value: string; description: string }[] = [];
 
         // Usar kartódromos do contexto em vez de buscar do backend
         const allRaceTracks = getRaceTracks();
@@ -371,6 +382,21 @@ export const CreateStage = () => {
               console.error("Erro ao carregar traçados:", error);
             }
           }
+
+          // Opções de etapa par (mesma temporada, excluindo a própria, e não listar já vinculadas a outra etapa)
+          if (stageData.seasonId) {
+            const allStages = getStages();
+            pairStageOptions = allStages
+              .filter((s: any) =>
+                s.seasonId === stageData.seasonId &&
+                s.id !== stageData.id &&
+                (!s.doubleRoundPairId || s.doubleRoundPairId === stageData.id),
+              )
+              .map((s: any) => ({
+                value: s.id,
+                description: `${s.name} - ${formatISOToDate(s.date)}`,
+              }));
+          }
         } else if (duplicatedData) {
           stageDataToSet = {
             ...STAGE_INITIAL_VALUES,
@@ -394,6 +420,17 @@ export const CreateStage = () => {
               description: c.name,
             }));
           }
+
+          // Opções de etapa par (mesma temporada, não listar etapas já vinculadas)
+          if (duplicatedData.seasonId) {
+            const allStages = getStages();
+            pairStageOptions = allStages
+              .filter((s: any) => s.seasonId === duplicatedData.seasonId && !s.doubleRoundPairId)
+              .map((s: any) => ({
+                value: s.id,
+                description: `${s.name} - ${formatISOToDate(s.date)}`,
+              }));
+          }
         }
 
         const seasonOptions = activeSeasons.map((s) => ({
@@ -409,6 +446,9 @@ export const CreateStage = () => {
               fields: section.fields.map((field) => {
                 if (field.id === "raceTrackId") {
                   return { ...field, options: raceTrackOptions };
+                }
+                if (field.id === "doubleRoundPairId") {
+                  return { ...field, options: pairStageOptions };
                 }
                 return field;
               }),
@@ -501,6 +541,17 @@ export const CreateStage = () => {
         transformedData.doubleRound = Boolean(transformedData.doubleRound);
       }
 
+      // Tratar etapa par da rodada dupla
+      if (transformedData.doubleRound) {
+        if (!transformedData.doubleRoundPairId) {
+          throw new Error(
+            "Selecione a outra etapa que compõe a rodada dupla.",
+          );
+        }
+      } else {
+        transformedData.doubleRoundPairId = null;
+      }
+
       // Garantir que categoryIds seja um array válido
       if (
         !Array.isArray(transformedData.categoryIds) ||
@@ -534,8 +585,42 @@ export const CreateStage = () => {
       if (fieldId === "seasonId") {
         if (formActions.setValue) {
           formActions.setValue("categoryIds", []);
+          formActions.setValue("doubleRoundPairId", "");
         }
         await loadCategoriesForSeason(value);
+
+        // Atualizar opções da etapa par de rodada dupla com base na temporada
+        try {
+          const allStages = getStages();
+          const options = allStages
+            .filter((s: any) =>
+              s.seasonId === value &&
+              (!stageId || s.id !== stageId) &&
+              (!s.doubleRoundPairId || (stageId && s.doubleRoundPairId === stageId)),
+            )
+            .map((s: any) => ({
+              value: s.id,
+              description: `${s.name} - ${formatISOToDate(s.date)}`,
+            }));
+          setFormConfig((prev) =>
+            prev.map((section) => {
+              if (section.section === "Informações Básicas") {
+                return {
+                  ...section,
+                  fields: section.fields.map((field) => {
+                    if (field.id === "doubleRoundPairId") {
+                      return { ...field, options };
+                    }
+                    return field;
+                  }),
+                };
+              }
+              return section;
+            }),
+          );
+        } catch (err) {
+          console.error("Erro ao carregar etapas para rodada dupla:", err);
+        }
       }
 
       if (fieldId === "raceTrackId") {
@@ -593,47 +678,31 @@ export const CreateStage = () => {
     navigate(`/championship/${championshipId}?tab=etapas`);
   }, [navigate, championshipId]);
 
-  // Wrappers para interceptar erro 409 e atualizar contexto
+  // Wrappers para atualizar contexto
   const createStageWithErrorHandling = useCallback(
     async (data: any) => {
+      const createdStage = await StageService.create(data);
+      addStage(createdStage);
+      // Garantir sincronização do par na UI
       try {
-        const createdStage = await StageService.create(data);
-
-        // Atualizar o contexto com a nova etapa
-        addStage(createdStage);
-
-        return createdStage;
-      } catch (error: any) {
-        if (error.response?.status === 409) {
-          throw new Error(
-            "Já existe uma etapa cadastrada para esta data nesta temporada. Por favor, escolha outra data.",
-          );
-        }
-        throw error;
-      }
+        await refreshStages();
+      } catch {}
+      return createdStage;
     },
-    [addStage],
+    [addStage, refreshStages],
   );
 
   const updateStageWithErrorHandling = useCallback(
     async (id: string, data: any) => {
+      const updatedStage = await StageService.update(id, data);
+      updateStage(id, updatedStage);
+      // Garantir sincronização do par na UI
       try {
-        const updatedStage = await StageService.update(id, data);
-
-        // Atualizar o contexto com a etapa atualizada
-        updateStage(id, updatedStage);
-
-        return updatedStage;
-      } catch (error: any) {
-        if (error.response?.status === 409) {
-          throw new Error(
-            "Já existe uma etapa cadastrada para esta data nesta temporada. Por favor, escolha outra data.",
-          );
-        }
-        throw error;
-      }
+        await refreshStages();
+      } catch {}
+      return updatedStage;
     },
-    [updateStage],
+    [updateStage, refreshStages],
   );
 
   if (isLoading || !initialValues) {

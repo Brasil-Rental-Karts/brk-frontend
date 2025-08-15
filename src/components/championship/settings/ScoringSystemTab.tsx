@@ -20,7 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "brk-design-system";
-import { Edit, Star, Trash2, Trophy, X } from "lucide-react";
+import { Copy, Edit, Star, Trash2, Trophy, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -204,6 +204,12 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
     );
   };
 
+  const handleDuplicate = (system: ScoringSystem) => {
+    navigate(`/championship/${championshipId}/scoring-system/create`, {
+      state: { duplicateScoringSystem: system },
+    });
+  };
+
   const handleDeleteClick = (system: ScoringSystem) => {
     setDeletingSystem(system);
     setShowDeleteDialog(true);
@@ -345,6 +351,20 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => handleDuplicate(system)}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Duplicar sistema</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => handleDeleteClick(system)}
                           disabled={scoringSystems.length <= 1}
                         >
@@ -387,6 +407,26 @@ export const ScoringSystemTab = ({ championshipId }: ScoringSystemTabProps) => {
                     <span className="font-medium">Volta Mais Rápida: </span>
                     <span className="text-muted-foreground">
                       {system.fastestLapPoints} pts
+                    </span>
+                  </div>
+                </div>
+
+                {/* Descarte */}
+                <div className={`${isMobile ? "space-y-2" : "grid grid-cols-2 gap-4"} text-sm`}>
+                  <div>
+                    <span className="font-medium">Descarte: </span>
+                    <span className="text-muted-foreground capitalize">
+                      {system.discardMode === 'per_stage'
+                        ? 'por etapa'
+                        : system.discardMode === 'per_battery'
+                          ? 'por bateria'
+                          : 'sem descarte'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Qtd. para Descartar: </span>
+                    <span className="text-muted-foreground">
+                      {system.discardMode === 'none' ? 0 : (system as any).discardCount ?? 0}
                     </span>
                   </div>
                 </div>

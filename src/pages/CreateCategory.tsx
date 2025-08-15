@@ -181,43 +181,6 @@ export const CreateCategory = () => {
           },
         ],
       },
-      {
-        section: "Configuração de Descarte",
-        detail: "Configure se a categoria permite descarte de resultados",
-        fields: [
-          {
-            id: "allowDiscarding",
-            name: "Permitir descarte de resultados",
-            type: "checkbox",
-          },
-          {
-            id: "discardingType",
-            name: "Tipo de descarte",
-            type: "select",
-            conditionalField: {
-              dependsOn: "allowDiscarding",
-              showWhen: (value: boolean) => value === true,
-            },
-            options: [
-              { value: "bateria", description: "Bateria" },
-              { value: "etapa", description: "Etapa" },
-            ],
-          },
-          {
-            id: "discardingQuantity",
-            name: "Quantidade a descartar",
-            type: "inputMask",
-            mask: "number",
-            min_value: 0,
-            max_value: 10,
-            placeholder: "Ex: 1",
-            conditionalField: {
-              dependsOn: "allowDiscarding",
-              showWhen: (value: boolean) => value === true,
-            },
-          },
-        ],
-      },
     ];
     setFormConfig(config);
   }, [seasons, gridTypes, scoringSystems]);
@@ -228,11 +191,6 @@ export const CreateCategory = () => {
       ballast: data.ballast.toString(),
       maxPilots: data.maxPilots.toString(),
       minimumAge: data.minimumAge.toString(),
-      allowDiscarding: Boolean(data.allowDiscarding),
-      discardingType: data.discardingType || "",
-      discardingQuantity: data.discardingQuantity
-        ? data.discardingQuantity.toString()
-        : "0",
     }),
     [],
   );
@@ -251,12 +209,6 @@ export const CreateCategory = () => {
         ballast: parseInt(data.ballast, 10),
         maxPilots: parseInt(data.maxPilots, 10),
         minimumAge: parseInt(data.minimumAge, 10),
-        allowDiscarding: Boolean(data.allowDiscarding),
-        discardingType: data.allowDiscarding ? data.discardingType : undefined,
-        discardingQuantity:
-          data.allowDiscarding && data.discardingQuantity
-            ? parseInt(data.discardingQuantity, 10)
-            : 0,
         championshipId: championshipId!,
       };
     },
@@ -350,9 +302,6 @@ export const CreateCategory = () => {
               minimumAge: "",
               seasonId: "",
               batteriesConfig: [],
-              allowDiscarding: false,
-              discardingType: "",
-              discardingQuantity: "0",
             }
       }
       successMessage={
