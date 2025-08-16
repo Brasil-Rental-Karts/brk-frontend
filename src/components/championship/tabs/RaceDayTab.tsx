@@ -332,7 +332,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     };
   }>({});
   const [categoryFleetAssignments, setCategoryFleetAssignments] = useState<{
-    [categoryId: string]: string;
+    [categoryId: string]: string | { [batteryIndex: number]: string };
   }>({});
   const [drawVersion, setDrawVersion] = useState(0);
   const [selectedOverviewCategory, setSelectedOverviewCategory] = useState<
@@ -496,12 +496,35 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
   // Função para abrir o modal de sorteio de frota
   const handleOpenFleetDrawModal = () => {
     setShowFleetDrawModal(true);
-    // Inicializar atribuições de frota por categoria
-    const initialAssignments: { [categoryId: string]: string } = {};
+    // Inicializar atribuições de frota por categoria e bateria (compatível retroativamente)
+    const initialAssignments: {
+      [categoryId: string]: string | { [batteryIndex: number]: string };
+    } = { ...categoryFleetAssignments };
     categories.forEach((category) => {
-      if (fleets.length > 0) {
-        initialAssignments[category.id] = fleets[0].id;
+      const batteries = (category as any).batteriesConfig?.length
+        ? (category as any).batteriesConfig
+        : [{ name: "Bateria 1" }];
+
+      const current = initialAssignments[category.id];
+      if (!current) {
+        // cria por bateria
+        initialAssignments[category.id] = {} as {
+          [batteryIndex: number]: string;
+        };
       }
+      // normaliza string antiga para objeto por bateria
+      if (typeof initialAssignments[category.id] === "string") {
+        const fleetId = initialAssignments[category.id] as string;
+        const map: { [batteryIndex: number]: string } = {};
+        batteries.forEach((_: any, idx: number) => (map[idx] = fleetId));
+        initialAssignments[category.id] = map;
+      }
+      const perBattery = initialAssignments[category.id] as {
+        [batteryIndex: number]: string;
+      };
+      batteries.forEach((_: any, idx: number) => {
+        if (!perBattery[idx] && fleets.length > 0) perBattery[idx] = fleets[0].id;
+      });
     });
     setCategoryFleetAssignments(initialAssignments);
   };
@@ -521,16 +544,6 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     } = {};
 
     categories.forEach((category) => {
-      const assignedFleetId = categoryFleetAssignments[category.id];
-      if (!assignedFleetId) {
-        return;
-      }
-
-      const fleet = fleets.find((f) => f.id === assignedFleetId);
-      if (!fleet) {
-        return;
-      }
-
       // Obter pilotos confirmados na categoria
       const categoryPilots = registrations.filter(
         (reg) =>
@@ -550,14 +563,6 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
       const batteries = category.batteriesConfig || [];
       if (batteries.length === 0) return;
 
-      // Obter karts disponíveis (não inativos)
-      const inactiveKartsForFleet = inactiveKarts[assignedFleetId] || [];
-      const availableKarts = Array.from(
-        { length: fleet.totalKarts },
-        (_, i) => i + 1,
-      ).filter((kart) => !inactiveKartsForFleet.includes(kart - 1));
-      if (availableKarts.length === 0) return;
-
       results[category.id] = {};
       // Inicializar histórico de karts por piloto
       const pilotKartHistory = new Map<string, Set<number>>();
@@ -571,6 +576,25 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
         batteryIndex < batteries.length;
         batteryIndex++
       ) {
+        // Descobrir frota atribuída para esta bateria
+        const assigned = categoryFleetAssignments[category.id];
+        const assignedFleetId =
+          (assigned && typeof assigned === "object"
+            ? (assigned as { [batteryIndex: number]: string })[batteryIndex]
+            : (assigned as string)) || undefined;
+        if (!assignedFleetId) continue;
+
+        const fleet = fleets.find((f) => f.id === assignedFleetId);
+        if (!fleet) continue;
+
+        // Obter karts disponíveis (não inativos) desta frota
+        const inactiveKartsForFleet = inactiveKarts[assignedFleetId] || [];
+        const availableKarts = Array.from(
+          { length: fleet.totalKarts },
+          (_, i) => i + 1,
+        ).filter((kart) => !inactiveKartsForFleet.includes(kart - 1));
+        if (availableKarts.length === 0) continue;
+
         // Embaralhar os karts disponíveis para esta bateria
         const kartsForThisBattery = [...availableKarts];
         // Embaralhar pilotos para esta bateria
@@ -1334,9 +1358,28 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
             setFleetDrawResults(selectedStage.kart_draw_assignments.results);
           }
           if (selectedStage.kart_draw_assignments.categoryFleetAssignments) {
-            setCategoryFleetAssignments(
-              selectedStage.kart_draw_assignments.categoryFleetAssignments,
-            );
+            const raw = selectedStage.kart_draw_assignments.categoryFleetAssignments as {
+              [categoryId: string]: string | { [batteryIndex: number]: string };
+            };
+            // normalizar para manter compatibilidade com etapas antigas
+            const normalized: {
+              [categoryId: string]: string | { [batteryIndex: number]: string };
+            } = {};
+            categories.forEach((category) => {
+              const current = raw[category.id];
+              if (!current) return;
+              if (typeof current === 'string') {
+                const batteries = (category as any).batteriesConfig?.length
+                  ? (category as any).batteriesConfig
+                  : [{ name: 'Bateria 1' }];
+                const map: { [batteryIndex: number]: string } = {};
+                batteries.forEach((_: any, idx: number) => (map[idx] = current));
+                normalized[category.id] = map;
+              } else {
+                normalized[category.id] = current;
+              }
+            });
+            setCategoryFleetAssignments(normalized);
           }
         } else {
           setFleetDrawResults({});
@@ -1375,7 +1418,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
 
     // Atualizar o contexto com os novos kart draw assignments
     updateStage(selectedStageId, {
-      kart_draw_assignments: dataWithFleetAssignments,
+      kart_draw_assignments: dataWithFleetAssignments as any,
     });
 
     setFleetDrawResults(dataWithFleetAssignments.results);
@@ -1550,7 +1593,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
 
       // Atualizar o contexto com os novos kart draw assignments
       updateStage(selectedStageId, {
-        kart_draw_assignments: dataWithFleetAssignments,
+        kart_draw_assignments: dataWithFleetAssignments as any,
       });
 
       closeKartSelectionModal();
@@ -1606,7 +1649,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
 
       // Atualizar o contexto com os novos kart draw assignments
       updateStage(selectedStageId, {
-        kart_draw_assignments: dataWithFleetAssignments,
+        kart_draw_assignments: dataWithFleetAssignments as any,
       });
 
       closeKartSelectionModal();
@@ -1625,7 +1668,11 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     batteryIndex: number,
     currentPilotId: string,
   ): Array<{ kart: number; isUsed: boolean; usedBy: string | null }> => {
-    const assignedFleetId = categoryFleetAssignments[categoryId];
+    const assigned = categoryFleetAssignments[categoryId];
+    const assignedFleetId =
+      (assigned && typeof assigned === "object"
+        ? (assigned as { [batteryIndex: number]: string })[batteryIndex]
+        : (assigned as string)) || undefined;
     if (!assignedFleetId) return [];
 
     const fleet = fleets.find((f) => f.id === assignedFleetId);
@@ -3783,10 +3830,17 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                                           ).map(([batteryIdx, result]) => {
                                             const batteryNumber =
                                               Number(batteryIdx) + 1;
-                                            const assignedFleetId =
+                                            const assignedObj =
                                               categoryFleetAssignments[
                                                 category.id
                                               ];
+                                            const assignedFleetId =
+                                              (assignedObj &&
+                                              typeof assignedObj === 'object'
+                                                ? (assignedObj as { [batteryIndex: number]: string })[
+                                                    Number(batteryIdx)
+                                                  ]
+                                                : (assignedObj as string)) || undefined;
                                             const fleet = fleets.find(
                                               (f) => f.id === assignedFleetId,
                                             );
@@ -5441,26 +5495,58 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                               {confirmedPilots.length} pilotos confirmados •{" "}
                               {category.batteriesConfig?.length || 0} baterias
                             </p>
-                            <select
-                              value={
-                                categoryFleetAssignments[category.id] || ""
-                              }
-                              onChange={(e) =>
-                                setCategoryFleetAssignments((prev) => ({
-                                  ...prev,
-                                  [category.id]: e.target.value,
-                                }))
-                              }
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                            >
-                              <option value="">Selecione uma frota</option>
-                              {fleets.map((fleet) => (
-                                <option key={fleet.id} value={fleet.id}>
-                                  {fleet.name} ({getActiveKartsCount(fleet.id)}{" "}
-                                  karts ativos)
-                                </option>
-                              ))}
-                            </select>
+                            {(() => {
+                              const batteries = (category as any).batteriesConfig?.length
+                                ? (category as any).batteriesConfig
+                                : [{ name: "Bateria 1" }];
+                              const current = categoryFleetAssignments[category.id];
+                              const perBattery: { [batteryIndex: number]: string } =
+                                current && typeof current === 'object' ? (current as any) : {};
+                              return (
+                                <div className="space-y-2">
+                                  {batteries.map((battery: any, idx: number) => (
+                                    <div key={idx} className="flex items-center gap-2">
+                                      <div className="w-40 text-sm text-gray-700">
+                                        {battery?.name || `Bateria ${idx + 1}`}
+                                      </div>
+                                      <select
+                                        value={perBattery[idx] || ""}
+                                        onChange={(e) =>
+                                          setCategoryFleetAssignments((prev) => {
+                                            const next: {
+                                              [categoryId: string]: string | { [batteryIndex: number]: string };
+                                            } = { ...prev };
+                                            const cur = next[category.id];
+                                            let map: { [batteryIndex: number]: string } = {};
+                                            if (cur) {
+                                              if (typeof cur === 'string') {
+                                                // migrar string para mapa por bateria
+                                                map[idx] = e.target.value;
+                                              } else {
+                                                map = { ...(cur as any) };
+                                                map[idx] = e.target.value;
+                                              }
+                                            } else {
+                                              map[idx] = e.target.value;
+                                            }
+                                            next[category.id] = map;
+                                            return next;
+                                          })
+                                        }
+                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                      >
+                                        <option value="">Selecione uma frota</option>
+                                        {fleets.map((fleet) => (
+                                          <option key={fleet.id} value={fleet.id}>
+                                            {fleet.name} ({getActiveKartsCount(fleet.id)} karts ativos)
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           {/* Resultados do sorteio para esta categoria */}

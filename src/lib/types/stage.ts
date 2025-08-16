@@ -30,7 +30,7 @@ export interface Stage {
       };
     };
     categoryFleetAssignments: {
-      [categoryId: string]: string;
+      [categoryId: string]: string | { [batteryIndex: number]: string };
     };
   };
   stage_results?: {
