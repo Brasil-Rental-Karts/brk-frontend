@@ -820,10 +820,11 @@ export const ClassificationTab = ({
             disabled={!selectedSeasonId || !filters.categoryId}
             onClick={async () => {
               try {
-                const payload = {
+                const categoryId = String(filters.categoryId);
+                const categoryPayload = {
                   generatedAt: new Date().toISOString(),
                   seasonId: selectedSeasonId,
-                  categoryId: filters.categoryId,
+                  categoryId,
                   totals: tableRows.map(r => ({ userId: r.userId, name: r.name, nickname: r.nickname, total: r.total })),
                   grid: tableRows.map(r => ({
                     userId: r.userId,
@@ -839,7 +840,7 @@ export const ClassificationTab = ({
                   })),
                   columns,
                 };
-                await SeasonService.setClassification(selectedSeasonId, payload);
+                await SeasonService.setClassification(selectedSeasonId, categoryPayload);
                 toast.success('Classificação salva no Redis com sucesso');
               } catch (e: any) {
                 toast.error(e.message || 'Erro ao salvar classificação');
@@ -881,70 +882,152 @@ export const ClassificationTab = ({
               title="Nenhum piloto encontrado"
               description="Não há pilotos com resultados nesta categoria"
             />
+          ) : (
+                isMobile ? (
+                  <div className="space-y-4">
+                    {tableRows.map((row, idx) => (
+                      <Card key={row.userId} className="w-full">
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              {renderPositionBadge(idx + 1)}
+                            </div>
+                            <div>
+                              <h3 className="text-base font-semibold tracking-tight">
+                                {formatName(row.name)}
+                </h3>
+                              {row.nickname && (
+                                <p className="text-xs text-muted-foreground">@{row.nickname}</p>
+                  )}
+              </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Total</span>
+                            <span className="text-lg font-bold">{row.total}</span>
+                          </div>
+                          <div className="space-y-3">
+                            {(() => {
+                              const groups: Array<{ stageId: string; name: string; date: string; cols: any[] }> = [];
+                              const indexByStage = new Map<string, number>();
+                              columns.forEach((col) => {
+                                const sid = String(col.id).split(':')[0];
+                                if (!indexByStage.has(sid)) {
+                                  indexByStage.set(sid, groups.length);
+                                  groups.push({ stageId: sid, name: col.name, date: col.date, cols: [] });
+                                }
+                                const idx = indexByStage.get(sid)!;
+                                groups[idx].cols.push(col);
+                              });
+                              return groups.map((g) => (
+                                <div key={g.stageId} className="rounded border p-2">
+                                  <div className="flex items-center justify-between">
+                                    <div className="text-sm font-medium">{g.name}</div>
+                                    <div className="text-xs text-muted-foreground">{new Date(g.date).toLocaleDateString('pt-BR')}</div>
+                                  </div>
+                                  <div className="mt-2 space-y-2">
+                                    {g.cols.map((col) => {
+                                      const cell = row.perCell[col.id];
+                                      const danger = !!cell?.hadPenalty;
+                                      const warn = !danger && (!!cell?.minNoPenalty || !!cell?.discardStage || (cell as any)?.discardBattery);
+                      return (
+                        <div
+                                          key={`${row.userId}-${col.id}`}
+                                          className={`rounded border p-2 ${danger ? 'bg-red-50 border-red-200 text-red-700' : warn ? 'bg-yellow-50 border-amber-200 text-amber-700' : 'bg-white'}`}
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <div className="text-[10px] text-muted-foreground">{col.label}</div>
+                                            <div className={`text-sm font-medium ${danger ? 'bg-red-100' : warn ? 'bg-yellow-100' : ''} px-1 rounded`}>{cell ? cell.points : 0}</div>
+                                          </div>
+                                          <div className={`text-[10px] mt-1 ${danger ? 'text-red-600' : warn ? 'text-amber-600' : 'text-muted-foreground'}`}>{cell ? cell.token : '-'}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                    </div>
+                              ));
+                            })()}
+                    </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    <div className="text-xs text-muted-foreground mt-2 px-1 pb-3 space-y-1">
+                      <div>
+                        <span className="inline-block align-middle mr-2 w-3 h-3 bg-red-50 border border-red-200"></span>
+                        Célula vermelha: punição (tempo ou desclassificação) em alguma bateria da etapa
+                    </div>
+                      <div>
+                        <span className="inline-block align-middle mr-2 w-3 h-3 bg-yellow-50 border border-amber-200"></span>
+                        Célula amarela: descarte (por etapa ou por bateria), não contabiliza no total
+                    </div>
+                    </div>
+                  </div>
               ) : (
                 <Card className="w-full flex flex-col">
                   <div className="flex-1 overflow-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                      <TableHead className="w-12 text-center">Pos.</TableHead>
+                            <TableHead className="w-12 text-center">Pos.</TableHead>
                           <TableHead>Piloto</TableHead>
-                      <TableHead className="text-center">Total</TableHead>
-                      {columns.map((col) => (
-                        <TableHead key={col.id} className="text-center" title={`${col.name} - ${new Date(col.date).toLocaleDateString('pt-BR')}`}>
-                          {col.label}
+                            <TableHead className="text-center">Total</TableHead>
+                            {columns.map((col) => (
+                              <TableHead key={col.id} className="text-center" title={`${col.name} - ${new Date(col.date).toLocaleDateString('pt-BR')}`}>
+                                {col.label}
                           </TableHead>
-                      ))}
+                            ))}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                    {tableRows.map((row, idx) => (
-                      <TableRow key={row.userId}>
-                        <TableCell className="text-center font-medium">{idx + 1}</TableCell>
+                          {tableRows.map((row, idx) => (
+                            <TableRow key={row.userId}>
+                              <TableCell className="text-center font-medium">{idx + 1}</TableCell>
                             <TableCell>
                               <div className="space-y-1">
-                            <div className="font-medium">{formatName(row.name)}</div>
-                            {row.nickname && (
-                              <div className="text-xs text-muted-foreground">@{row.nickname}</div>
+                                  <div className="font-medium">{formatName(row.name)}</div>
+                                  {row.nickname && (
+                                    <div className="text-xs text-muted-foreground">@{row.nickname}</div>
                                 )}
                               </div>
                             </TableCell>
                             <TableCell className="text-center">
-                          <span className="text-lg font-bold">{row.total}</span>
+                                <span className="text-lg font-bold">{row.total}</span>
                             </TableCell>
-                        {columns.map((col) => {
-                          const cell = row.perCell[col.id];
-                          const danger = !!cell?.hadPenalty;
-                          const warn = !danger && (!!cell?.minNoPenalty || !!cell?.discardStage || (cell as any)?.discardBattery);
-                          return (
-                            <TableCell key={`${row.userId}-${col.id}`} className={`text-center ${danger ? 'bg-red-50' : warn ? 'bg-yellow-50' : ''}`}>
-                              {cell ? (
-                                <div className={`flex flex-col items-center gap-1 ${danger ? 'text-red-700' : warn ? 'text-amber-700' : ''}`}>
-                                  <span className={`font-medium ${danger ? 'bg-red-100' : warn ? 'bg-yellow-100' : ''} px-1 rounded`}>{cell.points}</span>
-                                  <span className={`text-xs ${danger ? 'text-red-600' : warn ? 'text-amber-600' : 'text-muted-foreground'}`}>{cell.token}</span>
+                              {columns.map((col) => {
+                                const cell = row.perCell[col.id];
+                                const danger = !!cell?.hadPenalty;
+                                const warn = !danger && (!!cell?.minNoPenalty || !!cell?.discardStage || (cell as any)?.discardBattery);
+                                return (
+                                  <TableCell key={`${row.userId}-${col.id}`} className={`text-center ${danger ? 'bg-red-50' : warn ? 'bg-yellow-50' : ''}`}>
+                                    {cell ? (
+                                      <div className={`flex flex-col items-center gap-1 ${danger ? 'text-red-700' : warn ? 'text-amber-700' : ''}`}>
+                                        <span className={`font-medium ${danger ? 'bg-red-100' : warn ? 'bg-yellow-100' : ''} px-1 rounded`}>{cell.points}</span>
+                                        <span className={`text-xs ${danger ? 'text-red-600' : warn ? 'text-amber-600' : 'text-muted-foreground'}`}>{cell.token}</span>
                               </div>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
+                                    ) : (
+                                      <span className="text-muted-foreground">-</span>
+                                    )}
                             </TableCell>
-                          );
-                        })}
+                                );
+                              })}
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-2 px-4 pb-3 space-y-1">
-                    <div>
-                      <span className="inline-block align-middle mr-2 w-3 h-3 bg-red-50 border border-red-200"></span>
-                      Célula vermelha: punição (tempo ou desclassificação) em alguma bateria da etapa
-                    </div>
-                    <div>
-                      <span className="inline-block align-middle mr-2 w-3 h-3 bg-yellow-50 border border-amber-200"></span>
-                      Célula amarela: descarte (por etapa ou por bateria), não contabiliza no total
-                    </div>
+                    <div className="text-xs text-muted-foreground mt-2 px-4 pb-3 space-y-1">
+                      <div>
+                        <span className="inline-block align-middle mr-2 w-3 h-3 bg-red-50 border border-red-200"></span>
+                        Célula vermelha: punição (tempo ou desclassificação) em alguma bateria da etapa
+                      </div>
+                      <div>
+                        <span className="inline-block align-middle mr-2 w-3 h-3 bg-yellow-50 border border-amber-200"></span>
+                        Célula amarela: descarte (por etapa ou por bateria), não contabiliza no total
+                      </div>
                   </div>
                 </Card>
+                )
           )}
         </>
       )}
