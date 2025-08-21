@@ -15,7 +15,7 @@ import {
   Sponsor,
 } from "@/lib/services/championship.service";
 import { ChampionshipService } from "@/lib/services/championship.service";
-import { ChampionshipClassificationService } from "@/lib/services/championship-classification.service";
+// Removido: ChampionshipClassificationService (classificação desativada)
 import {
   ChampionshipStaffService,
   StaffMember,
@@ -727,39 +727,25 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({
   // Função para buscar classificações
   const fetchClassification = useCallback(
     async (seasonId: string) => {
-      if (!championshipId || loadingRef.current.classifications) return;
-
-      loadingRef.current.classifications = true;
-      setLoading((prev) => ({ ...prev, classifications: true }));
-      setError((prev) => ({ ...prev, classifications: null }));
-
-      try {
-        const classificationData =
-          await ChampionshipClassificationService.getSeasonClassificationFromRedis(
-            seasonId,
-          );
-        setChampionshipData((prev) => ({
-          ...prev,
-          classifications: {
-            ...prev.classifications,
-            [seasonId]: classificationData || { _empty: true },
-          },
-          lastUpdated: {
-            ...prev.lastUpdated,
-            classifications: new Date(),
-          },
-        }));
-      } catch (err: any) {
-        setError((prev) => ({
-          ...prev,
-          classifications: err.message || "Erro ao carregar classificação",
-        }));
-      } finally {
-        loadingRef.current.classifications = false;
-        setLoading((prev) => ({ ...prev, classifications: false }));
-      }
+      // No-op: classificação removida
+      setChampionshipData((prev) => ({
+        ...prev,
+        classifications: {
+          ...prev.classifications,
+          [seasonId]: {
+            lastUpdated: new Date().toISOString(),
+            totalCategories: 0,
+            totalPilots: 0,
+            classificationsByCategory: {},
+          } as any,
+        },
+        lastUpdated: {
+          ...prev.lastUpdated,
+          classifications: new Date(),
+        },
+      }));
     },
-    [championshipId],
+    [],
   );
 
   // Função para buscar regulamentos
