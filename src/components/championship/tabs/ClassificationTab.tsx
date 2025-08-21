@@ -244,6 +244,8 @@ export const ClassificationTab = ({
   const [updatingCache, setUpdatingCache] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
   const [seasonStages, setSeasonStages] = useState<any[]>([]);
+  const [loadingStages, setLoadingStages] = useState(false);
+  const [savingClassification, setSavingClassification] = useState(false);
 
   // Usar o contexto de dados do campeonato
   const {
@@ -272,6 +274,7 @@ export const ClassificationTab = ({
 
   // Carregar etapas da temporada selecionada (com resultados)
   const loadSeasonStages = useCallback(async (seasonId: string) => {
+    setLoadingStages(true);
     try {
       const stages = await StageService.getBySeasonId(seasonId);
       // Ordenar por data/hora ascendentes
@@ -285,6 +288,8 @@ export const ClassificationTab = ({
     } catch (err) {
       console.error("Erro ao carregar etapas da temporada:", err);
       setSeasonStages([]);
+    } finally {
+      setLoadingStages(false);
     }
   }, []);
 
@@ -763,6 +768,25 @@ export const ClassificationTab = ({
     contextError.categories ||
     contextError.classifications;
 
+  const isPageLoading = isDataLoading || loadingStages;
+
+  // Loading global da aba enquanto buscamos dados do backend
+  if (isPageLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="border-b border-gray-200 pb-4">
+          <h2 className="text-2xl font-bold text-gray-900">Classificação</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Classificação geral e por categorias do campeonato
+          </p>
+        </div>
+        <div className="flex items-center justify-center py-16">
+          <Loading type="spinner" size="lg" />
+        </div>
+      </div>
+    );
+  }
+
   if (!selectedSeasonId) {
     return (
       <EmptyState
@@ -774,7 +798,7 @@ export const ClassificationTab = ({
   }
 
   // Se não há dados de classificação e não está carregando
-  if (!isDataLoading && filters.categoryId && columns.length === 0) {
+  if (!isPageLoading && filters.categoryId && columns.length === 0) {
     return (
       <div className="space-y-6">
         {/* Título da aba */}
@@ -813,12 +837,14 @@ export const ClassificationTab = ({
             className="w-full"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button
             variant="default"
             size="sm"
-            disabled={!selectedSeasonId || !filters.categoryId}
+            disabled={!selectedSeasonId || !filters.categoryId || savingClassification}
+            className="w-full sm:w-auto"
             onClick={async () => {
+              setSavingClassification(true);
               try {
                 const categoryId = String(filters.categoryId);
                 const categoryPayload = {
@@ -844,10 +870,15 @@ export const ClassificationTab = ({
                 toast.success('Classificação salva no Redis com sucesso');
               } catch (e: any) {
                 toast.error(e.message || 'Erro ao salvar classificação');
+              } finally {
+                setSavingClassification(false);
               }
             }}
           >
-            Atualizar classificação
+            {savingClassification && (
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+            )}
+            Atualizar classificação no site
           </Button>
         </div>
       </div>
