@@ -43,7 +43,7 @@ import { ScoringSystem } from "@/lib/services/scoring-system.service";
 import { UserService } from "@/lib/services/user.service";
 import { useIsMobile } from "@/hooks/use-mobile";
 // Removido: ChampionshipClassificationService
-import { Season } from "@/lib/services/season.service";
+import { Season, SeasonService } from "@/lib/services/season.service";
 import { formatName } from "@/utils/name";
 
 // Interfaces para a nova estrutura de dados do Redis
@@ -813,7 +813,42 @@ export const ClassificationTab = ({
             className="w-full"
           />
         </div>
-        {/* Removido: botão de atualizar classificação */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="default"
+            size="sm"
+            disabled={!selectedSeasonId || !filters.categoryId}
+            onClick={async () => {
+              try {
+                const payload = {
+                  generatedAt: new Date().toISOString(),
+                  seasonId: selectedSeasonId,
+                  categoryId: filters.categoryId,
+                  totals: tableRows.map(r => ({ userId: r.userId, name: r.name, nickname: r.nickname, total: r.total })),
+                  grid: tableRows.map(r => ({
+                    userId: r.userId,
+                    cells: Object.entries(r.perCell).map(([key, cell]) => ({
+                      key,
+                      points: cell.points,
+                      token: cell.token,
+                      hadPenalty: cell.hadPenalty,
+                      discardStage: !!(cell as any).discardStage,
+                      discardBattery: !!(cell as any).discardBattery,
+                      minNoPenalty: !!cell.minNoPenalty,
+                    }))
+                  })),
+                  columns,
+                };
+                await SeasonService.setClassification(selectedSeasonId, payload);
+                toast.success('Classificação salva no Redis com sucesso');
+              } catch (e: any) {
+                toast.error(e.message || 'Erro ao salvar classificação');
+              }
+            }}
+          >
+            Atualizar classificação
+          </Button>
+        </div>
       </div>
 
       {/* Loading padrão durante atualização */}
