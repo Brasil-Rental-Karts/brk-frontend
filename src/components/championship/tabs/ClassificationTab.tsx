@@ -341,7 +341,7 @@ export const ClassificationTab = ({
     if (selectedSeasonId) {
       loadClassification(selectedSeasonId);
       loadSeasonStages(selectedSeasonId);
-      // Removido: setFilters(prev => ({ ...prev, seasonId: selectedSeasonId }));
+      setFilters(prev => ({ ...prev, seasonId: selectedSeasonId }));
     }
   }, [selectedSeasonId, loadClassification, loadSeasonStages]);
 
@@ -355,7 +355,7 @@ export const ClassificationTab = ({
           : season.name,
     }));
 
-    const categoryOpts = [{ value: "all", label: "Todas as categorias" }];
+    const categoryOpts: { value: string; label: string }[] = [];
 
     // Usar categorias do contexto
     if (contextCategories.length > 0) {
@@ -372,12 +372,28 @@ export const ClassificationTab = ({
       categoryOptions: categoryOpts,
     };
   }, [contextSeasons, contextCategories]);
+  // Selecionar categoria padrão (primeira disponível)
+  useEffect(() => {
+    if (!filters.categoryId && contextCategories.length > 0) {
+      const firstCategoryId = contextCategories[0].id;
+      setFilters(prev => ({ ...prev, categoryId: firstCategoryId }));
+    }
+  }, [filters.categoryId, contextCategories]);
 
-  // Configuração dos filtros
-  const filterFields = useMemo(
-    () => createFilterFields(seasonOptions, categoryOptions),
-    [seasonOptions, categoryOptions],
-  );
+  // Configuração dos filtros (com seleção padrão)
+  const filterFields = useMemo(() => {
+    const fields = createFilterFields(seasonOptions, categoryOptions);
+    return fields.map((f) => {
+      if (f.key === 'seasonId') {
+        return { ...f, defaultValue: selectedSeasonId || seasonOptions[0]?.value };
+      }
+      if (f.key === 'categoryId') {
+        const defaultCategoryId = (filters.categoryId as string) || contextCategories[0]?.id || '';
+        return { ...f, defaultValue: defaultCategoryId, placeholder: 'Categoria' };
+      }
+      return f;
+    });
+  }, [seasonOptions, categoryOptions, selectedSeasonId, filters.categoryId, contextCategories]);
 
   // Criar mapa de categorias por ID para uso na renderização
   const categoriesMap = useMemo(() => {
@@ -590,17 +606,7 @@ export const ClassificationTab = ({
           });
         });
       } else {
-        // Marcar a menor pontuação sem punição (bateria)
-        rows.forEach(row => {
-          const entries = Object.entries(row.perCell).filter(([_, cell]) => cell && !cell.hadPenalty);
-          if (entries.length === 0) return;
-          const minPoints = Math.min(...entries.map(([_, cell]) => cell.points || 0));
-          entries.forEach(([key, cell]) => {
-            if ((cell.points || 0) === minPoints) {
-              cell.minNoPenalty = true;
-            }
-          });
-        });
+        // Descarte desativado (sem descarte): não marcar células
       }
     }
 
@@ -768,7 +774,7 @@ export const ClassificationTab = ({
   }
 
   // Se não há dados de classificação e não está carregando
-  if (!isDataLoading && filters.categoryId && filters.categoryId !== "all" && columns.length === 0) {
+  if (!isDataLoading && filters.categoryId && columns.length === 0) {
     return (
       <div className="space-y-6">
         {/* Título da aba */}
@@ -828,7 +834,7 @@ export const ClassificationTab = ({
       {/* Classificação - só mostrar se não estiver carregando */}
       {!showLoading && (
         <>
-          {!filters.categoryId || filters.categoryId === "all" ? (
+          {!filters.categoryId ? (
             <EmptyState
               icon={Trophy}
               title="Selecione uma categoria"
