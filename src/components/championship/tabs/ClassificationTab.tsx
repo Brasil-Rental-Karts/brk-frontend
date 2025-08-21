@@ -11,7 +11,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   EmptyState,
-  Pagination,
   Table,
   TableBody,
   TableCell,
@@ -39,10 +38,12 @@ import {
 import { Loading } from "@/components/ui/loading";
 import { InlineLoader } from "@/components/ui/loading";
 import { useChampionshipData } from "@/contexts/ChampionshipContext";
+import { StageService } from "@/lib/services/stage.service";
+import { ScoringSystem } from "@/lib/services/scoring-system.service";
+import { UserService } from "@/lib/services/user.service";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { usePagination } from "@/hooks/usePagination";
-import { ChampionshipClassificationService } from "@/lib/services/championship-classification.service";
-import { Season } from "@/lib/services/season.service";
+// Removido: ChampionshipClassificationService
+import { Season, SeasonService } from "@/lib/services/season.service";
 import { formatName } from "@/utils/name";
 
 // Interfaces para a nova estrutura de dados do Redis
@@ -242,6 +243,7 @@ export const ClassificationTab = ({
   const [filters, setFilters] = useState<FilterValues>({});
   const [updatingCache, setUpdatingCache] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
+  const [seasonStages, setSeasonStages] = useState<any[]>([]);
 
   // Usar o contexto de dados do campeonato
   const {
@@ -252,6 +254,8 @@ export const ClassificationTab = ({
     refreshClassification,
     loading: contextLoading,
     error: contextError,
+    getScoringSystems,
+    getRegistrations,
   } = useChampionshipData();
 
   // Obter dados do contexto
@@ -264,6 +268,25 @@ export const ClassificationTab = ({
   // Dados de classificação do Redis
   const [seasonClassification, setSeasonClassification] =
     useState<RedisClassificationData | null>(null);
+  const [userNameById, setUserNameById] = useState<Record<string, { name: string; nickname?: string | null }>>({});
+
+  // Carregar etapas da temporada selecionada (com resultados)
+  const loadSeasonStages = useCallback(async (seasonId: string) => {
+    try {
+      const stages = await StageService.getBySeasonId(seasonId);
+      // Ordenar por data/hora ascendentes
+      const ordered = [...stages].sort((a: any, b: any) => {
+        const da = new Date(a.date).getTime();
+        const db = new Date(b.date).getTime();
+        if (da !== db) return da - db;
+        return (a.time || '').localeCompare(b.time || '');
+      });
+      setSeasonStages(ordered);
+    } catch (err) {
+      console.error("Erro ao carregar etapas da temporada:", err);
+      setSeasonStages([]);
+    }
+  }, []);
 
   // Carregar dados iniciais
   const fetchSeasons = useCallback(async () => {
@@ -317,9 +340,10 @@ export const ClassificationTab = ({
   useEffect(() => {
     if (selectedSeasonId) {
       loadClassification(selectedSeasonId);
-      // Removido: setFilters(prev => ({ ...prev, seasonId: selectedSeasonId }));
+      loadSeasonStages(selectedSeasonId);
+      setFilters(prev => ({ ...prev, seasonId: selectedSeasonId }));
     }
-  }, [selectedSeasonId, loadClassification]);
+  }, [selectedSeasonId, loadClassification, loadSeasonStages]);
 
   // Opções dos filtros
   const { seasonOptions, categoryOptions } = useMemo(() => {
@@ -331,7 +355,7 @@ export const ClassificationTab = ({
           : season.name,
     }));
 
-    const categoryOpts = [{ value: "all", label: "Todas as categorias" }];
+    const categoryOpts: { value: string; label: string }[] = [];
 
     // Usar categorias do contexto
     if (contextCategories.length > 0) {
@@ -348,12 +372,28 @@ export const ClassificationTab = ({
       categoryOptions: categoryOpts,
     };
   }, [contextSeasons, contextCategories]);
+  // Selecionar categoria padrão (primeira disponível)
+  useEffect(() => {
+    if (!filters.categoryId && contextCategories.length > 0) {
+      const firstCategoryId = contextCategories[0].id;
+      setFilters(prev => ({ ...prev, categoryId: firstCategoryId }));
+    }
+  }, [filters.categoryId, contextCategories]);
 
-  // Configuração dos filtros
-  const filterFields = useMemo(
-    () => createFilterFields(seasonOptions, categoryOptions),
-    [seasonOptions, categoryOptions],
-  );
+  // Configuração dos filtros (com seleção padrão)
+  const filterFields = useMemo(() => {
+    const fields = createFilterFields(seasonOptions, categoryOptions);
+    return fields.map((f) => {
+      if (f.key === 'seasonId') {
+        return { ...f, defaultValue: selectedSeasonId || seasonOptions[0]?.value };
+      }
+      if (f.key === 'categoryId') {
+        const defaultCategoryId = (filters.categoryId as string) || contextCategories[0]?.id || '';
+        return { ...f, defaultValue: defaultCategoryId, placeholder: 'Categoria' };
+      }
+      return f;
+    });
+  }, [seasonOptions, categoryOptions, selectedSeasonId, filters.categoryId, contextCategories]);
 
   // Criar mapa de categorias por ID para uso na renderização
   const categoriesMap = useMemo(() => {
@@ -368,142 +408,295 @@ export const ClassificationTab = ({
   }, [contextCategories]);
 
   // Dados processados
-  const { allPilots, filteredPilots } = useMemo(() => {
-    if (
-      !seasonClassification ||
-      !seasonClassification.classificationsByCategory
-    ) {
-      return { allPilots: [], filteredPilots: [] };
+  // Construir tabela de pontos por etapa (por categoria)
+  type PilotRow = {
+    userId: string;
+    name: string;
+    nickname?: string | null;
+    total: number;
+    perCell: Record<string, { points: number; token: string; hadPenalty: boolean; minNoPenalty?: boolean; discardStage?: boolean }>; // key stageId:batteryIndex
+  };
+
+  const { columns, tableRows } = useMemo(() => {
+    if (!selectedSeasonId || !filters.categoryId || filters.categoryId === "all") {
+      return { columns: [] as any[], tableRows: [] as PilotRow[] };
     }
 
-    // Verificar se há categorias válidas
-    const validCategories = Object.entries(
-      seasonClassification.classificationsByCategory,
-    ).filter(([_, data]) => data && data.pilots && data.pilots.length > 0);
+    const categoryId = String(filters.categoryId);
+    const scoringSystems: ScoringSystem[] = getScoringSystems();
+    const defaultScoring = scoringSystems.find((s) => (s as any).isDefault) || scoringSystems[0];
+    const positionToPoints = new Map<number, number>(
+      (defaultScoring?.positions || []).map((p) => [p.position, p.points]),
+    );
 
-    const allPilotsArray: ClassificationPilot[] = [];
-    validCategories.forEach(([categoryId, categoryData]) => {
-      if (
-        categoryData &&
-        categoryData.pilots &&
-        Array.isArray(categoryData.pilots)
-      ) {
-        // Adicionar categoriaId a cada piloto para identificação
-        const pilotsWithCategory = categoryData.pilots.map((pilot) => ({
-          ...pilot,
-          categoryId,
-        }));
-        allPilotsArray.push(...pilotsWithCategory);
+    // Verificar descarte por etapa via configuração da categoria (batteriesConfig)
+    const categoryFull = contextCategories.find((c) => c.id === categoryId) as any;
+    let discardCountPerStage = 0;
+    let discardCountPerBattery = 0;
+    if (categoryFull && Array.isArray(categoryFull.batteriesConfig)) {
+      const scoringByBatteries = categoryFull.batteriesConfig
+        .map((b: any) => scoringSystems.find((s) => s.id === b.scoringSystemId))
+        .filter(Boolean) as ScoringSystem[];
+      const perStageSystems = scoringByBatteries.filter(
+        (s: any) => s.discardMode === 'per_stage' && (s.discardCount || 0) > 0,
+      );
+      if (perStageSystems.length > 0) {
+        discardCountPerStage = perStageSystems.reduce(
+          (max, s: any) => Math.max(max, s.discardCount || 0),
+          0,
+        );
+      }
+
+      const perBatterySystems = scoringByBatteries.filter(
+        (s: any) => s.discardMode === 'per_battery' && (s.discardCount || 0) > 0,
+      );
+      if (perBatterySystems.length > 0) {
+        discardCountPerBattery = perBatterySystems.reduce(
+          (max, s: any) => Math.max(max, s.discardCount || 0),
+          0,
+        );
+      }
+    }
+
+    // Considerar apenas etapas com resultados na categoria
+    const stagesWithResults = seasonStages.filter((s: any) => s.stage_results && s.stage_results[categoryId]);
+
+    // Construir conjunto de pilotos que apareceram em alguma etapa
+    const pilotIds = new Set<string>();
+    stagesWithResults.forEach((stage: any) => {
+      const catResults = stage.stage_results[categoryId] || {};
+      Object.keys(catResults).forEach((pid) => {
+        pilotIds.add(pid);
+      });
+    });
+
+    // Mapa auxiliar para nome/nickname via inscrições
+    const registrations = getRegistrations().filter((r: any) => r.seasonId === selectedSeasonId);
+    const userInfoById = new Map<string, { name: string; nickname?: string | null }>();
+    registrations.forEach((reg: any) => {
+      if (reg.user) {
+        userInfoById.set(reg.userId, { name: reg.user.name, nickname: reg.user.nickname });
       }
     });
 
-    const filteredPilotsArray =
-      !filters.categoryId || filters.categoryId === "all"
-        ? allPilotsArray.sort((a, b) => {
-            // Ordenar por pontos (maior para menor) quando "todas as categorias" estiver selecionado
-            if (b.totalPoints !== a.totalPoints) {
-              return b.totalPoints - a.totalPoints;
-            }
-            // Em caso de empate, ordenar por número de vitórias
-            if (b.wins !== a.wins) {
-              return b.wins - a.wins;
-            }
-            // Em caso de empate, ordenar por número de pódios
-            if (b.podiums !== a.podiums) {
-              return b.podiums - a.podiums;
-            }
-            // Por último, ordenar por melhor posição (menor posição = melhor)
-            if (a.bestPosition !== null && b.bestPosition !== null) {
-              return a.bestPosition - b.bestPosition;
-            }
-            return 0;
-          })
-        : (() => {
-            // Verificar se a categoria selecionada existe nos dados do Redis
-            const categoryPilots =
-              seasonClassification.classificationsByCategory[filters.categoryId]
-                ?.pilots || [];
+    const rows: PilotRow[] = Array.from(pilotIds).map((userId) => ({
+      userId,
+      name:
+        userNameById[userId]?.name || userInfoById.get(userId)?.name || userId,
+      nickname:
+        userNameById[userId]?.nickname || userInfoById.get(userId)?.nickname || null,
+      total: 0,
+      perCell: {},
+    }));
 
-            // Se não há pilotos no Redis para essa categoria, retornar array vazio
-            if (categoryPilots.length === 0) {
-              return [];
-            }
+    // Fallback: quando nome vier como UUID, buscar no serviço de usuários
+    // Resolução de nomes final já usa userNameById quando disponível
 
-            return categoryPilots.map((pilot) => ({
-              ...pilot,
-              categoryId: filters.categoryId,
-            }));
-          })();
+    const stageMultiplierById = new Map<string, number>();
 
-    return {
-      allPilots: allPilotsArray,
-      filteredPilots: filteredPilotsArray,
-    };
-  }, [seasonClassification, filters.categoryId]);
+    // Preencher pontos por bateria (e somar por etapa no total)
+    stagesWithResults.forEach((stage: any) => {
+      const stageId = stage.id;
+      stageMultiplierById.set(stageId, stage.doublePoints ? 2 : 1);
+      const catResults = stage.stage_results[categoryId] || {};
+      // Determinar quantidade de baterias da etapa (maior índice encontrado + 1)
+      const maxBatteryInStage = Object.values(catResults).reduce((max: number, pilot: any) => {
+        const keys = Object.keys(pilot || {})
+          .map(k => parseInt(k, 10))
+          .filter(n => !Number.isNaN(n));
+        return Math.max(max, ...keys);
+      }, -1);
+      const batteriesCount = maxBatteryInStage >= 0 ? maxBatteryInStage + 1 : 0;
+      Object.entries(catResults).forEach(([userId, pilotResultsAny]) => {
+        const pilotResults = pilotResultsAny as any;
+        // Coletar posições por bateria
+        const batteryIndexes = Object.keys(pilotResults)
+          .map((k) => parseInt(k, 10))
+          .filter((n) => !Number.isNaN(n))
+          .sort((a, b) => a - b);
 
-  // --- Lógica para Desktop (Paginação) ---
-  const pagination = usePagination(filteredPilots.length, 10, 1);
-  const paginatedDesktopPilots = useMemo(() => {
-    if (isMobile) return [];
-    return filteredPilots.slice(
-      pagination.info.startIndex,
-      pagination.info.endIndex,
-    );
-  }, [
-    isMobile,
-    filteredPilots,
-    pagination.info.startIndex,
-    pagination.info.endIndex,
-  ]);
-
-  // --- Lógica para Mobile (Scroll Infinito) ---
-  const [visibleMobilePilots, setVisibleMobilePilots] = useState<
-    ClassificationPilot[]
-  >([]);
-  const [mobilePage, setMobilePage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const observer = useRef<IntersectionObserver>();
-  const mobileItemsPerPage = 10;
-
-  useEffect(() => {
-    if (isMobile) {
-      setVisibleMobilePilots(filteredPilots.slice(0, mobileItemsPerPage));
-      setMobilePage(2);
-      setHasMore(filteredPilots.length > mobileItemsPerPage);
-    }
-  }, [isMobile, filteredPilots]);
-
-  const lastPilotElementRef = useCallback(
-    (node: HTMLElement | null) => {
-      if (loadingMore) return;
-      if (observer.current) observer.current.disconnect();
-
-      observer.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && hasMore) {
-          setLoadingMore(true);
-          setTimeout(() => {
-            const newPilots = filteredPilots.slice(
-              0,
-              mobilePage * mobileItemsPerPage,
-            );
-            setVisibleMobilePilots(newPilots);
-            setHasMore(newPilots.length < filteredPilots.length);
-            setMobilePage((prev) => prev + 1);
-            setLoadingMore(false);
-          }, 300);
-        }
+        let sumStagePoints = 0;
+        batteryIndexes.forEach((bi) => {
+          const r = pilotResults[bi];
+          const status = (r?.status as string | undefined) || '';
+          const pos = r?.finishPosition as number | undefined;
+          const penaltyTimeSec = r?.penaltyTime ? parseInt(String(r.penaltyTime), 10) : 0;
+          const key = `${stageId}:${bi}`;
+          let token = '-';
+          let points = 0;
+          let hadPenalty = false;
+          if (status === 'dq' || status === 'dc') {
+            token = status.toUpperCase();
+            hadPenalty = true;
+          } else if (typeof pos === 'number' && pos > 0) {
+            token = `P${pos}`;
+            points = positionToPoints.get(pos) || 0;
+          }
+          if (penaltyTimeSec && penaltyTimeSec > 0) {
+            hadPenalty = true;
+          }
+          const row = rows.find((rw) => rw.userId === userId);
+          if (!row) return;
+          row.perCell[key] = { points, token, hadPenalty };
+          sumStagePoints += points;
+        });
+        const row = rows.find((rw) => rw.userId === userId);
+        if (!row) return;
+        const stagePts = sumStagePoints * (stage.doublePoints ? 2 : 1);
+        row.total += stagePts;
       });
 
-      if (node) observer.current.observe(node);
-    },
-    [loadingMore, hasMore, mobilePage, filteredPilots],
-  );
+      // Garantir células com 0 ponto para pilotos/baterias sem participação
+      Array.from(pilotIds).forEach(userId => {
+        const row = rows.find((rw) => rw.userId === userId);
+        if (!row) return;
+        for (let bi = 0; bi < batteriesCount; bi++) {
+          const key = `${stageId}:${bi}`;
+          if (!row.perCell[key]) {
+            row.perCell[key] = { points: 0, token: '-', hadPenalty: false };
+          }
+        }
+      });
+    });
 
-  // Define os dados a serem processados com base no dispositivo
-  const processedPilots = isMobile
-    ? visibleMobilePilots
-    : paginatedDesktopPilots;
+    if (discardCountPerStage > 0) {
+      // Descartar por ETAPA: por piloto, selecionar as etapas com menor soma de pontos SEM penalidade
+      rows.forEach(row => {
+        // Agrupar por stageId
+        const stageTotals: Record<string, { total: number; hasPenalty: boolean }> = {};
+        Object.entries(row.perCell).forEach(([key, cell]) => {
+          const [sid] = key.split(':');
+          if (!stageTotals[sid]) stageTotals[sid] = { total: 0, hasPenalty: false };
+          stageTotals[sid].total += cell.points || 0;
+          if (cell.hadPenalty) stageTotals[sid].hasPenalty = true;
+        });
+
+        // Elegíveis: etapas sem penalidade
+        const eligibleStages = Object.entries(stageTotals)
+          .filter(([_, v]) => !v.hasPenalty)
+          .sort((a, b) => a[1].total - b[1].total) // menor total primeiro
+          .slice(0, discardCountPerStage)
+          .map(([sid]) => sid);
+
+        // Marcar todas as baterias dessas etapas como descartadas (amarelo)
+        eligibleStages.forEach(sid => {
+          Object.entries(row.perCell).forEach(([key, cell]) => {
+            if (key.startsWith(`${sid}:`)) {
+              cell.discardStage = true;
+              cell.minNoPenalty = false; // prioridade para descarte por etapa
+            }
+          });
+        });
+      });
+    } else {
+      // Sem configuração de descarte por ETAPA
+      if (discardCountPerBattery > 0) {
+        // Descartar por BATERIA: por piloto, selecionar as baterias com menor pontuação SEM penalidade
+        rows.forEach(row => {
+          const entries = Object.entries(row.perCell)
+            .filter(([_, cell]) => cell && !cell.hadPenalty)
+            .sort((a, b) => (a[1].points || 0) - (b[1].points || 0));
+          const toDiscard = entries.slice(0, discardCountPerBattery).map(([key]) => key);
+          toDiscard.forEach(key => {
+            if (row.perCell[key]) {
+              row.perCell[key].discardStage = false;
+              row.perCell[key].minNoPenalty = false;
+              (row.perCell[key] as any).discardBattery = true;
+            }
+          });
+        });
+      } else {
+        // Descarte desativado (sem descarte): não marcar células
+      }
+    }
+
+    // Colunas por bateria de cada etapa (ordenadas por data/num bateria)
+    const columns = stagesWithResults.flatMap((s: any, idx: number) => {
+      const stageId = s.id as string;
+      // Descobrir quantas baterias existem na categoria desta etapa (maior índice visto)
+      const catRes = s.stage_results?.[categoryId] || {};
+      const maxBattery = Object.values(catRes).reduce((max: number, pilot: any) => {
+        const keys = Object.keys(pilot || {}).map(k => parseInt(k, 10)).filter(n => !Number.isNaN(n));
+        return Math.max(max, ...keys);
+      }, -1);
+      const count = maxBattery >= 0 ? maxBattery + 1 : 0;
+      return Array.from({ length: count }, (_, bi) => ({
+        id: `${stageId}:${bi}`,
+        label: `E${idx + 1} B${bi + 1}`,
+        name: s.name as string,
+        date: s.date as string,
+      }));
+    });
+
+    // Recalcular total desconsiderando células amarelas:
+    // - Se houver descarte por ETAPA, ignorar células com discardStage
+    // - Senão, se houver descarte por BATERIA, ignorar células com discardBattery
+    // - Caso contrário, ignorar a menor bateria marcada (minNoPenalty)
+    rows.forEach(row => {
+      let newTotal = 0;
+      Object.entries(row.perCell).forEach(([key, cell]) => {
+        const [sid] = key.split(':');
+        if (discardCountPerStage > 0) {
+          if (!cell?.discardStage) {
+            const mult = stageMultiplierById.get(sid) || 1;
+            newTotal += (cell.points || 0) * mult;
+          }
+        } else if (discardCountPerBattery > 0) {
+          if (!(row.perCell[key] as any)?.discardBattery) {
+            const mult = stageMultiplierById.get(sid) || 1;
+            newTotal += (cell.points || 0) * mult;
+          }
+        } else if (!cell?.minNoPenalty) {
+          const sid = key.split(':')[0];
+          const mult = stageMultiplierById.get(sid) || 1;
+          newTotal += (cell.points || 0) * mult;
+        }
+      });
+      row.total = newTotal;
+    });
+
+    // Ordenar linhas por total (APÓS descartes), depois por nome
+    rows.sort((a, b) => {
+      if (b.total !== a.total) return b.total - a.total;
+      return a.name.localeCompare(b.name);
+    });
+
+    return { columns, tableRows: rows };
+  }, [filters.categoryId, selectedSeasonId, seasonStages, getScoringSystems, getRegistrations, contextCategories, userNameById]);
+
+  // Buscar nomes reais no backend quando detectarmos UUIDs
+  useEffect(() => {
+    if (!filters.categoryId || filters.categoryId === 'all') return;
+    const categoryId = String(filters.categoryId);
+    // extrair pilotos da temporada+categoria
+    const pilotsSet = new Set<string>();
+    seasonStages.forEach((stage: any) => {
+      const cat = stage.stage_results?.[categoryId] || {};
+      Object.keys(cat).forEach(pid => pilotsSet.add(pid));
+    });
+    const pilots = Array.from(pilotsSet);
+    const uuidRegex = /^[0-9a-fA-F-]{36}$/;
+    const needFetch = pilots.filter(
+      pid => !userNameById[pid] && uuidRegex.test(pid)
+    );
+    if (needFetch.length === 0) return;
+    (async () => {
+      const updates: Record<string, { name: string; nickname?: string | null }> = {};
+      for (const id of needFetch) {
+        try {
+          const u = await UserService.getById(id);
+          updates[id] = { name: u.name, nickname: (u as any).nickname || null };
+        } catch {
+          // ignore
+        }
+      }
+      if (Object.keys(updates).length > 0) {
+        setUserNameById(prev => ({ ...prev, ...updates }));
+      }
+    })();
+  }, [filters.categoryId, seasonStages, userNameById]);
+
+  // Removidos: paginação e scroll infinito da visualização anterior
 
   // Renderizar badge de posição
   const renderPositionBadge = (position: number) => {
@@ -542,11 +735,8 @@ export const ClassificationTab = ({
       if (newFilters.seasonId && newFilters.seasonId !== selectedSeasonId) {
         setSelectedSeasonId(newFilters.seasonId as string);
       }
-      if (!isMobile) {
-        pagination.actions.goToFirstPage();
-      }
     },
-    [isMobile, pagination.actions, selectedSeasonId],
+    [selectedSeasonId],
   );
 
   const handlePilotAction = (action: string, entry: ClassificationPilot) => {
@@ -559,35 +749,9 @@ export const ClassificationTab = ({
     }
   };
 
-  const handlePageChange = (page: number) =>
-    pagination.actions.setCurrentPage(page);
-  const handleItemsPerPageChange = (items: number) =>
-    pagination.actions.setItemsPerPage(items);
+  // Removidos: handlers de paginação da visualização anterior
 
-  // Função para atualizar cache da classificação
-  const handleUpdateClassificationCache = useCallback(async () => {
-    if (!selectedSeasonId) return;
-
-    try {
-      setShowLoading(true);
-
-      // Atualizar cache da classificação
-      await ChampionshipClassificationService.updateSeasonClassificationCache(
-        selectedSeasonId,
-      );
-
-      // Recarregar dados após atualização do cache
-      await refreshClassification(selectedSeasonId);
-      await loadClassification(selectedSeasonId);
-
-      // Mostrar toast de sucesso
-      toast.success("Classificação atualizada com sucesso!");
-    } catch (err: any) {
-      toast.error("Erro ao atualizar classificação");
-    } finally {
-      setShowLoading(false);
-    }
-  }, [selectedSeasonId, refreshClassification, loadClassification]);
+  // Removido: atualização de cache de classificação
 
   // Determinar loading e error
   const isDataLoading =
@@ -610,26 +774,21 @@ export const ClassificationTab = ({
   }
 
   // Se não há dados de classificação e não está carregando
-  if (
-    !isDataLoading &&
-    seasonClassification &&
-    Object.keys(seasonClassification.classificationsByCategory || {}).length ===
-      0
-  ) {
+  if (!isDataLoading && filters.categoryId && columns.length === 0) {
     return (
       <div className="space-y-6">
         {/* Título da aba */}
         <div className="border-b border-gray-200 pb-4">
           <h2 className="text-2xl font-bold text-gray-900">Classificação</h2>
           <p className="text-sm text-gray-600 mt-1">
-            Classificação geral e por categorias do campeonato
+            Tabela de pontos por etapa (selecione uma categoria com etapas finalizadas)
           </p>
         </div>
 
         <EmptyState
           icon={Users}
-          title="Classificação ainda não disponível"
-          description="A classificação desta temporada ainda não foi calculada ou não há dados disponíveis."
+          title="Sem resultados para esta categoria"
+          description="Ainda não há etapas com resultados para exibir."
         />
       </div>
     );
@@ -656,14 +815,39 @@ export const ClassificationTab = ({
         </div>
         <div className="flex items-center gap-2">
           <Button
-            onClick={handleUpdateClassificationCache}
-            disabled={showLoading || !selectedSeasonId}
-            variant="outline"
+            variant="default"
             size="sm"
-            className="flex items-center gap-2"
+            disabled={!selectedSeasonId || !filters.categoryId}
+            onClick={async () => {
+              try {
+                const categoryId = String(filters.categoryId);
+                const categoryPayload = {
+                  generatedAt: new Date().toISOString(),
+                  seasonId: selectedSeasonId,
+                  categoryId,
+                  totals: tableRows.map(r => ({ userId: r.userId, name: r.name, nickname: r.nickname, total: r.total })),
+                  grid: tableRows.map(r => ({
+                    userId: r.userId,
+                    cells: Object.entries(r.perCell).map(([key, cell]) => ({
+                      key,
+                      points: cell.points,
+                      token: cell.token,
+                      hadPenalty: cell.hadPenalty,
+                      discardStage: !!(cell as any).discardStage,
+                      discardBattery: !!(cell as any).discardBattery,
+                      minNoPenalty: !!cell.minNoPenalty,
+                    }))
+                  })),
+                  columns,
+                };
+                await SeasonService.setClassification(selectedSeasonId, categoryPayload);
+                toast.success('Classificação salva no Redis com sucesso');
+              } catch (e: any) {
+                toast.error(e.message || 'Erro ao salvar classificação');
+              }
+            }}
           >
-            <RefreshCw className="h-4 w-4" />
-            Atualizar Classificação
+            Atualizar classificação
           </Button>
         </div>
       </div>
@@ -686,212 +870,164 @@ export const ClassificationTab = ({
       {/* Classificação - só mostrar se não estiver carregando */}
       {!showLoading && (
         <>
-          {filteredPilots.length === 0 ? (
+          {!filters.categoryId ? (
             <EmptyState
               icon={Trophy}
-              title="Nenhuma classificação disponível"
-              description="Ainda não há resultados para exibir na classificação"
+              title="Selecione uma categoria"
+              description="Escolha uma categoria para visualizar a pontuação por etapa"
+            />
+          ) : tableRows.length === 0 ? (
+            <EmptyState
+              icon={Trophy}
+              title="Nenhum piloto encontrado"
+              description="Não há pilotos com resultados nesta categoria"
             />
           ) : (
-            <>
-              {/* Subtítulo da categoria selecionada */}
-              <div className="border-b border-gray-200 pb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {filters.categoryId && filters.categoryId !== "all"
-                    ? categoriesMap[filters.categoryId]?.name ||
-                      `Categoria ${filters.categoryId.slice(0, 8)}...`
-                    : "Classificação Geral"}
+                isMobile ? (
+                  <div className="space-y-4">
+                    {tableRows.map((row, idx) => (
+                      <Card key={row.userId} className="w-full">
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              {renderPositionBadge(idx + 1)}
+                            </div>
+                            <div>
+                              <h3 className="text-base font-semibold tracking-tight">
+                                {formatName(row.name)}
                 </h3>
-                {filters.categoryId &&
-                  filters.categoryId !== "all" &&
-                  filteredPilots.length === 0 && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Nenhum piloto encontrado para esta categoria na
-                      classificação atual.
-                    </p>
+                              {row.nickname && (
+                                <p className="text-xs text-muted-foreground">@{row.nickname}</p>
                   )}
               </div>
-
-              {isMobile ? (
-                <>
-                  <div className="space-y-4">
-                    {processedPilots.map((entry, index) => {
-                      const position = isMobile
-                        ? filteredPilots.findIndex(
-                            (p) =>
-                              p.user.id === entry.user.id &&
-                              p.categoryId === entry.categoryId,
-                          ) + 1
-                        : pagination.info.startIndex + index + 1;
-
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Total</span>
+                            <span className="text-lg font-bold">{row.total}</span>
+                          </div>
+                          <div className="space-y-3">
+                            {(() => {
+                              const groups: Array<{ stageId: string; name: string; date: string; cols: any[] }> = [];
+                              const indexByStage = new Map<string, number>();
+                              columns.forEach((col) => {
+                                const sid = String(col.id).split(':')[0];
+                                if (!indexByStage.has(sid)) {
+                                  indexByStage.set(sid, groups.length);
+                                  groups.push({ stageId: sid, name: col.name, date: col.date, cols: [] });
+                                }
+                                const idx = indexByStage.get(sid)!;
+                                groups[idx].cols.push(col);
+                              });
+                              return groups.map((g) => (
+                                <div key={g.stageId} className="rounded border p-2">
+                                  <div className="flex items-center justify-between">
+                                    <div className="text-sm font-medium">{g.name}</div>
+                                    <div className="text-xs text-muted-foreground">{new Date(g.date).toLocaleDateString('pt-BR')}</div>
+                                  </div>
+                                  <div className="mt-2 space-y-2">
+                                    {g.cols.map((col) => {
+                                      const cell = row.perCell[col.id];
+                                      const danger = !!cell?.hadPenalty;
+                                      const warn = !danger && (!!cell?.minNoPenalty || !!cell?.discardStage || (cell as any)?.discardBattery);
                       return (
                         <div
-                          key={`${entry.user.id}-${entry.categoryId}`}
-                          ref={
-                            processedPilots.length === index + 1
-                              ? lastPilotElementRef
-                              : null
-                          }
-                        >
-                          <ClassificationCard
-                            entry={entry}
-                            position={position}
-                            onAction={handlePilotAction}
-                          />
+                                          key={`${row.userId}-${col.id}`}
+                                          className={`rounded border p-2 ${danger ? 'bg-red-50 border-red-200 text-red-700' : warn ? 'bg-yellow-50 border-amber-200 text-amber-700' : 'bg-white'}`}
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <div className="text-[10px] text-muted-foreground">{col.label}</div>
+                                            <div className={`text-sm font-medium ${danger ? 'bg-red-100' : warn ? 'bg-yellow-100' : ''} px-1 rounded`}>{cell ? cell.points : 0}</div>
+                                          </div>
+                                          <div className={`text-[10px] mt-1 ${danger ? 'text-red-600' : warn ? 'text-amber-600' : 'text-muted-foreground'}`}>{cell ? cell.token : '-'}</div>
                         </div>
                       );
                     })}
                   </div>
-                  {loadingMore && (
-                    <div className="flex justify-center items-center py-4">
-                      <InlineLoader size="sm" />
                     </div>
-                  )}
-                  {!loadingMore && !hasMore && processedPilots.length > 0 && (
-                    <div className="text-center text-sm text-muted-foreground py-4">
-                      Fim dos resultados.
+                              ));
+                            })()}
                     </div>
-                  )}
-                </>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    <div className="text-xs text-muted-foreground mt-2 px-1 pb-3 space-y-1">
+                      <div>
+                        <span className="inline-block align-middle mr-2 w-3 h-3 bg-red-50 border border-red-200"></span>
+                        Célula vermelha: punição (tempo ou desclassificação) em alguma bateria da etapa
+                    </div>
+                      <div>
+                        <span className="inline-block align-middle mr-2 w-3 h-3 bg-yellow-50 border border-amber-200"></span>
+                        Célula amarela: descarte (por etapa ou por bateria), não contabiliza no total
+                    </div>
+                    </div>
+                  </div>
               ) : (
                 <Card className="w-full flex flex-col">
                   <div className="flex-1 overflow-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-16">Pos.</TableHead>
+                            <TableHead className="w-12 text-center">Pos.</TableHead>
                           <TableHead>Piloto</TableHead>
-                          <TableHead>Categoria</TableHead>
-                          <TableHead className="text-center">Pontos</TableHead>
-                          <TableHead className="text-center">
-                            Vitórias
+                            <TableHead className="text-center">Total</TableHead>
+                            {columns.map((col) => (
+                              <TableHead key={col.id} className="text-center" title={`${col.name} - ${new Date(col.date).toLocaleDateString('pt-BR')}`}>
+                                {col.label}
                           </TableHead>
-                          <TableHead className="text-center">Pódios</TableHead>
-                          <TableHead className="text-center">Poles</TableHead>
-                          <TableHead className="text-center">
-                            V. Rápidas
-                          </TableHead>
-                          <TableHead className="text-center">
-                            Melhor Pos.
-                          </TableHead>
-                          <TableHead className="text-center">Etapas</TableHead>
+                            ))}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {processedPilots.map((entry, index) => (
-                          <TableRow
-                            key={`${entry.user.id}-${entry.categoryId}`}
-                          >
-                            <TableCell className="font-medium">
-                              {renderPositionBadge(
-                                pagination.info.startIndex + index + 1,
-                              )}
-                            </TableCell>
+                          {tableRows.map((row, idx) => (
+                            <TableRow key={row.userId}>
+                              <TableCell className="text-center font-medium">{idx + 1}</TableCell>
                             <TableCell>
                               <div className="space-y-1">
-                                <div className="font-medium">
-                                  {formatName(entry.user.name)}
-                                </div>
-                                {entry.user.nickname && (
-                                  <div className="text-xs text-muted-foreground">
-                                    @{entry.user.nickname}
-                                  </div>
+                                  <div className="font-medium">{formatName(row.name)}</div>
+                                  {row.nickname && (
+                                    <div className="text-xs text-muted-foreground">@{row.nickname}</div>
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">
-                                  {entry.categoryId &&
-                                  categoriesMap[entry.categoryId]?.name
-                                    ? categoriesMap[entry.categoryId].name
-                                    : entry.categoryId
-                                      ? `Categoria ${entry.categoryId.slice(0, 8)}...`
-                                      : "N/A"}
-                                </span>
+                            <TableCell className="text-center">
+                                <span className="text-lg font-bold">{row.total}</span>
+                            </TableCell>
+                              {columns.map((col) => {
+                                const cell = row.perCell[col.id];
+                                const danger = !!cell?.hadPenalty;
+                                const warn = !danger && (!!cell?.minNoPenalty || !!cell?.discardStage || (cell as any)?.discardBattery);
+                                return (
+                                  <TableCell key={`${row.userId}-${col.id}`} className={`text-center ${danger ? 'bg-red-50' : warn ? 'bg-yellow-50' : ''}`}>
+                                    {cell ? (
+                                      <div className={`flex flex-col items-center gap-1 ${danger ? 'text-red-700' : warn ? 'text-amber-700' : ''}`}>
+                                        <span className={`font-medium ${danger ? 'bg-red-100' : warn ? 'bg-yellow-100' : ''} px-1 rounded`}>{cell.points}</span>
+                                        <span className={`text-xs ${danger ? 'text-red-600' : warn ? 'text-amber-600' : 'text-muted-foreground'}`}>{cell.token}</span>
                               </div>
+                                    ) : (
+                                      <span className="text-muted-foreground">-</span>
+                                    )}
                             </TableCell>
-                            <TableCell className="text-center">
-                              <div className="space-y-1">
-                                <div className="text-lg font-bold">
-                                  {entry.totalPoints}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex items-center justify-center gap-1">
-                                {entry.wins > 0 && (
-                                  <Trophy className="h-3 w-3 text-yellow-500" />
-                                )}
-                                <span className="font-medium">
-                                  {entry.wins}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex items-center justify-center gap-1">
-                                {entry.podiums > 0 && (
-                                  <Medal className="h-3 w-3 text-gray-400" />
-                                )}
-                                <span className="font-medium">
-                                  {entry.podiums}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex items-center justify-center gap-1">
-                                {entry.polePositions > 0 && (
-                                  <Target className="h-3 w-3 text-blue-500" />
-                                )}
-                                <span className="font-medium">
-                                  {entry.polePositions}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex items-center justify-center gap-1">
-                                {entry.fastestLaps > 0 && (
-                                  <Star className="h-3 w-3 text-purple-500" />
-                                )}
-                                <span className="font-medium">
-                                  {entry.fastestLaps}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <span className="font-medium">
-                                {entry.bestPosition === null
-                                  ? "-"
-                                  : `${entry.bestPosition}º`}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <span className="font-medium">
-                                {entry.totalStages}
-                              </span>
-                            </TableCell>
+                                );
+                              })}
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </div>
-                  <div className="flex-shrink-0">
-                    <Pagination
-                      currentPage={pagination.state.currentPage}
-                      totalPages={pagination.info.totalPages}
-                      itemsPerPage={pagination.state.itemsPerPage}
-                      totalItems={pagination.state.totalItems}
-                      startIndex={pagination.info.startIndex}
-                      endIndex={pagination.info.endIndex}
-                      hasNextPage={pagination.info.hasNextPage}
-                      hasPreviousPage={pagination.info.hasPreviousPage}
-                      onPageChange={handlePageChange}
-                      onItemsPerPageChange={handleItemsPerPageChange}
-                    />
+                    <div className="text-xs text-muted-foreground mt-2 px-4 pb-3 space-y-1">
+                      <div>
+                        <span className="inline-block align-middle mr-2 w-3 h-3 bg-red-50 border border-red-200"></span>
+                        Célula vermelha: punição (tempo ou desclassificação) em alguma bateria da etapa
+                      </div>
+                      <div>
+                        <span className="inline-block align-middle mr-2 w-3 h-3 bg-yellow-50 border border-amber-200"></span>
+                        Célula amarela: descarte (por etapa ou por bateria), não contabiliza no total
+                      </div>
                   </div>
                 </Card>
-              )}
-            </>
+                )
           )}
         </>
       )}

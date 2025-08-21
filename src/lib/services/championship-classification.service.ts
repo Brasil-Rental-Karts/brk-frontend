@@ -153,24 +153,7 @@ export class ChampionshipClassificationService {
     }
   }
 
-  /**
-   * Recalcular classificação de uma temporada
-   */
-  static async recalculateSeasonClassification(
-    seasonId: string,
-  ): Promise<void> {
-    try {
-      await api.post(
-        `${ChampionshipClassificationService.BASE_URL}/season/${seasonId}/recalculate`,
-      );
-    } catch (error: any) {
-      console.error("Error recalculating season classification:", error);
-      throw new Error(
-        error.response?.data?.message ||
-          "Erro ao recalcular classificação da temporada.",
-      );
-    }
-  }
+  
 
   /**
    * Atualizar cache da classificação de uma temporada

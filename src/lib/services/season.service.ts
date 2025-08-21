@@ -64,6 +64,24 @@ export class SeasonService {
   }
 
   /**
+   * Salvar classificação calculada no Redis (season:{id} -> field classification)
+   */
+  static async setClassification(
+    seasonId: string,
+    payload: any,
+  ): Promise<void> {
+    try {
+      await api.post(`${SeasonService.BASE_URL}/${seasonId}/classification`, payload);
+    } catch (error: any) {
+      console.error("Error setting season classification:", error);
+      throw new Error(
+        error.response?.data?.message ||
+          "Erro ao salvar classificação da temporada.",
+      );
+    }
+  }
+
+  /**
    * Buscar temporada por ID
    */
   static async getById(id: string): Promise<Season> {
