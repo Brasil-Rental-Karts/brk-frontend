@@ -20,7 +20,6 @@ import { StaffTab } from "@/components/championship/settings/StaffTab";
 import { CategoriesTab } from "@/components/championship/tabs/CategoriesTab";
 import { ClassificationTab } from "@/components/championship/tabs/ClassificationTab";
 import { PenaltiesTab } from "@/components/championship/tabs/PenaltiesTab";
-import { PilotsTab } from "@/components/championship/tabs/PilotsTab";
 import { RaceDayTab } from "@/components/championship/tabs/RaceDayTab";
 import { RegulationTab } from "@/components/championship/tabs/RegulationTab";
 import { SeasonsTab } from "@/components/championship/tabs/SeasonsTab";
@@ -104,8 +103,6 @@ export const Championship = () => {
     categorias: "categorias",
     stages: "etapas",
     etapas: "etapas",
-    pilots: "pilotos",
-    pilotos: "pilotos",
     classification: "classificacao",
     classificacao: "classificacao",
     regulations: "regulamento",
@@ -187,17 +184,15 @@ export const Championship = () => {
     const disabledTabsWithoutSeasons = [
       "categorias",
       "etapas",
-      "pilotos",
       "regulamento",
     ];
-    const disabledTabsWithoutCategories = ["etapas", "pilotos"];
+    const disabledTabsWithoutCategories = ["etapas"];
 
     // Mapeamento de tabs para permissões
     const tabPermissions: { [key: string]: keyof typeof permissions } = {
       temporadas: "seasons",
       categorias: "categories",
       etapas: "stages",
-      pilotos: "pilots",
       classificacao: "classification",
       regulamento: "regulations",
       penalties: "penalties",
@@ -348,15 +343,7 @@ export const Championship = () => {
                   Etapas
                 </TabsTrigger>
               )}
-              {permissions?.pilots && (
-                <TabsTrigger
-                  value="pilotos"
-                  disabled={!hasCategories}
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Pilotos
-                </TabsTrigger>
-              )}
+              {/* Aba Pilotos removida */}
               {permissions?.classification && (
                 <TabsTrigger
                   value="classificacao"
@@ -446,14 +433,7 @@ export const Championship = () => {
             </TabsContent>
           )}
 
-          {permissions?.pilots && hasCategories && (
-            <TabsContent
-              value="pilotos"
-              className="mt-0 ring-0 focus-visible:outline-none"
-            >
-              <PilotsTab championshipId={id} />
-            </TabsContent>
-          )}
+          {/* Conteúdo da aba Pilotos removido */}
 
           {permissions?.classification && hasSeasons && (
             <TabsContent
