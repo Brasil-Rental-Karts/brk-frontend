@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ChampionshipStaffService } from "@/lib/services/championship-staff.service";
 
 export interface UserPermissions {
+  dashboard: boolean;
   seasons: boolean;
   categories: boolean;
   stages: boolean;
@@ -47,6 +48,7 @@ export const useStaffPermissions = (championshipId: string) => {
         if (owner && owner.user.id === user.id) {
           // Owner tem todas as permissões
           setPermissions({
+            dashboard: true,
             seasons: true,
             categories: true,
             stages: true,
@@ -74,6 +76,7 @@ export const useStaffPermissions = (championshipId: string) => {
         if (staffMember && staffMember.permissions) {
           // Mapear permissões do staff member
           setPermissions({
+            dashboard: (staffMember.permissions as any).dashboard || false,
             seasons: staffMember.permissions.seasons || false,
             categories: staffMember.permissions.categories || false,
             stages: staffMember.permissions.stages || false,
@@ -93,6 +96,7 @@ export const useStaffPermissions = (championshipId: string) => {
         } else {
           // Usuário não tem permissões específicas
           setPermissions({
+            dashboard: false,
             seasons: false,
             categories: false,
             stages: false,
@@ -117,6 +121,7 @@ export const useStaffPermissions = (championshipId: string) => {
         );
         // Em caso de erro, não dar permissões
         setPermissions({
+          dashboard: false,
           seasons: false,
           categories: false,
           stages: false,

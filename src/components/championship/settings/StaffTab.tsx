@@ -70,13 +70,17 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
   const [showPermissionsDialog, setShowPermissionsDialog] = useState(false);
   const [memberToEdit, setMemberToEdit] = useState<StaffMember | null>(null);
   const [isUpdatingPermissions, setIsUpdatingPermissions] = useState(false);
-  type StaffPermissionsWithAnalise = StaffPermissions & { analise?: boolean };
+  type StaffPermissionsWithAnalise = StaffPermissions & {
+    analise?: boolean;
+    dashboard?: boolean;
+  };
   const [permissions, setPermissions] = useState<StaffPermissionsWithAnalise>(
     {},
   );
 
   // Definir permissões padrão (todas false)
   const defaultPermissions = {
+    dashboard: false,
     seasons: false,
     categories: false,
     stages: false,
@@ -282,27 +286,11 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
     );
   }
 
-  // Permissões em ordem alfabética para o card explicativo
-  const permissionOrder = [
-    "analise",
-    "categories",
-    "classification",
-    "asaasAccount",
-    "editChampionship",
-    "stages",
-    "staff",
-    "sponsors",
-    "pilots",
-    "penalties",
-    "raceDay",
-    "regulations",
-    "scoringSystems",
-    "seasons",
-    "gridTypes",
-  ];
+  // Rótulos das permissões
   const permissionLabels: Record<string, string> = {
     analise: "Análises",
     categories: "Categorias",
+    dashboard: "Dashboard",
     classification: "Classificação",
     asaasAccount: "Conta Asaas",
     editChampionship: "Editar Campeonato",
@@ -317,6 +305,10 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
     seasons: "Temporadas",
     gridTypes: "Tipos de Grid",
   };
+  // Chaves ordenadas alfabeticamente por rótulo
+  const permissionKeysSorted = Object.keys(permissionLabels).sort((a, b) =>
+    permissionLabels[a].localeCompare(permissionLabels[b], "pt-BR"),
+  );
 
   return (
     <div className="space-y-6">
@@ -445,6 +437,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                                     > = {
                                       seasons: "Temporadas",
                                       categories: "Categorias",
+                                      dashboard: "Dashboard",
                                       stages: "Etapas",
                                       pilots: "Pilotos",
                                       classification: "Classificação",
@@ -589,7 +582,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
 
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-3">
-              {permissionOrder.map((key) => (
+              {permissionKeysSorted.map((key) => (
                 <div className="flex items-center space-x-2" key={key}>
                   <Checkbox
                     id={key}
