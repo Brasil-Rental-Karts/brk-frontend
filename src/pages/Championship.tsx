@@ -326,14 +326,14 @@ export const Championship = () => {
             </DropdownMenu>
           )}
 
-          {/* Organização */}
+          {/* Gerencial */}
           {(permissions?.seasons || permissions?.categories || permissions?.stages) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <span
-                  className={`px-2 py-2 text-white hover:text-white border-b-2 cursor-pointer ${["temporadas","categorias","etapas"].includes(activeTab) ? "border-primary text-primary" : "border-transparent"}`}
+                  className={`px-2 py-2 text-white hover:text-white border-b-2 cursor-pointer ${["temporadas","categorias","etapas","regulamento"].includes(activeTab) ? "border-primary text-primary" : "border-transparent"}`}
                 >
-                  Organização
+                  Gerencial
                 </span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="bg-dark-900/90 text-white border-0 rounded-lg shadow-xl backdrop-blur-md p-1">
@@ -361,14 +361,14 @@ export const Championship = () => {
             </DropdownMenu>
           )}
 
-          {/* Desempenho */}
+          {/* Operacional */}
           {(permissions?.classification || permissions?.raceDay || permissions?.penalties || permissions?.regulations || permissions?.analise) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <span
-                  className={`px-2 py-2 text-white hover:text-white border-b-2 cursor-pointer ${["classificacao","race-day","penalties","regulamento","analises"].includes(activeTab) ? "border-primary text-primary" : "border-transparent"}`}
+                  className={`px-2 py-2 text-white hover:text-white border-b-2 cursor-pointer ${["classificacao","race-day","penalties","analises"].includes(activeTab) ? "border-primary text-primary" : "border-transparent"}`}
                 >
-                  Desempenho
+                  Operacional
                 </span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="bg-dark-900/90 text-white border-0 rounded-lg shadow-xl backdrop-blur-md p-1">
@@ -389,7 +389,7 @@ export const Championship = () => {
                 )}
                 {permissions?.analise && (
                   <DropdownMenuItem onClick={() => handleTabChange("analises")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
-                    Análises
+                    Análises Volta a Volta
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>

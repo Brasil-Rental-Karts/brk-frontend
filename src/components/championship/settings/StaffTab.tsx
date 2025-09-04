@@ -288,7 +288,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
 
   // Rótulos das permissões
   const permissionLabels: Record<string, string> = {
-    analise: "Análises",
+    analise: "Análises Volta a Volta",
     categories: "Categorias",
     dashboard: "Financeiro",
     classification: "Classificação",
@@ -450,7 +450,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
                                       sponsors: "Patrocinadores",
                                       staff: "Equipe",
                                       asaasAccount: "Conta Asaas",
-                                      analise: "Análises",
+                                      analise: "Análises Volta a Volta",
                                     };
                                     return (
                                       <Badge

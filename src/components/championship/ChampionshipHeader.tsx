@@ -214,7 +214,7 @@ export const ChampionshipHeader: FC<ChampionshipHeaderProps> = ({
                 {activeTab === "regulamento" && "Regulamento"}
                 {activeTab === "penalties" && "Punições"}
                 {activeTab === "race-day" && "Race Day"}
-                {activeTab === "analises" && "Análises"}
+                {activeTab === "analises" && "Análise Volta a Volta"}
                 {activeTab === "config-edit" && "Editar Campeonato"}
                 {activeTab === "config-grid" && "Tipos de Grid"}
                 {activeTab === "config-scoring" && "Sistemas de Pontuação"}
@@ -243,7 +243,7 @@ export const ChampionshipHeader: FC<ChampionshipHeaderProps> = ({
                   )}
                   {(permissions?.seasons || permissions?.categories || permissions?.stages) && (
                     <div>
-                      <div className="text-white/70 text-xs uppercase tracking-wide mb-2">Organização</div>
+                      <div className="text-white/70 text-xs uppercase tracking-wide mb-2">Gerencial</div>
                       {permissions?.seasons && (
                         <button onClick={() => { handleNavigate("temporadas"); setMobileMenuOpen(false); }} className="w-full text-left py-4 text-lg hover:text-primary">
                           <span className="inline-flex items-center gap-2"><ListOrdered className="h-5 w-5" /> Temporadas</span>
@@ -268,7 +268,7 @@ export const ChampionshipHeader: FC<ChampionshipHeaderProps> = ({
                   )}
                   {(permissions?.classification || permissions?.raceDay || permissions?.penalties || permissions?.analise || permissions?.regulations) && (
                     <div>
-                      <div className="text-white/70 text-xs uppercase tracking-wide mb-2">Desempenho</div>
+                      <div className="text-white/70 text-xs uppercase tracking-wide mb-2">Operacional</div>
                       {permissions?.classification && (
                         <button disabled={!hasSeasons} onClick={() => { handleNavigate("classificacao"); setMobileMenuOpen(false); }} className="w-full text-left py-4 text-lg hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed">
                           <span className="inline-flex items-center gap-2"><Trophy className="h-5 w-5" /> Classificação</span>
@@ -286,7 +286,7 @@ export const ChampionshipHeader: FC<ChampionshipHeaderProps> = ({
                       )}
                       {permissions?.analise && (
                         <button onClick={() => { handleNavigate("analises"); setMobileMenuOpen(false); }} className="w-full text-left py-4 text-lg hover:text-primary">
-                          <span className="inline-flex items-center gap-2"><BarChart3 className="h-5 w-5" /> Análises</span>
+                          <span className="inline-flex items-center gap-2"><BarChart3 className="h-5 w-5" /> Análise Volta a Volta</span>
                         </button>
                       )}
                     </div>
