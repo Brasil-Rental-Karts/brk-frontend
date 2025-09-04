@@ -4,8 +4,10 @@ import {
   Button,
   Tabs,
   TabsContent,
-  TabsList,
-  TabsTrigger,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
 } from "brk-design-system";
 import { AlertTriangle } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -303,150 +305,151 @@ export const Championship = () => {
         />
       </div>
 
-      {/* Sistema de tabs unificado - colado com o header */}
+      {/* Barra de grupos (apenas desktop) */}
+      <div className="hidden md:block bg-dark-900 text-white w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
+        <div className="container px-6 py-3 flex items-center gap-3">
+          {/* Visão Geral */}
+          {permissions?.dashboard && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <span
+                  className={`px-2 py-2 text-white hover:text-white border-b-2 cursor-pointer ${activeTab === "dashboard" ? "border-primary text-primary" : "border-transparent"}`}
+                >
+                  Visão Geral
+                </span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="bg-dark-900/90 text-white border-0 rounded-lg shadow-xl backdrop-blur-md p-1">
+                <DropdownMenuItem onClick={() => handleTabChange("dashboard")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                  Dashboard
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          {/* Organização */}
+          {(permissions?.seasons || permissions?.categories || permissions?.stages) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <span
+                  className={`px-2 py-2 text-white hover:text-white border-b-2 cursor-pointer ${["temporadas","categorias","etapas"].includes(activeTab) ? "border-primary text-primary" : "border-transparent"}`}
+                >
+                  Organização
+                </span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="bg-dark-900/90 text-white border-0 rounded-lg shadow-xl backdrop-blur-md p-1">
+                {permissions?.seasons && (
+                  <DropdownMenuItem onClick={() => handleTabChange("temporadas")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Temporadas
+                  </DropdownMenuItem>
+                )}
+                {permissions?.categories && (
+                  <DropdownMenuItem disabled={!hasSeasons} onClick={() => handleTabChange("categorias")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Categorias
+                  </DropdownMenuItem>
+                )}
+                {permissions?.stages && (
+                  <DropdownMenuItem disabled={!hasCategories} onClick={() => handleTabChange("etapas")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Etapas
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          {/* Desempenho */}
+          {(permissions?.classification || permissions?.raceDay || permissions?.penalties || permissions?.regulations || permissions?.analise) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <span
+                  className={`px-2 py-2 text-white hover:text-white border-b-2 cursor-pointer ${["classificacao","race-day","penalties","regulamento","analises"].includes(activeTab) ? "border-primary text-primary" : "border-transparent"}`}
+                >
+                  Desempenho
+                </span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="bg-dark-900/90 text-white border-0 rounded-lg shadow-xl backdrop-blur-md p-1">
+                {permissions?.classification && (
+                  <DropdownMenuItem disabled={!hasSeasons} onClick={() => handleTabChange("classificacao")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Classificação
+                  </DropdownMenuItem>
+                )}
+                {permissions?.raceDay && (
+                  <DropdownMenuItem disabled={!hasSeasons} onClick={() => handleTabChange("race-day")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Race Day
+                  </DropdownMenuItem>
+                )}
+                {permissions?.penalties && (
+                  <DropdownMenuItem disabled={!hasSeasons} onClick={() => handleTabChange("penalties")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Punições
+                  </DropdownMenuItem>
+                )}
+                {permissions?.regulations && (
+                  <DropdownMenuItem disabled={!hasSeasons} onClick={() => handleTabChange("regulamento")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Regulamento
+                  </DropdownMenuItem>
+                )}
+                {permissions?.analise && (
+                  <DropdownMenuItem onClick={() => handleTabChange("analises")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Análises
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          {/* Configurações */}
+          {(permissions?.editChampionship || permissions?.gridTypes || permissions?.scoringSystems || permissions?.sponsors || permissions?.staff || permissions?.asaasAccount) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <span
+                  className={`px-2 py-2 text-white hover:text-white border-b-2 cursor-pointer ${["config-edit","config-grid","config-scoring","config-sponsors","config-staff","config-asaas"].includes(activeTab) ? "border-primary text-primary" : "border-transparent"}`}
+                >
+                  Configurações
+                </span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="bg-dark-900/90 text-white border-0 rounded-lg shadow-xl backdrop-blur-md p-1">
+                {permissions?.editChampionship && (
+                  <DropdownMenuItem onClick={() => handleTabChange("config-edit")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Editar Campeonado
+                  </DropdownMenuItem>
+                )}
+                {permissions?.gridTypes && (
+                  <DropdownMenuItem onClick={() => handleTabChange("config-grid")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Tipos de Grid
+                  </DropdownMenuItem>
+                )}
+                {permissions?.scoringSystems && (
+                  <DropdownMenuItem onClick={() => handleTabChange("config-scoring")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Sistemas de Pontuação
+                  </DropdownMenuItem>
+                )}
+                {permissions?.sponsors && (
+                  <DropdownMenuItem onClick={() => handleTabChange("config-sponsors")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Patrocinadores
+                  </DropdownMenuItem>
+                )}
+                {permissions?.staff && (
+                  <DropdownMenuItem onClick={() => handleTabChange("config-staff")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Equipe
+                  </DropdownMenuItem>
+                )}
+                {permissions?.asaasAccount && (
+                  <DropdownMenuItem onClick={() => handleTabChange("config-asaas")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Conta Asaas
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      </div>
+
+      {/* Sistema de conteúdo controlado por dropdown no header */}
       <Tabs
         value={activeTab}
         onValueChange={handleTabChange}
         className="h-full"
       >
-        {/* Seção das tabs com fundo escuro - sem espaçamento do header */}
-        <div className="bg-dark-900 text-white w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
-          <div
-            className={`container px-4 sm:px-10 ${isMobile ? "overflow-x-auto whitespace-nowrap scrollbar-hide" : ""}`}
-          >
-            <TabsList className="bg-transparent border-0 h-auto p-0 space-x-0">
-              {permissions?.dashboard && (
-                <TabsTrigger
-                  value="dashboard"
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Dashboard
-                </TabsTrigger>
-              )}
-              {permissions?.seasons && (
-                <TabsTrigger
-                  value="temporadas"
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Temporadas
-                </TabsTrigger>
-              )}
-              {permissions?.categories && (
-                <TabsTrigger
-                  value="categorias"
-                  disabled={!hasSeasons}
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Categorias
-                </TabsTrigger>
-              )}
-              {permissions?.stages && (
-                <TabsTrigger
-                  value="etapas"
-                  disabled={!hasCategories}
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Etapas
-                </TabsTrigger>
-              )}
-              {/* Aba Pilotos removida */}
-              {permissions?.classification && (
-                <TabsTrigger
-                  value="classificacao"
-                  disabled={!hasSeasons}
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Classificação
-                </TabsTrigger>
-              )}
-              {permissions?.regulations && (
-                <TabsTrigger
-                  value="regulamento"
-                  disabled={!hasSeasons}
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Regulamento
-                </TabsTrigger>
-              )}
-              {permissions?.penalties && (
-                <TabsTrigger
-                  value="penalties"
-                  disabled={!hasSeasons}
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Punições
-                </TabsTrigger>
-              )}
-              {permissions?.raceDay && (
-                <TabsTrigger
-                  value="race-day"
-                  disabled={!hasSeasons}
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Race Day
-                </TabsTrigger>
-              )}
-              {permissions?.analise && (
-                <TabsTrigger
-                  value="analises"
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Análises
-                </TabsTrigger>
-              )}
-              {permissions?.editChampionship && (
-                <TabsTrigger
-                  value="config-edit"
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Editar
-                </TabsTrigger>
-              )}
-              {permissions?.gridTypes && (
-                <TabsTrigger
-                  value="config-grid"
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Tipos de Grid
-                </TabsTrigger>
-              )}
-              {permissions?.scoringSystems && (
-                <TabsTrigger
-                  value="config-scoring"
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Sistemas de Pontuação
-                </TabsTrigger>
-              )}
-              {permissions?.sponsors && (
-                <TabsTrigger
-                  value="config-sponsors"
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Patrocinadores
-                </TabsTrigger>
-              )}
-              {permissions?.staff && (
-                <TabsTrigger
-                  value="config-staff"
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Equipe
-                </TabsTrigger>
-              )}
-              {permissions?.asaasAccount && (
-                <TabsTrigger
-                  value="config-asaas"
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Conta Asaas
-                </TabsTrigger>
-              )}
-            </TabsList>
-          </div>
-        </div>
-
-        {/* Conteúdo das tabs com espaçamento fixo */}
+        {/* Conteúdo das seções */}
         <div className="px-4 pt-6">
           {permissions?.dashboard && (
             <TabsContent
