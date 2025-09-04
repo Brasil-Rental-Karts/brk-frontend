@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { SeasonRegistration, SeasonRegistrationService } from "@/lib/services/season-registration.service";
 import { formatCurrency } from "@/utils/currency";
+import { formatName } from "@/utils/name";
 import { usePaymentManagement } from "@/hooks/use-payment-management";
 import { toast } from "sonner";
 // Utilitário local para mascarar telefone brasileiro (formato (XX) XXXXX-XXXX ou (XX) XXXX-XXXX)
@@ -602,7 +603,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
                   return (
                     <div key={reg.id} className="py-3 flex items-center justify-between gap-4">
                       <div className="min-w-0">
-                        <div className="font-medium truncate">{reg.user?.name || 'Piloto'}</div>
+                        <div className="font-medium truncate">{formatName(reg.user?.name || 'Piloto')}</div>
                         <div className="text-xs text-muted-foreground truncate">{reg.user?.email}</div>
                         {phone && (
                           <div className="text-xs text-muted-foreground truncate">{formatPhoneBR(phone)}</div>
@@ -727,7 +728,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
                   return (
                     <div key={reg.id} className="py-3 flex items-center justify-between gap-4">
                       <div className="min-w-0">
-                        <div className="font-medium truncate">{reg.user?.name || 'Piloto'}</div>
+                        <div className="font-medium truncate">{formatName(reg.user?.name || 'Piloto')}</div>
                         <div className="text-xs text-muted-foreground truncate">{reg.user?.email}</div>
                         {phone && (
                           <div className="text-xs text-muted-foreground truncate">{formatPhoneBR(phone)}</div>
