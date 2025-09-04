@@ -25,6 +25,15 @@ import { SeasonRegistration, SeasonRegistrationService } from "@/lib/services/se
 import { formatCurrency } from "@/utils/currency";
 import { formatName } from "@/utils/name";
 import { toast } from "sonner";
+import {
+  genderLabels,
+  kartExperienceYearsLabels,
+  raceFrequencyLabels,
+  championshipParticipationLabels,
+  competitiveLevelLabels,
+  attendsEventsLabels,
+  interestCategoryLabels,
+} from "@/lib/enums/profile";
 
 interface PilotsTabProps {
   championshipId: string;
@@ -406,6 +415,32 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     }
   };
 
+  // --- Detalhes do piloto ---
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsPilot, setDetailsPilot] = useState<PilotCard | null>(null);
+
+  const openDetails = (pilot: PilotCard) => {
+    setDetailsPilot(pilot);
+    setDetailsOpen(true);
+  };
+
+  const copyPixCode = async (code?: string | null) => {
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code);
+      toast.success("Código PIX copiado");
+    } catch {
+      toast.error("Falha ao copiar código PIX");
+    }
+  };
+
+  const formatBRDate = (date?: string) => {
+    if (!date) return "-";
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return date;
+    return d.toLocaleDateString("pt-BR");
+  };
+
   const renderStatusBadge = (f: PilotFinancial) => {
     if (f.overdue > 0) return <Badge variant="destructive">Em atraso</Badge>;
     if (f.pending > 0) return <Badge variant="secondary">Pendente</Badge>;
@@ -659,7 +694,10 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                           ))}
                         </div>
                       )}
-                      <div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" onClick={() => openDetails(p)} className="inline-flex items-center gap-2">
+                          Detalhes
+                        </Button>
                         <Button variant="outline" size="sm" onClick={() => openEditCategories(p)} className="inline-flex items-center gap-2">
                           <Settings2 className="h-4 w-4" />
                           Editar categorias
@@ -730,6 +768,259 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>Cancelar</Button>
             <Button onClick={onSaveCategories} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de detalhes do piloto */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="w-screen sm:w-[90vw] max-w-3xl sm:max-h-[80vh] h-[100vh] sm:h-auto p-4 sm:p-6 overflow-hidden sm:rounded-lg rounded-none">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Piloto</DialogTitle>
+            <DialogDescription>
+              {detailsPilot ? (
+                <div className="mt-2">
+                  <div className="font-semibold text-base sm:text-lg">{formatName(detailsPilot.name)} {detailsPilot.nickname && (<span className="text-xs text-muted-foreground">(@{detailsPilot.nickname})</span>)}</div>
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    {detailsPilot.status.refunded && (
+                      <Badge className="bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-100 hover:text-purple-800 hover:border-purple-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">Reembolsado</Badge>
+                    )}
+                    {detailsPilot.status.overdue && !detailsPilot.status.refunded && (
+                      <Badge className="bg-red-100 text-red-800 border-red-200 hover:bg-red-100 hover:text-red-800 hover:border-red-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">Vencido</Badge>
+                    )}
+                    {detailsPilot.status.pending && !detailsPilot.status.overdue && !detailsPilot.status.refunded && (
+                      <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100 hover:text-yellow-800 hover:border-yellow-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">Pendente</Badge>
+                    )}
+                    {detailsPilot.status.direct && (
+                      <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 hover:text-green-800 hover:border-green-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">Pagamento Direto</Badge>
+                    )}
+                    {detailsPilot.status.exempt && (
+                      <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 hover:text-green-800 hover:border-green-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">Isento</Badge>
+                    )}
+                    {!detailsPilot.status.overdue && !detailsPilot.status.pending && detailsPilot.status.paid && !detailsPilot.status.refunded && !detailsPilot.status.cancelled && !detailsPilot.status.direct && !detailsPilot.status.exempt && (
+                      <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 hover:text-green-800 hover:border-green-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">Pago</Badge>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+
+          {detailsPilot && (
+            <div className="space-y-6 overflow-y-auto max-h-[calc(100vh-12rem)] sm:max-h-[calc(80vh-8rem)] pr-1">
+              {/* Contato */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Card>
+                  <CardContent className="p-4 space-y-1">
+                    <div className="text-xs text-muted-foreground">Contato</div>
+                    <div className="text-sm">E-mail: <span className="font-medium">{registrations.find(r => (r.userId || (r as any).user?.id) === detailsPilot.userId)?.user?.email || "-"}</span></div>
+                    <div className="text-sm">Telefone: {detailsPilot.phone ? (
+                      <a href={toWhatsAppHref(detailsPilot.phone)} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">{formatPhoneBR(detailsPilot.phone)}</a>
+                    ) : (
+                      <span className="text-muted-foreground">Não informado</span>
+                    )}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 space-y-1">
+                    <div className="text-xs text-muted-foreground">Resumo financeiro</div>
+                    {(() => {
+                      const regs = registrations.filter(r => (r.userId || (r as any).user?.id) === detailsPilot.userId);
+                      const f = computeFinancial(regs);
+                      return (
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <div className="text-muted-foreground">Pago</div>
+                            <div className="font-semibold text-green-700">{formatCurrency(f.paid)}</div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">Pendente</div>
+                            <div className="font-semibold text-yellow-700">{formatCurrency(f.pending)}</div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">Em atraso</div>
+                            <div className="font-semibold text-red-600">{formatCurrency(f.overdue)}</div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 space-y-2">
+                    <div className="text-xs text-muted-foreground">Perfil</div>
+                    {(() => {
+                      const regs = registrations.filter(r => (r.userId || (r as any).user?.id) === detailsPilot.userId);
+                      const prof = (regs.find(r => (r as any).profile) as any)?.profile || (regs[0] as any)?.profile || {};
+                      const boolText = (v?: boolean) => v === true ? 'Sim' : v === false ? 'Não' : '-';
+                      const mapEnum = (labels: Record<number, string>, v?: any) => {
+                        const n = typeof v === 'string' ? parseInt(v) : v;
+                        return labels[n as number] ?? v;
+                      };
+                      const items: { label: string; value?: any }[] = [
+                        { label: 'Nome', value: prof.name },
+                        { label: 'Apelido', value: prof.nickName },
+                        { label: 'Email', value: prof.email },
+                        { label: 'Celular', value: prof.phone },
+                        { label: 'Data de Nascimento', value: prof.birthDate ? formatBRDate(prof.birthDate) : undefined },
+                        { label: 'Gênero', value: mapEnum(genderLabels as any, prof.gender) },
+                        { label: 'Estado', value: prof.state },
+                        { label: 'Cidade', value: prof.city },
+                        { label: 'Tempo de Experiência', value: mapEnum(kartExperienceYearsLabels as any, prof.experienceTime) },
+                        { label: 'Frequência de Corrida', value: mapEnum(raceFrequencyLabels as any, prof.raceFrequency) },
+                        { label: 'Participação em Campeonatos', value: mapEnum(championshipParticipationLabels as any, prof.championshipParticipation) },
+                        { label: 'Nível Competitivo', value: mapEnum(competitiveLevelLabels as any, prof.competitiveLevel) },
+                        { label: 'Vai a Eventos', value: mapEnum(attendsEventsLabels as any, prof.attendsEvents) },
+                        { label: 'Possui Kart Próprio?', value: boolText(prof.hasOwnKart) },
+                        { label: 'Participa de Equipe?', value: boolText(prof.isTeamMember) },
+                        { label: 'Nome da Equipe', value: prof.teamName },
+                        { label: 'Usa Telemetria?', value: boolText(prof.usesTelemetry) },
+                        { label: 'Telemetria', value: prof.telemetryType },
+                        { label: 'Kartódromo Preferido', value: prof.preferredTrack },
+                        { label: 'Categorias de Interesse', value: Array.isArray(prof.interestCategories) ? (prof.interestCategories as any[]).map((c) => (interestCategoryLabels as any)[typeof c === 'string' ? parseInt(c) : c]).join(', ') : undefined },
+                      ];
+                      const shown = items.filter(i => i.value !== undefined && i.value !== '');
+                      if (shown.length === 0) {
+                        return <div className="text-sm text-muted-foreground">Sem informações de perfil.</div>;
+                      }
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                          {shown.map((i, idx) => (
+                            <div key={idx} className="flex items-center justify-between gap-2 border rounded px-3 py-2">
+                              <span className="text-muted-foreground">{i.label}</span>
+                              <span className="font-medium truncate max-w-[60%] text-right">{String(i.value)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Inscrições */}
+              <Card>
+                <CardContent className="p-4 space-y-3">
+                  <div className="text-xs text-muted-foreground">Inscrições</div>
+                  {(() => {
+                    const regs = registrations.filter(r => (r.userId || (r as any).user?.id) === detailsPilot.userId);
+                    if (regs.length === 0) return (
+                      <div className="text-sm text-muted-foreground">Sem inscrições.</div>
+                    );
+                    // Agrupar por temporada
+                    const bySeason = new Map<string, { name: string; typeSet: Set<string>; categories: string[]; stages: { name: string; date?: string }[] }>();
+                    for (const r of regs) {
+                      const sid = r.season?.id || (r as any).seasonId || "-";
+                      const sname = r.season?.name || "Temporada";
+                      if (!bySeason.has(String(sid))) bySeason.set(String(sid), { name: sname, typeSet: new Set(), categories: [], stages: [] });
+                      const entry = bySeason.get(String(sid))!;
+                      entry.typeSet.add((r as any).inscriptionType || "");
+                      const cats: any[] = (r as any).categories || [];
+                      for (const c of cats) {
+                        const label = c?.category?.name || c?.name || c?.categoryName;
+                        if (label && !entry.categories.includes(label)) entry.categories.push(label);
+                      }
+                      const st: any[] = (r as any).stages || [];
+                      for (const s of st) {
+                        entry.stages.push({ name: s?.stage?.name || s?.name || "Etapa", date: s?.stage?.date || s?.date });
+                      }
+                    }
+                    const rows = Array.from(bySeason.entries()).map(([sid, e]) => ({ sid, ...e, stages: e.stages.sort((a, b) => (a.date ? new Date(a.date).getTime() : Number.MAX_SAFE_INTEGER) - (b.date ? new Date(b.date).getTime() : Number.MAX_SAFE_INTEGER)) }));
+                    return (
+                      <div className="space-y-3">
+                        {rows.map((row) => (
+                          <div key={row.sid} className="border rounded-md p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="font-medium">{row.name}</div>
+                              <div className="flex items-center gap-1">
+                                {Array.from(row.typeSet).includes("por_temporada") && (
+                                  <Badge variant="outline" className="text-xs whitespace-nowrap">Por Temporada</Badge>
+                                )}
+                                {Array.from(row.typeSet).includes("por_etapa") && (
+                                  <Badge variant="outline" className="text-xs whitespace-nowrap">Por Etapa</Badge>
+                                )}
+                              </div>
+                            </div>
+                            {row.categories.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {row.categories.map((c) => (
+                                  <Badge key={c} variant="secondary" className="text-xs whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">{c}</Badge>
+                                ))}
+                              </div>
+                            )}
+                            {row.stages.length > 0 && (
+                              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {row.stages.map((st, idx) => (
+                                  <div key={idx} className="flex items-center justify-between text-sm border rounded p-2">
+                                    <span className="font-medium truncate">{st.name}</span>
+                                    <span className="text-muted-foreground ml-2">{formatBRDate(st.date)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+
+              {/* Pagamentos */}
+              <Card>
+                <CardContent className="p-4 space-y-3">
+                  <div className="text-xs text-muted-foreground">Pagamentos</div>
+                  {(() => {
+                    const regs = registrations.filter(r => (r.userId || (r as any).user?.id) === detailsPilot.userId);
+                    const payments: any[] = [];
+                    for (const r of regs) {
+                      const ps: any[] = (r as any).payments || [];
+                      for (const p of ps) payments.push({ ...p, seasonName: r.season?.name });
+                    }
+                    if (payments.length === 0) return (
+                      <div className="text-sm text-muted-foreground">Nenhuma cobrança encontrada.</div>
+                    );
+                    // ordenar por vencimento
+                    payments.sort((a, b) => new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime());
+                    const getBadge = (status: string) => {
+                      const s = String(status || "").toUpperCase();
+                      if (s === "OVERDUE") return <Badge className="bg-red-100 text-red-800 border-red-200 whitespace-nowrap">Vencido</Badge>;
+                      if (s === "PENDING" || s === "AWAITING_PAYMENT") return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 whitespace-nowrap">Pendente</Badge>;
+                      if (s === "AWAITING_RISK_ANALYSIS") return <Badge className="bg-blue-100 text-blue-800 border-blue-200 whitespace-nowrap">Em análise</Badge>;
+                      if (s === "REFUNDED") return <Badge className="bg-purple-100 text-purple-800 border-purple-200 whitespace-nowrap">Reembolsado</Badge>;
+                      if (s === "CANCELLED") return <Badge className="bg-gray-100 text-gray-800 border-gray-200 whitespace-nowrap">Cancelado</Badge>;
+                      if (s === "RECEIVED" || s === "CONFIRMED" || s === "RECEIVED_IN_CASH") return <Badge className="bg-green-100 text-green-800 border-green-200 whitespace-nowrap">Pago</Badge>;
+                      return <Badge variant="outline" className="whitespace-nowrap">{s}</Badge>;
+                    };
+                    return (
+                      <div className="space-y-2 max-h-[50vh] overflow-auto pr-1">
+                        {payments.map((p, idx) => (
+                          <div key={idx} className="flex items-center justify-between gap-2 border rounded-md p-2 text-sm">
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">{formatCurrency(Number(p.value) || 0)}</div>
+                              <div className="text-xs text-muted-foreground">Venc.: {formatBRDate(p.dueDate)}{p.installmentNumber ? ` • Parcela ${p.installmentNumber}${p.installmentCount ? `/${p.installmentCount}` : ""}` : ""}</div>
+                              {p.seasonName && (
+                                <div className="text-xs text-muted-foreground truncate">{p.seasonName}</div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {getBadge(p.status)}
+                              {p.pixCopyPaste && (
+                                <Button size="sm" variant="outline" onClick={() => copyPixCode(p.pixCopyPaste)}>Copiar PIX</Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailsOpen(false)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
