@@ -27,6 +27,7 @@ import { RegulationTab } from "@/components/championship/tabs/RegulationTab";
 import { SeasonsTab } from "@/components/championship/tabs/SeasonsTab";
 import { StagesTab } from "@/components/championship/tabs/StagesTab";
 import { FinancialTab } from "@/components/championship/tabs/FinancialTab";
+import { PilotsTab } from "@/components/championship/tabs/PilotsTab";
 import { Loading } from "@/components/ui/loading";
 import { useChampionshipData } from "@/contexts/ChampionshipContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -110,6 +111,8 @@ export const Championship = () => {
     categorias: "categorias",
     stages: "etapas",
     etapas: "etapas",
+    pilots: "pilotos",
+    pilotos: "pilotos",
     classification: "classificacao",
     classificacao: "classificacao",
     regulations: "regulamento",
@@ -220,6 +223,7 @@ export const Championship = () => {
             temporadas: "seasons",
             categorias: "categories",
             etapas: "stages",
+            pilotos: "pilots",
             classificacao: "classification",
             regulamento: "regulations",
             penalties: "penalties",
@@ -247,6 +251,23 @@ export const Championship = () => {
       }
     }
   }, [searchParams, championship, activeTab, setSearchParams, permissions]);
+
+  // Definir aba inicial por prioridade quando não houver tab na URL
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab");
+    if (tabFromUrl) return;
+    if (!permissions || !championship) return;
+
+    const hasSeasonsLocal = !!championship?.seasons?.length;
+    let defaultTab = activeTab;
+    if (permissions.dashboard) defaultTab = "dashboard";
+    else if (permissions.classification && hasSeasonsLocal) defaultTab = "classificacao";
+    else if (permissions.raceDay && hasSeasonsLocal) defaultTab = "race-day";
+
+    if (defaultTab !== activeTab) {
+      handleTabChange(defaultTab);
+    }
+  }, [searchParams, permissions, championship, activeTab, handleTabChange]);
 
   // Loading state
   if (contextLoading.championshipInfo || permissionsLoading) {
@@ -362,16 +383,21 @@ export const Championship = () => {
           )}
 
           {/* Operacional */}
-          {(permissions?.classification || permissions?.raceDay || permissions?.penalties || permissions?.regulations || permissions?.analise) && (
+          {(permissions?.pilots || permissions?.classification || permissions?.raceDay || permissions?.penalties || permissions?.regulations || permissions?.analise) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <span
-                  className={`px-2 py-2 text-white hover:text-white border-b-2 cursor-pointer ${["classificacao","race-day","penalties","analises"].includes(activeTab) ? "border-primary text-primary" : "border-transparent"}`}
+                  className={`px-2 py-2 text-white hover:text-white border-b-2 cursor-pointer ${["classificacao","race-day","penalties","analises","pilotos"].includes(activeTab) ? "border-primary text-primary" : "border-transparent"}`}
                 >
                   Operacional
                 </span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="bg-dark-900/90 text-white border-0 rounded-lg shadow-xl backdrop-blur-md p-1">
+                {permissions?.pilots && (
+                  <DropdownMenuItem disabled={!hasSeasons} onClick={() => handleTabChange("pilotos")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Pilotos
+                  </DropdownMenuItem>
+                )}
                 {permissions?.classification && (
                   <DropdownMenuItem disabled={!hasSeasons} onClick={() => handleTabChange("classificacao")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
                     Classificação
@@ -498,7 +524,14 @@ export const Championship = () => {
             </TabsContent>
           )}
 
-          {/* Conteúdo da aba Pilotos removido */}
+          {permissions?.pilots && hasSeasons && (
+            <TabsContent
+              value="pilotos"
+              className="mt-0 ring-0 focus-visible:outline-none"
+            >
+              <PilotsTab championshipId={id} />
+            </TabsContent>
+          )}
 
           {permissions?.classification && hasSeasons && (
             <TabsContent
