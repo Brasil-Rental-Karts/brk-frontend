@@ -2,20 +2,29 @@ import {
   Alert,
   AlertDescription,
   Badge,
+  Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
+  Checkbox,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Input,
 } from "brk-design-system";
-import { Phone, Search, User2, Wallet } from "lucide-react";
+import { Phone, Search, User2, Wallet, Settings2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Loading } from "@/components/ui/loading";
 import { useChampionshipData } from "@/contexts/ChampionshipContext";
-import { SeasonRegistration } from "@/lib/services/season-registration.service";
+import { SeasonRegistration, SeasonRegistrationService } from "@/lib/services/season-registration.service";
 import { formatCurrency } from "@/utils/currency";
 import { formatName } from "@/utils/name";
+import { toast } from "sonner";
 
 interface PilotsTabProps {
   championshipId: string;
@@ -78,6 +87,10 @@ type PilotCard = {
     exempt: boolean;
     refunded: boolean;
     cancelled: boolean;
+  };
+  inscription: {
+    bySeason: boolean;
+    stages: { id: string; name: string; date?: string }[];
   };
 };
 
@@ -168,9 +181,12 @@ const computeStatusFlags = (regs: SeasonRegistration[]) => {
 };
 
 export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
-  const { getRegistrations, loading, error } = useChampionshipData();
+  const { getRegistrations, getCategories, getSeasons, updateRegistration, loading, error } = useChampionshipData();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "pending" | "overdue" | "exempt">("all");
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string>("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [inscriptionFilter, setInscriptionFilter] = useState<"all" | "season" | "stage">("all");
 
   // Dados brutos do contexto
   const registrations = getRegistrations();
@@ -204,6 +220,34 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
       const financial = computeFinancial(regs);
       const status = computeStatusFlags(regs);
 
+      // Inscrição por temporada/etapa
+      let bySeason = false;
+      const stagesMap = new Map<string, { id: string; name: string; date?: string }>();
+      for (const r of regs) {
+        if ((r as any).inscriptionType === "por_temporada") {
+          bySeason = true;
+        }
+        if ((r as any).inscriptionType === "por_etapa") {
+          const regStages: any[] = (r as any).stages || [];
+          for (const s of regStages) {
+            const sid = s?.stage?.id || s?.stageId;
+            if (!sid) continue;
+            if (!stagesMap.has(String(sid))) {
+              stagesMap.set(String(sid), {
+                id: String(sid),
+                name: s?.stage?.name || s?.name || "Etapa",
+                date: s?.stage?.date || s?.date,
+              });
+            }
+          }
+        }
+      }
+      const stages = Array.from(stagesMap.values()).sort((a, b) => {
+        const da = a.date ? new Date(a.date).getTime() : Number.MAX_SAFE_INTEGER;
+        const db = b.date ? new Date(b.date).getTime() : Number.MAX_SAFE_INTEGER;
+        return da - db;
+      });
+
       list.push({
         userId,
         name,
@@ -212,6 +256,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         categories: Array.from(categoriesSet).sort((a, b) => a.localeCompare(b, "pt-BR")),
         financial,
         status,
+        inscription: { bySeason, stages },
       });
     }
 
@@ -240,9 +285,126 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
         matchesStatus = p.status.exempt === true;
       }
 
-      return matchesSearch && matchesStatus;
+      // Filtro por temporada e categoria (usa inscrições originais)
+      const regsForPilot = registrations.filter((r) => (r.userId || (r as any).user?.id) === p.userId);
+      const matchesSeason = !selectedSeasonId
+        ? true
+        : regsForPilot.some((r) => (r.season?.id || (r as any).seasonId) === selectedSeasonId);
+
+      let matchesCategory = true;
+      if (selectedCategoryId) {
+        if (selectedSeasonId) {
+          matchesCategory = regsForPilot.some((r) => {
+            const sid = r.season?.id || (r as any).seasonId;
+            if (sid !== selectedSeasonId) return false;
+            const cats: any[] = (r as any).categories || [];
+            return cats.some((c) => String(c?.category?.id || c?.categoryId || c?.id) === selectedCategoryId);
+          });
+        } else {
+          matchesCategory = regsForPilot.some((r) => {
+            const cats: any[] = (r as any).categories || [];
+            return cats.some((c) => String(c?.category?.id || c?.categoryId || c?.id) === selectedCategoryId);
+          });
+        }
+      }
+
+      // Filtro por tipo de inscrição
+      let matchesInscription = true;
+      if (inscriptionFilter === "season") {
+        matchesInscription = p.inscription.bySeason === true;
+      } else if (inscriptionFilter === "stage") {
+        matchesInscription = (p.inscription.stages?.length || 0) > 0;
+      }
+
+      return matchesSearch && matchesStatus && matchesSeason && matchesCategory && matchesInscription;
     });
-  }, [pilots, search, statusFilter]);
+  }, [pilots, search, statusFilter, registrations, selectedSeasonId, selectedCategoryId, inscriptionFilter]);
+
+  // --- Modal de edição de categorias ---
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingPilot, setEditingPilot] = useState<PilotCard | null>(null);
+  const [seasonCategorySelection, setSeasonCategorySelection] = useState<Record<string, Set<string>>>({});
+  const [saving, setSaving] = useState(false);
+
+  const allCategories = getCategories();
+  const seasons = getSeasons();
+
+  const openEditCategories = (pilot: PilotCard) => {
+    // Construir seleção por temporada a partir das inscrições do piloto
+    const regsBySeason = registrations.filter((r) => (r.userId || (r as any).user?.id) === pilot.userId);
+    const initial: Record<string, Set<string>> = {};
+    for (const reg of regsBySeason) {
+      const seasonId = reg.season?.id || reg.seasonId;
+      if (!seasonId) continue;
+      const cats: any[] = (reg as any).categories || [];
+      const selected = new Set<string>();
+      for (const c of cats) {
+        const id = c?.category?.id || c?.categoryId || c?.id;
+        if (id) selected.add(String(id));
+      }
+      initial[seasonId] = selected;
+    }
+    setSeasonCategorySelection(initial);
+    setEditingPilot(pilot);
+    setEditOpen(true);
+  };
+
+  const toggleCategory = (seasonId: string, categoryId: string, checked: boolean) => {
+    setSeasonCategorySelection((prev) => {
+      const next = { ...prev };
+      const set = new Set<string>(next[seasonId] ? Array.from(next[seasonId]) : []);
+      if (checked) set.add(categoryId);
+      else set.delete(categoryId);
+      next[seasonId] = set;
+      return next;
+    });
+  };
+
+  const onSaveCategories = async () => {
+    if (!editingPilot) return;
+    try {
+      setSaving(true);
+      const regsBySeason = registrations.filter((r) => (r.userId || (r as any).user?.id) === editingPilot.userId);
+      for (const reg of regsBySeason) {
+        const seasonId = reg.season?.id || reg.seasonId;
+        if (!seasonId) continue;
+        const selectedIds = Array.from(seasonCategorySelection[seasonId] || new Set<string>());
+        // Obter categorias atuais para comparar
+        const currentCats: any[] = (reg as any).categories || [];
+        const currentIds = currentCats
+          .map((c) => c?.category?.id || c?.categoryId || c?.id)
+          .filter(Boolean)
+          .map(String);
+        const changed = selectedIds.sort().join(",") !== currentIds.sort().join(",");
+        if (!changed) continue;
+
+        const paymentStatus = (reg.paymentStatus === "exempt" || reg.paymentStatus === "direct_payment")
+          ? reg.paymentStatus
+          : "direct_payment"; // fallback seguro
+        const amount = Number(reg.amount) || 0;
+
+        const { registration } = await SeasonRegistrationService.createAdminRegistration({
+          userId: editingPilot.userId,
+          seasonId: seasonId,
+          categoryIds: selectedIds,
+          paymentStatus: paymentStatus as any,
+          amount,
+        });
+
+        // Atualizar contexto
+        if (registration?.id) {
+          updateRegistration(registration.id, registration as any);
+        }
+      }
+      toast.success("Categorias atualizadas com sucesso");
+      setEditOpen(false);
+      setEditingPilot(null);
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao atualizar categorias");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const renderStatusBadge = (f: PilotFinancial) => {
     if (f.overdue > 0) return <Badge variant="destructive">Em atraso</Badge>;
@@ -272,6 +434,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <div className="flex-1">
+          <div className="text-xs text-muted-foreground mb-1">Busca</div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -282,37 +445,84 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
             />
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            className={`px-3 py-2 text-sm rounded-md border ${statusFilter === "all" ? "bg-primary text-white border-primary" : "bg-background"}`}
-            onClick={() => setStatusFilter("all")}
+        <div className="w-full sm:w-auto">
+          <div className="text-xs text-muted-foreground mb-1">Filtros financeiros</div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className={`px-3 py-2 text-sm rounded-md border w-full sm:w-auto ${statusFilter === "all" ? "bg-primary text-white border-primary" : "bg-background"}`}
+              onClick={() => setStatusFilter("all")}
+            >
+              Todos
+            </button>
+            <button
+              className={`px-3 py-2 text-sm rounded-md border w-full sm:w-auto ${statusFilter === "paid" ? "bg-primary text-white border-primary" : "bg-background"}`}
+              onClick={() => setStatusFilter("paid")}
+            >
+              Pagos
+            </button>
+            <button
+              className={`px-3 py-2 text-sm rounded-md border w-full sm:w-auto ${statusFilter === "pending" ? "bg-primary text-white border-primary" : "bg-background"}`}
+              onClick={() => setStatusFilter("pending")}
+            >
+              Pendentes
+            </button>
+            <button
+              className={`px-3 py-2 text-sm rounded-md border w-full sm:w-auto ${statusFilter === "overdue" ? "bg-primary text-white border-primary" : "bg-background"}`}
+              onClick={() => setStatusFilter("overdue")}
+            >
+              Em atraso
+            </button>
+            <button
+              className={`px-3 py-2 text-sm rounded-md border w-full sm:w-auto ${statusFilter === "exempt" ? "bg-primary text-white border-primary" : "bg-background"}`}
+              onClick={() => setStatusFilter("exempt")}
+            >
+              Isentos
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-2 w-full">
+        <div className="w-full sm:w-auto">
+          <div className="text-xs text-muted-foreground mb-1">Temporada</div>
+          <select
+            value={selectedSeasonId}
+            onChange={(e) => setSelectedSeasonId(e.target.value)}
+            className="w-full sm:w-56 bg-background border rounded-md px-3 py-2 text-sm"
           >
-            Todos
-          </button>
-          <button
-            className={`px-3 py-2 text-sm rounded-md border ${statusFilter === "paid" ? "bg-primary text-white border-primary" : "bg-background"}`}
-            onClick={() => setStatusFilter("paid")}
+            <option value="">Todas as temporadas</option>
+            {seasons.map((s: any) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="w-full sm:w-auto">
+          <div className="text-xs text-muted-foreground mb-1">Categoria</div>
+          <select
+            value={selectedCategoryId}
+            onChange={(e) => setSelectedCategoryId(e.target.value)}
+            className="w-full sm:w-56 bg-background border rounded-md px-3 py-2 text-sm"
           >
-            Pagos
-          </button>
-          <button
-            className={`px-3 py-2 text-sm rounded-md border ${statusFilter === "pending" ? "bg-primary text-white border-primary" : "bg-background"}`}
-            onClick={() => setStatusFilter("pending")}
+            <option value="">Todas as categorias</option>
+            {(() => {
+              const seasonId = selectedSeasonId;
+              const cats = allCategories.filter((c) => !seasonId || c.seasonId === seasonId);
+              return cats.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ));
+            })()}
+          </select>
+        </div>
+        <div className="w-full sm:w-auto">
+          <div className="text-xs text-muted-foreground mb-1">Tipo de inscrição</div>
+          <select
+            value={inscriptionFilter}
+            onChange={(e) => setInscriptionFilter(e.target.value as any)}
+            className="w-full sm:w-56 bg-background border rounded-md px-3 py-2 text-sm"
           >
-            Pendentes
-          </button>
-          <button
-            className={`px-3 py-2 text-sm rounded-md border ${statusFilter === "overdue" ? "bg-primary text-white border-primary" : "bg-background"}`}
-            onClick={() => setStatusFilter("overdue")}
-          >
-            Em atraso
-          </button>
-          <button
-            className={`px-3 py-2 text-sm rounded-md border ${statusFilter === "exempt" ? "bg-primary text-white border-primary" : "bg-background"}`}
-            onClick={() => setStatusFilter("exempt")}
-          >
-            Isentos
-          </button>
+            <option value="all">Todos os tipos</option>
+            <option value="season">Por temporada</option>
+            <option value="stage">Por etapa</option>
+          </select>
         </div>
       </div>
 
@@ -335,7 +545,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                     <div className="flex items-center gap-2 min-w-0">
                       <User2 className="h-5 w-5 text-muted-foreground" />
                       <div className="truncate">
-                        <div className="font-semibold truncate">{formatName(p.name)}</div>
+                        <div className="font-semibold truncate text-sm sm:text-base">{formatName(p.name)}</div>
                         {p.nickname && (
                           <div className="text-xs text-muted-foreground truncate">@{p.nickname}</div>
                         )}
@@ -344,32 +554,32 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                     <div className="flex items-center gap-2 flex-wrap justify-end">
                       {/* Regras de cor seguindo FinancialTab */}
                       {p.status.refunded && (
-                        <Badge className="bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-800 hover:text-white">
+                        <Badge className="bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-100 hover:text-purple-800 hover:border-purple-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">
                           Reembolsado
                         </Badge>
                       )}
                       {p.status.overdue && !p.status.refunded && (
-                        <Badge className="bg-red-100 text-red-800 border-red-200 hover:bg-red-800 hover:text-white">
+                        <Badge className="bg-red-100 text-red-800 border-red-200 hover:bg-red-100 hover:text-red-800 hover:border-red-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">
                           Vencido
                         </Badge>
                       )}
                       {p.status.pending && !p.status.overdue && !p.status.refunded && (
-                        <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-800 hover:text-white">
+                        <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100 hover:text-yellow-800 hover:border-yellow-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">
                           Pendente
                         </Badge>
                       )}
                       {p.status.direct && (
-                        <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-800 hover:text-white">
+                        <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 hover:text-green-800 hover:border-green-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">
                           Pagamento Direto
                         </Badge>
                       )}
                       {p.status.exempt && (
-                        <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-800 hover:text-white">
+                        <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 hover:text-green-800 hover:border-green-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">
                           Isento
                         </Badge>
                       )}
                       {!p.status.overdue && !p.status.pending && p.status.paid && !p.status.refunded && !p.status.cancelled && !p.status.direct && !p.status.exempt && (
-                        <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-800 hover:text-white">
+                        <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 hover:text-green-800 hover:border-green-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">
                           Pago
                         </Badge>
                       )}
@@ -406,6 +616,26 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                         )}
                       </div>
                     </div>
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground">Inscrição</div>
+                      <div className="flex flex-wrap gap-1">
+                        {p.inscription.bySeason && (
+                          <Badge variant="outline" className="text-xs">Por Temporada</Badge>
+                        )}
+                        {p.inscription.stages.length > 0 && (
+                          <Badge variant="outline" className="text-xs">Por Etapa</Badge>
+                        )}
+                      </div>
+                      {p.inscription.stages.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {p.inscription.stages.map((st) => (
+                            <Badge key={st.id} variant="secondary" className="text-xs">
+                              {st.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground" />
                       {(() => {
@@ -419,15 +649,23 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                         );
                       })()}
                     </div>
-                    {p.categories.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {p.categories.map((c) => (
-                          <Badge key={c} variant="outline" className="text-xs">
-                            {c}
-                          </Badge>
-                        ))}
+                    <div className="flex flex-col gap-2">
+                      {p.categories.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {p.categories.map((c) => (
+                            <Badge key={c} variant="outline" className="text-xs">
+                              {c}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      <div>
+                        <Button variant="outline" size="sm" onClick={() => openEditCategories(p)} className="inline-flex items-center gap-2">
+                          <Settings2 className="h-4 w-4" />
+                          Editar categorias
+                        </Button>
                       </div>
-                    )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -435,6 +673,66 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
           })}
         </div>
       )}
+
+      {/* Modal de edição de categorias */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="w-[95vw] max-w-2xl p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle>Editar categorias</DialogTitle>
+            <DialogDescription>
+              Selecione as categorias por temporada para {editingPilot ? formatName(editingPilot.name) : "o piloto"}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            {editingPilot ? (
+              (() => {
+                const regsBySeason = registrations.filter((r) => (r.userId || (r as any).user?.id) === editingPilot.userId);
+                if (regsBySeason.length === 0) {
+                  return (
+                    <Alert>
+                      <AlertDescription>Este piloto não possui inscrições neste campeonato.</AlertDescription>
+                    </Alert>
+                  );
+                }
+                return (
+                  <div className="space-y-4">
+                    {regsBySeason.map((reg) => {
+                      const seasonId = reg.season?.id || reg.seasonId;
+                      const seasonName = seasons.find((s: any) => s.id === seasonId)?.name || "Temporada";
+                      const options = allCategories.filter((c) => c.seasonId === seasonId);
+                      const selected = seasonCategorySelection[seasonId] || new Set<string>();
+                      return (
+                        <div key={seasonId} className="border rounded-lg p-4">
+                          <div className="font-medium mb-3">{seasonName}</div>
+                          {options.length === 0 ? (
+                            <div className="text-sm text-muted-foreground">Sem categorias disponíveis para esta temporada.</div>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {options.map((cat) => (
+                                <label key={cat.id} className="flex items-center gap-2 text-sm">
+                                  <Checkbox
+                                    checked={selected.has(cat.id)}
+                                    onCheckedChange={(checked) => toggleCategory(seasonId, cat.id, Boolean(checked))}
+                                  />
+                                  <span>{cat.name}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>Cancelar</Button>
+            <Button onClick={onSaveCategories} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

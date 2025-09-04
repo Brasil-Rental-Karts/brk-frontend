@@ -90,6 +90,8 @@ export const ChampionshipHeader: FC<ChampionshipHeaderProps> = ({
     categorias: "categorias",
     stages: "etapas",
     etapas: "etapas",
+    pilots: "pilotos",
+    pilotos: "pilotos",
     classification: "classificacao",
     classificacao: "classificacao",
     regulations: "regulamento",
@@ -211,6 +213,7 @@ export const ChampionshipHeader: FC<ChampionshipHeaderProps> = ({
                 {activeTab === "categorias" && "Categorias"}
                 {activeTab === "etapas" && "Etapas"}
                 {activeTab === "classificacao" && "Classificação"}
+                {activeTab === "pilotos" && "Pilotos"}
                 {activeTab === "regulamento" && "Regulamento"}
                 {activeTab === "penalties" && "Punições"}
                 {activeTab === "race-day" && "Race Day"}
@@ -266,9 +269,14 @@ export const ChampionshipHeader: FC<ChampionshipHeaderProps> = ({
                       )}
                     </div>
                   )}
-                  {(permissions?.classification || permissions?.raceDay || permissions?.penalties || permissions?.analise || permissions?.regulations) && (
+                  {(permissions?.pilots || permissions?.classification || permissions?.raceDay || permissions?.penalties || permissions?.analise || permissions?.regulations) && (
                     <div>
                       <div className="text-white/70 text-xs uppercase tracking-wide mb-2">Operacional</div>
+                      {permissions?.pilots && (
+                        <button disabled={!hasSeasons} onClick={() => { handleNavigate("pilotos"); setMobileMenuOpen(false); }} className="w-full text-left py-4 text-lg hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed">
+                          <span className="inline-flex items-center gap-2"><Users className="h-5 w-5" /> Pilotos</span>
+                        </button>
+                      )}
                       {permissions?.classification && (
                         <button disabled={!hasSeasons} onClick={() => { handleNavigate("classificacao"); setMobileMenuOpen(false); }} className="w-full text-left py-4 text-lg hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed">
                           <span className="inline-flex items-center gap-2"><Trophy className="h-5 w-5" /> Classificação</span>
