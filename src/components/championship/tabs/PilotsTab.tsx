@@ -45,6 +45,16 @@ const toTelHref = (raw?: string) => {
   return `tel:${digits}`;
 };
 
+// Link WhatsApp a partir de um telefone bruto
+const toWhatsAppHref = (raw?: string) => {
+  if (!raw) return "";
+  const digits = String(raw).replace(/\D/g, "");
+  if (!digits) return "";
+  // Se não tiver DDI, assume Brasil (55)
+  const withCountry = digits.length <= 11 ? `55${digits}` : digits;
+  return `https://wa.me/${withCountry}`;
+};
+
 type PilotFinancial = {
   paid: number;
   pending: number;
@@ -334,22 +344,34 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                     <div className="flex items-center gap-2 flex-wrap justify-end">
                       {/* Regras de cor seguindo FinancialTab */}
                       {p.status.refunded && (
-                        <Badge className="bg-purple-100 text-purple-800 border-purple-200">Reembolsado</Badge>
+                        <Badge className="bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-800 hover:text-white">
+                          Reembolsado
+                        </Badge>
                       )}
                       {p.status.overdue && !p.status.refunded && (
-                        <Badge className="bg-red-100 text-red-800 border-red-200">Vencido</Badge>
+                        <Badge className="bg-red-100 text-red-800 border-red-200 hover:bg-red-800 hover:text-white">
+                          Vencido
+                        </Badge>
                       )}
                       {p.status.pending && !p.status.overdue && !p.status.refunded && (
-                        <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pendente</Badge>
+                        <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-800 hover:text-white">
+                          Pendente
+                        </Badge>
                       )}
                       {p.status.direct && (
-                        <Badge className="bg-green-100 text-green-800 border-green-200">Pagamento Direto</Badge>
+                        <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-800 hover:text-white">
+                          Pagamento Direto
+                        </Badge>
                       )}
                       {p.status.exempt && (
-                        <Badge className="bg-green-100 text-green-800 border-green-200">Isento</Badge>
+                        <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-800 hover:text-white">
+                          Isento
+                        </Badge>
                       )}
                       {!p.status.overdue && !p.status.pending && p.status.paid && !p.status.refunded && !p.status.cancelled && !p.status.direct && !p.status.exempt && (
-                        <Badge className="bg-green-100 text-green-800 border-green-200">Pago</Badge>
+                        <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-800 hover:text-white">
+                          Pago
+                        </Badge>
                       )}
                     </div>
                   </div>
@@ -358,32 +380,44 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                   <div className="grid grid-cols-1 gap-2 text-sm">
                     <div className="flex items-center gap-2">
                       <Wallet className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="text-muted-foreground">Financeiro:</span>
-                        <span className="font-medium">{formatCurrency(p.financial.paid)}</span>
-                        <span className="text-muted-foreground">pago</span>
-                        <span>•</span>
-                        <span className="font-medium">{formatCurrency(p.financial.pending)}</span>
-                        <span className="text-muted-foreground">pendente</span>
-                        <span>•</span>
-                        <span className="font-medium">{formatCurrency(p.financial.overdue)}</span>
-                        <span className="text-muted-foreground">em atraso</span>
+                      <div className="grid grid-cols-1 gap-1 text-sm">
+                        {p.financial.paid > 0 && (
+                          <div>
+                            <span className="text-muted-foreground">Pago:</span>{" "}
+                            <span className="font-medium text-green-700">{formatCurrency(p.financial.paid)}</span>
+                          </div>
+                        )}
+                        {p.financial.pending > 0 && (
+                          <div>
+                            <span className="text-muted-foreground">Pendente:</span>{" "}
+                            <span className="font-medium text-yellow-700">{formatCurrency(p.financial.pending)}</span>
+                          </div>
+                        )}
+                        {p.financial.overdue > 0 && (
+                          <div>
+                            <span className="text-muted-foreground">Em atraso:</span>{" "}
+                            <span className="font-medium text-red-600">{formatCurrency(p.financial.overdue)}</span>
+                          </div>
+                        )}
                         {p.financial.totalInstallments > 1 && (
-                          <span className="text-muted-foreground">
-                            • {p.financial.paidInstallments}/{p.financial.totalInstallments} parcelas
-                          </span>
+                          <div className="text-xs text-muted-foreground">
+                            Parcelas: {p.financial.paidInstallments}/{p.financial.totalInstallments}
+                          </div>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      {hasPhone ? (
-                        <a href={tel} className="font-medium hover:underline">
-                          {formatPhoneBR(p.phone)}
-                        </a>
-                      ) : (
-                        <span className="text-muted-foreground">Telefone não informado</span>
-                      )}
+                      {(() => {
+                        const wa = toWhatsAppHref(p.phone);
+                        return wa ? (
+                          <a href={wa} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">
+                            {formatPhoneBR(p.phone)}
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground">Telefone não informado</span>
+                        );
+                      })()}
                     </div>
                     {p.categories.length > 0 && (
                       <div className="flex flex-wrap gap-1">
