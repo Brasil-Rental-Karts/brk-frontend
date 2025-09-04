@@ -26,7 +26,7 @@ import { RaceDayTab } from "@/components/championship/tabs/RaceDayTab";
 import { RegulationTab } from "@/components/championship/tabs/RegulationTab";
 import { SeasonsTab } from "@/components/championship/tabs/SeasonsTab";
 import { StagesTab } from "@/components/championship/tabs/StagesTab";
-import { DashboardTab } from "@/components/championship/tabs/DashboardTab";
+import { FinancialTab } from "@/components/championship/tabs/FinancialTab";
 import { Loading } from "@/components/ui/loading";
 import { useChampionshipData } from "@/contexts/ChampionshipContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -320,7 +320,7 @@ export const Championship = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="bg-dark-900/90 text-white border-0 rounded-lg shadow-xl backdrop-blur-md p-1">
                 <DropdownMenuItem onClick={() => handleTabChange("dashboard")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
-                  Dashboard
+                  Financeiro
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -456,7 +456,7 @@ export const Championship = () => {
               value="dashboard"
               className="mt-0 ring-0 focus-visible:outline-none"
             >
-              <DashboardTab championshipId={id} />
+              <FinancialTab championshipId={id} />
             </TabsContent>
           )}
           {permissions?.seasons && (

@@ -290,7 +290,7 @@ export const StaffTab = ({ championshipId }: StaffTabProps) => {
   const permissionLabels: Record<string, string> = {
     analise: "Análises",
     categories: "Categorias",
-    dashboard: "Dashboard",
+    dashboard: "Financeiro",
     classification: "Classificação",
     asaasAccount: "Conta Asaas",
     editChampionship: "Editar Campeonato",
