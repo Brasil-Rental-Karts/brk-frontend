@@ -1,5 +1,30 @@
 import api from "../axios";
 
+export interface MemberProfile {
+  id: string;
+  lastLoginAt: string;
+  nickName: string;
+  birthDate?: string;
+  gender?: number;
+  city: string;
+  state: string;
+  experienceTime?: number;
+  raceFrequency?: number;
+  championshipParticipation?: number;
+  competitiveLevel?: number;
+  hasOwnKart: boolean;
+  isTeamMember: boolean;
+  teamName?: string;
+  usesTelemetry: boolean;
+  telemetryType?: string;
+  attendsEvents?: number;
+  interestCategories?: number[];
+  preferredTrack?: string;
+  profileCompleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SeasonRegistration {
   id: string;
   userId: string;
@@ -15,11 +40,18 @@ export interface SeasonRegistration {
   inscriptionType: 'por_temporada' | 'por_etapa';
   createdAt: string;
   updatedAt: string;
-  user: any; // Simplified for now
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    nickname?: string | null;
+  };
   season: any; // Simplified for now
   categories: any[]; // Simplified for now
   stages?: any[]; // Simplified for now
   payments: RegistrationPaymentData[];
+  profile: MemberProfile | null;
 }
 
 export interface CreateRegistrationData {

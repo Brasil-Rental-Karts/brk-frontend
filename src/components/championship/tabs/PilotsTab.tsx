@@ -141,15 +141,12 @@ const computeFinancial = (regs: SeasonRegistration[]): PilotFinancial => {
 
 const getPhoneFromRegistration = (reg?: SeasonRegistration) => {
   if (!reg) return undefined;
-  const u: any = (reg as any).user || {};
-  const profile: any = (reg as any).profile || {};
-  return u.phone || u.mobile || u.telefone || u.phoneNumber || profile.phone;
+  return reg.user?.phone;
 };
 
 const getNicknameFromRegistration = (reg?: SeasonRegistration) => {
   if (!reg) return undefined;
-  const u: any = (reg as any).user || {};
-  return u.nickname || u.nickName || null;
+  return reg.user?.nickname || reg.profile?.nickName || null;
 };
 
 const computeStatusFlags = (regs: SeasonRegistration[]) => {
@@ -213,8 +210,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     const list: PilotCard[] = [];
     for (const [userId, regs] of byUser.entries()) {
       const first = regs[0];
-      const user: any = (first as any).user || {};
-      const name = user.name || userId;
+      const name = first.user?.name || userId;
       const nickname = getNicknameFromRegistration(first);
       const phone = getPhoneFromRegistration(first);
       const categoriesSet = new Set<string>();
@@ -295,7 +291,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
       }
 
       // Filtro por temporada e categoria (usa inscrições originais)
-      const regsForPilot = registrations.filter((r) => (r.userId || (r as any).user?.id) === p.userId);
+      const regsForPilot = registrations.filter((r) => r.userId === p.userId);
       const matchesSeason = !selectedSeasonId
         ? true
         : regsForPilot.some((r) => (r.season?.id || (r as any).seasonId) === selectedSeasonId);
@@ -340,7 +336,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
 
   const openEditCategories = (pilot: PilotCard) => {
     // Construir seleção por temporada a partir das inscrições do piloto
-    const regsBySeason = registrations.filter((r) => (r.userId || (r as any).user?.id) === pilot.userId);
+          const regsBySeason = registrations.filter((r) => r.userId === pilot.userId);
     const initial: Record<string, Set<string>> = {};
     for (const reg of regsBySeason) {
       const seasonId = reg.season?.id || reg.seasonId;
@@ -373,7 +369,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     if (!editingPilot) return;
     try {
       setSaving(true);
-      const regsBySeason = registrations.filter((r) => (r.userId || (r as any).user?.id) === editingPilot.userId);
+      const regsBySeason = registrations.filter((r) => r.userId === editingPilot.userId);
       for (const reg of regsBySeason) {
         const seasonId = reg.season?.id || reg.seasonId;
         if (!seasonId) continue;
@@ -774,7 +770,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
 
       {/* Modal de detalhes do piloto */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="w-screen sm:w-[90vw] max-w-3xl sm:max-h-[80vh] h-[100vh] sm:h-auto p-4 sm:p-6 overflow-hidden sm:rounded-lg rounded-none">
+        <DialogContent className="w-screen sm:w-[90vw] max-w-4xl h-[100vh] sm:h-[90vh] p-4 sm:p-6 overflow-hidden sm:rounded-lg rounded-none flex flex-col">
           <DialogHeader>
             <DialogTitle>Detalhes do Piloto</DialogTitle>
             <DialogDescription>
@@ -807,103 +803,266 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
           </DialogHeader>
 
           {detailsPilot && (
-            <div className="space-y-6 overflow-y-auto max-h-[calc(100vh-12rem)] sm:max-h-[calc(80vh-8rem)] pr-1">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 overflow-y-auto flex-1 pr-1">
               {/* Contato */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Card>
-                  <CardContent className="p-4 space-y-1">
-                    <div className="text-xs text-muted-foreground">Contato</div>
-                    <div className="text-sm">E-mail: <span className="font-medium">{registrations.find(r => (r.userId || (r as any).user?.id) === detailsPilot.userId)?.user?.email || "-"}</span></div>
-                    <div className="text-sm">Telefone: {detailsPilot.phone ? (
-                      <a href={toWhatsAppHref(detailsPilot.phone)} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">{formatPhoneBR(detailsPilot.phone)}</a>
-                    ) : (
-                      <span className="text-muted-foreground">Não informado</span>
-                    )}</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4 space-y-1">
-                    <div className="text-xs text-muted-foreground">Resumo financeiro</div>
-                    {(() => {
-                      const regs = registrations.filter(r => (r.userId || (r as any).user?.id) === detailsPilot.userId);
-                      const f = computeFinancial(regs);
-                      return (
-                        <div className="grid grid-cols-3 gap-2 text-sm">
-                          <div>
-                            <div className="text-muted-foreground">Pago</div>
-                            <div className="font-semibold text-green-700">{formatCurrency(f.paid)}</div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground">Pendente</div>
-                            <div className="font-semibold text-yellow-700">{formatCurrency(f.pending)}</div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground">Em atraso</div>
-                            <div className="font-semibold text-red-600">{formatCurrency(f.overdue)}</div>
-                          </div>
+              <Card>
+                <CardContent className="p-4 space-y-1">
+                  <div className="text-xs text-muted-foreground">Contato</div>
+                  <div className="text-sm">E-mail: <span className="font-medium">{registrations.find(r => r.userId === detailsPilot.userId)?.user?.email || "-"}</span></div>
+                  <div className="text-sm">Telefone: {detailsPilot.phone ? (
+                    <a href={toWhatsAppHref(detailsPilot.phone)} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">{formatPhoneBR(detailsPilot.phone)}</a>
+                  ) : (
+                    <span className="text-muted-foreground">Não informado</span>
+                  )}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 space-y-1">
+                  <div className="text-xs text-muted-foreground">Resumo financeiro</div>
+                  {(() => {
+                    const regs = registrations.filter(r => r.userId === detailsPilot.userId);
+                    const f = computeFinancial(regs);
+                    return (
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        <div>
+                          <div className="text-muted-foreground">Pago</div>
+                          <div className="font-semibold text-green-700">{formatCurrency(f.paid)}</div>
                         </div>
-                      );
-                    })()}
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4 space-y-2">
-                    <div className="text-xs text-muted-foreground">Perfil</div>
-                    {(() => {
-                      const regs = registrations.filter(r => (r.userId || (r as any).user?.id) === detailsPilot.userId);
-                      const prof = (regs.find(r => (r as any).profile) as any)?.profile || (regs[0] as any)?.profile || {};
-                      const boolText = (v?: boolean) => v === true ? 'Sim' : v === false ? 'Não' : '-';
-                      const mapEnum = (labels: Record<number, string>, v?: any) => {
-                        const n = typeof v === 'string' ? parseInt(v) : v;
-                        return labels[n as number] ?? v;
-                      };
-                      const items: { label: string; value?: any }[] = [
-                        { label: 'Nome', value: prof.name },
-                        { label: 'Apelido', value: prof.nickName },
-                        { label: 'Email', value: prof.email },
-                        { label: 'Celular', value: prof.phone },
-                        { label: 'Data de Nascimento', value: prof.birthDate ? formatBRDate(prof.birthDate) : undefined },
-                        { label: 'Gênero', value: mapEnum(genderLabels as any, prof.gender) },
-                        { label: 'Estado', value: prof.state },
-                        { label: 'Cidade', value: prof.city },
-                        { label: 'Tempo de Experiência', value: mapEnum(kartExperienceYearsLabels as any, prof.experienceTime) },
-                        { label: 'Frequência de Corrida', value: mapEnum(raceFrequencyLabels as any, prof.raceFrequency) },
-                        { label: 'Participação em Campeonatos', value: mapEnum(championshipParticipationLabels as any, prof.championshipParticipation) },
-                        { label: 'Nível Competitivo', value: mapEnum(competitiveLevelLabels as any, prof.competitiveLevel) },
-                        { label: 'Vai a Eventos', value: mapEnum(attendsEventsLabels as any, prof.attendsEvents) },
-                        { label: 'Possui Kart Próprio?', value: boolText(prof.hasOwnKart) },
-                        { label: 'Participa de Equipe?', value: boolText(prof.isTeamMember) },
-                        { label: 'Nome da Equipe', value: prof.teamName },
-                        { label: 'Usa Telemetria?', value: boolText(prof.usesTelemetry) },
-                        { label: 'Telemetria', value: prof.telemetryType },
-                        { label: 'Kartódromo Preferido', value: prof.preferredTrack },
-                        { label: 'Categorias de Interesse', value: Array.isArray(prof.interestCategories) ? (prof.interestCategories as any[]).map((c) => (interestCategoryLabels as any)[typeof c === 'string' ? parseInt(c) : c]).join(', ') : undefined },
-                      ];
-                      const shown = items.filter(i => i.value !== undefined && i.value !== '');
-                      if (shown.length === 0) {
-                        return <div className="text-sm text-muted-foreground">Sem informações de perfil.</div>;
-                      }
-                      return (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                          {shown.map((i, idx) => (
-                            <div key={idx} className="flex items-center justify-between gap-2 border rounded px-3 py-2">
-                              <span className="text-muted-foreground">{i.label}</span>
-                              <span className="font-medium truncate max-w-[60%] text-right">{String(i.value)}</span>
+                        <div>
+                          <div className="text-muted-foreground">Pendente</div>
+                          <div className="font-semibold text-yellow-700">{formatCurrency(f.pending)}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Em atraso</div>
+                          <div className="font-semibold text-red-600">{formatCurrency(f.overdue)}</div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+              {/* Perfil do Piloto */}
+              <div className="contents">
+                {(() => {
+                  const regs = registrations.filter(r => r.userId === detailsPilot.userId);
+                  const prof = regs.find(r => r.profile)?.profile || regs[0]?.profile;
+                  const boolText = (v?: boolean) => v === true ? 'Sim' : v === false ? 'Não' : '-';
+                  const mapEnum = (labels: Record<number, string>, v?: any) => {
+                    const n = typeof v === 'string' ? parseInt(v) : v;
+                    return labels[n as number] ?? v;
+                  };
+
+                  if (!prof) {
+                    return (
+                      <Card className="lg:col-span-2">
+                        <CardContent className="p-6 text-center">
+                          <div className="text-muted-foreground">Sem informações de perfil disponíveis.</div>
+                        </CardContent>
+                      </Card>
+                    );
+                  }
+
+                  return (
+                    <>
+                      {/* Informações Pessoais */}
+                      <Card className="lg:col-span-2">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <User2 className="h-5 w-5" />
+                            Informações Pessoais
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Nome Completo</label>
+                                <div className="text-base font-semibold mt-1">
+                                  {prof.nickName || regs[0]?.user?.name || '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Apelido</label>
+                                <div className="text-base mt-1">
+                                  {prof.nickName ? `@${prof.nickName}` : '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Data de Nascimento</label>
+                                <div className="text-base mt-1">
+                                  {prof.birthDate ? formatBRDate(prof.birthDate) : '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Gênero</label>
+                                <div className="text-base mt-1">
+                                  {mapEnum(genderLabels as any, prof.gender) || '-'}
+                                </div>
+                              </div>
                             </div>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </CardContent>
-                </Card>
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Localização</label>
+                                <div className="text-base mt-1">
+                                  {prof.city && prof.state ? `${prof.city}, ${prof.state}` : '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Email</label>
+                                <div className="text-base mt-1 break-all">
+                                  {regs[0]?.user?.email || '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Telefone</label>
+                                <div className="text-base mt-1">
+                                  {regs[0]?.user?.phone ? formatPhoneBR(regs[0].user.phone) : '-'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Experiência e Competição */}
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Settings2 className="h-5 w-5" />
+                            Experiência e Competição
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Tempo de Experiência</label>
+                                <div className="text-base mt-1">
+                                  {mapEnum(kartExperienceYearsLabels as any, prof.experienceTime) || '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Frequência de Corrida</label>
+                                <div className="text-base mt-1">
+                                  {mapEnum(raceFrequencyLabels as any, prof.raceFrequency) || '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Nível Competitivo</label>
+                                <div className="text-base mt-1">
+                                  {mapEnum(competitiveLevelLabels as any, prof.competitiveLevel) || '-'}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Participação em Campeonatos</label>
+                                <div className="text-base mt-1">
+                                  {mapEnum(championshipParticipationLabels as any, prof.championshipParticipation) || '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Frequência em Eventos</label>
+                                <div className="text-base mt-1">
+                                  {mapEnum(attendsEventsLabels as any, prof.attendsEvents) || '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Kartódromo Preferido</label>
+                                <div className="text-base mt-1">
+                                  {prof.preferredTrack || '-'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Equipamentos e Equipe */}
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Wallet className="h-5 w-5" />
+                            Equipamentos e Equipe
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Possui Kart Próprio</label>
+                                <div className="text-base mt-1">
+                                  <Badge variant={prof.hasOwnKart ? "default" : "secondary"}>
+                                    {boolText(prof.hasOwnKart)}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Usa Telemetria</label>
+                                <div className="text-base mt-1">
+                                  <Badge variant={prof.usesTelemetry ? "default" : "secondary"}>
+                                    {boolText(prof.usesTelemetry)}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Tipo de Telemetria</label>
+                                <div className="text-base mt-1">
+                                  {prof.telemetryType || '-'}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Participa de Equipe</label>
+                                <div className="text-base mt-1">
+                                  <Badge variant={prof.isTeamMember ? "default" : "secondary"}>
+                                    {boolText(prof.isTeamMember)}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Nome da Equipe</label>
+                                <div className="text-base mt-1">
+                                  {prof.teamName || '-'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Categorias de Interesse */}
+                      {prof.interestCategories && prof.interestCategories.length > 0 && (
+                        <Card className="lg:col-span-2">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                              <Settings2 className="h-5 w-5" />
+                              Categorias de Interesse
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex flex-wrap gap-2">
+                              {prof.interestCategories.map((category, idx) => (
+                                <Badge key={idx} variant="outline" className="text-sm">
+                                  {(interestCategoryLabels as any)[typeof category === 'string' ? parseInt(category) : category]}
+                                </Badge>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Inscrições */}
-              <Card>
+              <Card className="lg:col-span-1">
                 <CardContent className="p-4 space-y-3">
                   <div className="text-xs text-muted-foreground">Inscrições</div>
                   {(() => {
-                    const regs = registrations.filter(r => (r.userId || (r as any).user?.id) === detailsPilot.userId);
+                    const regs = registrations.filter(r => r.userId === detailsPilot.userId);
                     if (regs.length === 0) return (
                       <div className="text-sm text-muted-foreground">Sem inscrições.</div>
                     );
@@ -967,11 +1126,11 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
               </Card>
 
               {/* Pagamentos */}
-              <Card>
+              <Card className="lg:col-span-1">
                 <CardContent className="p-4 space-y-3">
                   <div className="text-xs text-muted-foreground">Pagamentos</div>
                   {(() => {
-                    const regs = registrations.filter(r => (r.userId || (r as any).user?.id) === detailsPilot.userId);
+                    const regs = registrations.filter(r => r.userId === detailsPilot.userId);
                     const payments: any[] = [];
                     for (const r of regs) {
                       const ps: any[] = (r as any).payments || [];
@@ -1019,7 +1178,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="mt-4 flex-shrink-0">
             <Button variant="outline" onClick={() => setDetailsOpen(false)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
