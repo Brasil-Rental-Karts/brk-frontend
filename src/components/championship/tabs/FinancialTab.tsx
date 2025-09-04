@@ -652,7 +652,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
                               {(() => {
                                 const payments: any[] = (reg as any).payments || [];
                                 const hasPix = payments.some((p) => p.pixCopyPaste);
-                                return hasPix ? (
+                                return hasPix && status === 'pending' ? (
                                   <Button size="sm" variant="outline" onClick={() => handleCopyPix(reg)}>Copiar PIX</Button>
                                 ) : null;
                               })()}
