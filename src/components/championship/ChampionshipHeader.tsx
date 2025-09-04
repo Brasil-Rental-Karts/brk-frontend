@@ -259,6 +259,11 @@ export const ChampionshipHeader: FC<ChampionshipHeaderProps> = ({
                           <span className="inline-flex items-center gap-2"><FlagTriangleRight className="h-5 w-5" /> Etapas</span>
                         </button>
                       )}
+                      {permissions?.regulations && (
+                        <button disabled={!hasSeasons} onClick={() => { handleNavigate("regulamento"); setMobileMenuOpen(false); }} className="w-full text-left py-4 text-lg hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed">
+                          <span className="inline-flex items-center gap-2"><FileText className="h-5 w-5" /> Regulamento</span>
+                        </button>
+                      )}
                     </div>
                   )}
                   {(permissions?.classification || permissions?.raceDay || permissions?.penalties || permissions?.analise || permissions?.regulations) && (
@@ -277,11 +282,6 @@ export const ChampionshipHeader: FC<ChampionshipHeaderProps> = ({
                       {permissions?.penalties && (
                         <button disabled={!hasSeasons} onClick={() => { handleNavigate("penalties"); setMobileMenuOpen(false); }} className="w-full text-left py-4 text-lg hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed">
                           <span className="inline-flex items-center gap-2"><FileText className="h-5 w-5" /> Punições</span>
-                        </button>
-                      )}
-                      {permissions?.regulations && (
-                        <button disabled={!hasSeasons} onClick={() => { handleNavigate("regulamento"); setMobileMenuOpen(false); }} className="w-full text-left py-4 text-lg hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed">
-                          <span className="inline-flex items-center gap-2"><FileText className="h-5 w-5" /> Regulamento</span>
                         </button>
                       )}
                       {permissions?.analise && (

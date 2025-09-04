@@ -352,6 +352,11 @@ export const Championship = () => {
                     Etapas
                   </DropdownMenuItem>
                 )}
+                {permissions?.regulations && (
+                  <DropdownMenuItem disabled={!hasSeasons} onClick={() => handleTabChange("regulamento")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Regulamento
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -380,11 +385,6 @@ export const Championship = () => {
                 {permissions?.penalties && (
                   <DropdownMenuItem disabled={!hasSeasons} onClick={() => handleTabChange("penalties")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
                     Punições
-                  </DropdownMenuItem>
-                )}
-                {permissions?.regulations && (
-                  <DropdownMenuItem disabled={!hasSeasons} onClick={() => handleTabChange("regulamento")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
-                    Regulamento
                   </DropdownMenuItem>
                 )}
                 {permissions?.analise && (
