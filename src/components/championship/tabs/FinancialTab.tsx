@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Alert, AlertDescription, Button, Badge, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, Input } from "brk-design-system";
-import { CheckCircle, Clock, XCircle } from "lucide-react";
+import { CheckCircle, Clock, XCircle, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { SeasonRegistration, SeasonRegistrationService } from "@/lib/services/season-registration.service";
@@ -26,6 +26,14 @@ const formatPhoneBR = (raw?: string) => {
   return `(${ddd}) ${first}-${last}`;
 };
 
+// Link tel: a partir de um telefone bruto
+const toTelHref = (raw?: string) => {
+  if (!raw) return '';
+  const digits = String(raw).replace(/\D/g, '');
+  if (!digits) return '';
+  return `tel:${digits}`;
+};
+
 interface FinancialTabProps {
   championshipId: string;
 }
@@ -34,6 +42,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [registrations, setRegistrations] = useState<SeasonRegistration[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
     let mounted = true;
@@ -489,28 +498,58 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
           <CardTitle>Pagamentos por Temporada</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Temporada</TableHead>
-                <TableHead className="text-right">Pago</TableHead>
-                <TableHead className="text-right">Pendente</TableHead>
-                <TableHead className="text-right">Vencido</TableHead>
-                <TableHead className="text-right">Inscrições</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {seasonGroups.map((s) => (
-                <TableRow key={s.seasonId} className="cursor-pointer hover:bg-muted/50" onClick={() => { setSelectedStage(null); setSelectedSeason({ id: s.seasonId, name: s.seasonName }); setStatusFilter('all'); }}>
-                  <TableCell className="font-medium">{s.seasonName}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(s.paidAmount)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(s.pendingAmount)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(s.overdueAmount)}</TableCell>
-                  <TableCell className="text-right">{s.totalRegistrations}</TableCell>
+          <div className="md:hidden space-y-2">
+            {seasonGroups.map((s) => (
+              <button
+                key={s.seasonId}
+                onClick={() => { setSelectedStage(null); setSelectedSeason({ id: s.seasonId, name: s.seasonName }); setStatusFilter('all'); setSearchQuery(''); }}
+                className="w-full text-left border rounded-lg p-4 bg-background hover:bg-muted/50 transition"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="font-medium">{s.seasonName}</div>
+                  <div className="text-xs text-muted-foreground">{s.totalRegistrations} inscrições</div>
+                </div>
+                <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <div className="text-muted-foreground">Pago</div>
+                    <div className="font-semibold text-green-600">{formatCurrency(s.paidAmount)}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Pendente</div>
+                    <div className="font-semibold text-yellow-600">{formatCurrency(s.pendingAmount)}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Vencido</div>
+                    <div className="font-semibold text-red-600">{formatCurrency(s.overdueAmount)}</div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+          <div className="hidden md:block overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Temporada</TableHead>
+                  <TableHead className="text-right">Pago</TableHead>
+                  <TableHead className="text-right">Pendente</TableHead>
+                  <TableHead className="text-right">Vencido</TableHead>
+                  <TableHead className="text-right">Inscrições</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {seasonGroups.map((s) => (
+                  <TableRow key={s.seasonId} className="cursor-pointer hover:bg-muted/50" onClick={() => { setSelectedStage(null); setSelectedSeason({ id: s.seasonId, name: s.seasonName }); setStatusFilter('all'); }}>
+                    <TableCell className="font-medium">{s.seasonName}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(s.paidAmount)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(s.pendingAmount)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(s.overdueAmount)}</TableCell>
+                    <TableCell className="text-right">{s.totalRegistrations}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -524,28 +563,60 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
             {group.stages.length === 0 ? (
               <div className="text-sm text-muted-foreground p-4">Sem inscrições por etapa nesta temporada.</div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Etapa</TableHead>
-                    <TableHead className="text-right">Pago</TableHead>
-                    <TableHead className="text-right">Pendente</TableHead>
-                    <TableHead className="text-right">Vencido</TableHead>
-                    <TableHead className="text-right">Inscrições</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <>
+                <div className="md:hidden space-y-2">
                   {group.stages.map((st, idx) => (
-                    <TableRow key={`${group.seasonId}-${idx}`} className="cursor-pointer hover:bg-muted/50" onClick={() => { setSelectedSeason(null); setSelectedStage({ id: st.stageId, seasonId: group.seasonId, stageName: st.stageName, seasonName: group.seasonName }); setStatusFilter('all'); }}>
-                      <TableCell className="font-medium">{st.stageName}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(st.paidAmount)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(st.pendingAmount)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(st.overdueAmount)}</TableCell>
-                      <TableCell className="text-right">{st.totalRegistrations}</TableCell>
-                    </TableRow>
+                    <button
+                      key={`${group.seasonId}-${idx}`}
+                      onClick={() => { setSelectedSeason(null); setSelectedStage({ id: st.stageId, seasonId: group.seasonId, stageName: st.stageName, seasonName: group.seasonName }); setStatusFilter('all'); setSearchQuery(''); }}
+                      className="w-full text-left border rounded-lg p-4 bg-background hover:bg-muted/50 transition"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="font-medium">{st.stageName}</div>
+                        <div className="text-xs text-muted-foreground">{st.totalRegistrations} inscrições</div>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <div className="text-muted-foreground">Pago</div>
+                          <div className="font-semibold text-green-600">{formatCurrency(st.paidAmount)}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Pendente</div>
+                          <div className="font-semibold text-yellow-600">{formatCurrency(st.pendingAmount)}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Vencido</div>
+                          <div className="font-semibold text-red-600">{formatCurrency(st.overdueAmount)}</div>
+                        </div>
+                      </div>
+                    </button>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+                <div className="hidden md:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Etapa</TableHead>
+                        <TableHead className="text-right">Pago</TableHead>
+                        <TableHead className="text-right">Pendente</TableHead>
+                        <TableHead className="text-right">Vencido</TableHead>
+                        <TableHead className="text-right">Inscrições</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {group.stages.map((st, idx) => (
+                        <TableRow key={`${group.seasonId}-${idx}`} className="cursor-pointer hover:bg-muted/50" onClick={() => { setSelectedSeason(null); setSelectedStage({ id: st.stageId, seasonId: group.seasonId, stageName: st.stageName, seasonName: group.seasonName }); setStatusFilter('all'); }}>
+                          <TableCell className="font-medium">{st.stageName}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(st.paidAmount)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(st.pendingAmount)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(st.overdueAmount)}</TableCell>
+                          <TableCell className="text-right">{st.totalRegistrations}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -555,7 +626,9 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
       {selectedSeason && (
         <Card className="w-full">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Pilotos — {selectedSeason.name}</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle>Pilotos — {selectedSeason.name}</CardTitle>
+            </div>
             <div className="hidden md:flex items-center gap-2">
               {filterOptions.map((opt) => (
                 <Button
@@ -570,20 +643,69 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="md:hidden flex flex-wrap gap-2 mb-3">
-              {filterOptions.map((opt) => (
-                <Button
-                  key={opt.key}
-                  size="sm"
-                  variant={statusFilter === opt.key ? 'default' : 'outline'}
-                  onClick={() => setStatusFilter(opt.key)}
-                >
-                  {opt.label}
-                </Button>
-              ))}
+            <div className="md:hidden space-y-2 mb-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nome ou e-mail"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-9 h-9 rounded-full"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {filterOptions.map((opt) => (
+                  <Button
+                    key={opt.key}
+                    size="sm"
+                    className="shrink-0"
+                    variant={statusFilter === opt.key ? 'default' : 'outline'}
+                    onClick={() => setStatusFilter(opt.key)}
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="hidden md:block mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nome ou e-mail"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-9 h-9 rounded-full w-full max-w-md"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
             {(() => {
-              const seasonList = seasonPendingOrOverdue.filter((reg) => statusFilter === 'all' ? true : classifyRegistration(reg) === statusFilter);
+              const seasonList = seasonPendingOrOverdue
+                .filter((reg) => statusFilter === 'all' ? true : classifyRegistration(reg) === statusFilter)
+                .filter((reg) => {
+                  if (!searchQuery) return true;
+                  const q = searchQuery.toLowerCase();
+                  const name = (reg.user?.name || '').toLowerCase();
+                  const email = (reg.user?.email || '').toLowerCase();
+                  return name.includes(q) || email.includes(q);
+                });
               if (seasonList.length === 0) {
                 return (
                   <div className="text-sm text-muted-foreground">
@@ -600,16 +722,17 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
                   const { pending, overdue, paid, refunded, cancelled, processing, isExempt, isDirect } = sumAmountsByStatus(reg);
                   const { paidInstallments, totalInstallments } = getInstallmentProgress(reg);
                   const phone = (reg as any)?.user?.phone || (reg as any)?.user?.mobile || (reg as any)?.user?.telefone || (reg as any)?.user?.phoneNumber || (reg as any)?.profile?.phone;
+                  const telHref = toTelHref(phone);
                   return (
-                    <div key={reg.id} className="py-3 flex items-center justify-between gap-4">
+                    <div key={reg.id} className="py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                       <div className="min-w-0">
                         <div className="font-medium truncate">{formatName(reg.user?.name || 'Piloto')}</div>
                         <div className="text-xs text-muted-foreground truncate">{reg.user?.email}</div>
-                        {phone && (
-                          <div className="text-xs text-muted-foreground truncate">{formatPhoneBR(phone)}</div>
+                        {phone && telHref && (
+                          <a href={telHref} className="text-xs text-muted-foreground truncate underline-offset-2 hover:underline">{formatPhoneBR(phone)}</a>
                         )}
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap justify-end">
                         {status === 'refunded' && (
                           <Badge className="bg-purple-100 text-purple-800 border-purple-200">Reembolsado</Badge>
                         )}
@@ -647,16 +770,14 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
                           const canManagePayment = status === 'pending' || status === 'overdue';
                           if (!canManagePayment) return null;
                           return (
-                            <div className="flex items-center gap-2 mt-2 justify-end">
-                              {/* Copiar PIX */}
+                            <div className="flex items-center gap-2 mt-2 justify-end w-full sm:w-auto">
                               {(() => {
                                 const payments: any[] = (reg as any).payments || [];
                                 const hasPix = payments.some((p) => p.pixCopyPaste);
-                                return hasPix && status === 'pending' ? (
+                                return hasPix && (status === 'pending' || status === 'overdue') ? (
                                   <Button size="sm" variant="outline" onClick={() => handleCopyPix(reg)}>Copiar PIX</Button>
                                 ) : null;
                               })()}
-                              {/* Atualizar vencimento */}
                               {(() => {
                                 const p = findEligiblePayment(reg);
                                 return p ? (
@@ -680,7 +801,9 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
       {selectedStage && (
         <Card className="w-full">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Pilotos — {selectedStage.stageName} ({selectedStage.seasonName})</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle>Pilotos — {selectedStage.stageName} ({selectedStage.seasonName})</CardTitle>
+            </div>
             <div className="hidden md:flex items-center gap-2">
               {filterOptions.map((opt) => (
                 <Button
@@ -695,20 +818,69 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="md:hidden flex flex-wrap gap-2 mb-3">
-              {filterOptions.map((opt) => (
-                <Button
-                  key={opt.key}
-                  size="sm"
-                  variant={statusFilter === opt.key ? 'default' : 'outline'}
-                  onClick={() => setStatusFilter(opt.key)}
-                >
-                  {opt.label}
-                </Button>
-              ))}
+            <div className="md:hidden space-y-2 mb-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nome ou e-mail"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-9 h-9 rounded-full"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {filterOptions.map((opt) => (
+                  <Button
+                    key={opt.key}
+                    size="sm"
+                    className="shrink-0"
+                    variant={statusFilter === opt.key ? 'default' : 'outline'}
+                    onClick={() => setStatusFilter(opt.key)}
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="hidden md:block mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nome ou e-mail"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-9 h-9 rounded-full w-full max-w-md"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
             {(() => {
-              const stageList = stagePendingOrOverdue.filter((reg) => statusFilter === 'all' ? true : classifyRegistration(reg) === statusFilter);
+              const stageList = stagePendingOrOverdue
+                .filter((reg) => statusFilter === 'all' ? true : classifyRegistration(reg) === statusFilter)
+                .filter((reg) => {
+                  if (!searchQuery) return true;
+                  const q = searchQuery.toLowerCase();
+                  const name = (reg.user?.name || '').toLowerCase();
+                  const email = (reg.user?.email || '').toLowerCase();
+                  return name.includes(q) || email.includes(q);
+                });
               if (stageList.length === 0) {
                 return (
                   <div className="text-sm text-muted-foreground">
@@ -725,16 +897,17 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
                   const { pending, overdue, paid, refunded, cancelled, processing, isExempt, isDirect } = sumAmountsByStatus(reg);
                   const { paidInstallments, totalInstallments } = getInstallmentProgress(reg);
                   const phone = (reg as any)?.user?.phone || (reg as any)?.user?.mobile || (reg as any)?.user?.telefone || (reg as any)?.user?.phoneNumber || (reg as any)?.profile?.phone;
+                  const telHref = toTelHref(phone);
                   return (
-                    <div key={reg.id} className="py-3 flex items-center justify-between gap-4">
+                    <div key={reg.id} className="py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                       <div className="min-w-0">
                         <div className="font-medium truncate">{formatName(reg.user?.name || 'Piloto')}</div>
                         <div className="text-xs text-muted-foreground truncate">{reg.user?.email}</div>
-                        {phone && (
-                          <div className="text-xs text-muted-foreground truncate">{formatPhoneBR(phone)}</div>
+                        {phone && telHref && (
+                          <a href={telHref} className="text-xs text-muted-foreground truncate underline-offset-2 hover:underline">{formatPhoneBR(phone)}</a>
                         )}
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap justify-end">
                         {status === 'refunded' && (
                           <Badge className="bg-purple-100 text-purple-800 border-purple-200">Reembolsado</Badge>
                         )}
@@ -772,11 +945,11 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
                           const canManagePayment = status === 'pending' || status === 'overdue';
                           if (!canManagePayment) return null;
                           return (
-                            <div className="flex items-center gap-2 mt-2 justify-end">
+                            <div className="flex items-center gap-2 mt-2 justify-end w-full sm:w-auto">
                               {(() => {
                                 const payments: any[] = (reg as any).payments || [];
                                 const hasPix = payments.some((p) => p.pixCopyPaste);
-                                return hasPix ? (
+                                return hasPix && (status === 'pending' || status === 'overdue') ? (
                                   <Button size="sm" variant="outline" onClick={() => handleCopyPix(reg)}>Copiar PIX</Button>
                                 ) : null;
                               })()}
