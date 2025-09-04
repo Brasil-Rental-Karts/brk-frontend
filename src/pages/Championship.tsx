@@ -580,7 +580,7 @@ export const Championship = () => {
               value="config-edit"
               className="mt-0 ring-0 focus-visible:outline-none"
             >
-              <CreateChampionship />
+              <CreateChampionship championshipId={id} />
             </TabsContent>
           )}
 

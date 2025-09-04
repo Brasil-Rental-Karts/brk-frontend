@@ -55,10 +55,17 @@ const convertISOToDate = (isoString: string): string => {
   return `${day}/${month}/${year}`;
 };
 
-export const CreateChampionship = () => {
+interface CreateChampionshipProps {
+  championshipId?: string;
+}
+
+export const CreateChampionship = ({ championshipId: propChampionshipId }: CreateChampionshipProps = {}) => {
   const navigate = useNavigate();
-  const { championshipId } = useParams<{ championshipId?: string }>();
+  const { championshipId: urlChampionshipId } = useParams<{ championshipId?: string }>();
   const { updateChampionship, getChampionshipInfo } = useChampionshipData();
+  
+  // Usar o ID da prop se disponível, senão usar o da URL
+  const championshipId = propChampionshipId || urlChampionshipId;
   const isEditMode = championshipId !== "new" && championshipId !== undefined;
 
   const [cities, setCities] = useState<City[]>([]);
@@ -333,12 +340,19 @@ export const CreateChampionship = () => {
     async (id: string, data: ChampionshipData) => {
       const updatedChampionship = await ChampionshipService.update(id, data);
 
-      // Atualizar o contexto com o campeonato atualizado
-      updateChampionship(id, updatedChampionship);
+      // Preservar as temporadas existentes do contexto
+      const currentChampionship = getChampionshipInfo();
+      const championshipWithSeasons = {
+        ...updatedChampionship,
+        seasons: currentChampionship?.seasons || [],
+      };
+
+      // Atualizar o contexto com o campeonato atualizado incluindo as temporadas
+      updateChampionship(id, championshipWithSeasons);
 
       return updatedChampionship;
     },
-    [updateChampionship],
+    [updateChampionship, getChampionshipInfo],
   );
 
   useEffect(() => {
@@ -370,7 +384,7 @@ export const CreateChampionship = () => {
             name: "Descrição curta do campeonato",
             type: "textarea",
             mandatory: true,
-            max_char: 50,
+            max_char: 100,
             placeholder: "Breve descrição que aparecerá nas listagens e buscas",
           },
           {
@@ -378,7 +392,7 @@ export const CreateChampionship = () => {
             name: "Descrição completa do campeonato",
             type: "textarea",
             mandatory: true,
-            max_char: 290,
+            max_char: 700,
             placeholder:
               "Descrição detalhada com informações gerais, categorias, premiação, etc.",
           },
