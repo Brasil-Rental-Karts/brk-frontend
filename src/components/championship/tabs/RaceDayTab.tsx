@@ -5747,7 +5747,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
                               ]?.kart === kartInfo.kart
                                 ? `Kart ${kartInfo.kart} - Atual do piloto`
                                 : kartInfo.isUsed
-                                  ? `Kart ${kartInfo.kart} - Em uso por ${formatName(registrations.find((r) => r.userId === kartInfo.usedBy)?.user?.name || kartInfo.usedBy)}`
+                                  ? `Kart ${kartInfo.kart} - Em uso por ${formatName(registrations.find((r) => r.userId === kartInfo.usedBy)?.user?.name || kartInfo.usedBy || "")}`
                                   : `Kart ${kartInfo.kart} - Disponível`}
                             </TooltipContent>
                           </Tooltip>
