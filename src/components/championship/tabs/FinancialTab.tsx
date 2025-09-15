@@ -3,6 +3,7 @@ import { CheckCircle, Clock, XCircle, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { SeasonRegistration, SeasonRegistrationService } from "@/lib/services/season-registration.service";
+import { Championship, ChampionshipService } from "@/lib/services/championship.service";
 import { formatCurrency } from "@/utils/currency";
 import { formatName } from "@/utils/name";
 import { usePaymentManagement } from "@/hooks/use-payment-management";
@@ -43,6 +44,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
   const [error, setError] = useState<string | null>(null);
   const [registrations, setRegistrations] = useState<SeasonRegistration[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [championship, setChampionship] = useState<Championship | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -50,8 +52,14 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
       setLoading(true);
       setError(null);
       try {
-        const data = await SeasonRegistrationService.getByChampionshipId(championshipId);
-        if (mounted) setRegistrations(data);
+        const [regs, champ] = await Promise.all([
+          SeasonRegistrationService.getByChampionshipId(championshipId),
+          ChampionshipService.getPublicById(championshipId),
+        ]);
+        if (mounted) {
+          setRegistrations(regs);
+          setChampionship(champ);
+        }
       } catch (e: any) {
         if (mounted) setError(e.message || "Erro ao carregar inscrições do campeonato");
       } finally {
@@ -76,6 +84,15 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
   };
 
   const aggregatePayments = (regs: SeasonRegistration[]) => {
+    const getPaidNet = (value: number, reg?: SeasonRegistration) => {
+      if (!championship) return value;
+      // pagamentos administrativos não têm taxa da plataforma aplicada
+      if (reg && (reg.paymentStatus === 'exempt' || reg.paymentStatus === 'direct_payment')) return value;
+      if (championship.commissionAbsorbedByChampionship) return value;
+      const pct = Number(championship.platformCommissionPercentage) || 10;
+      return value / (1 + pct / 100);
+    };
+
     const acc: Aggregated = {
       paidAmount: 0,
       pendingAmount: 0,
@@ -99,11 +116,11 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
           const status = String(p.status || '').toUpperCase();
           const value = Number(p.value) || 0;
           if (['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(status)) {
-            paid += value;
+            paid += getPaidNet(value, reg);
           } else if (status === 'OVERDUE') {
             overdue += value;
           } else if (['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(status)) {
-            pending += value;
+            pending += getPaidNet(value, reg);
           }
         }
       } else {
@@ -202,9 +219,15 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
             for (const p of payments) {
               const status = String(p.status || '').toUpperCase();
               const value = (Number(p.value) || 0) * share;
-              if (['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(status)) paid += value;
+              if (['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(status)) {
+                const pct = championship && !championship.commissionAbsorbedByChampionship ? (Number(championship.platformCommissionPercentage) || 10) : null;
+                paid += pct ? value / (1 + (pct / 100)) : value;
+              }
               else if (status === 'OVERDUE') overdue += value;
-              else if (['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(status)) pending += value;
+              else if (['PENDING', 'AWAITING_PAYMENT', 'AWAITING_RISK_ANALYSIS'].includes(status)) {
+                const pct = championship && !championship.commissionAbsorbedByChampionship ? (Number(championship.platformCommissionPercentage) || 10) : null;
+                pending += pct ? value / (1 + (pct / 100)) : value;
+              }
             }
           } else if (reg.paymentStatus === 'exempt' || reg.paymentStatus === 'direct_payment') {
             paid += (Number(reg.amount) || 0) * share;
@@ -331,7 +354,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
     }
   };
 
-  const sumAmountsByStatus = (reg: SeasonRegistration) => {
+  const sumAmountsByStatus = (reg: SeasonRegistration, share: number = 1) => {
     const payments = (reg as any).payments || [];
     let pending = 0,
       overdue = 0,
@@ -343,11 +366,16 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
     if (Array.isArray(payments) && payments.length > 0) {
       for (const p of payments) {
         const status = String(p.status || '').toUpperCase();
-        const value = Number(p.value) || 0;
+        const value = (Number(p.value) || 0) * (share || 1);
         if (status === 'OVERDUE') {
           overdue += value;
         } else if (status === 'PENDING' || status === 'AWAITING_PAYMENT') {
-          pending += value;
+          if (championship && !championship.commissionAbsorbedByChampionship) {
+            const pct = Number(championship.platformCommissionPercentage) || 10;
+            pending += value / (1 + pct / 100);
+          } else {
+            pending += value;
+          }
         } else if (status === 'AWAITING_RISK_ANALYSIS') {
           processing += value;
         } else if (status === 'REFUNDED') {
@@ -359,11 +387,16 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
           status === 'CONFIRMED' ||
           status === 'RECEIVED_IN_CASH'
         ) {
-          paid += value;
+          if (championship && !championship.commissionAbsorbedByChampionship) {
+            const pct = Number(championship.platformCommissionPercentage) || 10;
+            paid += value / (1 + pct / 100);
+          } else {
+            paid += value;
+          }
         }
       }
     } else if (reg.paymentStatus === 'exempt' || reg.paymentStatus === 'direct_payment') {
-      paid += Number(reg.amount) || 0;
+      paid += (Number(reg.amount) || 0) * (share || 1);
     }
 
     const isExempt = reg.paymentStatus === 'exempt';
@@ -894,7 +927,10 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
               <div className="divide-y">
                 {stageList.map((reg) => {
                   const status = classifyRegistration(reg);
-                  const { pending, overdue, paid, refunded, cancelled, processing, isExempt, isDirect } = sumAmountsByStatus(reg);
+                  // Ratear valores por etapa quando a inscrição for por_etapa
+                  const totalStages = Array.isArray((reg as any).stages) && (reg as any).stages.length > 0 ? (reg as any).stages.length : 1;
+                  const share = reg.inscriptionType === 'por_etapa' ? 1 / totalStages : 1;
+                  const { pending, overdue, paid, refunded, cancelled, processing, isExempt, isDirect } = sumAmountsByStatus(reg, share);
                   const { paidInstallments, totalInstallments } = getInstallmentProgress(reg);
                   const phone = (reg as any)?.user?.phone || (reg as any)?.user?.mobile || (reg as any)?.user?.telefone || (reg as any)?.user?.phoneNumber || (reg as any)?.profile?.phone;
                   const telHref = toTelHref(phone);
