@@ -1,1346 +1,1190 @@
 import {
   Alert,
   AlertDescription,
-  AlertTitle,
   Badge,
   Button,
   Card,
   CardContent,
   CardHeader,
+  CardTitle,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  EmptyState,
-  Pagination,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Input,
 } from "brk-design-system";
-import {
-  Calendar,
-  Download,
-  Eye,
-  Mail,
-  MoreVertical,
-  Phone,
-  Users,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import * as XLSX from "xlsx";
+import { Phone, Search, User2, Wallet, Settings2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
-import {
-  DynamicFilter,
-  FilterField,
-  FilterValues,
-} from "@/components/ui/dynamic-filter";
-import { InlineLoader } from "@/components/ui/loading";
+import { Loading } from "@/components/ui/loading";
 import { useChampionshipData } from "@/contexts/ChampionshipContext";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { usePagination } from "@/hooks/usePagination";
-import { Category } from "@/lib/services/category.service";
-import {
-  SeasonRegistration,
-  SeasonRegistrationService,
-} from "@/lib/services/season-registration.service";
+import { SeasonRegistration, SeasonRegistrationService } from "@/lib/services/season-registration.service";
 import { formatCurrency } from "@/utils/currency";
-import { formatDateToBrazilian } from "@/utils/date";
 import { formatName } from "@/utils/name";
-
-import PaymentInfo from "../pilots/PaymentInfo";
-import { PilotDetailsModal } from "../pilots/PilotDetailsModal";
-
-// Labels centralizados para status e métodos
-const RegistrationStatusLabels: Record<string, string> = {
-  pending: "Pendente",
-  payment_pending: "Aguardando pagamento",
-  confirmed: "Confirmado",
-  cancelled: "Cancelado",
-  expired: "Expirado",
-  exempt: "Isento",
-  direct_payment: "Pagamento Direto",
-};
-
-const PaymentStatusLabels: Record<string, string> = {
-  paid: "Pago",
-  pending: "Pendente",
-  processing: "Processando",
-  failed: "Falhou",
-  cancelled: "Cancelado",
-  refunded: "Estornado",
-  overdue: "Vencido",
-  exempt: "Isento",
-  direct_payment: "Pagamento Direto",
-};
-
-const getRegistrationStatusLabel = (status: string) =>
-  RegistrationStatusLabels[status] || status;
-const getPaymentStatusLabel = (status: string) =>
-  PaymentStatusLabels[status] || status;
-
-const getPaymentMethodLabel = (method?: string, paymentStatus?: string) => {
-  if (paymentStatus === "exempt") return "Isento";
-  if (paymentStatus === "direct_payment") return "Pagamento Direto";
-  switch (method) {
-    case "credit_card":
-    case "cartao_credito":
-      return "Cartão de Crédito";
-    case "pix":
-      return "PIX";
-    case undefined:
-    case null:
-      return "Não informado";
-    default:
-      return method;
-  }
-};
+import { toast } from "sonner";
+import {
+  genderLabels,
+  kartExperienceYearsLabels,
+  raceFrequencyLabels,
+  championshipParticipationLabels,
+  competitiveLevelLabels,
+  attendsEventsLabels,
+  interestCategoryLabels,
+} from "@/lib/enums/profile";
 
 interface PilotsTabProps {
   championshipId: string;
 }
 
-// Configuração inicial dos filtros
-const createFilterFields = (
-  seasonOptions: { value: string; label: string }[] = [],
-  categoryOptions: { value: string; label: string }[] = [],
-): FilterField[] => [
-  {
-    key: "seasonId",
-    label: "Temporada",
-    type: "combobox",
-    placeholder: "Todas as temporadas",
-    options: seasonOptions,
-  },
-  {
-    key: "categoryId",
-    label: "Categoria",
-    type: "combobox",
-    placeholder: "Todas as categorias",
-    options: categoryOptions,
-  },
-  {
-    key: "status",
-    label: "Status da Inscrição",
-    type: "combobox",
-    placeholder: "Todos os status",
-    options: [
-      { value: "all", label: "Todos os status" },
-      { value: "pending", label: "Pendente" },
-      { value: "payment_pending", label: "Aguardando pagamento" },
-      { value: "confirmed", label: "Confirmado" },
-      { value: "cancelled", label: "Cancelado" },
-      { value: "expired", label: "Expirado" },
-    ],
-  },
-  {
-    key: "paymentStatus",
-    label: "Status do Pagamento",
-    type: "combobox",
-    placeholder: "Todos os pagamentos",
-    options: [
-      { value: "all", label: "Todos os pagamentos" },
-      { value: "paid", label: "Pago" },
-      { value: "pending", label: "Pendente" },
-      { value: "overdue", label: "Vencido" },
-      { value: "exempt", label: "Isento" },
-      { value: "direct_payment", label: "Pagamento Direto" },
-      { value: "refunded", label: "Estornado" },
-    ],
-  },
-];
-
-// Componente para o card do piloto (mobile)
-const PilotCard = ({
-  registration,
-  onAction,
-  getStatusBadge,
-}: {
-  registration: SeasonRegistration;
-  onAction: (action: string, registrationId: string) => void;
-  getStatusBadge: (registration: SeasonRegistration) => JSX.Element;
-}) => {
-  return (
-    <Card className="w-full hover:shadow-md transition-shadow">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <div className="flex-1 pr-2">
-          <h3 className="text-lg font-semibold tracking-tight">
-            {formatName(registration.user.name)}
-          </h3>
-        </div>
-        <div className="flex flex-shrink-0 items-center gap-2">
-          {getStatusBadge(registration)}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => onAction("viewDetails", registration.id)}
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                Ver detalhes
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => onAction("changeCategories", registration.id)}
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Trocar categorias
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 text-sm">
-          <div className="flex flex-col">
-            <span className="text-muted-foreground">Email</span>
-            <span className="font-medium flex items-center gap-1">
-              <Mail className="h-3 w-3" />
-              {registration.user.email}
-            </span>
-          </div>
-          {registration.user.phone && (
-            <div className="flex flex-col">
-              <span className="text-muted-foreground">Telefone</span>
-              <span className="font-medium flex items-center gap-1">
-                <Phone className="h-3 w-3" />
-                {registration.user.phone}
-              </span>
-            </div>
-          )}
-          <div className="flex flex-col">
-            <span className="text-muted-foreground">Temporada</span>
-            <Badge variant="outline" className="w-fit mt-1">
-              {registration.season.name}
-            </Badge>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-muted-foreground">Valor</span>
-            <span className="font-medium">
-              R$ {Number(registration.amount).toFixed(2).replace(".", ",")}
-            </span>
-          </div>
-          {registration.paymentMethod && (
-            <div className="flex flex-col">
-              <span className="text-muted-foreground">Método de Pagamento</span>
-              <span className="font-medium">
-                {registration.paymentStatus === "exempt"
-                  ? "Isento"
-                  : registration.paymentStatus === "direct_payment"
-                    ? "Pagamento Direto"
-                    : registration.paymentMethod === "pix"
-                      ? "PIX"
-                      : registration.paymentMethod === "cartao_credito"
-                        ? "Cartão de Crédito"
-                        : registration.paymentMethod}
-              </span>
-            </div>
-          )}
-          <div className="flex flex-col">
-            <span className="text-muted-foreground">Tipo de Inscrição</span>
-            <span className="font-medium">
-              {registration.inscriptionType === "por_temporada" ? "Por Temporada" : "Por Etapa"}
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-muted-foreground">Data de Inscrição</span>
-            <span className="font-medium flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              {formatDateToBrazilian(registration.createdAt)}
-            </span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-muted-foreground">Categorias</span>
-            <div className="flex flex-wrap gap-1 mt-1">
-              {registration.categories && registration.categories.length > 0 ? (
-                registration.categories.map((regCategory) => (
-                  <Badge
-                    key={regCategory.id}
-                    variant="outline"
-                    className="text-xs"
-                  >
-                    <div className="flex flex-col items-center">
-                      <span>{regCategory.category.name}</span>
-                      <span className="text-xs opacity-75">
-                        Lastro: {regCategory.category.ballast}kg
-                      </span>
-                    </div>
-                  </Badge>
-                ))
-              ) : (
-                <span className="text-xs text-muted-foreground">
-                  Sem categorias
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-muted-foreground">Status do Pagamento</span>
-            <div className="mt-1">
-              <PaymentInfo registration={registration} />
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+// Utilitário local para mascarar telefone brasileiro
+const formatPhoneBR = (raw?: string) => {
+  if (!raw) return "";
+  const digits = String(raw).replace(/\D/g, "");
+  if (digits.length < 10) return raw;
+  const ddd = digits.slice(0, 2);
+  const rest = digits.slice(2);
+  if (rest.length >= 9) {
+    const first = rest.slice(0, 5);
+    const last = rest.slice(5, 9);
+    return `(${ddd}) ${first}-${last}`;
+  }
+  const first = rest.slice(0, 4);
+  const last = rest.slice(4, 8);
+  return `(${ddd}) ${first}-${last}`;
 };
 
-// Componente para a linha da tabela (desktop)
-const PilotTableRow = ({
-  registration,
-  onAction,
-  getStatusBadge,
-}: {
-  registration: SeasonRegistration;
-  onAction: (action: string, registrationId: string) => void;
-  getStatusBadge: (registration: SeasonRegistration) => JSX.Element;
-}) => {
-  return (
-    <TableRow key={registration.id} className="hover:bg-muted/50">
-      <TableCell className="py-4">
-        <div className="space-y-2">
-          <div className="font-medium">
-            {formatName(registration.user.name)}
-          </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Mail className="h-3 w-3" />
-            {registration.user.email}
-          </div>
-          {registration.user.phone && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Phone className="h-3 w-3" />
-              {registration.user.phone}
-            </div>
-          )}
-          <div className="text-xs text-muted-foreground">
-            <span className="font-medium">Valor:</span> R${" "}
-            {Number(registration.amount).toFixed(2).replace(".", ",")}
-          </div>
-          {registration.paymentMethod && (
-            <div className="text-xs text-muted-foreground">
-              <span className="font-medium">Método:</span>{" "}
-              {registration.paymentStatus === "exempt"
-                ? "Isento"
-                : registration.paymentStatus === "direct_payment"
-                  ? "Pagamento Direto"
-                  : registration.paymentMethod === "pix"
-                    ? "PIX"
-                    : registration.paymentMethod === "cartao_credito"
-                      ? "Cartão de Crédito"
-                      : registration.paymentMethod}
-            </div>
-          )}
-          <div className="text-xs text-muted-foreground">
-            <span className="font-medium">Tipo de Inscrição:</span>{" "}
-            {registration.inscriptionType === "por_temporada" ? "Por Temporada" : "Por Etapa"}
-          </div>
-        </div>
-      </TableCell>
-      <TableCell className="text-center py-4">
-        <div className="text-sm font-medium">{registration.season.name}</div>
-      </TableCell>
-      <TableCell className="text-center py-4">
-        <div className="space-y-2">
-          <div className="text-xs text-muted-foreground">
-            {registration.categories?.length || 0} categoria
-            {(registration.categories?.length || 0) !== 1 ? "s" : ""}
-          </div>
-          <div className="flex flex-wrap gap-1 justify-center">
-            {registration.categories && registration.categories.length > 0 ? (
-              registration.categories.map((regCategory) => (
-                <Badge
-                  key={regCategory.id}
-                  variant="outline"
-                  className="text-xs"
-                >
-                  <div className="flex flex-col items-center">
-                    <span>{regCategory.category.name}</span>
-                    <span className="text-xs opacity-75">
-                      Lastro: {regCategory.category.ballast}kg
-                    </span>
-                  </div>
-                </Badge>
-              ))
-            ) : (
-              <span className="text-xs text-muted-foreground">
-                Sem categorias
-              </span>
-            )}
-          </div>
-        </div>
-      </TableCell>
-      <TableCell className="text-center py-4">
-        {getStatusBadge(registration)}
-      </TableCell>
-      <TableCell className="text-center py-4">
-        <PaymentInfo registration={registration} />
-      </TableCell>
-      <TableCell className="text-center py-4">
-        <div className="text-sm font-medium">
-          {formatDateToBrazilian(registration.createdAt)}
-        </div>
-      </TableCell>
-      <TableCell className="text-center py-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={() => onAction("viewDetails", registration.id)}
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              Ver detalhes
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onAction("changeCategories", registration.id)}
-            >
-              <Users className="h-4 w-4 mr-2" />
-              Trocar categorias
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </TableCell>
-    </TableRow>
-  );
+const toTelHref = (raw?: string) => {
+  if (!raw) return "";
+  const digits = String(raw).replace(/\D/g, "");
+  if (!digits) return "";
+  return `tel:${digits}`;
 };
 
-// Hook personalizado para gerenciar filtros e ordenação
-const usePilotsFilters = () => {
-  const [filters, setFilters] = useState<FilterValues>({});
-  const [sortBy, setSortBy] = useState<string>("user.name");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+// Link WhatsApp a partir de um telefone bruto
+const toWhatsAppHref = (raw?: string) => {
+  if (!raw) return "";
+  const digits = String(raw).replace(/\D/g, "");
+  if (!digits) return "";
+  // Se não tiver DDI, assume Brasil (55)
+  const withCountry = digits.length <= 11 ? `55${digits}` : digits;
+  return `https://wa.me/${withCountry}`;
+};
 
-  const handleSort = useCallback((column: string) => {
-    setSortBy((prevSortBy) => {
-      if (prevSortBy === column) {
-        setSortOrder((prevOrder) => (prevOrder === "asc" ? "desc" : "asc"));
-      } else {
-        setSortOrder("asc");
-      }
-      return column;
-    });
-  }, []);
+type PilotFinancial = {
+  paid: number;
+  pending: number;
+  overdue: number;
+  paidInstallments: number;
+  totalInstallments: number;
+};
 
-  const handleFiltersChange = useCallback((newFilters: FilterValues) => {
-    setFilters(newFilters);
-  }, []);
-
-  return {
-    filters,
-    sortBy,
-    sortOrder,
-    handleSort,
-    handleFiltersChange,
+type PilotCard = {
+  userId: string;
+  name: string;
+  nickname?: string | null;
+  phone?: string;
+  categories: string[];
+  financial: PilotFinancial;
+  status: {
+    overdue: boolean;
+    pending: boolean;
+    paid: boolean;
+    direct: boolean;
+    exempt: boolean;
+    refunded: boolean;
+    cancelled: boolean;
+  };
+  inscription: {
+    bySeason: boolean;
+    stages: { id: string; name: string; date?: string }[];
   };
 };
 
-/**
- * Tab de pilotos inscritos no campeonato
- * Exibe lista de todos os pilotos inscritos nas temporadas do campeonato
- */
+const computeFinancial = (regs: SeasonRegistration[]): PilotFinancial => {
+  let paid = 0;
+  let pending = 0;
+  let overdue = 0;
+  let paidInstallments = 0;
+  let totalInstallments = 0;
+
+  for (const reg of regs) {
+    const payments = (reg as any).payments || [];
+    if (Array.isArray(payments) && payments.length > 0) {
+      totalInstallments += payments.length;
+      for (const p of payments) {
+        const status = String(p.status || "").toUpperCase();
+        const value = Number(p.value) || 0;
+        if (["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"].includes(status)) {
+          paid += value;
+          paidInstallments += 1;
+        } else if (status === "OVERDUE") {
+          overdue += value;
+        } else if (["PENDING", "AWAITING_PAYMENT", "AWAITING_RISK_ANALYSIS"].includes(status)) {
+          pending += value;
+        }
+      }
+    } else {
+      // Inscrições administrativas sem pagamentos
+      if (reg.paymentStatus === "exempt" || reg.paymentStatus === "direct_payment" || reg.paymentStatus === "paid") {
+        paid += Number(reg.amount) || 0;
+        totalInstallments += 1;
+        paidInstallments += 1;
+      }
+    }
+  }
+
+  return { paid, pending, overdue, paidInstallments, totalInstallments };
+};
+
+const getPhoneFromRegistration = (reg?: SeasonRegistration) => {
+  if (!reg) return undefined;
+  return reg.user?.phone;
+};
+
+const getNicknameFromRegistration = (reg?: SeasonRegistration) => {
+  if (!reg) return undefined;
+  return reg.user?.nickname || reg.profile?.nickName || null;
+};
+
+const computeStatusFlags = (regs: SeasonRegistration[]) => {
+  let overdue = false;
+  let pending = false;
+  let paid = false;
+  let direct = false;
+  let exempt = false;
+  let refunded = false;
+  let cancelled = false;
+
+  for (const reg of regs) {
+    const payments = (reg as any).payments || [];
+    if (Array.isArray(payments) && payments.length > 0) {
+      for (const p of payments) {
+        const status = String(p.status || "").toUpperCase();
+        if (status === "OVERDUE") overdue = true;
+        else if (status === "PENDING" || status === "AWAITING_PAYMENT" || status === "AWAITING_RISK_ANALYSIS") pending = true;
+        else if (status === "REFUNDED") refunded = true;
+        else if (status === "CANCELLED") cancelled = true;
+        else if (status === "RECEIVED" || status === "CONFIRMED" || status === "RECEIVED_IN_CASH") paid = true;
+      }
+    }
+    if (reg.paymentStatus === "exempt") {
+      exempt = true;
+      paid = true; // considerar como quitado
+    }
+    if (reg.paymentStatus === "direct_payment") {
+      direct = true;
+      paid = true; // considerar como quitado
+    }
+    if (reg.paymentStatus === "paid") {
+      paid = true;
+    }
+  }
+
+  return { overdue, pending, paid, direct, exempt, refunded, cancelled };
+};
+
 export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
-  const isMobile = useIsMobile();
+  const { getRegistrations, getCategories, getSeasons, updateRegistration, loading, error } = useChampionshipData();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "pending" | "overdue" | "exempt">("all");
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string>("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [inscriptionFilter, setInscriptionFilter] = useState<"all" | "season" | "stage">("all");
 
-  // Usar o contexto de dados do campeonato
-  const {
-    getSeasons,
-    getCategories,
-    getRegistrations,
-    loading: contextLoading,
-    error: contextError,
-  } = useChampionshipData();
+  // Dados brutos do contexto
+  const registrations = getRegistrations();
 
-  // Obter dados do contexto
-  const contextSeasons = getSeasons();
-  const contextCategories = getCategories();
-  const contextRegistrations = getRegistrations();
-
-  // Estados para o modal de edição de categorias
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [selectedRegistration, setSelectedRegistration] =
-    useState<SeasonRegistration | null>(null);
-  const [availableCategories, setAvailableCategories] = useState<Category[]>(
-    [],
-  );
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
-  const [updatingCategories, setUpdatingCategories] = useState(false);
-  const [categoryError, setCategoryError] = useState<string | null>(null);
-
-  // Estados para o modal de detalhes do piloto
-  const [showPilotDetailsModal, setShowPilotDetailsModal] = useState(false);
-  const [selectedPilotRegistrationId, setSelectedPilotRegistrationId] =
-    useState<string | null>(null);
-
-  // --- Lógica para Mobile (Scroll Infinito) ---
-  const [visibleMobileRegistrations, setVisibleMobileRegistrations] = useState<
-    SeasonRegistration[]
-  >([]);
-  const observer = useRef<IntersectionObserver>();
-
-  // Usar hooks personalizados
-  const { filters, sortBy, sortOrder, handleSort, handleFiltersChange } =
-    usePilotsFilters();
-
-  // Usar inscrições do contexto e aplicar filtros
-  const processedRegistrations = useMemo(() => {
-    let result = [...contextRegistrations];
-
-    // Aplicar filtros
-    result = result.filter((registration) => {
-      // Filtro por temporada
-      if (
-        filters.seasonId &&
-        filters.seasonId !== "all" &&
-        registration.season.id !== filters.seasonId
-      ) {
-        return false;
-      }
-
-      // Filtro por categoria
-      if (
-        filters.categoryId &&
-        filters.categoryId !== "all" &&
-        !registration.categories?.some(
-          (rc) => rc.category.id === filters.categoryId,
-        )
-      ) {
-        return false;
-      }
-
-      // Filtro por status da inscrição
-      if (
-        filters.status &&
-        filters.status !== "all" &&
-        registration.status !== filters.status
-      ) {
-        return false;
-      }
-
-      // Filtro por status do pagamento
-      if (filters.paymentStatus && filters.paymentStatus !== "all") {
-        // Verificação especial para filtro "overdue" - incluir pilotos com parcelas vencidas
-        if (filters.paymentStatus === "overdue") {
-          // Verificar se o status do pagamento é 'overdue' OU se há parcelas vencidas
-          const hasOverdueStatus = registration.paymentStatus === "overdue";
-          const hasOverduePayments = registration.payments?.some(
-            (payment) => payment.status === "OVERDUE",
-          );
-
-          if (!hasOverdueStatus && !hasOverduePayments) {
-            return false;
-          }
-        }
-        // Verificação especial para filtro "pending" - incluir pilotos com parcelas pendentes (sem parcelas vencidas)
-        else if (filters.paymentStatus === "pending") {
-          // Verificar se o status do pagamento é 'pending' OU se há parcelas pendentes (sem vencidas)
-          const hasPendingStatus = registration.paymentStatus === "pending";
-          const hasPendingPayments = registration.payments?.some((payment) =>
-            ["PENDING", "AWAITING_PAYMENT", "AWAITING_RISK_ANALYSIS"].includes(
-              payment.status,
-            ),
-          );
-          const hasOverduePayments = registration.payments?.some(
-            (payment) => payment.status === "OVERDUE",
-          );
-
-          // Só incluir se tem status pending OU tem parcelas pendentes E não tem parcelas vencidas
-          if (
-            !hasPendingStatus &&
-            (!hasPendingPayments || hasOverduePayments)
-          ) {
-            return false;
-          }
-        } else {
-          // Para outros filtros, usar a lógica original
-          if (registration.paymentStatus !== filters.paymentStatus) {
-            return false;
-          }
-        }
-      }
-
-      return true;
-    });
-
-    // Aplicar ordenação
-    result.sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
-
-      // Obter valores baseado no campo de ordenação
-      if (sortBy === "user.name") {
-        aValue = a.user?.name || "";
-        bValue = b.user?.name || "";
-      } else if (sortBy === "createdAt") {
-        aValue = new Date(a.createdAt);
-        bValue = new Date(b.createdAt);
-      } else if (sortBy === "paymentStatus") {
-        aValue = a.paymentStatus || "";
-        bValue = b.paymentStatus || "";
-      } else {
-        // Fallback para outros campos
-        aValue = (a as any)[sortBy] || "";
-        bValue = (b as any)[sortBy] || "";
-      }
-
-      // Converter para string e normalizar para comparação
-      if (typeof aValue === "string") {
-        aValue = aValue.toLowerCase();
-        bValue = bValue.toLowerCase();
-      }
-
-      if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
-      if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return result;
-  }, [contextRegistrations, filters, sortBy, sortOrder]);
-
-  // Hook de paginação usando os dados filtrados
-  const pagination = usePagination(processedRegistrations.length, 10, 1);
-
-  // Estados para mobile (scroll infinito)
-  const [mobilePage, setMobilePage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const mobileItemsPerPage = 5;
-
-  // Memoizar a configuração dos filtros para evitar re-renders
-  const seasonOptions = useMemo(
-    () => [
-      { value: "all", label: "Todas as temporadas" },
-      ...contextSeasons.map((season: any) => ({
-        value: season.id,
-        label: season.name,
-      })),
-    ],
-    [contextSeasons],
-  );
-
-  const categoryOptions = useMemo(
-    () => [
-      { value: "all", label: "Todas as categorias" },
-      ...contextCategories.map((category: any) => ({
-        value: category.id,
-        label: category.name,
-      })),
-    ],
-    [contextCategories],
-  );
-
-  const filterFields = useMemo(
-    () => createFilterFields(seasonOptions, categoryOptions),
-    [seasonOptions, categoryOptions],
-  );
-
-  // --- Lógica para Desktop (Paginação) ---
-  const paginatedDesktopRegistrations = useMemo(() => {
-    if (isMobile) return [];
-    return processedRegistrations.slice(
-      pagination.info.startIndex,
-      pagination.info.endIndex,
-    );
-  }, [
-    isMobile,
-    processedRegistrations,
-    pagination.info.startIndex,
-    pagination.info.endIndex,
-  ]);
-
-  // --- Lógica para Mobile (Scroll Infinito) ---
-  useEffect(() => {
-    if (isMobile) {
-      setVisibleMobileRegistrations(
-        processedRegistrations.slice(0, mobileItemsPerPage),
-      );
-      setMobilePage(2);
-      setHasMore(processedRegistrations.length > mobileItemsPerPage);
+  // Agregar por usuário
+  const pilots: PilotCard[] = useMemo(() => {
+    const byUser = new Map<string, SeasonRegistration[]>();
+    for (const reg of registrations) {
+      const uid = reg.userId || (reg as any).user?.id;
+      if (!uid) continue;
+      if (!byUser.has(uid)) byUser.set(uid, []);
+      byUser.get(uid)!.push(reg);
     }
-  }, [isMobile, processedRegistrations, mobileItemsPerPage]);
 
-  const lastRegistrationElementRef = useCallback(
-    (node: HTMLElement | null) => {
-      if (loadingMore) return;
-      if (observer.current) observer.current.disconnect();
-
-      observer.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && hasMore) {
-          setLoadingMore(true);
-          setTimeout(() => {
-            const newRegistrations = processedRegistrations.slice(
-              0,
-              mobilePage * mobileItemsPerPage,
-            );
-            setVisibleMobileRegistrations(newRegistrations);
-            setHasMore(newRegistrations.length < processedRegistrations.length);
-            setMobilePage((prev) => prev + 1);
-            setLoadingMore(false);
-          }, 300);
+    const list: PilotCard[] = [];
+    for (const [userId, regs] of byUser.entries()) {
+      const first = regs[0];
+      const name = first.user?.name || userId;
+      const nickname = getNicknameFromRegistration(first);
+      const phone = getPhoneFromRegistration(first);
+      const categoriesSet = new Set<string>();
+      for (const r of regs) {
+        const cats: any[] = (r as any).categories || [];
+        for (const c of cats) {
+          const label = c?.category?.name || c?.name || c?.categoryName || c?.category_id || "Categoria";
+          categoriesSet.add(String(label));
         }
+      }
+
+      const financial = computeFinancial(regs);
+      const status = computeStatusFlags(regs);
+
+      // Inscrição por temporada/etapa
+      let bySeason = false;
+      const stagesMap = new Map<string, { id: string; name: string; date?: string }>();
+      for (const r of regs) {
+        if ((r as any).inscriptionType === "por_temporada") {
+          bySeason = true;
+        }
+        if ((r as any).inscriptionType === "por_etapa") {
+          const regStages: any[] = (r as any).stages || [];
+          for (const s of regStages) {
+            const sid = s?.stage?.id || s?.stageId;
+            if (!sid) continue;
+            if (!stagesMap.has(String(sid))) {
+              stagesMap.set(String(sid), {
+                id: String(sid),
+                name: s?.stage?.name || s?.name || "Etapa",
+                date: s?.stage?.date || s?.date,
+              });
+            }
+          }
+        }
+      }
+      const stages = Array.from(stagesMap.values()).sort((a, b) => {
+        const da = a.date ? new Date(a.date).getTime() : Number.MAX_SAFE_INTEGER;
+        const db = b.date ? new Date(b.date).getTime() : Number.MAX_SAFE_INTEGER;
+        return da - db;
       });
 
-      if (node) observer.current.observe(node);
-    },
-    [
-      loadingMore,
-      hasMore,
-      mobilePage,
-      processedRegistrations,
-      mobileItemsPerPage,
-    ],
-  );
-
-  const processedRegistrationsForDisplay = isMobile
-    ? visibleMobileRegistrations
-    : paginatedDesktopRegistrations;
-
-  // Resetar página quando filtros mudarem
-  useEffect(() => {
-    if (!isMobile) {
-      pagination.actions.goToFirstPage();
-    }
-  }, [filters, sortBy, sortOrder, isMobile]);
-
-  // Scroll ao topo quando a página mudar
-  useEffect(() => {
-    if (!isMobile) {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  }, [pagination.state.currentPage, isMobile]);
-
-  const handleRegistrationAction = async (
-    action: string,
-    registrationId: string,
-  ) => {
-    const registration = contextRegistrations.find(
-      (r: SeasonRegistration) => r.id === registrationId,
-    );
-    if (!registration) return;
-
-    switch (action) {
-      case "changeCategories":
-        try {
-          // Usar categorias do contexto em vez de buscar do backend
-          const allCategories = getCategories();
-          const seasonCategories = allCategories.filter(
-            (cat) => cat.seasonId === registration.season.id,
-          );
-          setAvailableCategories(seasonCategories);
-          setSelectedCategoryIds(
-            registration.categories?.map((rc) => rc.category.id) || [],
-          );
-          setSelectedRegistration(registration);
-          setCategoryError(null);
-          setShowCategoryModal(true);
-        } catch (err: any) {
-          console.error("Error loading categories:", err);
-        }
-        break;
-      case "viewDetails":
-        setSelectedPilotRegistrationId(registrationId);
-        setShowPilotDetailsModal(true);
-        break;
-      default:
-        console.warn(`Unknown action: ${action}`);
-    }
-  };
-
-  const getStatusBadge = (registration: SeasonRegistration) => {
-    // Se for inscrição administrativa (isenta ou pagamento direto), considerar como confirmada
-    if (
-      registration.paymentStatus === "exempt" ||
-      registration.paymentStatus === "direct_payment"
-    ) {
-      return (
-        <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">
-          Confirmado
-        </Badge>
-      );
+      list.push({
+        userId,
+        name,
+        nickname,
+        phone,
+        categories: Array.from(categoriesSet).sort((a, b) => a.localeCompare(b, "pt-BR")),
+        financial,
+        status,
+        inscription: { bySeason, stages },
+      });
     }
 
-    return (
-      <Badge
-        className={
-          registration.status === "confirmed"
-            ? "bg-green-100 text-green-800 border-green-200 text-xs"
-            : registration.status === "pending" ||
-                registration.status === "payment_pending"
-              ? "bg-yellow-100 text-yellow-800 border-yellow-200 text-xs"
-              : registration.status === "cancelled" ||
-                  registration.status === "expired"
-                ? "bg-red-100 text-red-800 border-red-200 text-xs"
-                : registration.status === "exempt"
-                  ? "bg-green-100 text-green-800 border-green-200 text-xs"
-                  : registration.status === "direct_payment"
-                    ? "bg-green-100 text-green-800 border-green-200 text-xs"
-                    : "bg-gray-100 text-gray-800 border-gray-200 text-xs"
-        }
-      >
-        {registration.status === "confirmed"
-          ? "Confirmado"
-          : registration.status === "payment_pending"
-            ? "Aguardando pagamento"
-            : registration.status === "pending"
-              ? "Pendente"
-              : registration.status === "cancelled"
-                ? "Cancelado"
-                : registration.status === "expired"
-                  ? "Expirado"
-                  : registration.status === "exempt"
-                    ? "Isento"
-                    : registration.status === "direct_payment"
-                      ? "Pagamento Direto"
-                      : registration.status}
-      </Badge>
-    );
-  };
+    // Ordenar por nome
+    return list.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  }, [registrations]);
 
-  const handleCategoryToggle = (categoryId: string) => {
-    setSelectedCategoryIds((prev) => {
-      if (prev.includes(categoryId)) {
-        return prev.filter((id) => id !== categoryId);
-      } else {
-        return [...prev, categoryId];
+  // Filtro de busca e status
+  const filteredPilots = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return pilots.filter((p) => {
+      const matchesSearch = !term
+        || p.name.toLowerCase().includes(term)
+        || (p.nickname && p.nickname.toLowerCase().includes(term))
+        || p.categories.some((c) => c.toLowerCase().includes(term));
+
+      let matchesStatus = true;
+      if (statusFilter === "paid") {
+        // Considerar pagos diretos também como pagos
+        matchesStatus = (p.financial.overdue === 0 && p.financial.pending === 0 && p.financial.paid > 0) || p.status.direct === true;
+      } else if (statusFilter === "pending") {
+        matchesStatus = p.financial.overdue === 0 && p.financial.pending > 0;
+      } else if (statusFilter === "overdue") {
+        matchesStatus = p.financial.overdue > 0;
+      } else if (statusFilter === "exempt") {
+        matchesStatus = p.status.exempt === true;
       }
+
+      // Filtro por temporada e categoria (usa inscrições originais)
+      const regsForPilot = registrations.filter((r) => r.userId === p.userId);
+      const matchesSeason = !selectedSeasonId
+        ? true
+        : regsForPilot.some((r) => (r.season?.id || (r as any).seasonId) === selectedSeasonId);
+
+      let matchesCategory = true;
+      if (selectedCategoryId) {
+        if (selectedSeasonId) {
+          matchesCategory = regsForPilot.some((r) => {
+            const sid = r.season?.id || (r as any).seasonId;
+            if (sid !== selectedSeasonId) return false;
+            const cats: any[] = (r as any).categories || [];
+            return cats.some((c) => String(c?.category?.id || c?.categoryId || c?.id) === selectedCategoryId);
+          });
+        } else {
+          matchesCategory = regsForPilot.some((r) => {
+            const cats: any[] = (r as any).categories || [];
+            return cats.some((c) => String(c?.category?.id || c?.categoryId || c?.id) === selectedCategoryId);
+          });
+        }
+      }
+
+      // Filtro por tipo de inscrição
+      let matchesInscription = true;
+      if (inscriptionFilter === "season") {
+        matchesInscription = p.inscription.bySeason === true;
+      } else if (inscriptionFilter === "stage") {
+        matchesInscription = (p.inscription.stages?.length || 0) > 0;
+      }
+
+      return matchesSearch && matchesStatus && matchesSeason && matchesCategory && matchesInscription;
+    });
+  }, [pilots, search, statusFilter, registrations, selectedSeasonId, selectedCategoryId, inscriptionFilter]);
+
+  // --- Modal de edição de categorias ---
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingPilot, setEditingPilot] = useState<PilotCard | null>(null);
+  const [seasonCategorySelection, setSeasonCategorySelection] = useState<Record<string, Set<string>>>({});
+  const [saving, setSaving] = useState(false);
+
+  const allCategories = getCategories();
+  const seasons = getSeasons();
+
+  const openEditCategories = (pilot: PilotCard) => {
+    // Construir seleção por temporada a partir das inscrições do piloto
+          const regsBySeason = registrations.filter((r) => r.userId === pilot.userId);
+    const initial: Record<string, Set<string>> = {};
+    for (const reg of regsBySeason) {
+      const seasonId = reg.season?.id || reg.seasonId;
+      if (!seasonId) continue;
+      const cats: any[] = (reg as any).categories || [];
+      const selected = new Set<string>();
+      for (const c of cats) {
+        const id = c?.category?.id || c?.categoryId || c?.id;
+        if (id) selected.add(String(id));
+      }
+      initial[seasonId] = selected;
+    }
+    setSeasonCategorySelection(initial);
+    setEditingPilot(pilot);
+    setEditOpen(true);
+  };
+
+  const toggleCategory = (seasonId: string, categoryId: string, checked: boolean) => {
+    setSeasonCategorySelection((prev) => {
+      const next = { ...prev };
+      const set = new Set<string>(next[seasonId] ? Array.from(next[seasonId]) : []);
+      if (checked) set.add(categoryId);
+      else set.delete(categoryId);
+      next[seasonId] = set;
+      return next;
     });
   };
 
-  const handleUpdateCategories = async () => {
-    if (!selectedRegistration) return;
-
+  const onSaveCategories = async () => {
+    if (!editingPilot) return;
     try {
-      setUpdatingCategories(true);
-      setCategoryError(null);
+      setSaving(true);
+      const regsBySeason = registrations.filter((r) => r.userId === editingPilot.userId);
+      for (const reg of regsBySeason) {
+        const seasonId = reg.season?.id || reg.seasonId;
+        if (!seasonId) continue;
+        const selectedIds = Array.from(seasonCategorySelection[seasonId] || new Set<string>());
+        // Obter categorias atuais para comparar
+        const currentCats: any[] = (reg as any).categories || [];
+        const currentIds = currentCats
+          .map((c) => c?.category?.id || c?.categoryId || c?.id)
+          .filter(Boolean)
+          .map(String);
+        const changed = selectedIds.sort().join(",") !== currentIds.sort().join(",");
+        if (!changed) continue;
 
-      await SeasonRegistrationService.updateCategories(
-        selectedRegistration.id,
-        {
-          categoryIds: selectedCategoryIds,
-        },
-      );
+        const paymentStatus = (reg.paymentStatus === "exempt" || reg.paymentStatus === "direct_payment")
+          ? reg.paymentStatus
+          : "direct_payment"; // fallback seguro
+        const amount = Number(reg.amount) || 0;
 
-      // A lista será atualizada automaticamente pelo contexto
+        const { registration } = await SeasonRegistrationService.createAdminRegistration({
+          userId: editingPilot.userId,
+          seasonId: seasonId,
+          categoryIds: selectedIds,
+          paymentStatus: paymentStatus as any,
+          amount,
+        });
 
-      // Fechar modal
-      setShowCategoryModal(false);
-      setSelectedRegistration(null);
-      setSelectedCategoryIds([]);
-      setAvailableCategories([]);
-    } catch (error: any) {
-      console.error("Error updating categories:", error);
-      setCategoryError(error.message || "Erro ao atualizar categorias");
+        // Atualizar contexto
+        if (registration?.id) {
+          updateRegistration(registration.id, registration as any);
+        }
+      }
+      toast.success("Categorias atualizadas com sucesso");
+      setEditOpen(false);
+      setEditingPilot(null);
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao atualizar categorias");
     } finally {
-      setUpdatingCategories(false);
+      setSaving(false);
     }
   };
 
-  const handleCloseCategoryModal = () => {
-    setShowCategoryModal(false);
-    setSelectedRegistration(null);
-    setSelectedCategoryIds([]);
-    setAvailableCategories([]);
-    setCategoryError(null);
+  // --- Detalhes do piloto ---
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsPilot, setDetailsPilot] = useState<PilotCard | null>(null);
+
+  const openDetails = (pilot: PilotCard) => {
+    setDetailsPilot(pilot);
+    setDetailsOpen(true);
   };
 
-  const isPilotConfirmed = (registration: SeasonRegistration) => {
-    return (
-      registration.status === "confirmed" ||
-      registration.paymentStatus === "exempt" ||
-      registration.paymentStatus === "direct_payment"
-    );
-  };
-
-  // Função para exportar dados para Excel
-  const exportToExcel = useCallback(() => {
-    if (processedRegistrations.length === 0) {
-      alert("Não há dados para exportar");
-      return;
-    }
-
-    // Função explicativa de status de pagamento para o Excel
-    const getPaymentStatusLabelForExcel = (
-      registration: SeasonRegistration,
-    ) => {
-      let label = "";
-      // Status que indicam parcela paga
-      const paidStatusList = [
-        "PAID",
-        "RECEIVED",
-        "CONFIRMED",
-        "RECEIVED_IN_CASH",
-        "EXEMPT",
-        "DIRECT_PAYMENT",
-      ];
-      if (registration.paymentStatus === "failed") {
-        // Se houver algum pagamento vencido
-        if (
-          registration.payments &&
-          registration.payments.some((p) => p.status === "OVERDUE")
-        ) {
-          label = "Vencido";
-        } else {
-          label = "Falhou (Erro no pagamento)";
-        }
-      } else if (registration.paymentStatus === "overdue") {
-        label = "Vencido";
-      } else if (registration.paymentStatus === "processing") {
-        label = getPaymentStatusLabel(registration.paymentStatus);
-        if (registration.payments && registration.payments.length > 1) {
-          const paidCount = registration.payments.filter((p) =>
-            paidStatusList.includes(p.status),
-          ).length;
-          label += ` (${paidCount}/${registration.payments.length} pagas)`;
-        }
-      } else {
-        label = getPaymentStatusLabel(registration.paymentStatus);
-      }
-
-      // Se for parcelado e status vencido, mostrar apenas vencidas
-      if (
-        label.startsWith("Vencido") &&
-        registration.payments &&
-        registration.payments.length > 1
-      ) {
-        const overdueCount = registration.payments.filter(
-          (p) => p.status === "OVERDUE",
-        ).length;
-        label += ` (${overdueCount}/${registration.payments.length} vencidas)`;
-        return label;
-      }
-
-      // Se for parcelado, mostrar quantidade de parcelas pagas/vencidas (exceto para processing e vencido, já tratados acima)
-      if (
-        registration.paymentStatus !== "processing" &&
-        !label.startsWith("Vencido") &&
-        registration.payments &&
-        registration.payments.length > 1
-      ) {
-        const paidCount = registration.payments.filter((p) =>
-          paidStatusList.includes(p.status),
-        ).length;
-        const overdueCount = registration.payments.filter(
-          (p) => p.status === "OVERDUE",
-        ).length;
-        if (paidCount > 0 || overdueCount > 0) {
-          label += ` (${paidCount} pagas / ${overdueCount} vencidas)`;
-        }
-      }
-      return label;
-    };
-
+  const copyPixCode = async (code?: string | null) => {
+    if (!code) return;
     try {
-      // Preparar dados para exportação
-      const exportData = processedRegistrations.map((registration) => {
-        const categories =
-          registration.categories?.map((rc) => rc.category.name).join(", ") ||
-          "Sem categorias";
-        
-        // Preparar informações sobre etapas para inscrições por etapa
-        let etapasInfo = "";
-        if (registration.inscriptionType === "por_etapa") {
-          if (registration.stages && registration.stages.length > 0) {
-            const stageNames = registration.stages
-              .map((regStage) => {
-                // Verificar se regStage tem a propriedade stage e se stage tem name
-                if (regStage && regStage.stage && regStage.stage.name) {
-                  return regStage.stage.name;
-                }
-                // Fallback: verificar se regStage tem name diretamente
-                if (regStage && regStage.name) {
-                  return regStage.name;
-                }
-                return "Etapa não encontrada";
-              })
-              .filter(name => name !== "Etapa não encontrada"); // Remover etapas não encontradas
-            
-            etapasInfo = stageNames.length > 0 
-              ? stageNames.join(", ") 
-              : "Nenhuma etapa selecionada";
-          } else {
-            etapasInfo = "Nenhuma etapa selecionada";
-          }
-        } else {
-          etapasInfo = "Todas as etapas (inscrição por temporada)";
-        }
-
-        return {
-          "Nome do Piloto": formatName(registration.user.name),
-          Email: registration.user.email,
-          Telefone: registration.user.phone || "Não informado",
-          Temporada: registration.season.name,
-          Categorias: categories,
-          "Tipo de Inscrição": registration.inscriptionType === "por_temporada" ? "Por Temporada" : "Por Etapa",
-          "Etapas Inscritas": etapasInfo,
-          "Status da Inscrição": getRegistrationStatusLabel(
-            registration.status,
-          ),
-          "Status do Pagamento": getPaymentStatusLabelForExcel(registration),
-          Valor: formatCurrency(registration.amount),
-          "Método de Pagamento": getPaymentMethodLabel(
-            registration.paymentMethod,
-            registration.paymentStatus,
-          ),
-          "Data de Inscrição": formatDateToBrazilian(registration.createdAt),
-        };
-      });
-
-      // Ordenar por nome do piloto (alfabeticamente)
-      exportData.sort((a, b) => {
-        const nameA = a["Nome do Piloto"] || "";
-        const nameB = b["Nome do Piloto"] || "";
-        return nameA.localeCompare(nameB, "pt-BR");
-      });
-
-      // Criar workbook e worksheet
-      const ws = XLSX.utils.json_to_sheet(exportData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Pilotos");
-
-      // Ajustar largura das colunas
-      ws["!cols"] = [
-        { wch: 25 }, // Nome do Piloto
-        { wch: 30 }, // Email
-        { wch: 15 }, // Telefone
-        { wch: 20 }, // Temporada
-        { wch: 30 }, // Categorias
-        { wch: 15 }, // Tipo de Inscrição
-        { wch: 40 }, // Etapas Inscritas
-        { wch: 20 }, // Status da Inscrição
-        { wch: 20 }, // Status do Pagamento
-        { wch: 12 }, // Valor
-        { wch: 20 }, // Método de Pagamento
-        { wch: 15 }, // Data de Inscrição
-      ];
-
-      // Gerar nome do arquivo com data atual
-      const now = new Date();
-      const dateStr = now.toISOString().split("T")[0];
-      const fileName = `pilotos_campeonato_${dateStr}.xlsx`;
-
-      // Exportar arquivo
-      XLSX.writeFile(wb, fileName);
-    } catch (error) {
-      console.error("Erro ao exportar para Excel:", error);
-      alert("Erro ao exportar dados para Excel");
+      await navigator.clipboard.writeText(code);
+      toast.success("Código PIX copiado");
+    } catch {
+      toast.error("Falha ao copiar código PIX");
     }
-  }, [processedRegistrations]);
+  };
 
-  // Verificar se o contexto está pronto e se há dados
-  if (contextRegistrations.length === 0 && !contextLoading.registrations) {
+  const formatBRDate = (date?: string) => {
+    if (!date) return "-";
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return date;
+    return d.toLocaleDateString("pt-BR");
+  };
+
+  const renderStatusBadge = (f: PilotFinancial) => {
+    if (f.overdue > 0) return <Badge variant="destructive">Em atraso</Badge>;
+    if (f.pending > 0) return <Badge variant="secondary">Pendente</Badge>;
+    if (f.paid > 0) return <Badge variant="default">Pago</Badge>;
+    return <Badge variant="outline">Sem cobrança</Badge>;
+  };
+
+  if (loading.registrations) {
     return (
-      <Card className="w-full">
-        <div className="p-6">
-          <EmptyState
-            icon={Users}
-            title="Nenhum piloto inscrito"
-            description="Ainda não há pilotos inscritos nas temporadas deste campeonato"
-          />
-        </div>
-      </Card>
+      <div className="flex items-center justify-center py-8">
+        <Loading type="spinner" size="sm" message="Carregando pilotos..." />
+      </div>
     );
   }
 
-  if (contextError.registrations) {
+  if (error.registrations) {
     return (
-      <Card className="w-full">
-        <div className="p-6">
-          <Alert variant="destructive">
-            <AlertTitle>Erro ao carregar pilotos</AlertTitle>
-            <AlertDescription>{contextError.registrations}</AlertDescription>
-          </Alert>
-          <div className="mt-4">
-            <Button onClick={() => window.location.reload()} variant="outline">
-              Tentar novamente
-            </Button>
-          </div>
-        </div>
-      </Card>
-    );
-  }
-
-  if (
-    processedRegistrations.length === 0 &&
-    Object.keys(filters).length === 0 &&
-    !contextLoading.registrations
-  ) {
-    return (
-      <EmptyState
-        icon={Users}
-        title="Nenhum piloto inscrito"
-        description="Ainda não há pilotos inscritos nas temporadas deste campeonato"
-      />
+      <Alert>
+        <AlertDescription>{error.registrations}</AlertDescription>
+      </Alert>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Título da aba */}
-      <div className="border-b border-gray-200 pb-4">
-        <h2 className="text-2xl font-bold text-gray-900">Pilotos</h2>
-        <p className="text-sm text-gray-600 mt-1">
-          Gerencie os pilotos inscritos no campeonato
-        </p>
-      </div>
-
-      {/* Header com filtros */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-        <div className="flex-1 w-full sm:w-auto">
-          <DynamicFilter
-            fields={filterFields}
-            onFiltersChange={handleFiltersChange}
-            className="w-full"
-          />
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="text-sm text-muted-foreground">
-            {processedRegistrations.length} piloto
-            {processedRegistrations.length !== 1 ? "s" : ""} encontrado
-            {processedRegistrations.length !== 1 ? "s" : ""}
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div className="flex-1">
+          <div className="text-xs text-muted-foreground mb-1">Busca</div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, apelido ou categoria..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10"
+            />
           </div>
-          {processedRegistrations.length > 0 && (
-            <Button
-              onClick={exportToExcel}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2"
+        </div>
+        <div className="w-full sm:w-auto">
+          <div className="text-xs text-muted-foreground mb-1">Filtros financeiros</div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className={`px-3 py-2 text-sm rounded-md border w-full sm:w-auto ${statusFilter === "all" ? "bg-primary text-white border-primary" : "bg-background"}`}
+              onClick={() => setStatusFilter("all")}
             >
-              <Download className="h-4 w-4" />
-              Exportar Excel
-            </Button>
-          )}
+              Todos
+            </button>
+            <button
+              className={`px-3 py-2 text-sm rounded-md border w-full sm:w-auto ${statusFilter === "paid" ? "bg-primary text-white border-primary" : "bg-background"}`}
+              onClick={() => setStatusFilter("paid")}
+            >
+              Pagos
+            </button>
+            <button
+              className={`px-3 py-2 text-sm rounded-md border w-full sm:w-auto ${statusFilter === "pending" ? "bg-primary text-white border-primary" : "bg-background"}`}
+              onClick={() => setStatusFilter("pending")}
+            >
+              Pendentes
+            </button>
+            <button
+              className={`px-3 py-2 text-sm rounded-md border w-full sm:w-auto ${statusFilter === "overdue" ? "bg-primary text-white border-primary" : "bg-background"}`}
+              onClick={() => setStatusFilter("overdue")}
+            >
+              Em atraso
+            </button>
+            <button
+              className={`px-3 py-2 text-sm rounded-md border w-full sm:w-auto ${statusFilter === "exempt" ? "bg-primary text-white border-primary" : "bg-background"}`}
+              onClick={() => setStatusFilter("exempt")}
+            >
+              Isentos
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-2 w-full">
+        <div className="w-full sm:w-auto">
+          <div className="text-xs text-muted-foreground mb-1">Temporada</div>
+          <select
+            value={selectedSeasonId}
+            onChange={(e) => setSelectedSeasonId(e.target.value)}
+            className="w-full sm:w-56 bg-background border rounded-md px-3 py-2 text-sm"
+          >
+            <option value="">Todas as temporadas</option>
+            {seasons.map((s: any) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="w-full sm:w-auto">
+          <div className="text-xs text-muted-foreground mb-1">Categoria</div>
+          <select
+            value={selectedCategoryId}
+            onChange={(e) => setSelectedCategoryId(e.target.value)}
+            className="w-full sm:w-56 bg-background border rounded-md px-3 py-2 text-sm"
+          >
+            <option value="">Todas as categorias</option>
+            {(() => {
+              const seasonId = selectedSeasonId;
+              const cats = allCategories.filter((c) => !seasonId || c.seasonId === seasonId);
+              return cats.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ));
+            })()}
+          </select>
+        </div>
+        <div className="w-full sm:w-auto">
+          <div className="text-xs text-muted-foreground mb-1">Tipo de inscrição</div>
+          <select
+            value={inscriptionFilter}
+            onChange={(e) => setInscriptionFilter(e.target.value as any)}
+            className="w-full sm:w-56 bg-background border rounded-md px-3 py-2 text-sm"
+          >
+            <option value="all">Todos os tipos</option>
+            <option value="season">Por temporada</option>
+            <option value="stage">Por etapa</option>
+          </select>
         </div>
       </div>
 
-      {isMobile ? (
-        <>
-          <div className="space-y-4">
-            {processedRegistrationsForDisplay.map((registration, index) => (
-              <div
-                key={registration.id}
-                ref={
-                  processedRegistrationsForDisplay.length === index + 1
-                    ? lastRegistrationElementRef
-                    : null
-                }
-              >
-                <PilotCard
-                  registration={registration}
-                  onAction={handleRegistrationAction}
-                  getStatusBadge={getStatusBadge}
-                />
-              </div>
-            ))}
-          </div>
-          {loadingMore && (
-            <div className="flex justify-center items-center py-4">
-              <InlineLoader size="sm" />
-            </div>
-          )}
-          {!loadingMore &&
-            !hasMore &&
-            processedRegistrationsForDisplay.length > 0 && (
-              <div className="text-center text-sm text-muted-foreground py-4">
-                Fim dos resultados.
-              </div>
-            )}
-        </>
+      {/* Grid de pilotos */}
+      {filteredPilots.length === 0 ? (
+        <Alert>
+          <AlertDescription>
+            Nenhum piloto encontrado {search ? "para a busca aplicada." : "no campeonato."}
+          </AlertDescription>
+        </Alert>
       ) : (
-        <Card className="w-full flex flex-col min-h-[600px]">
-          <div className="flex-1 overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted/50 min-w-[200px]"
-                    onClick={() => handleSort("user.name")}
-                  >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredPilots.map((p) => {
+            const tel = toTelHref(p.phone);
+            const hasPhone = Boolean(tel);
+            return (
+              <Card key={p.userId} className="w-full">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <User2 className="h-5 w-5 text-muted-foreground" />
+                      <div className="truncate">
+                        <div className="font-semibold truncate text-sm sm:text-base">{formatName(p.name)}</div>
+                        {p.nickname && (
+                          <div className="text-xs text-muted-foreground truncate">@{p.nickname}</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                      {/* Regras de cor seguindo FinancialTab */}
+                      {p.status.refunded && (
+                        <Badge className="bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-100 hover:text-purple-800 hover:border-purple-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">
+                          Reembolsado
+                        </Badge>
+                      )}
+                      {p.status.overdue && !p.status.refunded && (
+                        <Badge className="bg-red-100 text-red-800 border-red-200 hover:bg-red-100 hover:text-red-800 hover:border-red-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">
+                          Vencido
+                        </Badge>
+                      )}
+                      {p.status.pending && !p.status.overdue && !p.status.refunded && (
+                        <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100 hover:text-yellow-800 hover:border-yellow-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">
+                          Pendente
+                        </Badge>
+                      )}
+                      {p.status.direct && (
+                        <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 hover:text-green-800 hover:border-green-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">
+                          Pagamento Direto
+                        </Badge>
+                      )}
+                      {p.status.exempt && (
+                        <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 hover:text-green-800 hover:border-green-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">
+                          Isento
+                        </Badge>
+                      )}
+                      {!p.status.overdue && !p.status.pending && p.status.paid && !p.status.refunded && !p.status.cancelled && !p.status.direct && !p.status.exempt && (
+                        <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 hover:text-green-800 hover:border-green-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">
+                          Pago
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-1 gap-2 text-sm">
                     <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      Piloto
-                      {sortBy === "user.name" && (
-                        <span className="text-xs">
-                          {sortOrder === "asc" ? "↑" : "↓"}
-                        </span>
+                      <Wallet className="h-4 w-4 text-muted-foreground" />
+                      <div className="grid grid-cols-1 gap-1 text-sm">
+                        {p.financial.paid > 0 && (
+                          <div>
+                            <span className="text-muted-foreground">Pago:</span>{" "}
+                            <span className="font-medium text-green-700">{formatCurrency(p.financial.paid)}</span>
+                          </div>
+                        )}
+                        {p.financial.pending > 0 && (
+                          <div>
+                            <span className="text-muted-foreground">Pendente:</span>{" "}
+                            <span className="font-medium text-yellow-700">{formatCurrency(p.financial.pending)}</span>
+                          </div>
+                        )}
+                        {p.financial.overdue > 0 && (
+                          <div>
+                            <span className="text-muted-foreground">Em atraso:</span>{" "}
+                            <span className="font-medium text-red-600">{formatCurrency(p.financial.overdue)}</span>
+                          </div>
+                        )}
+                        {p.financial.totalInstallments > 1 && (
+                          <div className="text-xs text-muted-foreground">
+                            Parcelas: {p.financial.paidInstallments}/{p.financial.totalInstallments}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground">Inscrição</div>
+                      <div className="flex flex-wrap gap-1">
+                        {p.inscription.bySeason && (
+                          <Badge variant="outline" className="text-xs">Por Temporada</Badge>
+                        )}
+                        {p.inscription.stages.length > 0 && (
+                          <Badge variant="outline" className="text-xs">Por Etapa</Badge>
+                        )}
+                      </div>
+                      {p.inscription.stages.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {p.inscription.stages.map((st) => (
+                            <Badge key={st.id} variant="secondary" className="text-xs">
+                              {st.name}
+                            </Badge>
+                          ))}
+                        </div>
                       )}
                     </div>
-                  </TableHead>
-                  <TableHead className="text-center">Temporada</TableHead>
-                  <TableHead className="text-center">Categorias</TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted/50 text-center"
-                    onClick={() => handleSort("paymentStatus")}
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      <span>Status</span>
-                      {sortBy === "paymentStatus" && (
-                        <span className="text-xs">
-                          {sortOrder === "asc" ? "↑" : "↓"}
-                        </span>
-                      )}
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      {(() => {
+                        const wa = toWhatsAppHref(p.phone);
+                        return wa ? (
+                          <a href={wa} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">
+                            {formatPhoneBR(p.phone)}
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground">Telefone não informado</span>
+                        );
+                      })()}
                     </div>
-                  </TableHead>
-                  <TableHead className="text-center">Pagamento</TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted/50 text-center"
-                    onClick={() => handleSort("createdAt")}
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      Data Inscrição
-                      {sortBy === "createdAt" && (
-                        <span className="text-xs">
-                          {sortOrder === "asc" ? "↑" : "↓"}
-                        </span>
+                    <div className="flex flex-col gap-2">
+                      {p.categories.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {p.categories.map((c) => (
+                            <Badge key={c} variant="outline" className="text-xs">
+                              {c}
+                            </Badge>
+                          ))}
+                        </div>
                       )}
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" onClick={() => openDetails(p)} className="inline-flex items-center gap-2">
+                          Detalhes
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => openEditCategories(p)} className="inline-flex items-center gap-2">
+                          <Settings2 className="h-4 w-4" />
+                          Editar categorias
+                        </Button>
+                      </div>
                     </div>
-                  </TableHead>
-                  <TableHead className="text-center">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {processedRegistrationsForDisplay.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={7}
-                      className="text-center py-8 text-muted-foreground"
-                    >
-                      Nenhum piloto encontrado com os filtros aplicados
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  processedRegistrationsForDisplay.map((registration) => (
-                    <PilotTableRow
-                      key={registration.id}
-                      registration={registration}
-                      onAction={handleRegistrationAction}
-                      getStatusBadge={getStatusBadge}
-                    />
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Paginação sempre fixada na parte inferior */}
-          {processedRegistrations.length > 0 && (
-            <div className="flex-shrink-0">
-              <Pagination
-                currentPage={pagination.state.currentPage}
-                totalPages={pagination.info.totalPages}
-                itemsPerPage={pagination.state.itemsPerPage}
-                totalItems={processedRegistrations.length}
-                startIndex={pagination.info.startIndex}
-                endIndex={pagination.info.endIndex}
-                hasNextPage={pagination.info.hasNextPage}
-                hasPreviousPage={pagination.info.hasPreviousPage}
-                onPageChange={pagination.actions.setCurrentPage}
-                onItemsPerPageChange={pagination.actions.setItemsPerPage}
-              />
-            </div>
-          )}
-        </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
-      {/* Modal de Edição de Categorias */}
-      <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
-        <DialogContent className="w-[95vw] max-w-md p-4 sm:p-6">
+      {/* Modal de edição de categorias */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="w-[95vw] max-w-2xl p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle>Trocar Categorias</DialogTitle>
+            <DialogTitle>Editar categorias</DialogTitle>
             <DialogDescription>
-              Selecione as novas categorias para{" "}
-              {formatName(selectedRegistration?.user.name)}. A quantidade deve
-              ser a mesma da inscrição original (
-              {selectedRegistration?.categories?.length || 0} categoria
-              {selectedRegistration?.categories?.length !== 1 ? "s" : ""}).
+              Selecione as categorias por temporada para {editingPilot ? formatName(editingPilot.name) : "o piloto"}.
             </DialogDescription>
           </DialogHeader>
-
-          {categoryError && (
-            <Alert variant="destructive">
-              <AlertTitle>Erro</AlertTitle>
-              <AlertDescription>{categoryError}</AlertDescription>
-            </Alert>
-          )}
-
-          <div className="space-y-4">
-            <div className="text-sm font-medium">
-              Categorias selecionadas: {selectedCategoryIds.length} de{" "}
-              {selectedRegistration?.categories?.length || 0}
-            </div>
-
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {availableCategories.map((category) => (
-                <label
-                  key={category.id}
-                  className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedCategoryIds.includes(category.id)}
-                    onChange={() => handleCategoryToggle(category.id)}
-                    className="rounded"
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium">{category.name}</div>
-                    <div className="text-sm text-muted-foreground">
-                      Lastro: {category.ballast}kg | Max. Pilotos:{" "}
-                      {category.maxPilots} | Idade mín.: {category.minimumAge}{" "}
-                      anos
-                    </div>
+          <div className="space-y-6">
+            {editingPilot ? (
+              (() => {
+                const regsBySeason = registrations.filter((r) => (r.userId || (r as any).user?.id) === editingPilot.userId);
+                if (regsBySeason.length === 0) {
+                  return (
+                    <Alert>
+                      <AlertDescription>Este piloto não possui inscrições neste campeonato.</AlertDescription>
+                    </Alert>
+                  );
+                }
+                return (
+                  <div className="space-y-4">
+                    {regsBySeason.map((reg) => {
+                      const seasonId = reg.season?.id || reg.seasonId;
+                      const seasonName = seasons.find((s: any) => s.id === seasonId)?.name || "Temporada";
+                      const options = allCategories.filter((c) => c.seasonId === seasonId);
+                      const selected = seasonCategorySelection[seasonId] || new Set<string>();
+                      return (
+                        <div key={seasonId} className="border rounded-lg p-4">
+                          <div className="font-medium mb-3">{seasonName}</div>
+                          {options.length === 0 ? (
+                            <div className="text-sm text-muted-foreground">Sem categorias disponíveis para esta temporada.</div>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {options.map((cat) => (
+                                <label key={cat.id} className="flex items-center gap-2 text-sm">
+                                  <Checkbox
+                                    checked={selected.has(cat.id)}
+                                    onCheckedChange={(checked) => toggleCategory(seasonId, cat.id, Boolean(checked))}
+                                  />
+                                  <span>{cat.name}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                </label>
-              ))}
-            </div>
+                );
+              })()
+            ) : null}
           </div>
-
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={handleCloseCategoryModal}
-              disabled={updatingCategories}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleUpdateCategories}
-              disabled={
-                updatingCategories ||
-                selectedCategoryIds.length !==
-                  (selectedRegistration?.categories?.length || 0)
-              }
-            >
-              {updatingCategories ? "Atualizando..." : "Atualizar Categorias"}
-            </Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>Cancelar</Button>
+            <Button onClick={onSaveCategories} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Detalhes do Piloto */}
-      {selectedPilotRegistrationId && (
-        <PilotDetailsModal
-          isOpen={showPilotDetailsModal}
-          onClose={() => {
-            setShowPilotDetailsModal(false);
-            setSelectedPilotRegistrationId(null);
-          }}
-          registrationId={selectedPilotRegistrationId}
-        />
-      )}
+      {/* Modal de detalhes do piloto */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="w-screen sm:w-[90vw] max-w-4xl h-[100vh] sm:h-[90vh] p-4 sm:p-6 overflow-hidden sm:rounded-lg rounded-none flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Piloto</DialogTitle>
+            <DialogDescription>
+              {detailsPilot ? (
+                <div className="mt-2">
+                  <div className="font-semibold text-base sm:text-lg">{formatName(detailsPilot.name)} {detailsPilot.nickname && (<span className="text-xs text-muted-foreground">(@{detailsPilot.nickname})</span>)}</div>
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    {detailsPilot.status.refunded && (
+                      <Badge className="bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-100 hover:text-purple-800 hover:border-purple-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">Reembolsado</Badge>
+                    )}
+                    {detailsPilot.status.overdue && !detailsPilot.status.refunded && (
+                      <Badge className="bg-red-100 text-red-800 border-red-200 hover:bg-red-100 hover:text-red-800 hover:border-red-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">Vencido</Badge>
+                    )}
+                    {detailsPilot.status.pending && !detailsPilot.status.overdue && !detailsPilot.status.refunded && (
+                      <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100 hover:text-yellow-800 hover:border-yellow-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">Pendente</Badge>
+                    )}
+                    {detailsPilot.status.direct && (
+                      <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 hover:text-green-800 hover:border-green-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">Pagamento Direto</Badge>
+                    )}
+                    {detailsPilot.status.exempt && (
+                      <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 hover:text-green-800 hover:border-green-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">Isento</Badge>
+                    )}
+                    {!detailsPilot.status.overdue && !detailsPilot.status.pending && detailsPilot.status.paid && !detailsPilot.status.refunded && !detailsPilot.status.cancelled && !detailsPilot.status.direct && !detailsPilot.status.exempt && (
+                      <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 hover:text-green-800 hover:border-green-800 hover:border-2 whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">Pago</Badge>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+
+          {detailsPilot && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 overflow-y-auto flex-1 pr-1">
+              {/* Contato */}
+              <Card>
+                <CardContent className="p-4 space-y-1">
+                  <div className="text-xs text-muted-foreground">Contato</div>
+                  <div className="text-sm">E-mail: <span className="font-medium">{registrations.find(r => r.userId === detailsPilot.userId)?.user?.email || "-"}</span></div>
+                  <div className="text-sm">Telefone: {detailsPilot.phone ? (
+                    <a href={toWhatsAppHref(detailsPilot.phone)} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">{formatPhoneBR(detailsPilot.phone)}</a>
+                  ) : (
+                    <span className="text-muted-foreground">Não informado</span>
+                  )}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 space-y-1">
+                  <div className="text-xs text-muted-foreground">Resumo financeiro</div>
+                  {(() => {
+                    const regs = registrations.filter(r => r.userId === detailsPilot.userId);
+                    const f = computeFinancial(regs);
+                    return (
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        <div>
+                          <div className="text-muted-foreground">Pago</div>
+                          <div className="font-semibold text-green-700">{formatCurrency(f.paid)}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Pendente</div>
+                          <div className="font-semibold text-yellow-700">{formatCurrency(f.pending)}</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Em atraso</div>
+                          <div className="font-semibold text-red-600">{formatCurrency(f.overdue)}</div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+              {/* Perfil do Piloto */}
+              <div className="contents">
+                {(() => {
+                  const regs = registrations.filter(r => r.userId === detailsPilot.userId);
+                  const prof = regs.find(r => r.profile)?.profile || regs[0]?.profile;
+                  const boolText = (v?: boolean) => v === true ? 'Sim' : v === false ? 'Não' : '-';
+                  const mapEnum = (labels: Record<number, string>, v?: any) => {
+                    const n = typeof v === 'string' ? parseInt(v) : v;
+                    return labels[n as number] ?? v;
+                  };
+
+                  if (!prof) {
+                    return (
+                      <Card className="lg:col-span-2">
+                        <CardContent className="p-6 text-center">
+                          <div className="text-muted-foreground">Sem informações de perfil disponíveis.</div>
+                        </CardContent>
+                      </Card>
+                    );
+                  }
+
+                  return (
+                    <>
+                      {/* Informações Pessoais */}
+                      <Card className="lg:col-span-2">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <User2 className="h-5 w-5" />
+                            Informações Pessoais
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Nome Completo</label>
+                                <div className="text-base font-semibold mt-1">
+                                  {prof.nickName || regs[0]?.user?.name || '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Apelido</label>
+                                <div className="text-base mt-1">
+                                  {prof.nickName ? `@${prof.nickName}` : '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Data de Nascimento</label>
+                                <div className="text-base mt-1">
+                                  {prof.birthDate ? formatBRDate(prof.birthDate) : '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Gênero</label>
+                                <div className="text-base mt-1">
+                                  {mapEnum(genderLabels as any, prof.gender) || '-'}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Localização</label>
+                                <div className="text-base mt-1">
+                                  {prof.city && prof.state ? `${prof.city}, ${prof.state}` : '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Email</label>
+                                <div className="text-base mt-1 break-all">
+                                  {regs[0]?.user?.email || '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Telefone</label>
+                                <div className="text-base mt-1">
+                                  {regs[0]?.user?.phone ? formatPhoneBR(regs[0].user.phone) : '-'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Experiência e Competição */}
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Settings2 className="h-5 w-5" />
+                            Experiência e Competição
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Tempo de Experiência</label>
+                                <div className="text-base mt-1">
+                                  {mapEnum(kartExperienceYearsLabels as any, prof.experienceTime) || '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Frequência de Corrida</label>
+                                <div className="text-base mt-1">
+                                  {mapEnum(raceFrequencyLabels as any, prof.raceFrequency) || '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Nível Competitivo</label>
+                                <div className="text-base mt-1">
+                                  {mapEnum(competitiveLevelLabels as any, prof.competitiveLevel) || '-'}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Participação em Campeonatos</label>
+                                <div className="text-base mt-1">
+                                  {mapEnum(championshipParticipationLabels as any, prof.championshipParticipation) || '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Frequência em Eventos</label>
+                                <div className="text-base mt-1">
+                                  {mapEnum(attendsEventsLabels as any, prof.attendsEvents) || '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Kartódromo Preferido</label>
+                                <div className="text-base mt-1">
+                                  {prof.preferredTrack || '-'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Equipamentos e Equipe */}
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Wallet className="h-5 w-5" />
+                            Equipamentos e Equipe
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Possui Kart Próprio</label>
+                                <div className="text-base mt-1">
+                                  <Badge variant={prof.hasOwnKart ? "default" : "secondary"}>
+                                    {boolText(prof.hasOwnKart)}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Usa Telemetria</label>
+                                <div className="text-base mt-1">
+                                  <Badge variant={prof.usesTelemetry ? "default" : "secondary"}>
+                                    {boolText(prof.usesTelemetry)}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Tipo de Telemetria</label>
+                                <div className="text-base mt-1">
+                                  {prof.telemetryType || '-'}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Participa de Equipe</label>
+                                <div className="text-base mt-1">
+                                  <Badge variant={prof.isTeamMember ? "default" : "secondary"}>
+                                    {boolText(prof.isTeamMember)}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium text-muted-foreground">Nome da Equipe</label>
+                                <div className="text-base mt-1">
+                                  {prof.teamName || '-'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Categorias de Interesse */}
+                      {prof.interestCategories && prof.interestCategories.length > 0 && (
+                        <Card className="lg:col-span-2">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                              <Settings2 className="h-5 w-5" />
+                              Categorias de Interesse
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex flex-wrap gap-2">
+                              {prof.interestCategories.map((category, idx) => (
+                                <Badge key={idx} variant="outline" className="text-sm">
+                                  {(interestCategoryLabels as any)[typeof category === 'string' ? parseInt(category) : category]}
+                                </Badge>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+
+              {/* Inscrições */}
+              <Card className="lg:col-span-1">
+                <CardContent className="p-4 space-y-3">
+                  <div className="text-xs text-muted-foreground">Inscrições</div>
+                  {(() => {
+                    const regs = registrations.filter(r => r.userId === detailsPilot.userId);
+                    if (regs.length === 0) return (
+                      <div className="text-sm text-muted-foreground">Sem inscrições.</div>
+                    );
+                    // Agrupar por temporada
+                    const bySeason = new Map<string, { name: string; typeSet: Set<string>; categories: string[]; stages: { name: string; date?: string }[] }>();
+                    for (const r of regs) {
+                      const sid = r.season?.id || (r as any).seasonId || "-";
+                      const sname = r.season?.name || "Temporada";
+                      if (!bySeason.has(String(sid))) bySeason.set(String(sid), { name: sname, typeSet: new Set(), categories: [], stages: [] });
+                      const entry = bySeason.get(String(sid))!;
+                      entry.typeSet.add((r as any).inscriptionType || "");
+                      const cats: any[] = (r as any).categories || [];
+                      for (const c of cats) {
+                        const label = c?.category?.name || c?.name || c?.categoryName;
+                        if (label && !entry.categories.includes(label)) entry.categories.push(label);
+                      }
+                      const st: any[] = (r as any).stages || [];
+                      for (const s of st) {
+                        entry.stages.push({ name: s?.stage?.name || s?.name || "Etapa", date: s?.stage?.date || s?.date });
+                      }
+                    }
+                    const rows = Array.from(bySeason.entries()).map(([sid, e]) => ({ sid, ...e, stages: e.stages.sort((a, b) => (a.date ? new Date(a.date).getTime() : Number.MAX_SAFE_INTEGER) - (b.date ? new Date(b.date).getTime() : Number.MAX_SAFE_INTEGER)) }));
+                    return (
+                      <div className="space-y-3">
+                        {rows.map((row) => (
+                          <div key={row.sid} className="border rounded-md p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="font-medium">{row.name}</div>
+                              <div className="flex items-center gap-1">
+                                {Array.from(row.typeSet).includes("por_temporada") && (
+                                  <Badge variant="outline" className="text-xs whitespace-nowrap">Por Temporada</Badge>
+                                )}
+                                {Array.from(row.typeSet).includes("por_etapa") && (
+                                  <Badge variant="outline" className="text-xs whitespace-nowrap">Por Etapa</Badge>
+                                )}
+                              </div>
+                            </div>
+                            {row.categories.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {row.categories.map((c) => (
+                                  <Badge key={c} variant="secondary" className="text-xs whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]">{c}</Badge>
+                                ))}
+                              </div>
+                            )}
+                            {row.stages.length > 0 && (
+                              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {row.stages.map((st, idx) => (
+                                  <div key={idx} className="flex items-center justify-between text-sm border rounded p-2">
+                                    <span className="font-medium truncate">{st.name}</span>
+                                    <span className="text-muted-foreground ml-2">{formatBRDate(st.date)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+
+              {/* Pagamentos */}
+              <Card className="lg:col-span-1">
+                <CardContent className="p-4 space-y-3">
+                  <div className="text-xs text-muted-foreground">Pagamentos</div>
+                  {(() => {
+                    const regs = registrations.filter(r => r.userId === detailsPilot.userId);
+                    const payments: any[] = [];
+                    for (const r of regs) {
+                      const ps: any[] = (r as any).payments || [];
+                      for (const p of ps) payments.push({ ...p, seasonName: r.season?.name });
+                    }
+                    if (payments.length === 0) return (
+                      <div className="text-sm text-muted-foreground">Nenhuma cobrança encontrada.</div>
+                    );
+                    // ordenar por vencimento
+                    payments.sort((a, b) => new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime());
+                    const getBadge = (status: string) => {
+                      const s = String(status || "").toUpperCase();
+                      if (s === "OVERDUE") return <Badge className="bg-red-100 text-red-800 border-red-200 whitespace-nowrap">Vencido</Badge>;
+                      if (s === "PENDING" || s === "AWAITING_PAYMENT") return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 whitespace-nowrap">Pendente</Badge>;
+                      if (s === "AWAITING_RISK_ANALYSIS") return <Badge className="bg-blue-100 text-blue-800 border-blue-200 whitespace-nowrap">Em análise</Badge>;
+                      if (s === "REFUNDED") return <Badge className="bg-purple-100 text-purple-800 border-purple-200 whitespace-nowrap">Reembolsado</Badge>;
+                      if (s === "CANCELLED") return <Badge className="bg-gray-100 text-gray-800 border-gray-200 whitespace-nowrap">Cancelado</Badge>;
+                      if (s === "RECEIVED" || s === "CONFIRMED" || s === "RECEIVED_IN_CASH") return <Badge className="bg-green-100 text-green-800 border-green-200 whitespace-nowrap">Pago</Badge>;
+                      return <Badge variant="outline" className="whitespace-nowrap">{s}</Badge>;
+                    };
+                    return (
+                      <div className="space-y-2 max-h-[50vh] overflow-auto pr-1">
+                        {payments.map((p, idx) => (
+                          <div key={idx} className="flex items-center justify-between gap-2 border rounded-md p-2 text-sm">
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">{formatCurrency(Number(p.value) || 0)}</div>
+                              <div className="text-xs text-muted-foreground">Venc.: {formatBRDate(p.dueDate)}{p.installmentNumber ? ` • Parcela ${p.installmentNumber}${p.installmentCount ? `/${p.installmentCount}` : ""}` : ""}</div>
+                              {p.seasonName && (
+                                <div className="text-xs text-muted-foreground truncate">{p.seasonName}</div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {getBadge(p.status)}
+                              {p.pixCopyPaste && (
+                                <Button size="sm" variant="outline" onClick={() => copyPixCode(p.pixCopyPaste)}>Copiar PIX</Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          <DialogFooter className="mt-4 flex-shrink-0">
+            <Button variant="outline" onClick={() => setDetailsOpen(false)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
+
+

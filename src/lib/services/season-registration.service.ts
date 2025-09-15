@@ -1,5 +1,30 @@
 import api from "../axios";
 
+export interface MemberProfile {
+  id: string;
+  lastLoginAt: string;
+  nickName: string;
+  birthDate?: string;
+  gender?: number;
+  city: string;
+  state: string;
+  experienceTime?: number;
+  raceFrequency?: number;
+  championshipParticipation?: number;
+  competitiveLevel?: number;
+  hasOwnKart: boolean;
+  isTeamMember: boolean;
+  teamName?: string;
+  usesTelemetry: boolean;
+  telemetryType?: string;
+  attendsEvents?: number;
+  interestCategories?: number[];
+  preferredTrack?: string;
+  profileCompleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SeasonRegistration {
   id: string;
   userId: string;
@@ -15,11 +40,18 @@ export interface SeasonRegistration {
   inscriptionType: 'por_temporada' | 'por_etapa';
   createdAt: string;
   updatedAt: string;
-  user: any; // Simplified for now
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    nickname?: string | null;
+  };
   season: any; // Simplified for now
   categories: any[]; // Simplified for now
   stages?: any[]; // Simplified for now
   payments: RegistrationPaymentData[];
+  profile: MemberProfile | null;
 }
 
 export interface CreateRegistrationData {
@@ -44,9 +76,7 @@ export interface CreateAdminRegistrationData {
   notes?: string;
 }
 
-export interface UpdateCategoriesData {
-  categoryIds: string[];
-}
+// UpdateCategoriesData removido (funcionalidade da aba Pilotos)
 
 export interface RegistrationPaymentData {
   id: string;
@@ -66,12 +96,7 @@ export interface RegistrationPaymentData {
   pixCopyPaste?: string | null;
 }
 
-export interface PilotDetails {
-  registration: SeasonRegistration;
-  user: any;
-  profile: any;
-  payments: RegistrationPaymentData[];
-}
+// PilotDetails removido (funcionalidade da aba Pilotos)
 
 export class SeasonRegistrationService {
   private static readonly BASE_URL = "/season-registrations";
@@ -357,47 +382,12 @@ export class SeasonRegistrationService {
   /**
    * Atualizar categorias de uma inscrição
    */
-  static async updateCategories(
-    registrationId: string,
-    data: UpdateCategoriesData,
-  ): Promise<SeasonRegistration> {
-    try {
-      const response = await api.put<{
-        message: string;
-        data: SeasonRegistration;
-      }>(
-        `${SeasonRegistrationService.BASE_URL}/${registrationId}/categories`,
-        data,
-      );
-      return response.data.data;
-    } catch (error: any) {
-      console.error("Error updating registration categories:", error);
-      throw new Error(
-        error.response?.data?.message ||
-          "Erro ao atualizar categorias da inscrição.",
-      );
-    }
-  }
+  // updateCategories removido (funcionalidade da aba Pilotos)
 
   /**
    * Buscar detalhes completos do piloto inscrito
    */
-  static async getPilotDetails(registrationId: string): Promise<PilotDetails> {
-    try {
-      const response = await api.get<{
-        message: string;
-        data: PilotDetails;
-      }>(
-        `${SeasonRegistrationService.BASE_URL}/${registrationId}/pilot-details`,
-      );
-      return response.data.data;
-    } catch (error: any) {
-      console.error("Error fetching pilot details:", error);
-      throw new Error(
-        error.response?.data?.message || "Erro ao buscar detalhes do piloto.",
-      );
-    }
-  }
+  // getPilotDetails removido (funcionalidade da aba Pilotos)
 
   /**
    * Criar ou atualizar inscrição administrativa

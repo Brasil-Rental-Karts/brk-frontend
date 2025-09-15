@@ -4,8 +4,10 @@ import {
   Button,
   Tabs,
   TabsContent,
-  TabsList,
-  TabsTrigger,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
 } from "brk-design-system";
 import { AlertTriangle } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -20,11 +22,12 @@ import { StaffTab } from "@/components/championship/settings/StaffTab";
 import { CategoriesTab } from "@/components/championship/tabs/CategoriesTab";
 import { ClassificationTab } from "@/components/championship/tabs/ClassificationTab";
 import { PenaltiesTab } from "@/components/championship/tabs/PenaltiesTab";
-import { PilotsTab } from "@/components/championship/tabs/PilotsTab";
 import { RaceDayTab } from "@/components/championship/tabs/RaceDayTab";
 import { RegulationTab } from "@/components/championship/tabs/RegulationTab";
 import { SeasonsTab } from "@/components/championship/tabs/SeasonsTab";
 import { StagesTab } from "@/components/championship/tabs/StagesTab";
+import { FinancialTab } from "@/components/championship/tabs/FinancialTab";
+import { PilotsTab } from "@/components/championship/tabs/PilotsTab";
 import { Loading } from "@/components/ui/loading";
 import { useChampionshipData } from "@/contexts/ChampionshipContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -37,6 +40,7 @@ import { Season as BaseSeason } from "@/lib/services/season.service";
 import { Stage } from "@/lib/types/stage";
 import CreateChampionship from "@/pages/CreateChampionship";
 import { LapTimesChart } from "@/pages/LapTimesChart";
+ 
 
 // Estende a interface base da temporada para incluir as categorias
 type Season = BaseSeason & { categories?: Category[]; stages?: Stage[] };
@@ -65,7 +69,7 @@ export const Championship = () => {
   } = useChampionshipData();
 
   // Usar o hook de permissões de staff que encontra o usuário atual corretamente
-  type UserPermissionsWithAnalise = UserPermissions & { analise?: boolean };
+  type UserPermissionsWithAnalise = UserPermissions & { analise?: boolean; dashboard?: boolean };
   type UseStaffPermissionsReturn = {
     permissions: UserPermissionsWithAnalise;
     loading: boolean;
@@ -77,6 +81,7 @@ export const Championship = () => {
     error: permissionsError,
   } = useStaffPermissions(id || "");
   const emptyPermissions: UserPermissionsWithAnalise = {
+    dashboard: false,
     seasons: false,
     categories: false,
     stages: false,
@@ -98,6 +103,8 @@ export const Championship = () => {
 
   // Mapeamento de tabs (aceita inglês e português)
   const tabMapping: { [key: string]: string } = {
+    dashboard: "dashboard",
+    painel: "dashboard",
     seasons: "temporadas",
     temporadas: "temporadas",
     categories: "categorias",
@@ -140,6 +147,8 @@ export const Championship = () => {
       setChampionshipId(null);
     }
   }, [id, setChampionshipId]);
+
+  // Removido: verificação de membership específica. O controle volta a ser por permissões do hook.
 
   // Função para lidar com a mudança de tab
   const handleTabChange = useCallback(
@@ -187,42 +196,15 @@ export const Championship = () => {
     const disabledTabsWithoutSeasons = [
       "categorias",
       "etapas",
-      "pilotos",
       "regulamento",
     ];
-    const disabledTabsWithoutCategories = ["etapas", "pilotos"];
-
-    // Mapeamento de tabs para permissões
-    const tabPermissions: { [key: string]: keyof typeof permissions } = {
-      temporadas: "seasons",
-      categorias: "categories",
-      etapas: "stages",
-      pilotos: "pilots",
-      classificacao: "classification",
-      regulamento: "regulations",
-      penalties: "penalties",
-      "race-day": "raceDay",
-      "config-edit": "editChampionship",
-      "config-grid": "gridTypes",
-      "config-scoring": "scoringSystems",
-      "config-sponsors": "sponsors",
-      "config-staff": "staff",
-      "config-asaas": "asaasAccount",
-      analise: "staff",
-      analises: "analise",
-    };
+    const disabledTabsWithoutCategories = ["etapas"];
 
     if (tabFromUrl) {
       const mappedTab = tabMapping[tabFromUrl.toLowerCase()];
 
       if (mappedTab) {
         let shouldRedirect = false;
-
-        // Verificar se o usuário tem permissão para a aba
-        const requiredPermission = tabPermissions[mappedTab];
-        if (requiredPermission && !permissions[requiredPermission]) {
-          shouldRedirect = true;
-        }
 
         // Verificar se há dados necessários
         if (!hasSeasons && disabledTabsWithoutSeasons.includes(mappedTab)) {
@@ -235,11 +217,28 @@ export const Championship = () => {
         }
 
         if (shouldRedirect) {
-          // Redirecionar para a primeira aba disponível
+          // Redirecionar para a primeira aba disponível por permissões
+          const tabPermissions: { [key: string]: keyof typeof permissions } = {
+            dashboard: "dashboard",
+            temporadas: "seasons",
+            categorias: "categories",
+            etapas: "stages",
+            pilotos: "pilots",
+            classificacao: "classification",
+            regulamento: "regulations",
+            penalties: "penalties",
+            "race-day": "raceDay",
+            "config-edit": "editChampionship",
+            "config-grid": "gridTypes",
+            "config-scoring": "scoringSystems",
+            "config-sponsors": "sponsors",
+            "config-staff": "staff",
+            "config-asaas": "asaasAccount",
+            analises: "analise",
+          };
           const availableTabs = Object.entries(tabPermissions)
             .filter(([tab, permission]) => permissions[permission])
             .map(([tab]) => tab);
-
           const firstAvailableTab = availableTabs[0] || "temporadas";
 
           if (activeTab !== firstAvailableTab) {
@@ -252,6 +251,23 @@ export const Championship = () => {
       }
     }
   }, [searchParams, championship, activeTab, setSearchParams, permissions]);
+
+  // Definir aba inicial por prioridade quando não houver tab na URL
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab");
+    if (tabFromUrl) return;
+    if (!permissions || !championship) return;
+
+    const hasSeasonsLocal = !!championship?.seasons?.length;
+    let defaultTab = activeTab;
+    if (permissions.dashboard) defaultTab = "dashboard";
+    else if (permissions.classification && hasSeasonsLocal) defaultTab = "classificacao";
+    else if (permissions.raceDay && hasSeasonsLocal) defaultTab = "race-day";
+
+    if (defaultTab !== activeTab) {
+      handleTabChange(defaultTab);
+    }
+  }, [searchParams, permissions, championship, activeTab, handleTabChange]);
 
   // Loading state
   if (contextLoading.championshipInfo || permissionsLoading) {
@@ -310,103 +326,165 @@ export const Championship = () => {
         />
       </div>
 
-      {/* Sistema de tabs unificado - colado com o header */}
+      {/* Barra de grupos (apenas desktop) */}
+      <div className="hidden md:block bg-dark-900 text-white w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
+        <div className="container px-6 py-3 flex items-center gap-3">
+          {/* Visão Geral */}
+          {permissions?.dashboard && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <span
+                  className={`px-2 py-2 text-white hover:text-white border-b-2 cursor-pointer ${activeTab === "dashboard" ? "border-primary text-primary" : "border-transparent"}`}
+                >
+                  Visão Geral
+                </span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="bg-dark-900/90 text-white border-0 rounded-lg shadow-xl backdrop-blur-md p-1">
+                <DropdownMenuItem onClick={() => handleTabChange("dashboard")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                  Financeiro
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          {/* Gerencial */}
+          {(permissions?.seasons || permissions?.categories || permissions?.stages) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <span
+                  className={`px-2 py-2 text-white hover:text-white border-b-2 cursor-pointer ${["temporadas","categorias","etapas","regulamento"].includes(activeTab) ? "border-primary text-primary" : "border-transparent"}`}
+                >
+                  Gerencial
+                </span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="bg-dark-900/90 text-white border-0 rounded-lg shadow-xl backdrop-blur-md p-1">
+                {permissions?.seasons && (
+                  <DropdownMenuItem onClick={() => handleTabChange("temporadas")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Temporadas
+                  </DropdownMenuItem>
+                )}
+                {permissions?.categories && (
+                  <DropdownMenuItem disabled={!hasSeasons} onClick={() => handleTabChange("categorias")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Categorias
+                  </DropdownMenuItem>
+                )}
+                {permissions?.stages && (
+                  <DropdownMenuItem disabled={!hasCategories} onClick={() => handleTabChange("etapas")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Etapas
+                  </DropdownMenuItem>
+                )}
+                {permissions?.regulations && (
+                  <DropdownMenuItem disabled={!hasSeasons} onClick={() => handleTabChange("regulamento")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Regulamento
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          {/* Operacional */}
+          {(permissions?.pilots || permissions?.classification || permissions?.raceDay || permissions?.penalties || permissions?.regulations || permissions?.analise) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <span
+                  className={`px-2 py-2 text-white hover:text-white border-b-2 cursor-pointer ${["classificacao","race-day","penalties","analises","pilotos"].includes(activeTab) ? "border-primary text-primary" : "border-transparent"}`}
+                >
+                  Operacional
+                </span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="bg-dark-900/90 text-white border-0 rounded-lg shadow-xl backdrop-blur-md p-1">
+                {permissions?.pilots && (
+                  <DropdownMenuItem disabled={!hasSeasons} onClick={() => handleTabChange("pilotos")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Pilotos
+                  </DropdownMenuItem>
+                )}
+                {permissions?.classification && (
+                  <DropdownMenuItem disabled={!hasSeasons} onClick={() => handleTabChange("classificacao")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Classificação
+                  </DropdownMenuItem>
+                )}
+                {permissions?.raceDay && (
+                  <DropdownMenuItem disabled={!hasSeasons} onClick={() => handleTabChange("race-day")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Race Day
+                  </DropdownMenuItem>
+                )}
+                {permissions?.penalties && (
+                  <DropdownMenuItem disabled={!hasSeasons} onClick={() => handleTabChange("penalties")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Punições
+                  </DropdownMenuItem>
+                )}
+                {permissions?.analise && (
+                  <DropdownMenuItem onClick={() => handleTabChange("analises")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Análises Volta a Volta
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          {/* Configurações */}
+          {(permissions?.editChampionship || permissions?.gridTypes || permissions?.scoringSystems || permissions?.sponsors || permissions?.staff || permissions?.asaasAccount) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <span
+                  className={`px-2 py-2 text-white hover:text-white border-b-2 cursor-pointer ${["config-edit","config-grid","config-scoring","config-sponsors","config-staff","config-asaas"].includes(activeTab) ? "border-primary text-primary" : "border-transparent"}`}
+                >
+                  Configurações
+                </span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="bg-dark-900/90 text-white border-0 rounded-lg shadow-xl backdrop-blur-md p-1">
+                {permissions?.editChampionship && (
+                  <DropdownMenuItem onClick={() => handleTabChange("config-edit")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Editar Campeonado
+                  </DropdownMenuItem>
+                )}
+                {permissions?.gridTypes && (
+                  <DropdownMenuItem onClick={() => handleTabChange("config-grid")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Tipos de Grid
+                  </DropdownMenuItem>
+                )}
+                {permissions?.scoringSystems && (
+                  <DropdownMenuItem onClick={() => handleTabChange("config-scoring")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Sistemas de Pontuação
+                  </DropdownMenuItem>
+                )}
+                {permissions?.sponsors && (
+                  <DropdownMenuItem onClick={() => handleTabChange("config-sponsors")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Patrocinadores
+                  </DropdownMenuItem>
+                )}
+                {permissions?.staff && (
+                  <DropdownMenuItem onClick={() => handleTabChange("config-staff")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Equipe
+                  </DropdownMenuItem>
+                )}
+                {permissions?.asaasAccount && (
+                  <DropdownMenuItem onClick={() => handleTabChange("config-asaas")} className="focus:bg-white/10 hover:text-primary focus:text-primary data-[highlighted]:text-primary">
+                    Conta Asaas
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      </div>
+
+      {/* Sistema de conteúdo controlado por dropdown no header */}
       <Tabs
         value={activeTab}
         onValueChange={handleTabChange}
         className="h-full"
       >
-        {/* Seção das tabs com fundo escuro - sem espaçamento do header */}
-        <div className="bg-dark-900 text-white w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
-          <div
-            className={`container px-4 sm:px-10 ${isMobile ? "overflow-x-auto whitespace-nowrap scrollbar-hide" : ""}`}
-          >
-            <TabsList className="bg-transparent border-0 h-auto p-0 space-x-0">
-              {permissions?.seasons && (
-                <TabsTrigger
-                  value="temporadas"
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Temporadas
-                </TabsTrigger>
-              )}
-              {permissions?.categories && (
-                <TabsTrigger
-                  value="categorias"
-                  disabled={!hasSeasons}
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Categorias
-                </TabsTrigger>
-              )}
-              {permissions?.stages && (
-                <TabsTrigger
-                  value="etapas"
-                  disabled={!hasCategories}
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Etapas
-                </TabsTrigger>
-              )}
-              {permissions?.pilots && (
-                <TabsTrigger
-                  value="pilotos"
-                  disabled={!hasCategories}
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Pilotos
-                </TabsTrigger>
-              )}
-              {permissions?.classification && (
-                <TabsTrigger
-                  value="classificacao"
-                  disabled={!hasSeasons}
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Classificação
-                </TabsTrigger>
-              )}
-              {permissions?.regulations && (
-                <TabsTrigger
-                  value="regulamento"
-                  disabled={!hasSeasons}
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Regulamento
-                </TabsTrigger>
-              )}
-              {permissions?.penalties && (
-                <TabsTrigger
-                  value="penalties"
-                  disabled={!hasSeasons}
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Punições
-                </TabsTrigger>
-              )}
-              {permissions?.raceDay && (
-                <TabsTrigger
-                  value="race-day"
-                  disabled={!hasSeasons}
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Race Day
-                </TabsTrigger>
-              )}
-              {permissions?.analise && (
-                <TabsTrigger
-                  value="analises"
-                  className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-white/70 hover:text-white border-b-2 border-transparent rounded-none px-4 py-3 transition-colors"
-                >
-                  Análises
-                </TabsTrigger>
-              )}
-            </TabsList>
-          </div>
-        </div>
-
-        {/* Conteúdo das tabs com espaçamento fixo */}
+        {/* Conteúdo das seções */}
         <div className="px-4 pt-6">
+          {permissions?.dashboard && (
+            <TabsContent
+              value="dashboard"
+              className="mt-0 ring-0 focus-visible:outline-none"
+            >
+              <FinancialTab championshipId={id} />
+            </TabsContent>
+          )}
           {permissions?.seasons && (
             <TabsContent
               value="temporadas"
@@ -446,7 +524,7 @@ export const Championship = () => {
             </TabsContent>
           )}
 
-          {permissions?.pilots && hasCategories && (
+          {permissions?.pilots && hasSeasons && (
             <TabsContent
               value="pilotos"
               className="mt-0 ring-0 focus-visible:outline-none"
@@ -502,7 +580,7 @@ export const Championship = () => {
               value="config-edit"
               className="mt-0 ring-0 focus-visible:outline-none"
             >
-              <CreateChampionship />
+              <CreateChampionship championshipId={id} />
             </TabsContent>
           )}
 
