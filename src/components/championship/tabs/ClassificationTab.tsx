@@ -1165,58 +1165,62 @@ const ExportImageArea = forwardRef<HTMLDivElement, {
   return (
     <div
       ref={ref}
-      style={{ position: 'fixed', left: -10000, top: 0, width: 1200, background: '#ffffff', zIndex: -1 }}
+      style={{ position: 'fixed', left: -10000, top: 0, width: 1080, background: '#ffffff', zIndex: -1 }}
       className="text-gray-900"
     >
-      <div className="w-[1200px] bg-white">
+      <div className="w-[1080px] bg-white">
         {/* Header com cores do projeto e ênfase no campeonato */}
         <div className="relative overflow-hidden">
-          <div className="h-36 w-full bg-gradient-to-r from-primary-700 via-primary-600 to-primary-500" />
-          <div className="absolute inset-0 flex items-center gap-6 px-10">
+          <div className="h-64 w-full bg-gradient-to-r from-primary-700 via-primary-600 to-primary-500" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-10 text-center">
             {championshipLogoUrl ? (
               <img
                 src={championshipLogoUrl}
                 crossOrigin="anonymous"
                 alt="Logo do campeonato"
-                className="h-20 w-20 rounded-lg bg-white p-2 shadow-lg ring-1 ring-white/40"
+                className="h-28 w-28 rounded-xl object-contain shadow-lg drop-shadow-lg"
               />
             ) : (
-              <div className="h-20 w-20 rounded-lg bg-white/10" />
+              <div className="h-28 w-28 rounded-xl bg-white/10" />
             )}
             <div className="text-white drop-shadow">
-              <div className="text-3xl md:text-4xl font-extrabold tracking-tight leading-tight">
+              <div className="text-6xl font-extrabold tracking-tight leading-tight break-words">
                 {championshipName || 'Campeonato'}
               </div>
-              <div className="mt-3 text-sm opacity-90">{seasonName || 'Temporada'}</div>
             </div>
           </div>
         </div>
-        {/* Categoria em destaque abaixo do header */}
-        <div className="px-8 pt-3">
-          <div className="text-center text-black text-2xl font-extrabold tracking-tight">
-            {categoryName || 'Categoria'}
-          </div>
+        {/* Subheader com temporada e categoria, foco na leitura */}
+        <div className="px-10 py-6 text-center">
+          <div className="text-6xl font-extrabold text-black leading-tight">{categoryName || 'Categoria'}</div>
+          <div className="text-2xl text-gray-700 mt-2">{seasonName || 'Temporada'}</div>
         </div>
-        {/* Lista de classificação */}
-        <div className="px-8 py-6">
-          <div className="grid grid-cols-[80px_1fr_140px] text-xs font-medium uppercase tracking-wide text-gray-500">
+        {/* Lista de classificação alinhada e legível */}
+        <div className="px-6 pb-8">
+          <div className="grid grid-cols-[180px_1fr_300px] items-center text-2xl font-bold uppercase tracking-wide text-gray-700">
             <div>Posição</div>
             <div>Piloto</div>
             <div className="text-right">Pontos</div>
           </div>
-          <div className="mt-2 divide-y">
-            {rows.map((row, idx) => (
-              <div key={row.userId} className={`grid grid-cols-[80px_1fr_140px] items-center py-3 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                <div className="text-lg font-bold tabular-nums">{idx + 1}</div>
-                <div className="pr-4">
-                  <div className="text-base font-semibold leading-tight">{formatName(row.name)}</div>
-                  {row.nickname && (
-                    <div className="text-xs text-gray-500">@{row.nickname}</div>
-                  )}
+          <div className="mt-2">
+            {rows.map((row, idx) => {
+              const pos = idx + 1;
+              const posColor = pos === 1 ? 'text-yellow-600' : pos === 2 ? 'text-gray-500' : pos === 3 ? 'text-orange-600' : 'text-gray-800';
+              const rowBg = pos <= 3 ? 'bg-primary-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+              return (
+                <div key={row.userId} className={`grid grid-cols-[180px_1fr_300px] items-center py-6 ${rowBg}`}>
+                  <div className={`text-4xl font-extrabold tabular-nums ${posColor}`}>{pos.toString().padStart(2, '0')}</div>
+                  <div className="pr-6">
+                    <div className="text-3xl font-bold leading-snug tracking-tight break-words">{formatName(row.name)}</div>
+                    {row.nickname && <div className="text-lg text-gray-500">@{row.nickname}</div>}
+                  </div>
+                  <div className="text-right">
+                    <span className="text-4xl font-extrabold tabular-nums text-gray-900">{row.total}</span>
+                    <span className="ml-1 align-middle text-xl font-semibold text-gray-600">pts</span>
+                  </div>
                 </div>
-                <div className="text-right text-lg font-extrabold tabular-nums">{row.total}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
         {/* Rodapé discreto */}
