@@ -22,12 +22,13 @@ import {
   Medal,
   MoreVertical,
   RefreshCw,
+  Download,
   Star,
   Target,
   Trophy,
   Users,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, forwardRef } from "react";
 import { toast } from "sonner";
 
 import {
@@ -45,6 +46,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 // Removido: ChampionshipClassificationService
 import { Season, SeasonService } from "@/lib/services/season.service";
 import { formatName } from "@/utils/name";
+import html2canvas from "html2canvas";
 
 // Interfaces para a nova estrutura de dados do Redis
 interface ClassificationUser {
@@ -246,6 +248,8 @@ export const ClassificationTab = ({
   const [seasonStages, setSeasonStages] = useState<any[]>([]);
   const [loadingStages, setLoadingStages] = useState(false);
   const [savingClassification, setSavingClassification] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const exportRef = useRef<HTMLDivElement | null>(null);
 
   // Usar o contexto de dados do campeonato
   const {
@@ -258,6 +262,7 @@ export const ClassificationTab = ({
     error: contextError,
     getScoringSystems,
     getRegistrations,
+    getChampionshipInfo,
   } = useChampionshipData();
 
   // Obter dados do contexto
@@ -880,6 +885,70 @@ export const ClassificationTab = ({
             )}
             Atualizar classificação no site
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!selectedSeasonId || !filters.categoryId || exporting || tableRows.length === 0}
+            className="w-full sm:w-auto"
+            onClick={async () => {
+              if (!exportRef.current) return;
+              try {
+                setExporting(true);
+                // Garantir render no próximo frame
+                await new Promise((r) => requestAnimationFrame(() => r(null)));
+                // Aguardar carregamento de imagens do logo
+                const imgs = Array.from(exportRef.current.querySelectorAll('img'));
+                await Promise.all(
+                  imgs.map((img) =>
+                    img.complete && img.naturalHeight !== 0
+                      ? Promise.resolve()
+                      : new Promise<void>((resolve) => {
+                          const onLoadOrError = () => {
+                            img.removeEventListener('load', onLoadOrError);
+                            img.removeEventListener('error', onLoadOrError);
+                            resolve();
+                          };
+                          img.addEventListener('load', onLoadOrError);
+                          img.addEventListener('error', onLoadOrError);
+                        }),
+                  ),
+                );
+                const canvas = await html2canvas(
+                  exportRef.current,
+                  {
+                    background: '#ffffff',
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                  } as any,
+                );
+                const dataUrl = canvas.toDataURL('image/png');
+                const championshipInfo = getChampionshipInfo();
+                const season = contextSeasons.find((s) => s.id === selectedSeasonId);
+                const category = contextCategories.find((c) => c.id === String(filters.categoryId));
+                const fileSafe = (s?: string) => (s || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-_]/g, '');
+                const fileName = `classificacao-${fileSafe(championshipInfo?.name)}-${fileSafe(season?.name)}-${fileSafe(category?.name)}.png`;
+                const a = document.createElement('a');
+                a.href = dataUrl;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+              } catch (e: any) {
+                console.error('Erro ao exportar imagem', e);
+                toast.error(e?.message || 'Erro ao exportar imagem');
+              } finally {
+                setExporting(false);
+              }
+            }}
+          >
+            {exporting ? (
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            Exportar imagem
+          </Button>
         </div>
       </div>
 
@@ -1062,6 +1131,97 @@ export const ClassificationTab = ({
           )}
         </>
       )}
+
+      {/* Área oculta para exportação da imagem */}
+      <ExportImageArea
+        ref={exportRef}
+        rows={tableRows}
+        seasonId={selectedSeasonId}
+        categoryId={(filters.categoryId as string) || ''}
+        getSeasonName={(sid: string) => contextSeasons.find((s) => s.id === sid)?.name || ''}
+        getCategoryName={(cid: string) => contextCategories.find((c) => c.id === cid)?.name || ''}
+        championshipName={getChampionshipInfo()?.name || ''}
+        championshipLogoUrl={getChampionshipInfo()?.championshipImage || ''}
+      />
     </div>
   );
 };
+
+// Componente de exportação (fora do componente principal para isolar estilos)
+const ExportImageArea = forwardRef<HTMLDivElement, {
+  rows: Array<{ userId: string; name: string; nickname?: string | null; total: number }>;
+  seasonId: string;
+  categoryId: string;
+  championshipName: string;
+  championshipLogoUrl?: string;
+  getSeasonName: (id: string) => string;
+  getCategoryName: (id: string) => string;
+}>(function ExportImageArea(
+  { rows, seasonId, categoryId, championshipName, championshipLogoUrl, getSeasonName, getCategoryName },
+  ref,
+) {
+  const seasonName = seasonId ? getSeasonName(seasonId) : '';
+  const categoryName = categoryId ? getCategoryName(categoryId) : '';
+  return (
+    <div
+      ref={ref}
+      style={{ position: 'fixed', left: -10000, top: 0, width: 1200, background: '#ffffff', zIndex: -1 }}
+      className="text-gray-900"
+    >
+      <div className="w-[1200px] bg-white">
+        {/* Header com cores do projeto e ênfase no campeonato */}
+        <div className="relative overflow-hidden">
+          <div className="h-36 w-full bg-gradient-to-r from-primary-700 via-primary-600 to-primary-500" />
+          <div className="absolute inset-0 flex items-center gap-6 px-10">
+            {championshipLogoUrl ? (
+              <img
+                src={championshipLogoUrl}
+                crossOrigin="anonymous"
+                alt="Logo do campeonato"
+                className="h-20 w-20 rounded-lg bg-white p-2 shadow-lg ring-1 ring-white/40"
+              />
+            ) : (
+              <div className="h-20 w-20 rounded-lg bg-white/10" />
+            )}
+            <div className="text-white drop-shadow">
+              <div className="text-3xl md:text-4xl font-extrabold tracking-tight leading-tight">
+                {championshipName || 'Campeonato'}
+              </div>
+              <div className="mt-3 text-sm opacity-90">{seasonName || 'Temporada'}</div>
+            </div>
+          </div>
+        </div>
+        {/* Categoria em destaque abaixo do header */}
+        <div className="px-8 pt-3">
+          <div className="text-center text-black text-2xl font-extrabold tracking-tight">
+            {categoryName || 'Categoria'}
+          </div>
+        </div>
+        {/* Lista de classificação */}
+        <div className="px-8 py-6">
+          <div className="grid grid-cols-[80px_1fr_140px] text-xs font-medium uppercase tracking-wide text-gray-500">
+            <div>Posição</div>
+            <div>Piloto</div>
+            <div className="text-right">Pontos</div>
+          </div>
+          <div className="mt-2 divide-y">
+            {rows.map((row, idx) => (
+              <div key={row.userId} className={`grid grid-cols-[80px_1fr_140px] items-center py-3 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                <div className="text-lg font-bold tabular-nums">{idx + 1}</div>
+                <div className="pr-4">
+                  <div className="text-base font-semibold leading-tight">{formatName(row.name)}</div>
+                  {row.nickname && (
+                    <div className="text-xs text-gray-500">@{row.nickname}</div>
+                  )}
+                </div>
+                <div className="text-right text-lg font-extrabold tabular-nums">{row.total}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Rodapé discreto */}
+        <div className="px-8 pb-6 text-[11px] text-gray-400">Gerado por BRK • {new Date().toLocaleDateString('pt-BR')}</div>
+      </div>
+    </div>
+  );
+});
