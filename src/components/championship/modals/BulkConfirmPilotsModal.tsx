@@ -52,6 +52,7 @@ interface PilotCard {
   isConfirmed: boolean;
   isSelected: boolean;
   paymentStatus: string;
+  inscriptionType: "por_temporada" | "por_etapa";
 }
 
 export const BulkConfirmPilotsModal: React.FC<BulkConfirmPilotsModalProps> = ({
@@ -101,10 +102,47 @@ export const BulkConfirmPilotsModal: React.FC<BulkConfirmPilotsModalProps> = ({
         selectedStage.categoryIds.includes(category.id),
       );
 
-      // Filtrar registrations da temporada da etapa
-      const stageRegistrations = allRegistrations.filter(
-        (reg) => reg.season.id === selectedStage.seasonId,
-      );
+      // Helpers robustos para ler dados de etapas dentro da inscrição (formatos variados)
+      const getStageIdsFromRegistration = (reg: any): string[] => {
+        const ids: string[] = [];
+        // 1) reg.stages: string[] | { id }[] | { stageId }[]
+        const stagesA = Array.isArray(reg?.stages) ? reg.stages : [];
+        stagesA.forEach((s: any) => {
+          const sId = typeof s === "string" ? s : s?.stageId || s?.id;
+          if (sId && typeof sId === "string") ids.push(sId);
+        });
+        // 2) reg.seasonRegistrationStages: { stageId }[] | { stage: { id } }[]
+        const srs = Array.isArray(reg?.seasonRegistrationStages)
+          ? reg.seasonRegistrationStages
+          : Array.isArray(reg?.seasonRegistrationStage)
+            ? reg.seasonRegistrationStage
+            : [];
+        srs.forEach((s: any) => {
+          const sId = s?.stageId || s?.stage?.id || (typeof s === "string" ? s : undefined);
+          if (sId && typeof sId === "string") ids.push(sId);
+        });
+        // 3) reg.stageIds
+        const stagesB = Array.isArray(reg?.stageIds) ? reg.stageIds : [];
+        stagesB.forEach((sId: any) => {
+          if (sId && typeof sId === "string") ids.push(sId);
+        });
+        return Array.from(new Set(ids));
+      };
+
+      const registrationIncludesStage = (reg: any, stageId: string): boolean => {
+        const ids = getStageIdsFromRegistration(reg);
+        return ids.includes(stageId);
+      };
+
+      // Filtrar registrations válidas para a etapa selecionada
+      const stageRegistrations = allRegistrations.filter((reg) => {
+        if (reg.season?.id !== selectedStage.seasonId) return false;
+        if (reg.inscriptionType === "por_temporada") return true;
+        if (reg.inscriptionType === "por_etapa") {
+          return registrationIncludesStage(reg, selectedStage.id);
+        }
+        return false;
+      });
 
       const pilotCards: PilotCard[] = [];
 
@@ -122,6 +160,43 @@ export const BulkConfirmPilotsModal: React.FC<BulkConfirmPilotsModalProps> = ({
               part.status === "confirmed",
           );
 
+          // Determinar status de pagamento efetivo
+          // - por temporada: usa registration.paymentStatus
+          // - por etapa: tenta usar o paymentStatus do vínculo com a etapa selecionada
+          let effectivePaymentStatus = registration.paymentStatus;
+          if (registration.inscriptionType === "por_etapa") {
+            // Tentar obter a entrada da etapa em diferentes estruturas
+            const findStageEntry = (regObj: any): any | null => {
+              const candidates: any[] = [];
+              if (Array.isArray(regObj?.stages)) candidates.push(...regObj.stages);
+              if (Array.isArray(regObj?.seasonRegistrationStages)) candidates.push(...regObj.seasonRegistrationStages);
+              if (Array.isArray(regObj?.seasonRegistrationStage)) candidates.push(...regObj.seasonRegistrationStage);
+              if (Array.isArray(regObj?.stageRegistrations)) candidates.push(...regObj.stageRegistrations);
+              const entry = candidates.find((s: any) => {
+                const sId = typeof s === "string" ? s : s?.stageId || s?.id || s?.stage?.id;
+                return sId === selectedStage.id;
+              });
+              return entry || null;
+            };
+
+            const stageEntry = findStageEntry(registration);
+            // Mapear o status de pagamento por etapa, se existir
+            const stagePaidFlags = ["paid", "direct_payment"]; // valores que tratamos como pago
+            const stageStatus: any = stageEntry?.paymentStatus || stageEntry?.status;
+            const stagePaidBool: any = stageEntry?.paid || stageEntry?.isPaid;
+            if (typeof stageStatus === "string") {
+              effectivePaymentStatus = stageStatus;
+            }
+            if (stagePaidBool === true && !stageStatus) {
+              // Se houver apenas booleano indicando pago
+              effectivePaymentStatus = "paid";
+            }
+            // Normalizar direct_payment como pago
+            if (typeof effectivePaymentStatus === "string" && stagePaidFlags.includes(effectivePaymentStatus)) {
+              effectivePaymentStatus = effectivePaymentStatus;
+            }
+          }
+
           pilotCards.push({
             userId: registration.userId,
             userName: registration.user?.name || registration.userId,
@@ -129,7 +204,8 @@ export const BulkConfirmPilotsModal: React.FC<BulkConfirmPilotsModalProps> = ({
             categoryName: category.name,
             isConfirmed,
             isSelected: false, // Não selecionar por padrão
-            paymentStatus: registration.paymentStatus,
+            paymentStatus: effectivePaymentStatus,
+            inscriptionType: registration.inscriptionType,
           });
         });
       });
@@ -359,6 +435,14 @@ export const BulkConfirmPilotsModal: React.FC<BulkConfirmPilotsModalProps> = ({
             Pago
           </Badge>
         );
+      case "direct_payment":
+        // Tratar pagamento direto como Pago
+        return (
+          <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Pago
+          </Badge>
+        );
       case "pending":
       case "processing":
         return (
@@ -396,13 +480,6 @@ export const BulkConfirmPilotsModal: React.FC<BulkConfirmPilotsModalProps> = ({
             Isento
           </Badge>
         );
-      case "direct_payment":
-        return (
-          <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">
-            <CheckCircle className="h-3 w-3 mr-1" />
-            Pagamento Direto
-          </Badge>
-        );
       default:
         return (
           <Badge variant="outline" className="text-xs">
@@ -410,6 +487,23 @@ export const BulkConfirmPilotsModal: React.FC<BulkConfirmPilotsModalProps> = ({
           </Badge>
         );
     }
+  };
+
+  const getInscriptionTypeBadge = (
+    inscriptionType: "por_temporada" | "por_etapa",
+  ) => {
+    if (inscriptionType === "por_temporada") {
+      return (
+        <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
+          Por Temporada
+        </Badge>
+      );
+    }
+    return (
+      <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-xs">
+        Por Etapa
+      </Badge>
+    );
   };
 
   const selectedCount = getSelectedPilots().length;
@@ -559,31 +653,35 @@ export const BulkConfirmPilotsModal: React.FC<BulkConfirmPilotsModalProps> = ({
                     >
                       <CardContent className="p-3">
                         <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="font-medium text-sm">
-                              {formatName(pilot.userName)}
-                            </div>
-                            {pilot.isSelected ? (
-                              <Badge
-                                variant="default"
-                                className="bg-primary text-xs"
-                              >
-                                <Check className="h-3 w-3 mr-1" />
-                                Selecionado
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-xs">
-                                <UserX className="h-3 w-3 mr-1" />
-                                Não Confirmado
-                              </Badge>
-                            )}
+                          <div className="font-medium text-sm">
+                            {formatName(pilot.userName)}
                           </div>
 
-                          <div className="flex items-center justify-between">
-                            <div className="text-xs text-muted-foreground">
-                              {pilot.categoryName}
+                          <div className="text-xs text-muted-foreground">
+                            {pilot.categoryName}
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex gap-1">
+                              {pilot.isSelected ? (
+                                <Badge
+                                  variant="default"
+                                  className="bg-primary text-xs"
+                                >
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Selecionado
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs">
+                                  <UserX className="h-3 w-3 mr-1" />
+                                  Não Confirmado
+                                </Badge>
+                              )}
                             </div>
-                            {getPaymentStatusBadge(pilot.paymentStatus)}
+                            <div className="flex flex-wrap gap-1">
+                              {getInscriptionTypeBadge(pilot.inscriptionType)}
+                              {getPaymentStatusBadge(pilot.paymentStatus)}
+                            </div>
                           </div>
                         </div>
                       </CardContent>
@@ -695,34 +793,38 @@ export const BulkConfirmPilotsModal: React.FC<BulkConfirmPilotsModalProps> = ({
                     >
                       <CardContent className="p-3">
                         <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="font-medium text-sm">
-                              {formatName(pilot.userName)}
-                            </div>
-                            {pilot.isSelected ? (
-                              <Badge
-                                variant="default"
-                                className="bg-red-500 text-xs"
-                              >
-                                <X className="h-3 w-3 mr-1" />
-                                Selecionado
-                              </Badge>
-                            ) : (
-                              <Badge
-                                variant="default"
-                                className="bg-green-500 text-xs"
-                              >
-                                <UserCheck className="h-3 w-3 mr-1" />
-                                Confirmado
-                              </Badge>
-                            )}
+                          <div className="font-medium text-sm">
+                            {formatName(pilot.userName)}
                           </div>
 
-                          <div className="flex items-center justify-between">
-                            <div className="text-xs text-muted-foreground">
-                              {pilot.categoryName}
+                          <div className="text-xs text-muted-foreground">
+                            {pilot.categoryName}
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex gap-1">
+                              {pilot.isSelected ? (
+                                <Badge
+                                  variant="default"
+                                  className="bg-red-500 text-xs"
+                                >
+                                  <X className="h-3 w-3 mr-1" />
+                                  Selecionado
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="default"
+                                  className="bg-green-500 text-xs"
+                                >
+                                  <UserCheck className="h-3 w-3 mr-1" />
+                                  Confirmado
+                                </Badge>
+                              )}
                             </div>
-                            {getPaymentStatusBadge(pilot.paymentStatus)}
+                            <div className="flex flex-wrap gap-1">
+                              {getInscriptionTypeBadge(pilot.inscriptionType)}
+                              {getPaymentStatusBadge(pilot.paymentStatus)}
+                            </div>
                           </div>
                         </div>
                       </CardContent>
