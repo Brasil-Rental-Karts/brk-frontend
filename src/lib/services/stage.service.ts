@@ -168,9 +168,9 @@ export class StageService {
    * Verificar se uma etapa já passou
    */
   static isPastStage(dateString: string, timeString: string): boolean {
-    const stageDateTime = new Date(
-      `${dateString.split("T")[0]}T${timeString}Z`,
-    );
+    // Tratar data/hora como horário local (ex.: America/Sao_Paulo) e não UTC
+    // Remover o sufixo 'Z' evita adiantar 3h quando o horário está salvo em horário de Brasília
+    const stageDateTime = new Date(`${dateString.split("T")[0]}T${timeString}`);
     const now = new Date();
     return stageDateTime < now;
   }
@@ -179,14 +179,16 @@ export class StageService {
    * Verificar se uma etapa é hoje
    */
   static isTodayStage(dateString: string): boolean {
-    const stageDate = new Date(dateString);
-    const today = new Date();
-
-    return (
-      stageDate.getUTCFullYear() === today.getUTCFullYear() &&
-      stageDate.getUTCMonth() === today.getUTCMonth() &&
-      stageDate.getUTCDate() === today.getUTCDate()
-    );
+    if (!dateString) return false;
+    // Comparar somente a parte da data usando o fuso de São Paulo para evitar virar o dia às 21h (UTC)
+    const stageDateStr = dateString.slice(0, 10);
+    const todayStr = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    return stageDateStr === todayStr;
   }
 
   /**
