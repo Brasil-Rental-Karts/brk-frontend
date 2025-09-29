@@ -14,6 +14,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Loading } from "@/components/ui/loading";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/axios";
+import { SeasonRegistrationService } from "@/lib/services/season-registration.service";
+import { StageService } from "@/lib/services/stage.service";
+import { SeasonService } from "@/lib/services/season.service";
 
 const ConfirmParticipation = () => {
   const { stageId, categoryId } = useParams();
@@ -25,36 +28,112 @@ const ConfirmParticipation = () => {
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
-    if (!stageId || !categoryId) {
-      setError("Algum erro ocorreu ao confirmar sua participação.");
-      setLoading(false);
-      return;
-    }
-    if (!user) {
-      setError("Você precisa estar logado para confirmar sua participação.");
-      setLoading(false);
-      return;
-    }
-    api
-      .post(`/stage-participations/confirm`, {
-        stageId,
-        categoryId,
-      })
-      .then((res) => {
+    const confirmFlow = async () => {
+      if (!stageId || !categoryId) {
+        setError("Algum erro ocorreu ao confirmar sua participação.");
+        setLoading(false);
+        return;
+      }
+      if (!user) {
+        setError("Você precisa estar logado para confirmar sua participação.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Buscar dados da etapa para identificar a temporada
+        const stage = await StageService.getById(stageId);
+
+        // Buscar inscrições do usuário
+        const myRegistrations = await SeasonRegistrationService.getMyRegistrations();
+        const registration = myRegistrations.find((r: any) => r.season?.id === stage.seasonId);
+
+        if (!registration) {
+          // Sem inscrição para a temporada → redirecionar para página de inscrição
+          try {
+            const season = await SeasonService.getById(stage.seasonId);
+            if (season?.slug) {
+              navigate(`/registration/${season.slug}?stageId=${stageId}&categoryId=${categoryId}`);
+            } else {
+              navigate(`/season/${stage.seasonId}/register?stageId=${stageId}&categoryId=${categoryId}`);
+            }
+          } catch {
+            navigate(`/season/${stage.seasonId}/register?stageId=${stageId}&categoryId=${categoryId}`);
+          }
+          return;
+        }
+
+        // Para inscrições por_etapa, checar pagamento específico da etapa
+        if (registration.inscriptionType === "por_etapa") {
+          const findStageEntry = (regObj: any): any | null => {
+            const candidates: any[] = [];
+            if (Array.isArray(regObj?.stages)) candidates.push(...regObj.stages);
+            if (Array.isArray(regObj?.seasonRegistrationStages)) candidates.push(...regObj.seasonRegistrationStages);
+            if (Array.isArray(regObj?.seasonRegistrationStage)) candidates.push(...regObj.seasonRegistrationStage);
+            if (Array.isArray(regObj?.stageRegistrations)) candidates.push(...regObj.stageRegistrations);
+            const entry = candidates.find((s: any) => {
+              const sId = typeof s === "string" ? s : s?.stageId || s?.id || s?.stage?.id;
+              return sId === stageId;
+            });
+            return entry || null;
+          };
+
+          const stageEntry = findStageEntry(registration);
+
+          // Se a inscrição é por_etapa e NÃO inclui esta etapa, redirecionar para se inscrever na etapa
+          if (!stageEntry) {
+            try {
+              const season = await SeasonService.getById(stage.seasonId);
+              if (season?.slug) {
+                navigate(`/registration/${season.slug}/por_etapa?stageId=${stageId}&categoryId=${categoryId}`);
+              } else {
+                navigate(`/season/${stage.seasonId}/register?stageId=${stageId}&categoryId=${categoryId}`);
+              }
+            } catch {
+              navigate(`/season/${stage.seasonId}/register?stageId=${stageId}&categoryId=${categoryId}`);
+            }
+            return;
+          }
+
+          let effectivePaymentStatus: string = registration.paymentStatus;
+          const stageStatus: any = stageEntry?.paymentStatus || stageEntry?.status;
+          const stagePaidBool: any = stageEntry?.paid || stageEntry?.isPaid;
+          if (typeof stageStatus === "string") {
+            effectivePaymentStatus = stageStatus;
+          }
+          if (stagePaidBool === true && !stageStatus) {
+            effectivePaymentStatus = "paid";
+          }
+
+          const paidFlags = ["paid", "direct_payment", "exempt"];
+          if (!paidFlags.includes(effectivePaymentStatus)) {
+            // Redirecionar para a tela de pagamento da inscrição desta temporada
+            navigate(`/registration/${registration.id}/payment?stageId=${stageId}&categoryId=${categoryId}`);
+            return;
+          }
+        }
+
+        // Se chegou aqui, pode confirmar (por_temporada ou por_etapa com etapa paga)
+        await api.post(`/stage-participations/confirm`, {
+          stageId,
+          categoryId,
+        });
         setSuccess(true);
-      })
-      .catch((err) => {
-        const data = err.response?.data;
-        // Se já estiver confirmado, mostrar mensagem de sucesso
+      } catch (err: any) {
+        const data = err?.response?.data;
         if (data?.message === "Sua participação já foi confirmada para esta etapa") {
           setSuccess(true);
           setError(null);
         } else {
           setError(data?.message || "Erro ao confirmar participação.");
         }
-      })
-      .finally(() => setLoading(false));
-  }, [stageId, categoryId, user]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    confirmFlow();
+  }, [stageId, categoryId, user, navigate]);
 
   // Contador regressivo para redirecionar
   useEffect(() => {
