@@ -24,11 +24,8 @@ import {
   PlusCircle,
   Trophy,
   User,
-  Users,
-  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
 import { CompleteProfileModal } from "@/components/profile/CompleteProfileModal";
 import {
@@ -43,7 +40,6 @@ import { Loading } from "@/components/ui/loading";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { useProfileCompletion } from "@/hooks/use-profile-completion";
-import { StageParticipationService } from "@/lib/services/stage-participation.service";
 import { useNavigation } from "@/router";
 import { formatDateToBrazilian } from "@/utils/date";
 
@@ -52,22 +48,6 @@ export const Dashboard = () => {
   const { user } = useAuth();
   const [showProfileAlert, setShowProfileAlert] = useState(false);
   const [selectedRace, setSelectedRace] = useState<any>(null);
-  const [confirmingParticipation, setConfirmingParticipation] = useState<
-    string | null
-  >(null);
-  const [cancellingParticipation, setCancellingParticipation] = useState<
-    string | null
-  >(null);
-  const [showCancelConfirmation, setShowCancelConfirmation] = useState<{
-    stageId: string;
-    categoryId: string;
-    categoryName: string;
-  } | null>(null);
-  const [showConfirmConfirmation, setShowConfirmConfirmation] = useState<{
-    stageId: string;
-    categoryId: string;
-    categoryName: string;
-  } | null>(null);
   const [isCheckingRedirect, setIsCheckingRedirect] = useState(true);
   const [showCompleteProfileModal, setShowCompleteProfileModal] =
     useState(false);
@@ -85,9 +65,6 @@ export const Dashboard = () => {
     loading,
     errors,
     refreshChampionships,
-    refreshUserStats,
-    refreshAll,
-    updateRaceParticipation,
   } = useUser();
 
   const {
@@ -114,75 +91,7 @@ export const Dashboard = () => {
     }
   }, [shouldShowModal, loadingProfile, showCompleteProfileModal]);
 
-  // Função para confirmar participação
-  const handleConfirmParticipation = async (
-    stageId: string,
-    categoryId: string,
-  ) => {
-    try {
-      setConfirmingParticipation(stageId);
-      await StageParticipationService.confirmParticipation({
-        stageId,
-        categoryId,
-      });
-      toast.success("Participação confirmada com sucesso!");
-      // Atualizar apenas a corrida específica
-      await updateRaceParticipation(stageId);
-      setShowConfirmConfirmation(null);
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao confirmar participação");
-    } finally {
-      setConfirmingParticipation(null);
-    }
-  };
-
-  // Função para cancelar participação
-  const handleCancelParticipation = async (
-    stageId: string,
-    categoryId: string,
-  ) => {
-    try {
-      setCancellingParticipation(stageId);
-      await StageParticipationService.cancelParticipation({
-        stageId,
-        categoryId,
-      });
-      toast.success("Participação cancelada com sucesso!");
-      // Atualizar apenas a corrida específica
-      await updateRaceParticipation(stageId);
-      setShowCancelConfirmation(null);
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao cancelar participação");
-    } finally {
-      setCancellingParticipation(null);
-    }
-  };
-
-  // Função utilitária para saber se está no prazo de confirmação/cancelamento
-  const isParticipationAllowed = (stage: any) => {
-    if (!stage?.date || !stage?.time) return false;
-    try {
-      let datePart = stage.date;
-      // Se vier com T e Z, extrai só a parte da data
-      if (datePart.includes("T")) {
-        datePart = datePart.split("T")[0];
-      }
-      // Monta string ISO correta
-      const dateTimeStr = `${datePart}T${stage.time}`;
-      const eventDate = new Date(dateTimeStr);
-      const now = new Date();
-      if (isNaN(eventDate.getTime())) {
-        console.error("Invalid event date:", stage.date, stage.time);
-        return false;
-      }
-      const timeDifference = eventDate.getTime() - now.getTime();
-      const hoursDifference = timeDifference / (1000 * 60 * 60);
-      return hoursDifference > 24;
-    } catch (error) {
-      console.error("Error calculating participation deadline:", error);
-      return false;
-    }
-  };
+  // Removido: lógica de confirmação/cancelamento de participação
 
   // Função utilitária para buscar karts sorteados do piloto para uma etapa
   const getSortedKartsForUser = (
@@ -816,85 +725,7 @@ export const Dashboard = () => {
                           </div>
                         </div>
                       )}
-                      {/* Botões de ação */}
-                      {race.availableCategories &&
-                        race.availableCategories.length > 0 && (
-                          <div className="space-y-2 mt-2">
-                            {!race.hasConfirmedParticipation ? (
-                              <Button
-                                size="default"
-                                variant="default"
-                                disabled={
-                                  confirmingParticipation === race.stage.id ||
-                                  !isParticipationAllowed(race.stage)
-                                }
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (race.availableCategories!.length === 1) {
-                                    setShowConfirmConfirmation({
-                                      stageId: race.stage.id,
-                                      categoryId:
-                                        race.availableCategories![0].id,
-                                      categoryName:
-                                        race.availableCategories![0].name,
-                                    });
-                                  } else {
-                                    setSelectedRace(race);
-                                  }
-                                }}
-                                className="w-full bg-primary hover:bg-primary/90"
-                              >
-                                {confirmingParticipation === race.stage.id ? (
-                                  <>
-                                    <Clock className="h-4 w-4 mr-2" />
-                                    Confirmando...
-                                  </>
-                                ) : (
-                                  <>Vou Correr!</>
-                                )}
-                              </Button>
-                            ) : (
-                              <Button
-                                size="default"
-                                variant="outline"
-                                disabled={
-                                  cancellingParticipation === race.stage.id ||
-                                  !isParticipationAllowed(race.stage)
-                                }
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Log extra para debug
-                                  const allowed = isParticipationAllowed(
-                                    race.stage,
-                                  );
-                                  if (!allowed) return;
-                                  // Encontrar a categoria confirmada
-                                  const confirmedCategory =
-                                    race.availableCategories!.find(
-                                      (cat) => cat.isConfirmed,
-                                    );
-                                  if (confirmedCategory) {
-                                    setShowCancelConfirmation({
-                                      stageId: race.stage.id,
-                                      categoryId: confirmedCategory.id,
-                                      categoryName: confirmedCategory.name,
-                                    });
-                                  }
-                                }}
-                                className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-                              >
-                                {cancellingParticipation === race.stage.id ? (
-                                  <>
-                                    <Clock className="h-4 w-4 mr-2" />
-                                    Cancelando...
-                                  </>
-                                ) : (
-                                  <>Cancelar Participação</>
-                                )}
-                              </Button>
-                            )}
-                          </div>
-                        )}
+                      {/* Removido: botões de confirmar/cancelar participação */}
                     </div>
                   </Card>
                 );
@@ -1003,162 +834,7 @@ export const Dashboard = () => {
             )}
           </div>
 
-          {/* Seção de gerenciamento de participação */}
-          {selectedRace &&
-            selectedRace.availableCategories &&
-            selectedRace.availableCategories.length > 0 && (
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <Users className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-lg">
-                      Gerenciar Participação
-                    </h4>
-                  </div>
-                </div>
-
-                {selectedRace.hasConfirmedParticipation ? (
-                  <div className="space-y-4">
-                    {!isParticipationAllowed(selectedRace.stage) && (
-                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800 dark:bg-yellow-900 dark:border-yellow-700 dark:text-yellow-100 text-sm">
-                        O prazo para cancelar participação expirou. Entre em
-                        contato com o organizador do campeonato para alterações.
-                      </div>
-                    )}
-                    <div className="space-y-3">
-                      <h6 className="font-medium text-gray-700 dark:text-gray-300">
-                        Categoria confirmada:
-                      </h6>
-                      {selectedRace.availableCategories
-                        .filter((category: any) => category.isConfirmed)
-                        .map((category: any) => (
-                          <div
-                            key={category.id}
-                            className="flex items-center justify-between p-4 bg-card border border-border rounded-xl"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 bg-primary rounded-lg">
-                                <Check className="h-4 w-4 text-primary-foreground" />
-                              </div>
-                              <div>
-                                <span className="font-semibold text-card-foreground">
-                                  {category.name}
-                                </span>
-                                <p className="text-sm text-muted-foreground">
-                                  Lastro: {category.ballast}
-                                </p>
-                              </div>
-                            </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={
-                                cancellingParticipation ===
-                                  selectedRace.stage.id ||
-                                !isParticipationAllowed(selectedRace.stage)
-                              }
-                              onClick={() => {
-                                setShowCancelConfirmation({
-                                  stageId: selectedRace.stage.id,
-                                  categoryId: category.id,
-                                  categoryName: category.name,
-                                });
-                                setSelectedRace(null);
-                              }}
-                              className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
-                            >
-                              {cancellingParticipation ===
-                              selectedRace.stage.id ? (
-                                <>
-                                  <Clock className="h-3 w-3 mr-1" />
-                                  Cancelando...
-                                </>
-                              ) : (
-                                <>Cancelar</>
-                              )}
-                            </Button>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-xl">
-                      <div className="p-2 bg-primary rounded-lg">
-                        <Users className="h-4 w-4 text-primary-foreground" />
-                      </div>
-                      <div>
-                        <h5 className="font-semibold text-card-foreground">
-                          Confirmar Participação
-                        </h5>
-                        <p className="text-sm text-muted-foreground">
-                          Selecione uma categoria para participar
-                        </p>
-                      </div>
-                    </div>
-                    {!isParticipationAllowed(selectedRace.stage) && (
-                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800 dark:bg-yellow-900 dark:border-yellow-700 dark:text-yellow-100 text-sm">
-                        O prazo para confirmar participação expirou. Entre em
-                        contato com o organizador do campeonato para alterações.
-                      </div>
-                    )}
-                    <div className="grid gap-3">
-                      {selectedRace.availableCategories.map((category: any) => (
-                        <Button
-                          key={category.id}
-                          variant="outline"
-                          size="lg"
-                          disabled={
-                            confirmingParticipation === selectedRace.stage.id ||
-                            category.isConfirmed ||
-                            !isParticipationAllowed(selectedRace.stage)
-                          }
-                          onClick={() => {
-                            setShowConfirmConfirmation({
-                              stageId: selectedRace.stage.id,
-                              categoryId: category.id,
-                              categoryName: category.name,
-                            });
-                            setSelectedRace(null);
-                          }}
-                          className="justify-start h-auto p-4 border-2 hover:border-primary hover:bg-primary/5 transition-all duration-200"
-                        >
-                          <div className="flex items-center w-full">
-                            {category.isConfirmed ? (
-                              <div className="p-2 bg-primary rounded-lg mr-3">
-                                <Check className="h-4 w-4 text-primary-foreground" />
-                              </div>
-                            ) : confirmingParticipation ===
-                              selectedRace.stage.id ? (
-                              <div className="p-2 bg-primary rounded-lg mr-3">
-                                <Clock className="h-4 w-4 text-primary-foreground" />
-                              </div>
-                            ) : (
-                              <div className="p-2 bg-muted rounded-lg mr-3">
-                                <Users className="h-4 w-4 text-muted-foreground" />
-                              </div>
-                            )}
-                            <div className="text-left flex-1">
-                              <div className="font-semibold">
-                                {category.name}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                Lastro: {category.ballast}
-                              </div>
-                            </div>
-                            {category.isConfirmed && (
-                              <Badge variant="default">Confirmado</Badge>
-                            )}
-                          </div>
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+          {/* Removido: seção de gerenciamento de participação no modal */}
 
           {/* Bloco de Karts Sorteados no modal */}
           {selectedRace &&
@@ -1213,133 +889,7 @@ export const Dashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de confirmação de cancelamento */}
-      <Dialog
-        open={!!showCancelConfirmation}
-        onOpenChange={() => setShowCancelConfirmation(null)}
-      >
-        <DialogContent className="w-[95vw] max-w-md p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle>Cancelar Participação</DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja cancelar sua participação?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="p-4 border rounded-lg bg-red-50">
-              <div className="flex items-center gap-2 text-red-700">
-                <X className="h-4 w-4" />
-                <span className="font-medium">
-                  Categoria: {showCancelConfirmation?.categoryName}
-                </span>
-              </div>
-              <p className="text-sm text-red-600 mt-2">
-                Sua participação será cancelada, mas você poderá confirmá-la
-                novamente se desejar.
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowCancelConfirmation(null)}
-              disabled={
-                cancellingParticipation === showCancelConfirmation?.stageId
-              }
-            >
-              Manter Participação
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (showCancelConfirmation) {
-                  handleCancelParticipation(
-                    showCancelConfirmation.stageId,
-                    showCancelConfirmation.categoryId,
-                  );
-                }
-              }}
-              disabled={
-                cancellingParticipation === showCancelConfirmation?.stageId
-              }
-            >
-              {cancellingParticipation === showCancelConfirmation?.stageId ? (
-                <>
-                  <Clock className="h-4 w-4 mr-2" />
-                  Cancelando...
-                </>
-              ) : (
-                <>Confirmar Cancelamento</>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal de confirmação de participação */}
-      <Dialog
-        open={!!showConfirmConfirmation}
-        onOpenChange={() => setShowConfirmConfirmation(null)}
-      >
-        <DialogContent className="w-[95vw] max-w-md p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle>Vou Correr!</DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja confirmar sua participação nesta etapa?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="p-4 border rounded-lg bg-green-50">
-              <div className="flex items-center gap-2 text-green-700">
-                <Check className="h-4 w-4" />
-                <span className="font-medium">
-                  Categoria: {showConfirmConfirmation?.categoryName}
-                </span>
-              </div>
-              <p className="text-sm text-green-600 mt-2">
-                Sua participação será confirmada e você estará oficialmente
-                inscrito nesta etapa.
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowConfirmConfirmation(null)}
-              disabled={
-                confirmingParticipation === showConfirmConfirmation?.stageId
-              }
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="default"
-              onClick={() => {
-                if (showConfirmConfirmation) {
-                  handleConfirmParticipation(
-                    showConfirmConfirmation.stageId,
-                    showConfirmConfirmation.categoryId,
-                  );
-                }
-              }}
-              disabled={
-                confirmingParticipation === showConfirmConfirmation?.stageId
-              }
-            >
-              {confirmingParticipation === showConfirmConfirmation?.stageId ? (
-                <>
-                  <Clock className="h-4 w-4 mr-2" />
-                  Confirmando...
-                </>
-              ) : (
-                <>Vou Correr!</>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Removidos: modais de confirmação/cancelamento de participação */}
 
       {/* Modal de perfil incompleto */}
       <CompleteProfileModal
