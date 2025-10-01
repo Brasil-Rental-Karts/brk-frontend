@@ -133,17 +133,23 @@ export const Dashboard = () => {
   const redirectToStageRegistrationPorEtapa = async (
     seasonId: string,
     stageId: string,
-    categoryId: string,
+    categoryId?: string,
   ) => {
     try {
       const season = await SeasonService.getById(seasonId);
       if (season?.slug) {
-        window.location.href = `/registration/${season.slug}/por_etapa?stageId=${stageId}&categoryId=${categoryId}`;
+        const params = new URLSearchParams({ stageId });
+        if (categoryId) params.set("categoryId", categoryId);
+        window.location.href = `/registration/${season.slug}/por_etapa?${params.toString()}`;
       } else {
-        window.location.href = `/season/${seasonId}/register?stageId=${stageId}&categoryId=${categoryId}`;
+        const params = new URLSearchParams({ stageId });
+        if (categoryId) params.set("categoryId", categoryId);
+        window.location.href = `/season/${seasonId}/register?${params.toString()}`;
       }
     } catch {
-      window.location.href = `/season/${seasonId}/register?stageId=${stageId}&categoryId=${categoryId}`;
+      const params = new URLSearchParams({ stageId });
+      if (categoryId) params.set("categoryId", categoryId);
+      window.location.href = `/season/${seasonId}/register?${params.toString()}`;
     }
   };
 
@@ -189,6 +195,11 @@ export const Dashboard = () => {
         }
         if (stagePaidBool === true && !stageStatus) {
           effectivePaymentStatus = "paid";
+        }
+
+        // Regra: isento por etapa: tratar como pago
+        if (stageEntry?.paymentStatus === "exempt") {
+          effectivePaymentStatus = "exempt" as any;
         }
 
         if (!paidFlags.includes(effectivePaymentStatus as any)) {
@@ -293,6 +304,11 @@ export const Dashboard = () => {
       return { type: "register_season", label: "Inscrever-se na Temporada" };
     }
 
+    // Regra: Isento da temporada -> sempre Confirmar/Cancelar
+    if (registration.paymentStatus === "exempt" && registration.inscriptionType !== "por_etapa") {
+      return { type: "confirm", label: "Confirmar Participação" };
+    }
+
     if (registration.inscriptionType === "por_etapa") {
       const stageEntry = findStageEntry(registration, race.stage.id);
       if (!stageEntry) {
@@ -303,6 +319,10 @@ export const Dashboard = () => {
       const stagePaidBool: any = stageEntry?.paid || stageEntry?.isPaid;
       if (typeof stageStatus === "string") effectivePaymentStatus = stageStatus;
       if (stagePaidBool === true && !stageStatus) effectivePaymentStatus = "paid";
+      // Regra: isento por etapa: tratar como pago
+      if (stageEntry?.paymentStatus === "exempt") {
+        effectivePaymentStatus = "exempt" as any;
+      }
       if (!(paidFlags as readonly string[]).includes(effectivePaymentStatus as any)) {
         return { type: "pay", label: "Pagar Inscrição" };
       }
@@ -1017,11 +1037,33 @@ export const Dashboard = () => {
                         </div>
                       )}
                       {/* Ações de participação por categoria */}
-                      {Array.isArray(race.availableCategories) && race.availableCategories.length > 0 && (
-                        <div className="flex flex-col gap-3 mt-3">
-                          <div className="text-sm font-semibold text-black">Participação</div>
-                          <div className="flex flex-col gap-3 w-full">
-                            {race.availableCategories.map((cat: any) => {
+                      {(() => {
+                        const hasCats = Array.isArray(race.availableCategories) && race.availableCategories.length > 0;
+                        const seasonId = race?.season?.id;
+                        const registration = myRegistrations.find((r: any) => r.season?.id === seasonId);
+                        const isPorEtapa = registration && registration.inscriptionType === "por_etapa";
+                        const stageEntry = registration && findStageEntry(registration, race.stage.id);
+                        const shouldShowRegisterStageFallback = isPorEtapa && !stageEntry;
+                        if (!hasCats && !shouldShowRegisterStageFallback) return null;
+                        return (
+                          <div className="flex flex-col gap-3 mt-3">
+                            <div className="text-sm font-semibold text-black">Participação</div>
+                            <div className="flex flex-col gap-3 w-full">
+                              {shouldShowRegisterStageFallback
+                                ? (
+                                  <Button
+                                    className="w-full text-base py-3 font-semibold shadow-sm text-center"
+                                    variant="default"
+                                    size="lg"
+                                    onClick={(e: any) => {
+                                      e.stopPropagation();
+                                      redirectToStageRegistrationPorEtapa(race.season.id, race.stage.id);
+                                    }}
+                                  >
+                                    Inscrever-se na Etapa
+                                  </Button>
+                                )
+                                : hasCats && (race.availableCategories ?? []).map((cat: any) => {
                               if (!cat || !cat.id) return null;
                               const key = `${race.stage.id}:${cat.id}`;
                               const isLoading = buttonLoading[key] === true;
@@ -1044,7 +1086,7 @@ export const Dashboard = () => {
                                 }
                               };
                               const variant = action.type === "cancel" ? "destructive" : "default";
-                              return (
+                                 return (
                                 <div key={cat.id} className="w-full">
                                   <Badge variant="outline" className="text-xs mb-2">{cat.name}</Badge>
                                   <Button
@@ -1064,12 +1106,13 @@ export const Dashboard = () => {
                                             : "Aguarde..."
                                       : action.label}
                                   </Button>
-                                </div>
-                              );
-                            })}
+                                   </div>
+                                 );
+                                })}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   </Card>
                 );
