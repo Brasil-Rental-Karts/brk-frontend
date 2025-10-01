@@ -60,6 +60,7 @@ export const Dashboard = () => {
     loading,
     errors,
     refreshChampionships,
+    refreshAll,
   } = useUser();
 
   const {
@@ -78,6 +79,13 @@ export const Dashboard = () => {
       setIsCheckingRedirect(false);
     }
   }, []);
+
+  // Após concluir o check de redirect, garantir dados atualizados ao entrar
+  useEffect(() => {
+    if (!isCheckingRedirect && user) {
+      refreshAll();
+    }
+  }, [isCheckingRedirect, user, refreshAll]);
 
   // Show complete profile modal when profile is not completed and not loading
   useEffect(() => {
@@ -277,6 +285,15 @@ export const Dashboard = () => {
     const total = Math.max(1, Math.ceil(championshipsParticipating.length / PART_PER_PAGE));
     if (partPage > total) setPartPage(1);
   }, [championshipsParticipating.length]);
+
+  // Atualizar dados ao focar a janela (quando voltar ao Dashboard)
+  useEffect(() => {
+    const onFocus = () => {
+      if (user) refreshAll();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [user, refreshAll]);
 
   type CategoryActionType =
     | "register_season"
