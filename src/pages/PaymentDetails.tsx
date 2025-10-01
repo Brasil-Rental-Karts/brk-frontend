@@ -700,8 +700,8 @@ export const PaymentDetails: React.FC = () => {
                             key={payment.id}
                             className={`p-4 border rounded-lg transition-colors ${isPaid ? "bg-green-50 border-green-200 hover:bg-green-100" : isPending ? "bg-yellow-50 border-yellow-200 hover:bg-yellow-100" : isOverdue ? "bg-red-50 border-red-200 hover:bg-red-100" : "bg-gray-50 border-gray-200 hover:bg-muted/50"}`}
                           >
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
+                              <div className="flex items-center gap-3 min-w-0">
                                 <div
                                   className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${isPaid ? "bg-green-100 text-green-700" : isPending ? "bg-yellow-100 text-yellow-700" : isOverdue ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}`}
                                 >
@@ -726,7 +726,7 @@ export const PaymentDetails: React.FC = () => {
                                   </span>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
+                                <div className="w-full sm:w-auto flex items-center gap-2 sm:justify-end">
                                 {getStatusBadge(payment.status)}
                                 {isPayable && (
                                   <Button

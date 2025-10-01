@@ -420,15 +420,7 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
     setDetailsOpen(true);
   };
 
-  const copyPixCode = async (code?: string | null) => {
-    if (!code) return;
-    try {
-      await navigator.clipboard.writeText(code);
-      toast.success("Código PIX copiado");
-    } catch {
-      toast.error("Falha ao copiar código PIX");
-    }
-  };
+// Removido botão e função de copiar PIX nos detalhes do piloto
 
   const formatBRDate = (date?: string) => {
     if (!date) return "-";
@@ -1164,9 +1156,6 @@ export const PilotsTab = ({ championshipId }: PilotsTabProps) => {
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               {getBadge(p.status)}
-                              {p.pixCopyPaste && (
-                                <Button size="sm" variant="outline" onClick={() => copyPixCode(p.pixCopyPaste)}>Copiar PIX</Button>
-                              )}
                             </div>
                           </div>
                         ))}
