@@ -14,43 +14,32 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "brk-design-system";
-import {
-  Calendar,
-  Check,
-  Clock,
-  Flag,
-  MapPin,
-  Navigation,
-  PlusCircle,
-  Trophy,
-  User,
-} from "lucide-react";
+import { Calendar, Clock, Flag, MapPin, Navigation, PlusCircle, Trophy, User } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { CompleteProfileModal } from "@/components/profile/CompleteProfileModal";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Loading } from "@/components/ui/loading";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUser } from "@/contexts/UserContext";
 import { useProfileCompletion } from "@/hooks/use-profile-completion";
 import { useNavigation } from "@/router";
 import { formatDateToBrazilian } from "@/utils/date";
+import { SeasonRegistrationService } from "@/lib/services/season-registration.service";
+import { StageService } from "@/lib/services/stage.service";
+import { SeasonService } from "@/lib/services/season.service";
+import { StageParticipationService } from "@/lib/services/stage-participation.service";
 
 export const Dashboard = () => {
   const nav = useNavigation();
   const { user } = useAuth();
   const [showProfileAlert, setShowProfileAlert] = useState(false);
-  const [selectedRace, setSelectedRace] = useState<any>(null);
   const [isCheckingRedirect, setIsCheckingRedirect] = useState(true);
   const [showCompleteProfileModal, setShowCompleteProfileModal] =
     useState(false);
+  const [buttonLoading, setButtonLoading] = useState<Record<string, boolean>>({});
+  const [confirmedOverrides, setConfirmedOverrides] = useState<Record<string, boolean | undefined>>({});
+  const [myRegistrations, setMyRegistrations] = useState<any[]>([]);
+  const [loadingRegistrations, setLoadingRegistrations] = useState<boolean>(false);
 
   // Check if user is manager or administrator
   const isManager = user?.role === "Manager" || user?.role === "Administrator";
@@ -92,6 +81,212 @@ export const Dashboard = () => {
   }, [shouldShowModal, loadingProfile, showCompleteProfileModal]);
 
   // Removido: lógica de confirmação/cancelamento de participação
+
+  // Utilitário: localizar entrada da etapa em inscrições "por_etapa"
+  const findStageEntry = (regObj: any, stageId: string): any | null => {
+    const candidates: any[] = [];
+    if (Array.isArray(regObj?.stages)) candidates.push(...regObj.stages);
+    if (Array.isArray(regObj?.seasonRegistrationStages))
+      candidates.push(...regObj.seasonRegistrationStages);
+    if (Array.isArray(regObj?.seasonRegistrationStage))
+      candidates.push(...regObj.seasonRegistrationStage);
+    if (Array.isArray(regObj?.stageRegistrations))
+      candidates.push(...regObj.stageRegistrations);
+    const entry = candidates.find((s: any) => {
+      const sId = typeof s === "string" ? s : s?.stageId || s?.id || s?.stage?.id;
+      return sId === stageId;
+    });
+    return entry || null;
+  };
+
+  const paidFlags = ["paid", "direct_payment", "exempt"] as const;
+
+  const setLoadingKey = (key: string, value: boolean) =>
+    setButtonLoading((prev) => ({ ...prev, [key]: value }));
+
+  const markConfirmedLocal = (key: string, isConfirmed: boolean) =>
+    setConfirmedOverrides((prev) => ({ ...prev, [key]: isConfirmed }));
+
+  const redirectToSeasonRegistration = async (
+    seasonId: string,
+    stageId: string,
+    categoryId: string,
+  ) => {
+    try {
+      const season = await SeasonService.getById(seasonId);
+      if (season?.slug) {
+        window.location.href = `/registration/${season.slug}?stageId=${stageId}&categoryId=${categoryId}`;
+      } else {
+        window.location.href = `/season/${seasonId}/register?stageId=${stageId}&categoryId=${categoryId}`;
+      }
+    } catch {
+      window.location.href = `/season/${seasonId}/register?stageId=${stageId}&categoryId=${categoryId}`;
+    }
+  };
+
+  const redirectToStageRegistrationPorEtapa = async (
+    seasonId: string,
+    stageId: string,
+    categoryId: string,
+  ) => {
+    try {
+      const season = await SeasonService.getById(seasonId);
+      if (season?.slug) {
+        window.location.href = `/registration/${season.slug}/por_etapa?stageId=${stageId}&categoryId=${categoryId}`;
+      } else {
+        window.location.href = `/season/${seasonId}/register?stageId=${stageId}&categoryId=${categoryId}`;
+      }
+    } catch {
+      window.location.href = `/season/${seasonId}/register?stageId=${stageId}&categoryId=${categoryId}`;
+    }
+  };
+
+  const handleConfirmParticipation = async (
+    stageId: string,
+    categoryId: string,
+    seasonId?: string,
+  ) => {
+    const key = `${stageId}:${categoryId}`;
+    setLoadingKey(key, true);
+    try {
+      // Garantir seasonId
+      const stage = seasonId ? null : await StageService.getById(stageId);
+      const realSeasonId = seasonId || stage?.seasonId;
+      if (!realSeasonId) throw new Error("SeasonId não encontrado para a etapa");
+
+      // Buscar inscrições do usuário
+      const myRegistrations = await SeasonRegistrationService.getMyRegistrations();
+      const registration = myRegistrations.find((r: any) => r.season?.id === realSeasonId);
+
+      // Sem inscrição -> redirecionar para página de inscrição da temporada
+      if (!registration) {
+        await redirectToSeasonRegistration(realSeasonId, stageId, categoryId);
+        return;
+      }
+
+      // Regras específicas para inscrição por_etapa
+      if (registration.inscriptionType === "por_etapa") {
+        const stageEntry = findStageEntry(registration, stageId);
+
+        // Não inclui esta etapa -> redirecionar para inscrição por_etapa
+        if (!stageEntry) {
+          await redirectToStageRegistrationPorEtapa(realSeasonId, stageId, categoryId);
+          return;
+        }
+
+        // Determinar status efetivo de pagamento
+        let effectivePaymentStatus: string = registration.paymentStatus;
+        const stageStatus: any = stageEntry?.paymentStatus || stageEntry?.status;
+        const stagePaidBool: any = stageEntry?.paid || stageEntry?.isPaid;
+        if (typeof stageStatus === "string") {
+          effectivePaymentStatus = stageStatus;
+        }
+        if (stagePaidBool === true && !stageStatus) {
+          effectivePaymentStatus = "paid";
+        }
+
+        if (!paidFlags.includes(effectivePaymentStatus as any)) {
+          // Redireciona para pagamento da inscrição
+          window.location.href = `/registration/${registration.id}/payment?stageId=${stageId}&categoryId=${categoryId}`;
+          return;
+        }
+      }
+
+      // Confirma participação
+      await StageParticipationService.confirmParticipation({ stageId, categoryId });
+      markConfirmedLocal(key, true);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message;
+      if (msg === "Sua participação já foi confirmada para esta etapa") {
+        markConfirmedLocal(key, true);
+      } else if (msg) {
+        // Feedback simples
+        console.error(msg);
+      }
+    } finally {
+      setLoadingKey(key, false);
+    }
+  };
+
+  const handleCancelParticipation = async (
+    stageId: string,
+    categoryId: string,
+  ) => {
+    const key = `${stageId}:${categoryId}`;
+    setLoadingKey(key, true);
+    try {
+      await StageParticipationService.cancelParticipation({ stageId, categoryId });
+      markConfirmedLocal(key, false);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message;
+      if (msg) console.error(msg);
+    } finally {
+      setLoadingKey(key, false);
+    }
+  };
+
+  // Carregar inscrições do usuário para rotulagem dos botões
+  useEffect(() => {
+    const loadRegs = async () => {
+      if (!user) return;
+      setLoadingRegistrations(true);
+      try {
+        const regs = await SeasonRegistrationService.getMyRegistrations();
+        setMyRegistrations(regs || []);
+      } catch (e) {
+        console.warn(e);
+        setMyRegistrations([]);
+      } finally {
+        setLoadingRegistrations(false);
+      }
+    };
+    loadRegs();
+  }, [user]);
+
+  type CategoryActionType =
+    | "register_season"
+    | "register_stage"
+    | "pay"
+    | "confirm"
+    | "cancel"
+    | "checking";
+
+  const getCategoryAction = (
+    race: any,
+    cat: any,
+  ): { type: CategoryActionType; label: string } => {
+    const key = `${race.stage.id}:${cat.id}`;
+    const isConfirmed = (confirmedOverrides[key] ?? cat.isConfirmed) === true;
+    if (isConfirmed) return { type: "cancel", label: "Cancelar Participação" };
+
+    const seasonId = race?.season?.id;
+    if (!seasonId) return { type: "confirm", label: "Confirmar Participação" };
+
+    if (loadingRegistrations) return { type: "checking", label: "Verificando..." };
+
+    const registration = myRegistrations.find((r: any) => r.season?.id === seasonId);
+    if (!registration) {
+      return { type: "register_season", label: "Inscrever-se na Temporada" };
+    }
+
+    if (registration.inscriptionType === "por_etapa") {
+      const stageEntry = findStageEntry(registration, race.stage.id);
+      if (!stageEntry) {
+        return { type: "register_stage", label: "Inscrever-se na Etapa" };
+      }
+      let effectivePaymentStatus: string = registration.paymentStatus;
+      const stageStatus: any = stageEntry?.paymentStatus || stageEntry?.status;
+      const stagePaidBool: any = stageEntry?.paid || stageEntry?.isPaid;
+      if (typeof stageStatus === "string") effectivePaymentStatus = stageStatus;
+      if (stagePaidBool === true && !stageStatus) effectivePaymentStatus = "paid";
+      if (!(paidFlags as readonly string[]).includes(effectivePaymentStatus as any)) {
+        return { type: "pay", label: "Pagar Inscrição" };
+      }
+      return { type: "confirm", label: "Confirmar Participação" };
+    }
+
+    return { type: "confirm", label: "Confirmar Participação" };
+  };
 
   // Função utilitária para buscar karts sorteados do piloto para uma etapa
   const getSortedKartsForUser = (
@@ -625,8 +820,7 @@ export const Dashboard = () => {
                 return (
                   <Card
                     key={race.stage.id}
-                    className="overflow-hidden shadow-md border-2 border-muted/40 hover:border-primary/60 transition-all group cursor-pointer"
-                    onClick={() => setSelectedRace(race)}
+                    className="overflow-hidden shadow-md border-2 border-muted/40 hover:border-primary/60 transition-all group"
                   >
                     <div className="flex flex-col gap-4 p-5 relative">
                       {/* Header com título e status principal */}
@@ -725,7 +919,60 @@ export const Dashboard = () => {
                           </div>
                         </div>
                       )}
-                      {/* Removido: botões de confirmar/cancelar participação */}
+                      {/* Ações de participação por categoria */}
+                      {Array.isArray(race.availableCategories) && race.availableCategories.length > 0 && (
+                        <div className="flex flex-col gap-3 mt-3">
+                          <div className="text-sm font-semibold text-black">Participação</div>
+                          <div className="flex flex-col gap-3 w-full">
+                            {race.availableCategories.map((cat: any) => {
+                              if (!cat || !cat.id) return null;
+                              const key = `${race.stage.id}:${cat.id}`;
+                              const isLoading = buttonLoading[key] === true;
+                              const action = getCategoryAction(race, cat);
+                              const onClick = (e: any) => {
+                                e.stopPropagation();
+                                if (action.type === "register_season") {
+                                  redirectToSeasonRegistration(race.season.id, race.stage.id, cat.id);
+                                } else if (action.type === "register_stage") {
+                                  redirectToStageRegistrationPorEtapa(race.season.id, race.stage.id, cat.id);
+                                } else if (action.type === "pay") {
+                                  const registration = myRegistrations.find((r: any) => r.season?.id === race.season.id);
+                                  if (registration) {
+                                    window.location.href = `/registration/${registration.id}/payment?stageId=${race.stage.id}&categoryId=${cat.id}`;
+                                  }
+                                } else if (action.type === "confirm") {
+                                  handleConfirmParticipation(race.stage.id, cat.id, race.season?.id);
+                                } else if (action.type === "cancel") {
+                                  handleCancelParticipation(race.stage.id, cat.id);
+                                }
+                              };
+                              const variant = action.type === "cancel" ? "destructive" : "default";
+                              return (
+                                <div key={cat.id} className="w-full">
+                                  <Badge variant="outline" className="text-xs mb-2">{cat.name}</Badge>
+                                  <Button
+                                    className="w-full text-base py-3 font-semibold shadow-sm text-center"
+                                    variant={variant as any}
+                                    size="lg"
+                                    onClick={onClick}
+                                    disabled={isLoading || action.type === "checking"}
+                                  >
+                                    {isLoading
+                                      ? action.type === "cancel"
+                                        ? "Cancelando..."
+                                        : action.type === "confirm"
+                                          ? "Confirmando..."
+                                          : action.type === "pay"
+                                            ? "Redirecionando..."
+                                            : "Aguarde..."
+                                      : action.label}
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </Card>
                 );
@@ -735,159 +982,7 @@ export const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Modal de detalhes da corrida */}
-      <Dialog open={!!selectedRace} onOpenChange={() => setSelectedRace(null)}>
-        <DialogContent className="w-[95vw] max-w-2xl p-4 sm:p-6">
-          <DialogHeader className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Trophy className="h-6 w-6 text-primary" />
-              <DialogTitle className="text-2xl font-bold">
-                {selectedRace?.stage?.name}
-              </DialogTitle>
-            </div>
-            <DialogDescription className="text-lg font-medium text-primary/80">
-              {selectedRace?.season?.name}
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Informações principais em cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {/* Card de localização */}
-            <div className="bg-card border border-border p-4 rounded-xl shadow-sm">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-primary rounded-lg">
-                  <MapPin className="h-5 w-5 text-primary-foreground" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-card-foreground">Local</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {(() => {
-                      const raceTrackId = selectedRace?.stage?.raceTrackId;
-                      const raceTrack = raceTracks[raceTrackId];
-                      return raceTrackId && raceTrack
-                        ? raceTrack.name
-                        : "Carregando...";
-                    })()}
-                  </p>
-                </div>
-              </div>
-              {(() => {
-                const raceTrackId = selectedRace?.stage?.raceTrackId;
-                const raceTrack = raceTracks[raceTrackId];
-                return raceTrackId && raceTrack?.address ? (
-                  <p className="text-xs text-muted-foreground pl-11">
-                    {raceTrack.address}
-                  </p>
-                ) : null;
-              })()}
-              {selectedRace?.stage?.trackLayoutId &&
-                selectedRace.stage.trackLayoutId !== "undefined" && (
-                  <div className="flex items-center gap-2 mt-3 pl-11">
-                    <Navigation className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
-                      Traçado: {selectedRace.stage.trackLayoutId}
-                    </span>
-                  </div>
-                )}
-            </div>
-
-            {/* Card de data e hora */}
-            <div className="bg-card border border-border p-4 rounded-xl shadow-sm">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-primary rounded-lg">
-                  <Calendar className="h-5 w-5 text-primary-foreground" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-card-foreground">
-                    Data & Hora
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {formatDateToBrazilian(selectedRace?.stage?.date || "")}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    às {selectedRace?.stage?.time}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Badges de status */}
-          <div className="flex flex-wrap gap-2 mb-6">
-            {selectedRace?.stage?.doublePoints && (
-              <Badge variant="secondary" className="px-3 py-1">
-                <Trophy className="h-3 w-3 mr-1" />
-                Pontuação em Dobro
-              </Badge>
-            )}
-            {selectedRace?.stage?.doubleRound && (
-              <Badge variant="secondary" className="px-3 py-1">
-                <Navigation className="h-3 w-3 mr-1" />
-                Rodada Dupla
-              </Badge>
-            )}
-            {selectedRace?.hasConfirmedParticipation && (
-              <Badge variant="default" className="px-3 py-1">
-                <Check className="h-3 w-3 mr-1" />
-                Participação Confirmada
-              </Badge>
-            )}
-          </div>
-
-          {/* Removido: seção de gerenciamento de participação no modal */}
-
-          {/* Bloco de Karts Sorteados no modal */}
-          {selectedRace &&
-            (() => {
-              const sortedKarts = getSortedKartsForUser(
-                selectedRace.stage,
-                selectedRace.availableCategories,
-              );
-              if (sortedKarts && sortedKarts.length > 0) {
-                return (
-                  <div className="flex flex-col gap-4 mt-2 mb-6">
-                    <div className="font-bold text-lg text-black mb-1">
-                      Karts sorteados
-                    </div>
-                    {sortedKarts.map((cat: any, idx: number) =>
-                      cat && cat.batteries && cat.batteries.length > 0 ? (
-                        <div
-                          key={cat.categoryName || idx}
-                          className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 flex flex-col gap-2"
-                        >
-                          <div className="font-semibold text-black text-base mb-2">
-                            {cat.categoryName}
-                          </div>
-                          <div className="flex flex-wrap gap-3">
-                            {cat.batteries.map((batt: any, bidx: number) => (
-                              <span
-                                key={bidx}
-                                className="inline-block bg-white border border-gray-300 rounded-lg px-3 py-1 text-base font-semibold text-black shadow-sm"
-                              >
-                                B{bidx + 1}: {batt.kart}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null,
-                    )}
-                  </div>
-                );
-              }
-              return null;
-            })()}
-
-          <DialogFooter className="pt-4">
-            <Button
-              variant="outline"
-              onClick={() => setSelectedRace(null)}
-              className="px-6 py-2"
-            >
-              Fechar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Removido: modal de detalhes da corrida */}
 
       {/* Removidos: modais de confirmação/cancelamento de participação */}
 
