@@ -357,31 +357,58 @@ export const Financial: React.FC = () => {
                 {/* Stages (se for inscrição por etapa) */}
                 {registration.season.inscriptionType === "por_etapa" &&
                   registration.stages &&
-                  registration.stages.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="text-xs font-medium text-muted-foreground">
-                        Etapas Inscritas:
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {registration.stages
-                          .slice(0, 3)
-                          .map((regStage: any) => (
+                  registration.stages.length > 0 && (() => {
+                    const groupedLabels: string[] = (() => {
+                      const stages: any[] = registration.stages || [];
+                      const labels: string[] = [];
+                      const seen = new Set<string>();
+                      for (const regStage of stages) {
+                        const st = regStage?.stage;
+                        const id = String(st?.id || "");
+                        if (!id || seen.has(id)) continue;
+                        if (st?.doubleRound && st?.doubleRoundPairId) {
+                          const pairId = String(st.doubleRoundPairId);
+                          const pair = stages.find((rs: any) => String(rs?.stage?.id) === pairId);
+                          if (pair) {
+                            seen.add(id);
+                            seen.add(pairId);
+                            const nameA = String(st?.name || "Etapa");
+                            const nameB = String(pair?.stage?.name || "Etapa");
+                            labels.push(`${nameA} + ${nameB}`);
+                            continue;
+                          }
+                        }
+                        seen.add(id);
+                        labels.push(String(st?.name || "Etapa"));
+                      }
+                      return labels;
+                    })();
+                    const visible = groupedLabels.slice(0, 3);
+                    const extra = Math.max(groupedLabels.length - visible.length, 0);
+                    return (
+                      <div className="space-y-2">
+                        <div className="text-xs font-medium text-muted-foreground">
+                          Etapas Inscritas:
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {visible.map((label, idx) => (
                             <Badge
-                              key={regStage.id}
+                              key={`${registration.id}-stage-${idx}`}
                               variant="secondary"
                               className="text-xs truncate"
                             >
-                              {regStage.stage.name}
+                              {label}
                             </Badge>
                           ))}
-                        {registration.stages.length > 3 && (
-                          <Badge variant="secondary" className="text-xs">
-                            +{registration.stages.length - 3}
-                          </Badge>
-                        )}
+                          {extra > 0 && (
+                            <Badge variant="secondary" className="text-xs">
+                              +{extra}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                 {/* Date */}
                 <div className="text-xs text-muted-foreground">
@@ -504,29 +531,58 @@ export const Financial: React.FC = () => {
               {/* Stages (se for inscrição por etapa) */}
               {registration.season.inscriptionType === "por_etapa" &&
                 registration.stages &&
-                registration.stages.length > 0 && (
-                  <div className="mt-2">
-                    <div className="text-xs text-muted-foreground mb-1">
-                      Etapas:
+                registration.stages.length > 0 && (() => {
+                  const groupedLabels: string[] = (() => {
+                    const stages: any[] = registration.stages || [];
+                    const labels: string[] = [];
+                    const seen = new Set<string>();
+                    for (const regStage of stages) {
+                      const st = regStage?.stage;
+                      const id = String(st?.id || "");
+                      if (!id || seen.has(id)) continue;
+                      if (st?.doubleRound && st?.doubleRoundPairId) {
+                        const pairId = String(st.doubleRoundPairId);
+                        const pair = stages.find((rs: any) => String(rs?.stage?.id) === pairId);
+                        if (pair) {
+                          seen.add(id);
+                          seen.add(pairId);
+                          const nameA = String(st?.name || "Etapa");
+                          const nameB = String(pair?.stage?.name || "Etapa");
+                          labels.push(`${nameA} + ${nameB}`);
+                          continue;
+                        }
+                      }
+                      seen.add(id);
+                      labels.push(String(st?.name || "Etapa"));
+                    }
+                    return labels;
+                  })();
+                  const visible = groupedLabels.slice(0, 2);
+                  const extra = Math.max(groupedLabels.length - visible.length, 0);
+                  return (
+                    <div className="mt-2">
+                      <div className="text-xs text-muted-foreground mb-1">
+                        Etapas:
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {visible.map((label, idx) => (
+                          <Badge
+                            key={`${registration.id}-stage-desktop-${idx}`}
+                            variant="secondary"
+                            className="text-xs truncate"
+                          >
+                            {label}
+                          </Badge>
+                        ))}
+                        {extra > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            +{extra}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-1">
-                      {registration.stages.slice(0, 2).map((regStage: any) => (
-                        <Badge
-                          key={regStage.id}
-                          variant="secondary"
-                          className="text-xs truncate"
-                        >
-                          {regStage.stage.name}
-                        </Badge>
-                      ))}
-                      {registration.stages.length > 2 && (
-                        <Badge variant="secondary" className="text-xs">
-                          +{registration.stages.length - 2}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
             </div>
             <div className="col-span-1">
               <div className="flex items-center gap-2">

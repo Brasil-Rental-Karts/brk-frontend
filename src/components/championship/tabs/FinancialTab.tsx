@@ -8,6 +8,7 @@ import { formatCurrency } from "@/utils/currency";
 import { formatName } from "@/utils/name";
 import { usePaymentManagement } from "@/hooks/use-payment-management";
 import { useAuth } from "@/contexts/AuthContext";
+import { useChampionshipData } from "@/contexts/ChampionshipContext";
 import { useStaffPermissions } from "@/hooks/use-staff-permissions";
 import { usePagination } from "@/hooks/usePagination";
 import { toast } from "sonner";
@@ -191,6 +192,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
   }, [registrations, championship, filterSeason, filterStage, selectedStageIds, selectedStatuses]);
 
   type PaymentItem = {
+    registrationId?: string;
     id: string;
     userName: string;
     userEmail?: string;
@@ -229,6 +231,16 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
     return { paid, total: total ?? 1 };
   };
 
+  const { getStages } = useChampionshipData();
+  const allStages = getStages();
+  const stageById = useMemo(() => {
+    const map: Record<string, any> = {};
+    (allStages || []).forEach((s: any) => {
+      if (s?.id) map[String(s.id)] = s;
+    });
+    return map;
+  }, [allStages]);
+
   const paymentItems: PaymentItem[] = useMemo(() => {
     const result: PaymentItem[] = [];
 
@@ -244,6 +256,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
 
         const pushSynthetic = (stage?: any) => {
           const base = {
+            registrationId: reg.id,
             userName: formatName(reg.user?.name || 'Piloto'),
             userEmail: reg.user?.email,
             value: Number(reg.amount) || 0,
@@ -327,6 +340,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
         }
 
         result.push({
+          registrationId: reg.id,
           id: String(p.id || `${reg.id}-${rawValue}-${status}-${stageId || 'all'}`),
           userName: formatName(reg.user?.name || 'Piloto'),
           userEmail: reg.user?.email,
@@ -344,9 +358,80 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
       });
     }
 
+    // Agrupar rodada dupla com base no cadastro das etapas
+    const groupedKeyToItems: Record<string, PaymentItem[]> = {};
+    for (const item of result) {
+      if (item.inscriptionType !== 'por_etapa' || !item.stageId || !item.registrationId) continue;
+      const stage = stageById[String(item.stageId)];
+      if (stage?.doubleRound && stage?.doubleRoundPairId) {
+        const a = String(item.stageId);
+        const b = String(stage.doubleRoundPairId);
+        const pairKey = [a, b].sort().join('+');
+        const key = `${item.registrationId}|${pairKey}`;
+        groupedKeyToItems[key] = groupedKeyToItems[key] || [];
+        groupedKeyToItems[key].push(item);
+      }
+    }
+
+    const toRemove = new Set<string>();
+    const toAdd: PaymentItem[] = [];
+    Object.entries(groupedKeyToItems).forEach(([key, items]) => {
+      const uniqueStageIds = Array.from(new Set(items.map(it => String(it.stageId))).values());
+      if (uniqueStageIds.length < 2) return; // precisa ter as duas etapas do par
+
+      // Agregar nomes
+      const names = uniqueStageIds
+        .map(id => stageById[id]?.name)
+        .filter((n: any): n is string => Boolean(n));
+      const stageName = names.length === 2 ? `${names[0]} + ${names[1]}` : names.join(' + ');
+
+      // Status por severidade
+      const severity: Record<PaymentItem['status'], number> = {
+        OVERDUE: 6,
+        PENDING: 5,
+        PROCESSING: 4,
+        CANCELLED: 3,
+        REFUNDED: 3,
+        PAID: 2,
+        EXEMPT: 1,
+      } as const;
+      const aggStatus = items.reduce((best, it) =>
+        severity[it.status] > severity[best] ? it.status : best,
+      items[0].status);
+
+      // Valor somado
+      const aggValue = items.reduce((sum, it) => sum + (Number(it.value) || 0), 0);
+      // Menor dueDate
+      const dueDates = items.map(it => it.dueDate).filter(Boolean) as string[];
+      const aggDue = dueDates.length > 0 ? dueDates.sort()[0] : undefined;
+
+      const base = items[0];
+      const aggregated: PaymentItem = {
+        registrationId: base.registrationId,
+        id: `group-${key}`,
+        userName: base.userName,
+        userEmail: base.userEmail,
+        value: aggValue,
+        status: aggStatus,
+        dueDate: aggDue,
+        inscriptionType: 'por_etapa',
+        stageId: uniqueStageIds.join('+'),
+        stageName,
+        seasonInstallments: null,
+        isDirect: false,
+        rawStatus: undefined,
+        pixCopyPaste: base.pixCopyPaste || null,
+      };
+
+      items.forEach(it => toRemove.add(it.id));
+      toAdd.push(aggregated);
+    });
+
+    const finalList = result.filter(it => !toRemove.has(it.id)).concat(toAdd);
+
     // Aplicar filtro de status (multi-seleção)
     const hasSelection = selectedStatuses.size > 0;
-    const filtered = result.filter((item) => {
+    const filtered = finalList.filter((item) => {
       if (!hasSelection) return true;
       return (
         (selectedStatuses.has('paid') && item.status === 'PAID') ||
