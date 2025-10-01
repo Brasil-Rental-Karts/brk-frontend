@@ -161,33 +161,23 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
     const acc: Totals = { paid: 0, pending: 0, overdue: 0 };
 
     for (const reg of registrations) {
-      if (!matchesType(reg.inscriptionType)) continue;
-      if (!matchesSelectedStages(reg)) continue;
       const payments: any[] = (reg as any).payments || [];
       if (payments.length === 0) {
-        const hasSelection = selectedStatuses.size > 0;
-        const includeExempt = !hasSelection || selectedStatuses.has('exempt');
-        if (isAdminPaid(reg) && includeExempt) acc.paid += Number(reg.amount) || 0;
+        if (isAdminPaid(reg)) acc.paid += Number(reg.amount) || 0;
         continue;
       }
 
       for (const p of payments) {
         const status = normalizedStatus(p.status);
         const value = Number(p.value) || 0;
-        // Aplicar filtro de status nos totalizadores também (multi)
-        const hasSelection = selectedStatuses.size > 0;
-        const includePaid = !hasSelection || selectedStatuses.has('paid');
-        const includePending = !hasSelection || selectedStatuses.has('pending');
-        const includeOverdue = !hasSelection || selectedStatuses.has('overdue');
-
-        if (isPaid(status) && includePaid) acc.paid += applyNetIfNeeded(value, reg);
-        else if (isPending(status) && includePending) acc.pending += applyNetIfNeeded(value, reg);
-        else if (isOverdue(status) && includeOverdue) acc.overdue += value; // vencido sem rateio de taxa
+        if (isPaid(status)) acc.paid += applyNetIfNeeded(value, reg);
+        else if (isPending(status)) acc.pending += applyNetIfNeeded(value, reg);
+        else if (isOverdue(status)) acc.overdue += value; // vencido sem rateio de taxa
       }
     }
 
     return acc;
-  }, [registrations, championship, filterSeason, filterStage, selectedStageIds, selectedStatuses]);
+  }, [registrations, championship]);
 
   type PaymentItem = {
     registrationId?: string;
@@ -204,6 +194,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
     isDirect?: boolean; // pagamento direto (admin)
     rawStatus?: string; // status original quando existir pagamento
     pixCopyPaste?: string | null;
+    fromSplit?: boolean; // gerado a partir de divisão de pagamento único em múltiplas etapas
   };
 
   const getInstallmentProgress = (reg: SeasonRegistration): { paid: number; total: number } => {
@@ -251,13 +242,14 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
         const isSeason = reg.inscriptionType === 'por_temporada';
         const isStage = reg.inscriptionType === 'por_etapa';
         const stagesArr: any[] = isStage ? ((reg as any).stages || []) : [];
+        const baseAmount = Number(reg.amount) || 0;
+        const perStageValue = isStage && stagesArr.length > 0 ? (baseAmount / stagesArr.length) : baseAmount;
 
         const pushSynthetic = (stage?: any) => {
           const base = {
             registrationId: reg.id,
             userName: formatName(reg.user?.name || 'Piloto'),
             userEmail: reg.user?.email,
-            value: Number(reg.amount) || 0,
             inscriptionType: reg.inscriptionType,
             seasonInstallments: isSeason ? getInstallmentProgress(reg) : null,
             isDirect: reg.paymentStatus === 'direct_payment',
@@ -275,6 +267,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
               rawStatus: undefined,
               dueDate: undefined,
               pixCopyPaste: null,
+              value: perStageValue,
               ...base,
             } as PaymentItem);
           } else if (reg.paymentStatus === 'direct_payment' || reg.paymentStatus === 'paid') {
@@ -284,6 +277,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
               rawStatus: undefined,
               dueDate: undefined,
               pixCopyPaste: null,
+              value: perStageValue,
               ...base,
             } as PaymentItem);
           }
@@ -303,6 +297,81 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
       const stagesArr: any[] = type === 'por_etapa' ? ((reg as any).stages || []) : [];
       const seasonInstallments = type === 'por_temporada' ? getInstallmentProgress(reg) : null;
 
+      // Caso geral: inscrição por etapa com número de pagamentos menor que o número de etapas.
+      // Dividir o valor total pago igualmente entre as etapas e criar um item por etapa.
+      if (type === 'por_etapa' && stagesArr.length > 1 && payments.length > 0 && payments.length < stagesArr.length) {
+        const mapStatus = (s: string): PaymentItem['status'] | undefined => {
+          const S = normalizedStatus(s);
+          if (isPaid(S)) return 'PAID';
+          if (S === 'OVERDUE') return 'OVERDUE';
+          if (S === 'AWAITING_RISK_ANALYSIS') return 'PROCESSING';
+          if (isPending(S)) return 'PENDING';
+          if (S === 'REFUNDED') return 'REFUNDED';
+          if (S === 'CANCELLED') return 'CANCELLED';
+          return undefined;
+        };
+
+        const severity: Record<PaymentItem['status'], number> = {
+          OVERDUE: 6,
+          PENDING: 5,
+          PROCESSING: 4,
+          CANCELLED: 3,
+          REFUNDED: 3,
+          PAID: 2,
+          EXEMPT: 1,
+        } as const;
+
+        let aggStatus: PaymentItem['status'] | undefined = undefined;
+        let earliestDue: string | undefined = undefined;
+        let pix: string | null = null;
+        let totalAdjusted = 0;
+
+        payments.forEach((p: any) => {
+          const mapped = mapStatus(p.status);
+          if (!mapped) return;
+          if (!aggStatus) aggStatus = mapped;
+          else if (severity[mapped] > severity[aggStatus]) aggStatus = mapped;
+          const rawValue = Number(p.value) || 0;
+          const adjusted = (mapped === 'PENDING' || mapped === 'PAID' || mapped === 'PROCESSING')
+            ? applyNetIfNeeded(rawValue, reg)
+            : rawValue;
+          totalAdjusted += adjusted;
+          if (p.dueDate && (!earliestDue || compareDates(p.dueDate, earliestDue) < 0)) earliestDue = p.dueDate;
+          if (!pix && p.pixCopyPaste) pix = p.pixCopyPaste;
+        });
+
+        const perStageValue = totalAdjusted / stagesArr.length;
+
+        stagesArr.forEach((stage) => {
+          const sId = String(stage?.stage?.id || stage?.stageId || stage?.id || '');
+          const sName = stage?.stage?.name || stage?.name;
+          if (filterStage && selectedStageIds.size > 0) {
+            if (!sId || !selectedStageIds.has(String(sId))) {
+              return;
+            }
+          }
+          result.push({
+            registrationId: reg.id,
+            id: `split-${reg.id}-${sId}`,
+            userName: formatName(reg.user?.name || 'Piloto'),
+            userEmail: reg.user?.email,
+            value: perStageValue,
+            status: aggStatus || 'PENDING',
+            dueDate: earliestDue,
+            inscriptionType: type,
+            stageId: sId,
+            stageName: sName,
+            seasonInstallments,
+            isDirect: false,
+            rawStatus: undefined,
+            pixCopyPaste: pix,
+            fromSplit: true,
+          });
+        });
+
+        continue; // já criamos um item por etapa
+      }
+
       payments.forEach((p: any, idx: number) => {
         const status = normalizedStatus(p.status);
         const rawValue = Number(p.value) || 0;
@@ -316,6 +385,42 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
 
         if (!mappedStatus) {
           return;
+        }
+
+        // Caso especial: inscrição por etapa com 1 pagamento cobrindo várias etapas
+        if (type === 'por_etapa' && stagesArr.length > 1 && payments.length === 1) {
+          const perStageRawValue = rawValue / stagesArr.length;
+          const baseId = String(p.id || `${reg.id}-${rawValue}-${status}`);
+          stagesArr.forEach((stage) => {
+            const sId = String(stage?.stage?.id || stage?.stageId || stage?.id || '');
+            const sName = stage?.stage?.name || stage?.name;
+            if (filterStage && selectedStageIds.size > 0) {
+              if (!sId || !selectedStageIds.has(String(sId))) {
+                return;
+              }
+            }
+            const valuePortion = (mappedStatus === 'PENDING' || mappedStatus === 'PAID' || mappedStatus === 'PROCESSING')
+              ? applyNetIfNeeded(perStageRawValue, reg)
+              : perStageRawValue;
+            result.push({
+              registrationId: reg.id,
+              id: `${baseId}-${sId}`,
+              userName: formatName(reg.user?.name || 'Piloto'),
+              userEmail: reg.user?.email,
+              value: valuePortion,
+              status: mappedStatus,
+              dueDate: p.dueDate,
+              inscriptionType: type,
+              stageId: sId,
+              stageName: sName,
+              seasonInstallments,
+              isDirect: false,
+              rawStatus: status,
+              pixCopyPaste: p.pixCopyPaste || null,
+              fromSplit: true,
+            });
+          });
+          return; // não adicionar o item padrão, já criamos um por etapa
         }
 
         const value = (mappedStatus === 'PENDING' || mappedStatus === 'PAID' || mappedStatus === 'PROCESSING')
@@ -359,6 +464,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
     // Agrupar rodada dupla com base no cadastro das etapas
     const groupedKeyToItems: Record<string, PaymentItem[]> = {};
     for (const item of result) {
+      if (item.fromSplit) continue; // não reagrupar itens que já foram divididos
       if (item.inscriptionType !== 'por_etapa' || !item.stageId || !item.registrationId) continue;
       const stage = stageById[String(item.stageId)];
       if (stage?.doubleRound && stage?.doubleRoundPairId) {
