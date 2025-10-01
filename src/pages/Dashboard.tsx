@@ -543,7 +543,7 @@ export const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Campeonatos Organizados - Mostra para managers ou para quem tem campeonatos como staff */}
         {championshipsOrganized.length > 0 && (
-          <Card className="p-6">
+          <Card className="p-6 order-3 md:order-1">
             <div className="mb-4">
               <h2 className="text-xl font-semibold">Organizando</h2>
               <p className="text-sm text-muted-foreground">
@@ -677,7 +677,7 @@ export const Dashboard = () => {
         )}
 
         {/* Campeonatos Participando - Ocupa mais espaço quando não há seção "Organizando" */}
-        <Card className={`p-6 ${!isManager ? "lg:col-span-2" : ""}`}>
+        <Card className={`p-6 order-2 md:order-2 ${!isManager ? "lg:col-span-2" : ""}`}>
           <div className="mb-4">
             <h2 className="text-xl font-semibold">Participando</h2>
             <p className="text-sm text-muted-foreground">
@@ -898,7 +898,7 @@ export const Dashboard = () => {
         </Card>
 
         {/* Próximas Corridas */}
-        <Card className="p-6">
+        <Card className="p-6 order-1 md:order-3">
           <div>
             <h2 className="text-xl font-semibold">Próximas Corridas</h2>
             <p className="text-sm text-muted-foreground">
