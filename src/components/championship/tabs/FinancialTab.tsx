@@ -13,6 +13,7 @@ import { useChampionshipData } from "@/contexts/ChampionshipContext";
 import { useStaffPermissions } from "@/hooks/use-staff-permissions";
 import { usePagination } from "@/hooks/usePagination";
 import { toast } from "sonner";
+import { PageLoader } from "@/components/ui/loading";
 
 interface FinancialTabProps {
   championshipId: string;
@@ -509,9 +510,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <Card className="w-full p-6">Carregando visão financeira...</Card>
-      </div>
+      <PageLoader />
     );
   }
 
