@@ -40,6 +40,12 @@ export const Dashboard = () => {
   const [confirmedOverrides, setConfirmedOverrides] = useState<Record<string, boolean | undefined>>({});
   const [myRegistrations, setMyRegistrations] = useState<any[]>([]);
   const [loadingRegistrations, setLoadingRegistrations] = useState<boolean>(false);
+  const [orgPage, setOrgPage] = useState<number>(1);
+  const [partPage, setPartPage] = useState<number>(1);
+  const [racesPage, setRacesPage] = useState<number>(1);
+  const ORG_PER_PAGE = 3;
+  const PART_PER_PAGE = 3;
+  const RACES_PER_PAGE = 3;
 
   // Check if user is manager or administrator
   const isManager = user?.role === "Manager" || user?.role === "Administrator";
@@ -243,6 +249,24 @@ export const Dashboard = () => {
     loadRegs();
   }, [user]);
 
+  // Ajusta página quando a quantidade de corridas futuras muda
+  useEffect(() => {
+    const total = Math.max(1, Math.ceil(upcomingRaces.length / RACES_PER_PAGE));
+    if (racesPage > total) setRacesPage(1);
+  }, [upcomingRaces.length]);
+
+  // Ajusta página quando a quantidade de campeonatos organizados muda
+  useEffect(() => {
+    const total = Math.max(1, Math.ceil(championshipsOrganized.length / ORG_PER_PAGE));
+    if (orgPage > total) setOrgPage(1);
+  }, [championshipsOrganized.length]);
+
+  // Ajusta página quando a quantidade de campeonatos participando muda
+  useEffect(() => {
+    const total = Math.max(1, Math.ceil(championshipsParticipating.length / PART_PER_PAGE));
+    if (partPage > total) setPartPage(1);
+  }, [championshipsParticipating.length]);
+
   type CategoryActionType =
     | "register_season"
     | "register_stage"
@@ -356,6 +380,33 @@ export const Dashboard = () => {
       })
       .filter((cat: any) => !!cat);
   };
+
+  // Paginação de Próximas Corridas
+  const totalRacesPages = Math.max(1, Math.ceil(upcomingRaces.length / RACES_PER_PAGE));
+  const startRaceIndex = (racesPage - 1) * RACES_PER_PAGE;
+  const pagedUpcomingRaces = upcomingRaces.slice(
+    startRaceIndex,
+    startRaceIndex + RACES_PER_PAGE,
+  );
+
+  // Paginação de Organizando
+  const totalOrgPages = Math.max(1, Math.ceil(championshipsOrganized.length / ORG_PER_PAGE));
+  const startOrgIndex = (orgPage - 1) * ORG_PER_PAGE;
+  const pagedOrganized = championshipsOrganized.slice(
+    startOrgIndex,
+    startOrgIndex + ORG_PER_PAGE,
+  );
+
+  // Paginação de Participando
+  const totalPartPages = Math.max(
+    1,
+    Math.ceil(championshipsParticipating.length / PART_PER_PAGE),
+  );
+  const startPartIndex = (partPage - 1) * PART_PER_PAGE;
+  const pagedParticipations = championshipsParticipating.slice(
+    startPartIndex,
+    startPartIndex + PART_PER_PAGE,
+  );
 
   // Show loading while checking for redirect
   if (isCheckingRedirect) {
@@ -515,7 +566,7 @@ export const Dashboard = () => {
               />
             ) : (
               <div className="space-y-4">
-                {championshipsOrganized.map((championship) => {
+                {pagedOrganized.map((championship) => {
                   // Gerar iniciais do nome do campeonato para o avatar
                   const getInitials = (name: string) => {
                     return name
@@ -537,7 +588,7 @@ export const Dashboard = () => {
                     >
                       <div className="flex flex-col md:flex-row md:items-center gap-4 p-6">
                         {/* Bloco avatar, nome e badge */}
-                        <div className="flex flex-col items-center md:items-start md:flex-row md:items-center gap-2 md:gap-4 flex-shrink-0 w-full md:w-auto">
+                        <div className="flex flex-col items-center md:items-start md:flex-row md:items-center gap-2 md:gap-4 w-full md:flex-1 min-w-0">
                           <Avatar className="h-14 w-14 bg-muted text-primary-foreground text-xl font-bold">
                             {champ.championshipImage ? (
                               <AvatarImage
@@ -549,9 +600,9 @@ export const Dashboard = () => {
                               {getInitials(champ.name)}
                             </AvatarFallback>
                           </Avatar>
-                          <div className="flex flex-col items-center md:items-start">
+                          <div className="flex flex-col items-center md:items-start min-w-0">
                             <h3
-                              className="text-lg font-semibold leading-tight truncate max-w-xs"
+                              className="text-lg font-semibold leading-tight whitespace-normal break-words w-full"
                               title={champ.name}
                             >
                               {champ.name}
@@ -577,6 +628,29 @@ export const Dashboard = () => {
                     </Card>
                   );
                 })}
+                {totalOrgPages > 1 && (
+                  <div className="flex items-center justify-between pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setOrgPage((p) => Math.max(1, p - 1))}
+                      disabled={orgPage === 1}
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      {orgPage} / {totalOrgPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setOrgPage((p) => Math.min(totalOrgPages, p + 1))}
+                      disabled={orgPage >= totalOrgPages}
+                    >
+                      Próxima
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </Card>
@@ -620,7 +694,7 @@ export const Dashboard = () => {
             />
           ) : (
             <div className="space-y-4">
-              {championshipsParticipating.map((participation) => {
+              {pagedParticipations.map((participation) => {
                 // Gerar iniciais do nome do campeonato para o avatar
                 const getInitials = (name: string) => {
                   return name
@@ -647,9 +721,9 @@ export const Dashboard = () => {
                     key={championship.id}
                     className="overflow-hidden shadow-md border-2 border-muted/40 hover:border-primary/60 transition-all"
                   >
-                    <div className="flex flex-col gap-4 p-6">
+                      <div className="flex flex-col gap-4 p-6">
                       {/* Bloco avatar, nome e badge */}
-                      <div className="flex flex-col items-center gap-2 flex-shrink-0 w-full">
+                        <div className="flex flex-col items-center gap-2 w-full min-w-0">
                         <Avatar className="h-14 w-14 bg-muted text-primary-foreground text-xl font-bold">
                           {championship.championshipImage ? (
                             <AvatarImage
@@ -663,7 +737,7 @@ export const Dashboard = () => {
                         </Avatar>
                         <div className="flex flex-col items-center">
                           <h3
-                            className="text-lg font-semibold leading-tight truncate max-w-xs"
+                            className="text-lg font-semibold leading-tight whitespace-normal break-words w-full"
                             title={championship.name}
                           >
                             {championship.name}
@@ -676,7 +750,7 @@ export const Dashboard = () => {
                         </div>
                       </div>
                       {/* Descrição e temporadas sempre abaixo do bloco acima */}
-                      <div className="flex-1 flex flex-col gap-2 w-full mt-3">
+                        <div className="flex-1 flex flex-col gap-2 w-full mt-3 min-w-0">
                         {championship.shortDescription && (
                           <p
                             className="text-xs text-muted-foreground mb-1 overflow-hidden"
@@ -776,6 +850,29 @@ export const Dashboard = () => {
                   </Card>
                 );
               })}
+              {totalPartPages > 1 && (
+                <div className="flex items-center justify-between pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPartPage((p) => Math.max(1, p - 1))}
+                    disabled={partPage === 1}
+                  >
+                    Anterior
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    {partPage} / {totalPartPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPartPage((p) => Math.min(totalPartPages, p + 1))}
+                    disabled={partPage >= totalPartPages}
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </Card>
@@ -812,7 +909,7 @@ export const Dashboard = () => {
             />
           ) : (
             <div className="space-y-4">
-              {upcomingRaces.map((race) => {
+              {pagedUpcomingRaces.map((race) => {
                 const sortedKarts = getSortedKartsForUser(
                   race.stage,
                   race.availableCategories,
@@ -977,6 +1074,31 @@ export const Dashboard = () => {
                   </Card>
                 );
               })}
+              {totalRacesPages > 1 && (
+                <div className="flex items-center justify-between pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRacesPage((p) => Math.max(1, p - 1))}
+                    disabled={racesPage === 1}
+                  >
+                    Anterior
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    {racesPage} / {totalRacesPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setRacesPage((p) => Math.min(totalRacesPages, p + 1))
+                    }
+                    disabled={racesPage >= totalRacesPages}
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </Card>

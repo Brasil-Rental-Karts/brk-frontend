@@ -388,12 +388,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         return dateA.getTime() - dateB.getTime();
       });
 
-      // Limitar a 3 corridas mantendo ordem cronológica
-      const top3Races = sortedRaces.slice(0, 3);
-
-      // AGORA buscar stage participation apenas para as 3 corridas selecionadas
+      // Buscar stage participation para todas as corridas ordenadas
       const racesWithParticipation = await Promise.all(
-        top3Races.map(async (race) => {
+        sortedRaces.map(async (race) => {
           try {
             const availableCategories =
               await StageParticipationService.getAvailableCategories(
