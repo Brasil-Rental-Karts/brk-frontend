@@ -198,7 +198,8 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
     status: 'PAID' | 'PENDING' | 'OVERDUE' | 'PROCESSING' | 'REFUNDED' | 'CANCELLED' | 'EXEMPT';
     dueDate?: string;
     inscriptionType?: string;
-    stageNames?: string[];
+    stageId?: string;
+    stageName?: string;
     seasonInstallments?: { paid: number; total: number } | null;
     isDirect?: boolean; // pagamento direto (admin)
     rawStatus?: string; // status original quando existir pagamento
@@ -236,48 +237,65 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
       if (!matchesSelectedStages(reg)) continue;
       const payments: any[] = (reg as any).payments || [];
       if (!payments || payments.length === 0) {
-        // Gerar item sintético para inscrições administrativas
-        if (reg.paymentStatus === 'exempt') {
-          result.push({
-            id: `${reg.id}-EXEMPT`,
+        // Gerar item sintético
+        const isSeason = reg.inscriptionType === 'por_temporada';
+        const isStage = reg.inscriptionType === 'por_etapa';
+        const stagesArr: any[] = isStage ? ((reg as any).stages || []) : [];
+
+        const pushSynthetic = (stage?: any) => {
+          const base = {
             userName: formatName(reg.user?.name || 'Piloto'),
             userEmail: reg.user?.email,
             value: Number(reg.amount) || 0,
-            status: 'EXEMPT',
             inscriptionType: reg.inscriptionType,
-            stageNames: reg.inscriptionType === 'por_etapa' ? (((reg as any).stages || []).map((s: any) => s?.stage?.name || s?.name).filter(Boolean)) : undefined,
-            seasonInstallments: reg.inscriptionType === 'por_temporada' ? getInstallmentProgress(reg) : null,
-            isDirect: false,
-          });
-        } else if (reg.paymentStatus === 'direct_payment' || reg.paymentStatus === 'paid') {
-          result.push({
-            id: `${reg.id}-DIRECTPAID`,
-            userName: formatName(reg.user?.name || 'Piloto'),
-            userEmail: reg.user?.email,
-            value: Number(reg.amount) || 0,
-            status: 'PAID',
-            inscriptionType: reg.inscriptionType,
-            stageNames: reg.inscriptionType === 'por_etapa' ? (((reg as any).stages || []).map((s: any) => s?.stage?.name || s?.name).filter(Boolean)) : undefined,
-            seasonInstallments: reg.inscriptionType === 'por_temporada' ? getInstallmentProgress(reg) : null,
+            seasonInstallments: isSeason ? getInstallmentProgress(reg) : null,
             isDirect: reg.paymentStatus === 'direct_payment',
-          });
+          } as Partial<PaymentItem>;
+
+          if (stage) {
+            (base as any).stageId = stage?.stage?.id || stage?.stageId || stage?.id;
+            (base as any).stageName = stage?.stage?.name || stage?.name || 'Etapa';
+          }
+
+          if (reg.paymentStatus === 'exempt') {
+            result.push({
+              id: `${reg.id}-EXEMPT${stage ? `-${(base as any).stageId}` : ''}`,
+              status: 'EXEMPT',
+              rawStatus: undefined,
+              dueDate: undefined,
+              pixCopyPaste: null,
+              ...base,
+            } as PaymentItem);
+          } else if (reg.paymentStatus === 'direct_payment' || reg.paymentStatus === 'paid') {
+            result.push({
+              id: `${reg.id}-DIRECTPAID${stage ? `-${(base as any).stageId}` : ''}`,
+              status: 'PAID',
+              rawStatus: undefined,
+              dueDate: undefined,
+              pixCopyPaste: null,
+              ...base,
+            } as PaymentItem);
+          }
+        };
+
+        if (isStage && stagesArr.length > 0) {
+          // Um item por etapa
+          stagesArr.forEach((s) => pushSynthetic(s));
+        } else {
+          // Único item (por temporada)
+          pushSynthetic();
         }
-        continue; // sem cobranças com item sintético tratado
+        continue;
       }
 
       const type = reg.inscriptionType; // 'por_temporada' | 'por_etapa'
-      const stageNames: string[] | undefined = type === 'por_etapa'
-        ? ((reg as any).stages || [])
-            .map((s: any) => s?.stage?.name || s?.name)
-            .filter(Boolean)
-        : undefined;
-
+      const stagesArr: any[] = type === 'por_etapa' ? ((reg as any).stages || []) : [];
       const seasonInstallments = type === 'por_temporada' ? getInstallmentProgress(reg) : null;
 
-      for (const p of payments) {
+      payments.forEach((p: any, idx: number) => {
         const status = normalizedStatus(p.status);
         const rawValue = Number(p.value) || 0;
-        let mappedStatus: PaymentItem['status'] | null = null;
+        let mappedStatus: PaymentItem['status'] | undefined = undefined;
         if (isPaid(status)) mappedStatus = 'PAID';
         else if (isOverdue(status)) mappedStatus = 'OVERDUE';
         else if (status === 'AWAITING_RISK_ANALYSIS') mappedStatus = 'PROCESSING';
@@ -285,27 +303,45 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
         else if (status === 'REFUNDED') mappedStatus = 'REFUNDED';
         else if (status === 'CANCELLED') mappedStatus = 'CANCELLED';
 
-        if (!mappedStatus) continue;
+        if (!mappedStatus) {
+          return;
+        }
 
         const value = (mappedStatus === 'PENDING' || mappedStatus === 'PAID' || mappedStatus === 'PROCESSING')
           ? applyNetIfNeeded(rawValue, reg)
           : rawValue;
 
+        // Mapear etapa específica para inscrições por etapa
+        let stageId: string | undefined;
+        let stageName: string | undefined;
+        if (type === 'por_etapa' && stagesArr.length > 0) {
+          const stage = stagesArr[idx % stagesArr.length];
+          stageId = String(stage?.stage?.id || stage?.stageId || stage?.id || '');
+          stageName = stage?.stage?.name || stage?.name;
+          // Se filtro por etapa está ativo, filtrar por item
+          if (filterStage && selectedStageIds.size > 0) {
+            if (!stageId || !selectedStageIds.has(String(stageId))) {
+              return; // pular este item
+            }
+          }
+        }
+
         result.push({
-          id: String(p.id || `${reg.id}-${rawValue}-${status}`),
+          id: String(p.id || `${reg.id}-${rawValue}-${status}-${stageId || 'all'}`),
           userName: formatName(reg.user?.name || 'Piloto'),
           userEmail: reg.user?.email,
           value,
           status: mappedStatus,
           dueDate: p.dueDate,
           inscriptionType: type,
-          stageNames,
+          stageId,
+          stageName,
           seasonInstallments,
           isDirect: false,
           rawStatus: status,
           pixCopyPaste: p.pixCopyPaste || null,
         });
-      }
+      });
     }
 
     // Aplicar filtro de status (multi-seleção)
@@ -559,10 +595,8 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
                       {isStage && (
                         <Badge className="bg-purple-100 text-purple-800 border-purple-200">Por Etapa</Badge>
                       )}
-                      {isStage && item.stageNames && item.stageNames.length > 0 && (
-                        <span className="text-xs text-muted-foreground max-w-[280px] truncate">
-                          {item.stageNames.join(', ')}
-                        </span>
+                      {isStage && item.stageName && (
+                        <Badge variant="outline">{item.stageName}</Badge>
                       )}
 
                       <div className="text-right text-sm font-semibold ml-2">
