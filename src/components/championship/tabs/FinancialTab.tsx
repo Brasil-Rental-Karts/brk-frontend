@@ -439,13 +439,8 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
       );
     });
 
-    // Ordena: vencido primeiro, depois por data de vencimento asc, depois por nome
-    return filtered.sort((a, b) => {
-      if (a.status !== b.status) return a.status === 'OVERDUE' ? -1 : 1;
-      const cmp = compareDates(a.dueDate || "9999-12-31", b.dueDate || "9999-12-31");
-      if (cmp !== 0) return cmp;
-      return a.userName.localeCompare(b.userName);
-    });
+    // Ordena por nome do piloto (asc)
+    return filtered.sort((a, b) => a.userName.localeCompare(b.userName));
   }, [registrations, championship, filterSeason, filterStage, selectedStageIds, selectedStatuses]);
 
   // Paginação da listagem de pagamentos
@@ -667,9 +662,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
                       {isSeason && (
                         <Badge className="bg-blue-100 text-blue-800 border-blue-200">Por Temporada</Badge>
                       )}
-                      {isSeason && item.seasonInstallments && (
-                        <Badge variant="outline">{item.seasonInstallments.paid}/{item.seasonInstallments.total} parcelas</Badge>
-                      )}
+                      {/* Removido: informação de parcelas para inscrições por temporada */}
 
                       {isStage && (
                         <Badge className="bg-purple-100 text-purple-800 border-purple-200">Por Etapa</Badge>
