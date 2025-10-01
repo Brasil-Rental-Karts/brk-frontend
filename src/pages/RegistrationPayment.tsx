@@ -22,6 +22,7 @@ import {
   SeasonRegistrationService,
 } from "@/lib/services/season-registration.service";
 import { formatCurrency } from "@/utils/currency";
+import { compareDates, formatDateToBrazilian } from "@/utils/date";
 
 const InstallmentList: React.FC<{ payments: RegistrationPaymentData[] }> = ({
   payments,
@@ -100,7 +101,7 @@ const InstallmentList: React.FC<{ payments: RegistrationPaymentData[] }> = ({
                       </div>
                       <div className="text-sm text-muted-foreground">
                         Vencimento:{" "}
-                        {new Date(payment.dueDate).toLocaleDateString("pt-BR")}
+                        {formatDateToBrazilian(payment.dueDate)}
                       </div>
                     </div>
                   </div>
@@ -255,7 +256,7 @@ export const RegistrationPayment: React.FC = () => {
           return a.installmentNumber - b.installmentNumber;
         }
         // Se não tem installmentNumber, ordena por data de vencimento
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        return compareDates(a.dueDate || "9999-12-31", b.dueDate || "9999-12-31");
       });
     };
 

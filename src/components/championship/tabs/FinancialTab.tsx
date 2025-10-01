@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { SeasonRegistration, SeasonRegistrationService } from "@/lib/services/season-registration.service";
 import { Championship, ChampionshipService } from "@/lib/services/championship.service";
 import { formatCurrency } from "@/utils/currency";
+import { compareDates, formatDateToBrazilian } from "@/utils/date";
 import { formatName } from "@/utils/name";
 import { usePaymentManagement } from "@/hooks/use-payment-management";
 import { useAuth } from "@/contexts/AuthContext";
@@ -94,11 +95,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
       }
     }
     const list = Array.from(map.values());
-    list.sort((a, b) => {
-      const da = a.date ? new Date(a.date).getTime() : Number.MAX_SAFE_INTEGER;
-      const db = b.date ? new Date(b.date).getTime() : Number.MAX_SAFE_INTEGER;
-      return da - db;
-    });
+    list.sort((a, b) => compareDates(a.date || "9999-12-31", b.date || "9999-12-31"));
     return list;
   }, [registrations]);
 
@@ -444,9 +441,8 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
     // Ordena: vencido primeiro, depois por data de vencimento asc, depois por nome
     return filtered.sort((a, b) => {
       if (a.status !== b.status) return a.status === 'OVERDUE' ? -1 : 1;
-      const da = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-      const db = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-      if (da !== db) return da - db;
+      const cmp = compareDates(a.dueDate || "9999-12-31", b.dueDate || "9999-12-31");
+      if (cmp !== 0) return cmp;
       return a.userName.localeCompare(b.userName);
     });
   }, [registrations, championship, filterSeason, filterStage, selectedStageIds, selectedStatuses]);
@@ -632,8 +628,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
           ) : (
             <div className="divide-y">
               {paginatedPaymentItems.map((item) => {
-                const due = item.dueDate ? new Date(item.dueDate) : null;
-                const dueStr = due ? due.toLocaleDateString('pt-BR') : '-';
+                const dueStr = item.dueDate ? formatDateToBrazilian(item.dueDate) : '-';
                 const isSeason = item.inscriptionType === 'por_temporada';
                 const isStage = item.inscriptionType === 'por_etapa';
                 return (
@@ -758,7 +753,7 @@ export const FinancialTab = ({ championshipId }: FinancialTabProps) => {
               <div className="border rounded-lg p-4 bg-muted/50 text-sm">
                 <div><span className="text-muted-foreground">Piloto:</span> <span className="font-semibold">{selectedPaymentForDueDate.userName}</span></div>
                 <div><span className="text-muted-foreground">Valor:</span> <span className="font-semibold">{formatCurrency(selectedPaymentForDueDate.value || 0)}</span></div>
-                <div><span className="text-muted-foreground">Vencimento Atual:</span> <span className="font-semibold">{selectedPaymentForDueDate.dueDate ? new Date(selectedPaymentForDueDate.dueDate).toLocaleDateString('pt-BR') : '-'}</span></div>
+                <div><span className="text-muted-foreground">Vencimento Atual:</span> <span className="font-semibold">{selectedPaymentForDueDate.dueDate ? formatDateToBrazilian(selectedPaymentForDueDate.dueDate) : '-'}</span></div>
               </div>
             )}
             <div className="space-y-2">

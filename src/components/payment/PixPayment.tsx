@@ -47,8 +47,20 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
     }
   };
 
+  // Trata datas no formato YYYY-MM-DD como fim do dia local (23:59:59.999)
+  const parseAsLocalEndOfDay = (dateInput: string | Date): Date => {
+    if (!dateInput) return new Date(8640000000000000); // max date
+    if (dateInput instanceof Date) return dateInput;
+    const ymd = dateInput.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (ymd) {
+      const [, y, m, d] = ymd;
+      return new Date(parseInt(y), parseInt(m) - 1, parseInt(d), 23, 59, 59, 999);
+    }
+    return new Date(dateInput);
+  };
+
   const formatExpirationTime = (expirationDate: string) => {
-    const expiration = new Date(expirationDate);
+    const expiration = parseAsLocalEndOfDay(expirationDate);
     const now = new Date();
     const diffMs = expiration.getTime() - now.getTime();
 
@@ -115,7 +127,7 @@ export const PixPayment: React.FC<PixPaymentProps> = ({
   const isExpired = () => {
     if (!paymentData.expirationDate && !paymentData.dueDate) return false;
     const dateToCheck = paymentData.expirationDate || paymentData.dueDate;
-    return new Date(dateToCheck) <= new Date();
+    return parseAsLocalEndOfDay(dateToCheck) <= new Date();
   };
 
   const getExpirationText = () => {

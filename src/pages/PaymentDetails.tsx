@@ -31,7 +31,7 @@ import {
   SeasonRegistrationService,
 } from "@/lib/services/season-registration.service";
 import { formatCurrency } from "@/utils/currency";
-import { formatDateToBrazilian } from "@/utils/date";
+import { formatDateToBrazilian, compareDates } from "@/utils/date";
 import { formatName } from "@/utils/name";
 
 interface PaymentDetailsData {
@@ -341,7 +341,7 @@ export const PaymentDetails: React.FC = () => {
         if (a.installmentNumber && b.installmentNumber) {
           return a.installmentNumber - b.installmentNumber;
         }
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        return compareDates(a.dueDate || "9999-12-31", b.dueDate || "9999-12-31");
       });
     };
 

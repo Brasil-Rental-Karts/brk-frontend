@@ -43,7 +43,7 @@ import { useEffect, useState } from "react";
 import { usePaymentManagement } from "@/hooks/use-payment-management";
 import { OverduePayment } from "@/lib/services/payment-management.service";
 import { formatCurrency } from "@/utils/currency";
-import { formatDateToBrazilian } from "@/utils/date";
+import { formatDateToBrazilian, compareDates } from "@/utils/date";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePagination } from "@/hooks/usePagination";
 import { InlineLoader } from "@/components/ui/loading";
@@ -151,8 +151,8 @@ export const OverduePaymentsTable = () => {
           bValue = (b.registration?.user?.name || "").toLowerCase();
           break;
         case "dueDate":
-          aValue = new Date(a.dueDate);
-          bValue = new Date(b.dueDate);
+          aValue = a.dueDate || "9999-12-31";
+          bValue = b.dueDate || "9999-12-31";
           break;
         case "value":
           aValue = a.value;
@@ -166,11 +166,12 @@ export const OverduePaymentsTable = () => {
           return 0;
       }
 
-      if (sortOrder === "asc") {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
+      if (sortBy === "dueDate") {
+        const cmp = compareDates(aValue, bValue);
+        return sortOrder === "asc" ? cmp : -cmp;
       }
+      if (sortOrder === "asc") return aValue > bValue ? 1 : -1;
+      return aValue < bValue ? 1 : -1;
     };
 
     filtered.sort(sorter);
