@@ -36,7 +36,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./package.json
 
 # Expor porta 3000 (padrão do serve)
-EXPOSE 5173
+EXPOSE 3000
 
 # Configurar usuário não-root para segurança
 RUN addgroup --system --gid 1001 nodejs
