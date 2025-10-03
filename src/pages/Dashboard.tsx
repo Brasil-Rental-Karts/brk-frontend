@@ -33,7 +33,6 @@ export const Dashboard = () => {
   const nav = useNavigation();
   const { user } = useAuth();
   const [showProfileAlert, setShowProfileAlert] = useState(false);
-  const [isCheckingRedirect, setIsCheckingRedirect] = useState(true);
   const [showCompleteProfileModal, setShowCompleteProfileModal] =
     useState(false);
   const [buttonLoading, setButtonLoading] = useState<Record<string, boolean>>({});
@@ -75,17 +74,10 @@ export const Dashboard = () => {
     if (redirectUrl) {
       window.location.href = redirectUrl;
       localStorage.removeItem("redirectUrl");
-    } else {
-      setIsCheckingRedirect(false);
     }
   }, []);
 
-  // Após concluir o check de redirect, garantir dados atualizados ao entrar
-  useEffect(() => {
-    if (!isCheckingRedirect && user) {
-      refreshAll();
-    }
-  }, [isCheckingRedirect, user, refreshAll]);
+  
 
   // Show complete profile modal when profile is not completed and not loading
   useEffect(() => {
@@ -444,11 +436,6 @@ export const Dashboard = () => {
     startPartIndex,
     startPartIndex + PART_PER_PAGE,
   );
-
-  // Show loading while checking for redirect
-  if (isCheckingRedirect) {
-    return <></>;
-  }
 
   return (
     <div className="container mx-auto p-4 space-y-6">
