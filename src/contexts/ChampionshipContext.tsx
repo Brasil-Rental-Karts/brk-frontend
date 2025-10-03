@@ -44,6 +44,7 @@ import {
 } from "@/lib/services/stage-participation.service";
 import { GridType } from "@/lib/types/grid-type";
 import { Stage } from "@/lib/types/stage";
+import { useProgressiveLoading } from "@/hooks/use-progressive-loading";
 
 // Interface para dados de classificação do Redis
 interface ClassificationUser {
@@ -286,6 +287,11 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({
   children,
 }) => {
   const [championshipId, setChampionshipId] = useState<string | null>(null);
+  const { executeWithRetry, delay } = useProgressiveLoading({
+    maxRetries: 3,
+    baseDelay: 1000,
+    requestDelay: 200
+  });
   const [championshipData, setChampionshipData] = useState<ChampionshipData>({
     championshipInfo: null,
     seasons: [],
@@ -388,10 +394,9 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({
     setError((prev) => ({ ...prev, seasons: null }));
 
     try {
-      const seasonsData = await SeasonService.getByChampionshipId(
-        championshipId,
-        1,
-        100,
+      const seasonsData = await executeWithRetry(
+        () => SeasonService.getByChampionshipId(championshipId, 1, 100),
+        'Carregando temporadas'
       );
 
       setChampionshipData((prev) => ({
@@ -429,10 +434,13 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({
     try {
       const allCategories: Category[] = [];
 
-      // Buscar categorias de todas as temporadas com contagem de inscritos
+      // Buscar categorias de todas as temporadas sequencialmente para evitar timeouts
       for (const season of championshipData.seasons) {
         try {
-          const categories = await CategoryService.getBySeasonId(season.id);
+          const categories = await executeWithRetry(
+            () => CategoryService.getBySeasonId(season.id),
+            `Carregando categorias da temporada ${season.name}`
+          );
           allCategories.push(...categories);
         } catch (err) {
           console.error(
@@ -485,10 +493,13 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({
     try {
       const allStages: Stage[] = [];
 
-      // Buscar etapas de todas as temporadas
+      // Buscar etapas de todas as temporadas sequencialmente para evitar timeouts
       for (const season of championshipData.seasons) {
         try {
-          const stages = await StageService.getBySeasonId(season.id);
+          const stages = await executeWithRetry(
+            () => StageService.getBySeasonId(season.id),
+            `Carregando etapas da temporada ${season.name}`
+          );
           allStages.push(...stages);
         } catch (err) {
           console.error(
@@ -529,7 +540,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({
 
     try {
       // Buscar todos os kartódromos ativos em vez de apenas os associados às etapas
-      const allRaceTracks = await RaceTrackService.getActive();
+      const allRaceTracks = await executeWithRetry(
+        () => RaceTrackService.getActive(),
+        'Carregando kartódromos'
+      );
       const raceTracksData: Record<string, any> = {};
 
       // Converter array para objeto com ID como chave
@@ -570,8 +584,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({
     setError((prev) => ({ ...prev, staff: null }));
 
     try {
-      const staffData =
-        await ChampionshipStaffService.getStaffMembers(championshipId);
+      const staffData = await executeWithRetry(
+        () => ChampionshipStaffService.getStaffMembers(championshipId),
+        'Carregando equipe'
+      );
       setChampionshipData((prev) => ({
         ...prev,
         staff: staffData,
@@ -602,8 +618,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({
     setError((prev) => ({ ...prev, registrations: null }));
 
     try {
-      const registrationsData =
-        await SeasonRegistrationService.getByChampionshipId(championshipId);
+      const registrationsData = await executeWithRetry(
+        () => SeasonRegistrationService.getByChampionshipId(championshipId),
+        'Carregando inscrições'
+      );
 
       setChampionshipData((prev) => ({
         ...prev,
@@ -638,8 +656,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({
     setError((prev) => ({ ...prev, penalties: null }));
 
     try {
-      const penaltiesData =
-        await PenaltyService.getPenaltiesByChampionshipId(championshipId);
+      const penaltiesData = await executeWithRetry(
+        () => PenaltyService.getPenaltiesByChampionshipId(championshipId),
+        'Carregando penalidades'
+      );
       setChampionshipData((prev) => ({
         ...prev,
         penalties: penaltiesData,
@@ -678,17 +698,19 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({
 
         if (stageId) {
           // Buscar participações de uma etapa específica
-          const participationsData =
-            await StageParticipationService.getStageParticipations(stageId);
+          const participationsData = await executeWithRetry(
+            () => StageParticipationService.getStageParticipations(stageId),
+            `Carregando participações da etapa ${stageId}`
+          );
           allParticipations[stageId] = participationsData;
         } else {
-          // Buscar participações de todas as etapas
+          // Buscar participações de todas as etapas sequencialmente para evitar timeouts
           for (const stage of championshipData.stages) {
             try {
-              const participationsData =
-                await StageParticipationService.getStageParticipations(
-                  stage.id,
-                );
+              const participationsData = await executeWithRetry(
+                () => StageParticipationService.getStageParticipations(stage.id),
+                `Carregando participações da etapa ${stage.name}`
+              );
               allParticipations[stage.id] = participationsData;
             } catch (err) {
               console.error(
@@ -758,7 +780,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({
       setError((prev) => ({ ...prev, regulations: null }));
 
       try {
-        const regulationsData = await RegulationService.getBySeasonId(seasonId);
+        const regulationsData = await executeWithRetry(
+          () => RegulationService.getBySeasonId(seasonId),
+          `Carregando regulamentos da temporada ${seasonId}`
+        );
         setChampionshipData((prev) => ({
           ...prev,
           regulations: {
@@ -791,8 +816,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({
     setError((prev) => ({ ...prev, gridTypes: null }));
 
     try {
-      const gridTypesData =
-        await GridTypeService.getByChampionship(championshipId);
+      const gridTypesData = await executeWithRetry(
+        () => GridTypeService.getByChampionship(championshipId),
+        'Carregando tipos de grid'
+      );
       setChampionshipData((prev) => ({
         ...prev,
         gridTypes: gridTypesData,
@@ -819,8 +846,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({
     setError((prev) => ({ ...prev, scoringSystems: null }));
 
     try {
-      const scoringSystemsData =
-        await ScoringSystemService.getByChampionshipId(championshipId);
+      const scoringSystemsData = await executeWithRetry(
+        () => ScoringSystemService.getByChampionshipId(championshipId),
+        'Carregando sistemas de pontuação'
+      );
       setChampionshipData((prev) => ({
         ...prev,
         scoringSystems: scoringSystemsData,
@@ -851,7 +880,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({
     setLoading((prev) => ({ ...prev, championshipInfo: true }));
     setError((prev) => ({ ...prev, championshipInfo: null }));
     try {
-      const info = await ChampionshipService.getById(championshipId);
+      const info = await executeWithRetry(
+        () => ChampionshipService.getById(championshipId),
+        'Carregando informações do campeonato'
+      );
       setChampionshipData((prev) => ({
         ...prev,
         championshipInfo: info,
@@ -876,7 +908,10 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({
     setLoading((prev) => ({ ...prev, asaasStatus: true }));
     setError((prev) => ({ ...prev, asaasStatus: null }));
     try {
-      const status = await ChampionshipService.getAsaasStatus(championshipId);
+      const status = await executeWithRetry(
+        () => ChampionshipService.getAsaasStatus(championshipId),
+        'Carregando status do Asaas'
+      );
       setChampionshipData((prev) => ({
         ...prev,
         asaasStatus: status,
@@ -1761,33 +1796,41 @@ export const ChampionshipProvider: React.FC<ChampionshipProviderProps> = ({
     }
   }, [championshipId, championshipData.penalties.length]);
 
-  // Carregar classificações quando o championshipId mudar ou seasons mudar
+  // Carregar classificações quando o championshipId mudar ou seasons mudar (sequencialmente)
   useEffect(() => {
     if (championshipId && championshipData.seasons.length > 0) {
-      championshipData.seasons.forEach((season) => {
-        if (
-          !championshipData.classifications[season.id] &&
-          !fetchedClassificationSeasons.current.has(season.id)
-        ) {
-          fetchedClassificationSeasons.current.add(season.id);
-          fetchClassification(season.id);
+      const loadClassificationsSequentially = async () => {
+        for (const season of championshipData.seasons) {
+          if (
+            !championshipData.classifications[season.id] &&
+            !fetchedClassificationSeasons.current.has(season.id)
+          ) {
+            fetchedClassificationSeasons.current.add(season.id);
+            await fetchClassification(season.id);
+            await delay(100); // Pequeno delay entre requisições
+          }
         }
-      });
+      };
+      loadClassificationsSequentially();
     }
   }, [championshipId, championshipData.seasons]);
 
-  // Carregar regulamentos quando o championshipId mudar
+  // Carregar regulamentos quando o championshipId mudar (sequencialmente)
   useEffect(() => {
     if (championshipId && championshipData.seasons.length > 0) {
-      championshipData.seasons.forEach((season) => {
-        // Só buscar regulamentos se a temporada ainda existe e não tem dados carregados
-        const shouldFetchRegulations =
-          !championshipData.regulations[season.id] ||
-          championshipData.regulations[season.id].length === 0;
-        if (shouldFetchRegulations) {
-          fetchRegulations(season.id);
+      const loadRegulationsSequentially = async () => {
+        for (const season of championshipData.seasons) {
+          // Só buscar regulamentos se a temporada ainda existe e não tem dados carregados
+          const shouldFetchRegulations =
+            !championshipData.regulations[season.id] ||
+            championshipData.regulations[season.id].length === 0;
+          if (shouldFetchRegulations) {
+            await fetchRegulations(season.id);
+            await delay(100); // Pequeno delay entre requisições
+          }
         }
-      });
+      };
+      loadRegulationsSequentially();
     }
   }, [championshipId, championshipData.seasons.length]);
 
