@@ -17,6 +17,18 @@ import { z } from "zod";
 
 import { useAuth } from "@/contexts/AuthContext";
 
+// Log das variáveis de ambiente no console do browser
+useEffect(() => {
+  console.log("=== VARIÁVEIS DE AMBIENTE NO BROWSER ===");
+  console.log("VITE_API_URL:", import.meta.env.VITE_API_URL);
+  console.log("VITE_SITE_URL:", import.meta.env.VITE_SITE_URL);
+  console.log("VITE_SENTRY_DSN:", import.meta.env.VITE_SENTRY_DSN ? `${import.meta.env.VITE_SENTRY_DSN.substring(0, 20)}...` : "Não definida");
+  console.log("VITE_SENTRY_ENVIRONMENT:", import.meta.env.VITE_SENTRY_ENVIRONMENT);
+  console.log("VITE_CLOUDINARY_CLOUD_NAME:", import.meta.env.VITE_CLOUDINARY_CLOUD_NAME);
+  console.log("VITE_CLOUDINARY_UPLOAD_PRESET:", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+  console.log("=========================================");
+}, []);
+
 const formSchema = {
   email: {
     required: "O email é obrigatório",

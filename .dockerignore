@@ -1,58 +1,26 @@
-# Dependências
+# Arquivos de dependências
 node_modules
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# Build outputs
-dist
-build
-
-# Arquivos de desenvolvimento
+# Arquivos de ambiente locais
+.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# Logs
-logs
-*.log
+# Arquivos de build e distribuição locais
+dist
+.next
+.nuxt
+.output
+.vercel
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage
-
-# nyc test coverage
-.nyc_output
-
-# Dependency directories
-jspm_packages/
-
-# Optional npm cache directory
-.npm
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# dotenv environment variables file
-.env
-
-# IDE files
-.vscode
-.idea
-*.swp
-*.swo
-
-# OS generated files
+# Arquivos do sistema operacional
 .DS_Store
 .DS_Store?
 ._*
@@ -61,21 +29,50 @@ jspm_packages/
 ehthumbs.db
 Thumbs.db
 
-# Git
+# Arquivos de IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Arquivos de logs
+logs
+*.log
+
+# Arquivos temporários
+.tmp
+temp/
+
+# Arquivos de cache
+.cache
+.parcel-cache
+.eslintcache
+
+# Arquivos de teste e cobertura
+coverage
+.nyc_output
+
+# Arquivos do Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Arquivos do Git
 .git
 .gitignore
 
-# Docker
-Dockerfile
-.dockerignore
-
-# Documentation
+# Arquivos de documentação
 README.md
-*.md
+CHANGELOG.md
+docs/
 
-# Test files
-**/*.test.*
-**/*.spec.*
-__tests__
-test
-tests
+# Arquivos de configuração desnecessários para produção
+.eslintrc*
+.prettierrc*
+.prettierignore
+tsconfig.json
+vite.config.ts
+tailwind.config.js
+postcss.config.js
+components.json
