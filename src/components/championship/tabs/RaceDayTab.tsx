@@ -332,7 +332,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     const autoStageId = getClosestStage(seasonStages) || seasonStages[0]?.id || "";
 
     setSelectedSeasonId((prev) => prev || autoSeasonId);
-    setSelectedStageId((prev) => prev || autoStageId);
+    setSelectedStageId((prev: string) => prev || autoStageId);
     didAutoSelectRef.current = true;
   }, [anyContextLoading, getSeasons, getStages, urlSeason, urlStage]);
 
