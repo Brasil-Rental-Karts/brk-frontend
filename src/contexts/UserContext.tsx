@@ -26,7 +26,6 @@ import {
 import type { Stage } from "@/lib/types/stage";
 
 import { useAuth } from "./AuthContext";
-import { useProgressiveLoading } from "@/hooks/use-progressive-loading";
 
 // Interfaces para os dados do Dashboard
 export interface DashboardChampionship {
@@ -148,11 +147,6 @@ interface UserProviderProps {
 
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const { user } = useAuth();
-  const { executeSequence, executeWithRetry, delay } = useProgressiveLoading({
-    maxRetries: 3,
-    baseDelay: 1000,
-    requestDelay: 300
-  });
 
   // Função utilitária para criar data a partir de date e time
   const createDateTime = (date: string, time: string): Date => {
@@ -212,26 +206,31 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       setLoading((prev) => ({ ...prev, championships: true }));
       setErrors((prev) => ({ ...prev, championships: null }));
 
-      // Buscar dados sequencialmente para evitar timeouts no Aiven gratuito
-      const allChampionships = await executeWithRetry(
-        () => ChampionshipService.getMy(),
-        'Carregando campeonatos'
-      );
-      
-      const userRegistrations = await executeWithRetry(
-        () => SeasonRegistrationService.getMyRegistrations(),
-        'Carregando inscrições'
-      );
-      
-      const stats = await executeWithRetry(
-        () => UserStatsService.getBasicStats(),
-        'Carregando estatísticas'
-      );
+      const [champsRes, regsRes, statsRes] = await Promise.allSettled([
+        ChampionshipService.getMy(),
+        SeasonRegistrationService.getMyRegistrations(),
+        UserStatsService.getBasicStats(),
+      ]);
 
-      // Processar campeonatos organizados
+      const allChampionships =
+        champsRes.status === "fulfilled" ? champsRes.value : [];
+      const userRegistrations =
+        regsRes.status === "fulfilled" ? regsRes.value : [];
+      const stats = statsRes.status === "fulfilled" ? statsRes.value : null;
+
+      if (champsRes.status === "rejected") {
+        console.warn("Falha ao carregar campeonatos:", champsRes.reason);
+      }
+      if (regsRes.status === "rejected") {
+        console.warn("Falha ao carregar inscrições:", regsRes.reason);
+      }
+      if (statsRes.status === "rejected") {
+        console.warn("Falha ao carregar estatísticas:", statsRes.reason);
+      }
+
       const organized = allChampionships
-        .filter((championship) => championship.isOwner || championship.isStaff)
-        .map((championship) => ({
+        .filter((championship: any) => championship.isOwner || championship.isStaff)
+        .map((championship: any) => ({
           id: championship.id,
           name: championship.name,
           shortDescription: championship.shortDescription,
@@ -240,23 +239,22 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           isOwner: championship.isOwner || false,
           isStaff: championship.isStaff || false,
           isPilot: championship.isPilot || false,
-          championshipImage: championship.championshipImage, // ADICIONADO
+          championshipImage: championship.championshipImage,
         }));
 
       setChampionshipsOrganized(organized);
 
-      // Processar campeonatos participando
       const pilotChampionships = allChampionships.filter(
-        (championship) => championship.isPilot,
+        (championship: any) => championship.isPilot,
       );
 
       const participations: DashboardChampionshipParticipation[] =
-        pilotChampionships.map((championship) => {
+        pilotChampionships.map((championship: any) => {
           const championshipRegistrations = userRegistrations.filter(
-            (reg) => reg.season?.championshipId === championship.id,
+            (reg: any) => reg.season?.championshipId === championship.id,
           );
 
-          const seasons = championshipRegistrations.map((reg) => {
+          const seasons = championshipRegistrations.map((reg: any) => {
             const totalInstallments = reg.payments?.length || 1;
             const paidInstallments =
               reg.payments?.filter((payment: any) =>
@@ -285,7 +283,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
               isOwner: championship.isOwner || false,
               isStaff: championship.isStaff || false,
               isPilot: championship.isPilot || false,
-              championshipImage: championship.championshipImage, // ADICIONADO
+              championshipImage: championship.championshipImage,
             },
             seasons,
           };
@@ -312,122 +310,125 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       setLoading((prev) => ({ ...prev, races: true }));
       setErrors((prev) => ({ ...prev, races: null }));
 
-      // Buscar campeonatos do usuário
       const allChampionships = await ChampionshipService.getMy();
 
-      // Filtrar apenas campeonatos onde o usuário está participando (é piloto)
       const participatingChampionships = allChampionships.filter(
-        (championship) =>
+        (championship: any) =>
           championship.isPilot || championship.isOwner || championship.isStaff,
       );
 
-      // Buscar temporadas e etapas sequencialmente para evitar timeouts
-      const allRaces: DashboardUpcomingRace[] = [];
-      
-      for (const championship of participatingChampionships) {
-        try {
-          const seasonsResult = await executeWithRetry(
-            () => SeasonService.getByChampionshipId(championship.id, 1, 100),
-            `Carregando temporadas do campeonato ${championship.name}`
+      // Buscar temporadas para todos os campeonatos em paralelo
+      const seasonsResults = await Promise.allSettled(
+        participatingChampionships.map((championship: any) =>
+          SeasonService.getByChampionshipId(championship.id, 1, 100)
+        )
+      );
+
+      const seasonsWithChampionship: Array<{ season: any; championship: any }> = [];
+      seasonsResults.forEach((res, idx) => {
+        if (res.status === "fulfilled") {
+          const championship = participatingChampionships[idx];
+          const seasons = res.value?.data || [];
+          seasons.forEach((season: any) =>
+            seasonsWithChampionship.push({ season, championship })
           );
-
-          for (const season of seasonsResult.data) {
-            try {
-              const upcomingStages = await executeWithRetry(
-                () => StageService.getUpcomingBySeasonId(season.id),
-                `Carregando etapas da temporada ${season.name}`
-              );
-
-              // Para cada etapa, criar objeto básico sem participação ainda
-              const basicRaces = upcomingStages.map((stage) => ({
-                stage,
-                championship: {
-                  id: championship.id,
-                  name: championship.name,
-                },
-                season: {
-                  id: season.id,
-                  name: season.name,
-                },
-                isOrganizer: !!(championship.isOwner || championship.isStaff),
-                availableCategories: [],
-                hasConfirmedParticipation: false,
-              }));
-
-              allRaces.push(...basicRaces);
-            } catch (error) {
-              console.error(
-                `Erro ao buscar etapas da temporada ${season.id}:`,
-                error,
-              );
-            }
-          }
-        } catch (error) {
-          console.error(
-            `Erro ao buscar temporadas do campeonato ${championship.id}:`,
-            error,
+        } else {
+          console.warn(
+            `Falha ao carregar temporadas do campeonato ${participatingChampionships[idx]?.id}:`,
+            res.reason
           );
         }
-      }
+      });
 
-      const flatRaces = allRaces;
+      // Buscar etapas futuras para todas as temporadas em paralelo
+      const stagesResults = await Promise.allSettled(
+        seasonsWithChampionship.map(({ season }) =>
+          StageService.getUpcomingBySeasonId(season.id)
+        )
+      );
+
+      const allRaces: DashboardUpcomingRace[] = [];
+      stagesResults.forEach((res, idx) => {
+        const { season, championship } = seasonsWithChampionship[idx];
+        if (res.status === "fulfilled") {
+          const upcomingStages = res.value || [];
+          const basicRaces = upcomingStages.map((stage: any) => ({
+            stage,
+            championship: {
+              id: championship.id,
+              name: championship.name,
+            },
+            season: {
+              id: season.id,
+              name: season.name,
+            },
+            isOrganizer: !!(championship.isOwner || championship.isStaff),
+            availableCategories: [],
+            hasConfirmedParticipation: false,
+          }));
+          allRaces.push(...basicRaces);
+        } else {
+          console.warn(
+            `Falha ao carregar etapas da temporada ${season?.id}:`,
+            res.reason
+          );
+        }
+      });
 
       // Remover duplicatas e ordenar
-      const uniqueRaces = flatRaces.reduce(
+      const uniqueRaces = allRaces.reduce(
         (acc: DashboardUpcomingRace[], current) => {
           const existingRace = acc.find(
             (race) => race.stage.id === current.stage.id,
           );
-
           if (!existingRace) {
             acc.push(current);
           } else if (current.isOrganizer && !existingRace.isOrganizer) {
             existingRace.isOrganizer = true;
           }
-
           return acc;
         },
         [],
       );
 
-      // Ordenar por data e hora (cronologicamente)
       const sortedRaces = uniqueRaces.sort((a, b) => {
         const dateA = createDateTime(a.stage.date, a.stage.time);
         const dateB = createDateTime(b.stage.date, b.stage.time);
-
         return dateA.getTime() - dateB.getTime();
       });
 
-      // Buscar stage participation sequencialmente para evitar timeouts
-      const racesWithParticipation: DashboardUpcomingRace[] = [];
-      
-      for (const race of sortedRaces) {
-        try {
-          const availableCategories = await executeWithRetry(
-            () => StageParticipationService.getAvailableCategories(race.stage.id),
-            `Carregando participação da etapa ${race.stage.name}`
-          );
-          const hasConfirmedParticipation = availableCategories.some(
-            (cat) => cat.isConfirmed,
-          );
+      // Buscar categorias disponíveis em paralelo
+      const categoriesResults = await Promise.allSettled(
+        sortedRaces.map((race) =>
+          StageParticipationService.getAvailableCategories(race.stage.id)
+        )
+      );
 
-          racesWithParticipation.push({
-            ...race,
-            availableCategories,
-            hasConfirmedParticipation,
-          });
-        } catch (error) {
-          console.error(
-            `Erro ao buscar categorias da etapa ${race.stage.id}:`,
-            error,
+      const racesWithParticipation: DashboardUpcomingRace[] = sortedRaces.map(
+        (race, idx) => {
+          const res = categoriesResults[idx];
+          if (res.status === "fulfilled") {
+            const availableCategories = res.value || [];
+            const hasConfirmedParticipation = availableCategories.some(
+              (cat: any) => cat.isConfirmed,
+            );
+            return {
+              ...race,
+              availableCategories,
+              hasConfirmedParticipation,
+            };
+          }
+          console.warn(
+            `Falha ao carregar categorias da etapa ${race.stage.id}:`,
+            (res as any).reason
           );
-          racesWithParticipation.push({
+          return {
             ...race,
             availableCategories: [],
             hasConfirmedParticipation: false,
-          });
+          };
         }
-      }
+      );
 
       setUpcomingRaces(racesWithParticipation);
     } catch (error: any) {
@@ -450,124 +451,56 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       setErrors((prev) => ({ ...prev, financial: null }));
       setFinancialData((prev) => ({ ...prev, syncing: false }));
 
-      // Buscar todas as inscrições do usuário
-      const registrations =
-        await SeasonRegistrationService.getMyRegistrations();
+      const registrations = await SeasonRegistrationService.getMyRegistrations();
 
-      // Verificar se há inscrições com pagamentos pendentes
-      const registrationsWithPendingPayments = [];
-      for (const reg of registrations) {
-        try {
-          const payments = await SeasonRegistrationService.getPaymentData(
-            reg.id,
-          );
-          if (
-            payments &&
-            payments.some((p) =>
-              [
-                "PENDING",
-                "AWAITING_PAYMENT",
-                "AWAITING_RISK_ANALYSIS",
-              ].includes(p.status),
-            )
-          ) {
-            registrationsWithPendingPayments.push(reg.id);
-          }
-        } catch (error) {
-          console.warn(
-            `Erro ao verificar pagamentos pendentes da inscrição ${reg.id}:`,
-            error,
-          );
-        }
-      }
+      const paymentsResults = await Promise.allSettled(
+        registrations.map((reg: any) =>
+          SeasonRegistrationService.getPaymentData(reg.id)
+        )
+      );
 
-      // Se há pagamentos pendentes, mostrar indicador de sincronização
-      if (registrationsWithPendingPayments.length > 0) {
-        setFinancialData((prev) => ({ ...prev, syncing: true }));
-      }
+      const registrationsWithPayments: DashboardFinancialRegistration[] = registrations.map(
+        (reg: any, idx: number) => {
+          const res = paymentsResults[idx];
+          if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length > 0) {
+            const payments = res.value;
 
-      // Buscar detalhes de pagamento sequencialmente para evitar timeouts
-      const registrationsWithPayments: DashboardFinancialRegistration[] = [];
-      
-      for (const reg of registrations) {
-        try {
-          const payments = await executeWithRetry(
-            () => SeasonRegistrationService.getPaymentData(reg.id),
-            `Carregando pagamentos da inscrição ${reg.id}`
-          );
-
-          if (payments && payments.length > 0) {
-            // Verificar se há pagamentos pendentes que precisam ser sincronizados
-            const pendingPaymentsToSync = payments.filter((p) =>
-              [
-                "PENDING",
-                "AWAITING_PAYMENT",
-                "AWAITING_RISK_ANALYSIS",
-              ].includes(p.status),
-            );
-
-            // Sincronizar pagamentos pendentes com o Asaas
-            if (pendingPaymentsToSync.length > 0) {
-              try {
-                await SeasonRegistrationService.syncPaymentStatus(reg.id);
-
-                // Buscar dados atualizados após a sincronização
-                const updatedPayments =
-                  await SeasonRegistrationService.getPaymentData(reg.id);
-                if (updatedPayments) {
-                  // Usar os dados atualizados
-                  payments.splice(0, payments.length, ...updatedPayments);
-                }
-              } catch (syncError) {
-                console.warn(
-                  `⚠️ Erro ao sincronizar pagamentos da inscrição ${reg.id}:`,
-                  syncError,
-                );
-                // Continuar com os dados originais em caso de erro
-              }
-            }
-
-            // Status que indicam pagamento completo
             const paidStatusList = [
               "RECEIVED",
               "CONFIRMED",
               "RECEIVED_IN_CASH",
             ];
-
-            // Status que indicam pagamento pendente
             const pendingStatusList = [
               "PENDING",
               "AWAITING_PAYMENT",
               "AWAITING_RISK_ANALYSIS",
             ];
-
-            // Status que indicam pagamento vencido
             const overdueStatusList = ["OVERDUE"];
 
-            const paidPayments = payments.filter((p) =>
+            const paidPayments = payments.filter((p: any) =>
               paidStatusList.includes(p.status),
             );
-            const pendingPayments = payments.filter((p) =>
+            const pendingPayments = payments.filter((p: any) =>
               pendingStatusList.includes(p.status),
             );
-            const overduePayments = payments.filter((p) =>
+            const overduePayments = payments.filter((p: any) =>
               overdueStatusList.includes(p.status),
             );
 
             const paidAmount = paidPayments.reduce(
-              (sum, p) => sum + Number(p.value),
+              (sum: number, p: any) => sum + Number(p.value),
               0,
             );
             const pendingAmount = pendingPayments.reduce(
-              (sum, p) => sum + Number(p.value),
+              (sum: number, p: any) => sum + Number(p.value),
               0,
             );
             const overdueAmount = overduePayments.reduce(
-              (sum, p) => sum + Number(p.value),
+              (sum: number, p: any) => sum + Number(p.value),
               0,
             );
 
-            registrationsWithPayments.push({
+            return {
               ...reg,
               paymentDetails: {
                 totalInstallments: payments.length,
@@ -577,46 +510,12 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
                 overdueAmount,
                 payments,
               },
-            });
-          } else {
-            // Fallback em caso de erro
-            registrationsWithPayments.push({
-              ...reg,
-              paymentDetails: {
-                totalInstallments: 1,
-                paidInstallments: [
-                  "paid",
-                  "exempt",
-                  "direct_payment",
-                ].includes(reg.paymentStatus)
-                  ? 1
-                  : 0,
-                paidAmount: ["paid", "exempt", "direct_payment"].includes(
-                  reg.paymentStatus,
-                )
-                  ? Number(reg.amount)
-                  : 0,
-                pendingAmount:
-                  reg.paymentStatus === "pending" ||
-                  reg.paymentStatus === "processing"
-                    ? Number(reg.amount)
-                    : 0,
-                overdueAmount:
-                  reg.paymentStatus === "failed" ||
-                  reg.paymentStatus === "overdue"
-                    ? Number(reg.amount)
-                    : 0,
-                payments: [],
-              },
-            });
+            };
           }
-        } catch (error) {
-          console.warn(
-            `Erro ao buscar pagamentos da inscrição ${reg.id}:`,
-            error,
-          );
-          // Fallback em caso de erro
-          registrationsWithPayments.push({
+          if (res.status === "rejected") {
+            console.warn(`Falha ao carregar pagamentos da inscrição ${reg.id}:`, res.reason);
+          }
+          return {
             ...reg,
             paymentDetails: {
               totalInstallments: 1,
@@ -630,19 +529,24 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
               paidAmount: ["paid", "exempt", "direct_payment"].includes(
                 reg.paymentStatus,
               )
-                ? reg.amount
+                ? Number(reg.amount)
                 : 0,
               pendingAmount:
-                reg.paymentStatus === "pending" ? reg.amount : 0,
+                reg.paymentStatus === "pending" ||
+                reg.paymentStatus === "processing"
+                  ? Number(reg.amount)
+                  : 0,
               overdueAmount:
-                reg.paymentStatus === "overdue" ? reg.amount : 0,
+                reg.paymentStatus === "failed" ||
+                reg.paymentStatus === "overdue"
+                  ? Number(reg.amount)
+                  : 0,
               payments: [],
             },
-          });
+          };
         }
-      }
+      );
 
-      // Calcular totais baseado nos detalhes de pagamento
       let totalPaid = 0;
       let totalPending = 0;
       let totalOverdue = 0;
@@ -701,21 +605,22 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
       const raceTracksData: Record<string, DashboardRaceTrack> = {};
 
-      for (const raceTrackId of missingRaceTrackIds) {
-        try {
-          const raceTrack = await executeWithRetry(
-            () => RaceTrackService.getById(raceTrackId),
-            `Carregando kartódromo ${raceTrackId}`
-          );
-          raceTracksData[raceTrackId] = {
+      const raceTracksResults = await Promise.allSettled(
+        missingRaceTrackIds.map((id) => RaceTrackService.getById(id))
+      );
+      raceTracksResults.forEach((res, idx) => {
+        const id = missingRaceTrackIds[idx];
+        if (res.status === "fulfilled") {
+          const raceTrack = res.value;
+          raceTracksData[id] = {
             id: raceTrack.id,
             name: raceTrack.name,
             address: raceTrack.address,
           };
-        } catch (error) {
-          console.error(`Erro ao buscar kartódromo ${raceTrackId}:`, error);
+        } else {
+          console.warn(`Falha ao buscar kartódromo ${id}:`, res.reason);
         }
-      }
+      });
 
       // Atualizar apenas os kartódromos que faltam
       setRaceTracks((prev) => ({
