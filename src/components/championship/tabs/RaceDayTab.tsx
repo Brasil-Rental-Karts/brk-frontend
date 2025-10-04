@@ -54,7 +54,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -297,6 +297,53 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
   const contextRegistrations = getRegistrations();
   const contextPenalties = getPenalties();
   const contextRaceTracks = getRaceTracks();
+
+  // Após entrar na tela, aguardar todas as requisições do ChampionshipContext terminarem
+  // e então selecionar automaticamente a etapa mais próxima (apenas na primeira vez
+  // e sem sobrescrever parâmetros vindos da URL)
+  const didAutoSelectRef = useRef(false);
+  const anyContextLoading = useMemo(
+    () => Object.values(contextLoading || {}).some(Boolean),
+    [contextLoading]
+  );
+
+  useEffect(() => {
+    if (didAutoSelectRef.current) return;
+    if (anyContextLoading) return;
+
+    const seasonsList = getSeasons();
+    const stagesList = getStages();
+    if (!seasonsList || seasonsList.length === 0) return;
+    if (!stagesList || stagesList.length === 0) return;
+
+    // Se a URL já definiu temporada/etapa, não sobrescrever
+    if (urlSeason !== null || urlStage !== null) {
+      didAutoSelectRef.current = true;
+      return;
+    }
+
+    const valid = seasonsList.filter(
+      (s: any) => s.status === "agendado" || s.status === "em_andamento",
+    );
+    const autoSeasonId = valid.length > 0 ? valid[0].id : seasonsList[0].id;
+    const seasonStages = stagesList.filter(
+      (stage: any) => stage.seasonId === autoSeasonId,
+    );
+    const autoStageId = getClosestStage(seasonStages) || seasonStages[0]?.id || "";
+
+    setSelectedSeasonId((prev) => prev || autoSeasonId);
+    setSelectedStageId((prev) => prev || autoStageId);
+    didAutoSelectRef.current = true;
+  }, [anyContextLoading, getSeasons, getStages, urlSeason, urlStage]);
+
+  // Exibir loading padrão enquanto aguarda carregamento inicial do contexto
+  const isBootstrapping = useMemo(() => {
+    if (anyContextLoading) return true;
+    if (!seasons || seasons.length === 0) return true;
+    if (!allContextStages || allContextStages.length === 0) return true;
+    if (!selectedSeasonId || !selectedStageId) return true;
+    return false;
+  }, [anyContextLoading, seasons.length, allContextStages.length, selectedSeasonId, selectedStageId]);
 
   // Filtrar dados por temporada selecionada
   const categories = contextCategories.filter(
@@ -3551,6 +3598,12 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
 
   return (
     <div className="space-y-6">
+      {isBootstrapping && (
+        <div className="p-6">
+          <Loading type="spinner" size="md" message="Carregando dados..." />
+        </div>
+      )}
+      <div className={isBootstrapping ? "hidden" : ""}>
       {/* Título da aba */}
       <div className="border-b border-gray-200 pb-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -6798,6 +6851,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 };
