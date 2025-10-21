@@ -1719,8 +1719,8 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
       return false; // Nunca bloqueia posição de classificação
     }
 
-    // Para finishPosition, verificar se tem status NC/DC/DQ
-    return status && ["nc", "dc", "dq"].includes(status.toLowerCase());
+    // Para finishPosition, verificar se tem status DC/DQ (NC agora é permitido)
+    return status && ["dc", "dq"].includes(status.toLowerCase());
   };
 
   // Função para obter o texto do status
@@ -1751,7 +1751,7 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
     batteryIndex: number,
     type: "startPosition" | "finishPosition",
   ) => {
-    // Verificar se o piloto tem status que impede alteração
+    // Verificar se o piloto tem status que impede alteração (DC/DQ bloqueiam, NC permite)
     if (hasBlockingStatus(categoryId, pilotId, batteryIndex, type)) {
       const statusText = getStatusText(categoryId, pilotId, batteryIndex);
       toast.error(
@@ -1784,7 +1784,19 @@ export const RaceDayTab: React.FC<RaceDayTabProps> = ({ championshipId }) => {
       updatedResults[categoryId][pilotId] = {};
     if (!updatedResults[categoryId][pilotId][batteryIndex])
       updatedResults[categoryId][pilotId][batteryIndex] = {};
+    
+    // Definir a posição
     updatedResults[categoryId][pilotId][batteryIndex][type] = position;
+    
+    // Se for posição de corrida (finishPosition) e o piloto tinha status NC/DC/DQ, 
+    // remover o status para indicar que completou a corrida
+    if (type === "finishPosition") {
+      const currentStatus = updatedResults[categoryId][pilotId][batteryIndex].status;
+      if (currentStatus && ["nc", "dc", "dq"].includes(currentStatus.toLowerCase())) {
+        updatedResults[categoryId][pilotId][batteryIndex].status = "completed";
+      }
+    }
+    
     setStageResults(updatedResults);
     setStageResultsModified(true);
     try {
