@@ -126,6 +126,8 @@ export class SeasonRegistrationService {
   static async create(data: CreateRegistrationData): Promise<{
     registration: SeasonRegistration;
     paymentData: RegistrationPaymentData;
+    message?: string;
+    preRegistrationPeriod?: boolean;
   }> {
     try {
       const response = await api.post<{
@@ -134,9 +136,14 @@ export class SeasonRegistrationService {
           registration: SeasonRegistration;
           paymentData: RegistrationPaymentData;
         };
+        preRegistrationPeriod?: boolean;
       }>("/season-registrations", data);
 
-      return response.data.data;
+      return {
+        ...response.data.data,
+        message: response.data.message,
+        preRegistrationPeriod: response.data.preRegistrationPeriod,
+      };
     } catch (error: any) {
       console.error("Error creating registration:", error);
       throw new Error(

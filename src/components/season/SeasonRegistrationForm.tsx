@@ -702,7 +702,20 @@ export const SeasonRegistrationForm: React.FC<SeasonRegistrationFormProps> = ({
     },
     onSuccess: (result) => {
       setProcessing(false);
-      toast.success("Inscrição realizada com sucesso!");
+      
+      // Usar mensagem do backend se disponível, destacando período exclusivo
+      const successMessage = result.message || "Inscrição realizada com sucesso!";
+      
+      // Se foi durante período exclusivo, destacar com ícone e estilo especial
+      if (result.preRegistrationPeriod) {
+        toast.success(successMessage, {
+          description: "Você garantiu sua vaga com prioridade! 🏁",
+          duration: 5000,
+        });
+      } else {
+        toast.success(successMessage);
+      }
+      
       if (onSuccessProp) {
         onSuccessProp(result.registration.id);
       } else {
