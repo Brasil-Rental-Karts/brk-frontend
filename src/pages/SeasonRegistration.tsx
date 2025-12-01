@@ -8,6 +8,7 @@ import {
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { PreRegistrationBanner } from "@/components/season/PreRegistrationBanner";
 import { SeasonRegistrationForm } from "@/components/season/SeasonRegistrationForm";
 import { PageLoader } from "@/components/ui/loading";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,6 +38,10 @@ export const SeasonRegistration: React.FC = () => {
     "por_temporada" | "por_etapa" | null
   >(null);
   const [processing, setProcessing] = useState(false);
+  const [showPreRegistrationBanner, setShowPreRegistrationBanner] =
+    useState(false);
+  const [generalRegistrationDate, setGeneralRegistrationDate] =
+    useState<Date | null>(null);
 
   // Determina o identificador da temporada
   const seasonIdentifier = seasonSlug || seasonId;
@@ -59,6 +64,59 @@ export const SeasonRegistration: React.FC = () => {
 
         setSeason(seasonData);
         setUserRegistrations(userRegistrationsData);
+
+        // Verificar se período exclusivo de pré-inscrição está ativo
+        const isPreRegistrationActive = (() => {
+          // Se as inscrições não estão abertas, período exclusivo está inativo
+          if (!seasonData.registrationOpen) {
+            return false;
+          }
+
+          // Se pré-inscrição não está habilitada, período exclusivo está inativo
+          if (!seasonData.preRegistrationEnabled) {
+            return false;
+          }
+
+          // Se não há data de término definida, período exclusivo está inativo
+          if (!seasonData.preRegistrationEndDate) {
+            return false;
+          }
+
+          // Comparar data atual com data de término da pré-inscrição
+          const now = new Date();
+          const endDate = new Date(seasonData.preRegistrationEndDate);
+
+          // Período exclusivo está ativo se a data atual é anterior à data de término
+          return now < endDate;
+        })();
+
+        // Se período exclusivo está ativo, verificar elegibilidade
+        if (isPreRegistrationActive && user) {
+          try {
+            const eligibility =
+              await SeasonRegistrationService.checkPreRegistrationEligibility(
+                seasonData.id
+              );
+
+            if (!eligibility.eligible) {
+              // Calcular data de abertura geral (1 dia após término da pré-inscrição)
+              const endDate = new Date(seasonData.preRegistrationEndDate!);
+              const generalDate = new Date(
+                endDate.getTime() + 24 * 60 * 60 * 1000
+              );
+              setGeneralRegistrationDate(generalDate);
+              setShowPreRegistrationBanner(true);
+              setLoading(false);
+              return; // Não continuar com o fluxo normal
+            }
+          } catch (error) {
+            console.error(
+              "Erro ao verificar elegibilidade de pré-inscrição:",
+              error
+            );
+            // Em caso de erro, continuar com o fluxo normal (não bloquear)
+          }
+        }
 
         // Verificar se o usuário já tem inscrição nesta temporada
         const existingRegistration = userRegistrationsData.find(
@@ -138,6 +196,17 @@ export const SeasonRegistration: React.FC = () => {
 
   if (loading) {
     return <PageLoader message="Carregando dados da temporada..." />;
+  }
+
+  // Exibir banner de pré-inscrição se necessário
+  if (showPreRegistrationBanner && generalRegistrationDate) {
+    return (
+      <PreRegistrationBanner
+        generalRegistrationDate={generalRegistrationDate}
+        seasonName={season?.name}
+        onBack={() => navigate(-1)}
+      />
+    );
   }
 
   if (error || !season) {

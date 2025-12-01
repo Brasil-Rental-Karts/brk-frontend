@@ -102,6 +102,25 @@ export class SeasonRegistrationService {
   private static readonly BASE_URL = "/season-registrations";
 
   /**
+   * Verificar elegibilidade do usuário para pré-inscrição
+   */
+  static async checkPreRegistrationEligibility(
+    seasonId: string
+  ): Promise<{ eligible: boolean; previousSeasonId?: string }> {
+    try {
+      const response = await api.get<{
+        eligible: boolean;
+        previousSeasonId?: string;
+      }>(`/season-registrations/pre-registration-eligibility/${seasonId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error("Error checking pre-registration eligibility:", error);
+      // Se houver erro, assumir não elegível
+      return { eligible: false };
+    }
+  }
+
+  /**
    * Criar uma nova inscrição em temporada
    */
   static async create(data: CreateRegistrationData): Promise<{
