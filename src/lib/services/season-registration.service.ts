@@ -146,6 +146,16 @@ export class SeasonRegistrationService {
       };
     } catch (error: any) {
       console.error("Error creating registration:", error);
+      
+      // Se for erro 403 de pré-inscrição, preservar a resposta completa
+      if (error.response?.status === 403 && error.response?.data?.code === 'PRE_REGISTRATION_PERIOD_ACTIVE') {
+        const customError: any = new Error(error.response.data.message || "Erro ao criar inscrição.");
+        customError.status = 403;
+        customError.code = error.response.data.code;
+        customError.generalRegistrationDate = error.response.data.generalRegistrationDate;
+        throw customError;
+      }
+      
       throw new Error(
         error.response?.data?.message ||
           "Erro ao criar inscrição. Tente novamente.",

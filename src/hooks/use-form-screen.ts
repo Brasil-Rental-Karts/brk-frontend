@@ -224,10 +224,34 @@ export const useFormScreen = <TData, TSubmit>({
       }
       onSuccess(result);
     } catch (err: any) {
-      const message =
-        err.message || errorMessage || "Erro ao salvar. Tente novamente.";
-      setError(message);
-      toast.error(message);
+      // Tratar especificamente erro 403 de pré-inscrição
+      if (err.status === 403 && err.code === 'PRE_REGISTRATION_PERIOD_ACTIVE') {
+        const message = err.message || "Período exclusivo de pré-inscrição ativo.";
+        setError(message);
+        
+        // Exibir toast informativo com data destacada
+        if (err.generalRegistrationDate) {
+          const date = new Date(err.generalRegistrationDate);
+          const formattedDate = date.toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          });
+          toast.error(message, {
+            description: `As inscrições gerais abrem em ${formattedDate}.`,
+            duration: 6000,
+          });
+        } else {
+          toast.error(message, {
+            duration: 5000,
+          });
+        }
+      } else {
+        const message =
+          err.message || errorMessage || "Erro ao salvar. Tente novamente.";
+        setError(message);
+        toast.error(message);
+      }
       setHasUnsavedChanges(true);
     } finally {
       setIsSaving(false);
