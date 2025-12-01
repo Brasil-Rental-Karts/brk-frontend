@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
+import { Alert, AlertDescription } from "brk-design-system";
+import { Badge } from "@/components/ui/badge";
 import { FormSectionConfig } from "@/components/ui/dynamic-form";
 import { FormScreen } from "@/components/ui/FormScreen";
 import { useChampionshipData } from "@/contexts/ChampionshipContext";
@@ -8,6 +10,89 @@ import { useChampionshipData } from "@/contexts/ChampionshipContext";
 import { PaymentConditions } from "../components/ui/payment-conditions";
 import { SeasonData, SeasonService } from "../lib/services/season.service";
 import { formatDateForDisplay, formatDateToISO } from "../utils/date";
+
+// Componente de feedback visual para pré-inscrição
+const PreRegistrationFeedback: React.FC<{
+  hasPreviousSeason: boolean;
+  preRegistrationEnabled?: boolean;
+  preRegistrationEndDate?: string | Date | null;
+  getValues?: () => { enabled?: boolean; endDate?: string | Date | null };
+}> = ({ hasPreviousSeason, preRegistrationEnabled: propEnabled, preRegistrationEndDate: propEndDate, getValues }) => {
+  const [enabled, setEnabled] = useState(propEnabled);
+  const [endDate, setEndDate] = useState(propEndDate);
+
+  // Observar mudanças nos valores do formulário apenas quando getValues mudar
+  useEffect(() => {
+    if (!getValues) return;
+    const values = getValues();
+    if (values.enabled !== undefined) setEnabled(values.enabled);
+    if (values.endDate !== undefined) setEndDate(values.endDate);
+  }, [getValues]);
+
+  // Usar valores das props se disponíveis, senão usar estado
+  const preRegistrationEnabled = enabled ?? propEnabled;
+  const preRegistrationEndDate = endDate ?? propEndDate;
+  if (preRegistrationEnabled && preRegistrationEndDate) {
+    const formattedEndDate = preRegistrationEndDate instanceof Date
+      ? formatDateForDisplay(preRegistrationEndDate.toISOString())
+      : formatDateForDisplay(preRegistrationEndDate);
+    
+    // Calcular data de abertura geral (1 dia após término)
+    const endDateObj = preRegistrationEndDate instanceof Date 
+      ? preRegistrationEndDate 
+      : new Date(preRegistrationEndDate);
+    const generalRegistrationDate = new Date(endDateObj.getTime() + 24 * 60 * 60 * 1000);
+    
+    return (
+      <Alert className="border-green-200 bg-green-50">
+        <AlertDescription className="text-green-800">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="default" className="bg-green-600">
+              Pré-Inscrição Ativa
+            </Badge>
+            <span>
+              Pré-inscrição configurada até <strong>{formattedEndDate}</strong>. 
+              As inscrições gerais abrem automaticamente em <strong>{formatDateForDisplay(generalRegistrationDate.toISOString())}</strong>.
+            </span>
+          </div>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (hasPreviousSeason) {
+    return (
+      <Alert className="border-blue-200 bg-blue-50">
+        <AlertDescription className="text-blue-800">
+          <div className="flex items-center gap-2">
+            <Badge variant="default" className="bg-blue-600">
+              Disponível
+            </Badge>
+            <span>
+              Pré-inscrição disponível. Você pode ativar um período exclusivo para pilotos que participaram da temporada anterior.
+            </span>
+          </div>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  return (
+    <Alert className="border-gray-200 bg-gray-50">
+      <AlertDescription className="text-gray-600">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline">
+            Indisponível
+          </Badge>
+          <span>
+            Pré-inscrição disponível apenas a partir da segunda temporada do campeonato. 
+            É necessário ter uma temporada anterior com participantes para habilitar esta funcionalidade.
+          </span>
+        </div>
+      </AlertDescription>
+    </Alert>
+  );
+};
 
 type FormPaymentCondition = {
   type: "por_temporada" | "por_etapa";
@@ -50,6 +135,11 @@ export const CreateSeason = () => {
 
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
   const [hasPreviousSeason, setHasPreviousSeason] = useState<boolean>(false);
+  const [currentSeasonData, setCurrentSeasonData] = useState<any>(null);
+  const preRegistrationValuesRef = useRef<{
+    enabled?: boolean;
+    endDate?: string | Date | null;
+  }>({});
 
   // Configurar o formulário
   useEffect(() => {
@@ -130,6 +220,16 @@ export const CreateSeason = () => {
           : "Pré-inscrição disponível apenas a partir da segunda temporada do campeonato",
         fields: [
           {
+            id: "preRegistrationFeedback",
+            name: "",
+            type: "custom",
+            customComponent: PreRegistrationFeedback,
+            customComponentProps: {
+              hasPreviousSeason,
+              getValues: () => preRegistrationValuesRef.current,
+            },
+          },
+          {
             id: "preRegistrationEnabled",
             name: "Habilitar Pré-Inscrição",
             type: "checkbox",
@@ -203,9 +303,15 @@ export const CreateSeason = () => {
     checkPreviousSeason();
   }, [championshipId, getSeasons, isEditMode, seasonId]);
 
-  // Handler para mudanças de campo (pode ser usado para lógica adicional se necessário)
-  const handleFieldChange = useCallback((fieldId: string, value: any) => {
-    // Lógica adicional pode ser adicionada aqui se necessário
+  // Handler para mudanças de campo - atualizar ref para feedback visual
+  const handleFieldChange = useCallback((fieldId: string, value: any, formData: any) => {
+    // Atualizar apenas os campos de pré-inscrição para feedback visual
+    if (fieldId === 'preRegistrationEnabled' || fieldId === 'preRegistrationEndDate') {
+      preRegistrationValuesRef.current = {
+        enabled: formData.preRegistrationEnabled,
+        endDate: formData.preRegistrationEndDate,
+      };
+    }
   }, []);
 
   const transformInitialData = useCallback((data: any) => {
@@ -314,14 +420,18 @@ export const CreateSeason = () => {
       const seasons = getSeasons();
       const seasonFromContext = seasons.find((s) => s.id === seasonId);
 
+      let seasonData;
       if (seasonFromContext) {
-        return seasonFromContext;
+        seasonData = seasonFromContext;
       } else {
         // Fallback para backend se não encontrar no contexto
-        const season = await SeasonService.getById(seasonId);
-
-        return season;
+        seasonData = await SeasonService.getById(seasonId);
       }
+
+      // Armazenar dados da temporada para feedback visual
+      setCurrentSeasonData(seasonData);
+
+      return seasonData;
     } catch (err: any) {
       console.error("❌ CreateSeason: Erro ao carregar temporada:", err);
       throw new Error("Erro ao carregar temporada: " + err.message);
