@@ -17,6 +17,8 @@ export interface SeasonData {
   endDate: string;
   status: "agendado" | "em_andamento" | "cancelado" | "finalizado";
   registrationOpen: boolean;
+  preRegistrationEnabled?: boolean;
+  preRegistrationEndDate?: string | null;
   // Nova estrutura para múltiplas condições de pagamento
   paymentConditions?: PaymentCondition[];
   // Campos legados para compatibilidade

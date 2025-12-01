@@ -26,6 +26,8 @@ type FormData = {
   endDate: string;
   status: "agendado" | "em_andamento" | "cancelado" | "finalizado";
   registrationOpen: boolean;
+  preRegistrationEnabled: boolean;
+  preRegistrationEndDate: string;
   paymentConditions: FormPaymentCondition[];
 };
 
@@ -47,6 +49,7 @@ export const CreateSeason = () => {
   const championship = getChampionshipInfo();
 
   const [formConfig, setFormConfig] = useState<FormSectionConfig[]>([]);
+  const [hasPreviousSeason, setHasPreviousSeason] = useState<boolean>(false);
 
   // Configurar o formulário
   useEffect(() => {
@@ -121,6 +124,33 @@ export const CreateSeason = () => {
         ],
       },
       {
+        section: "Pré-Inscrição",
+        detail: hasPreviousSeason
+          ? "Ofereça um período exclusivo de inscrição para pilotos que participaram da temporada anterior"
+          : "Pré-inscrição disponível apenas a partir da segunda temporada do campeonato",
+        fields: [
+          {
+            id: "preRegistrationEnabled",
+            name: "Habilitar Pré-Inscrição",
+            type: "checkbox",
+            mandatory: false,
+            disabled: !hasPreviousSeason,
+          },
+          {
+            id: "preRegistrationEndDate",
+            name: "Data de término da pré-inscrição",
+            type: "inputMask",
+            mask: "date",
+            mandatory: true,
+            placeholder: "DD/MM/AAAA",
+            conditionalField: {
+              dependsOn: "preRegistrationEnabled",
+              showWhen: (value: any) => value === true || value === "true",
+            },
+          },
+        ],
+      },
+      {
         section: "Condições de Pagamento",
         detail:
           "Configure as condições de pagamento disponíveis. Cada condição pode ter métodos de pagamento específicos.",
@@ -135,6 +165,47 @@ export const CreateSeason = () => {
       },
     ];
     setFormConfig(config);
+  }, [hasPreviousSeason]);
+
+  // Verificar se existe temporada anterior com participantes
+  useEffect(() => {
+    const checkPreviousSeason = async () => {
+      if (!championshipId) return;
+
+      try {
+        const seasons = getSeasons();
+        // Filtrar temporada atual se estiver editando
+        const otherSeasons = isEditMode && seasonId
+          ? seasons.filter((s) => s.id !== seasonId)
+          : seasons;
+
+        // Ordenar por endDate descendente para pegar a mais recente
+        const sortedSeasons = [...otherSeasons].sort((a, b) => {
+          const dateA = new Date(a.endDate).getTime();
+          const dateB = new Date(b.endDate).getTime();
+          return dateB - dateA;
+        });
+
+        // Verificar se existe temporada anterior (que já terminou)
+        // A validação completa de participantes será feita no backend
+        const now = new Date();
+        const previousSeason = sortedSeasons.find(
+          (s) => new Date(s.endDate) < now
+        );
+
+        setHasPreviousSeason(!!previousSeason);
+      } catch (error) {
+        console.error("Erro ao verificar temporada anterior:", error);
+        setHasPreviousSeason(false);
+      }
+    };
+
+    checkPreviousSeason();
+  }, [championshipId, getSeasons, isEditMode, seasonId]);
+
+  // Handler para mudanças de campo (pode ser usado para lógica adicional se necessário)
+  const handleFieldChange = useCallback((fieldId: string, value: any) => {
+    // Lógica adicional pode ser adicionada aqui se necessário
   }, []);
 
   const transformInitialData = useCallback((data: any) => {
@@ -172,6 +243,8 @@ export const CreateSeason = () => {
       startDate: formatDateSafely(data.startDate),
       endDate: formatDateSafely(data.endDate),
       registrationOpen: data.registrationOpen.toString(),
+      preRegistrationEnabled: data.preRegistrationEnabled ?? false,
+      preRegistrationEndDate: formatDateSafely(data.preRegistrationEndDate),
       paymentConditions: data.paymentConditions || [
         {
           type: "por_temporada",
@@ -197,19 +270,30 @@ export const CreateSeason = () => {
 
   const transformSubmitData = useCallback(
     (data: any): SeasonData => {
-      return {
+      const preRegistrationEnabled = 
+        data.preRegistrationEnabled === true || 
+        data.preRegistrationEnabled === "true";
+
+      // Sempre enviar os campos de pré-inscrição explicitamente
+      const submitData: SeasonData = {
         name: data.name,
         description: data.description,
         startDate: formatDateToISO(data.startDate) || "",
         endDate: formatDateToISO(data.endDate) || "",
         status: data.status,
         registrationOpen: data.registrationOpen === "true",
+        preRegistrationEnabled: preRegistrationEnabled,
+        preRegistrationEndDate: preRegistrationEnabled && data.preRegistrationEndDate
+          ? formatDateToISO(data.preRegistrationEndDate) || null
+          : null,
         paymentConditions: data.paymentConditions, // Enviar todas as condições, incluindo as inativas
         paymentMethods: [], // Campo legado - será removido
         championshipId: championshipId!,
         pixInstallments: 1, // Campo legado - será removido
         creditCardInstallments: 1, // Campo legado - será removido
       };
+
+      return submitData;
     },
     [championshipId],
   );
@@ -293,6 +377,7 @@ export const CreateSeason = () => {
       updateData={updateData}
       transformInitialData={transformInitialData}
       transformSubmitData={transformSubmitData}
+      onFieldChange={handleFieldChange}
       onSuccess={onSuccess}
       onCancel={onCancel}
       initialValues={
@@ -305,6 +390,8 @@ export const CreateSeason = () => {
               endDate: "",
               status: "agendado",
               registrationOpen: "true",
+              preRegistrationEnabled: false,
+              preRegistrationEndDate: "",
               paymentConditions: [
                 {
                   type: "por_temporada",
